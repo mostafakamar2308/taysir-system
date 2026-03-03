@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, Globe, BookOpen } from "lucide-react";
+import { Menu, X, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
@@ -70,7 +70,7 @@ const Navbar = () => {
 
           {/* Actions */}
           <div className="flex items-center gap-3">
-            {locale === "en" ? (
+            {/* {locale === "en" ? (
               <Link
                 href="/ar"
                 locale="ar"
@@ -87,7 +87,7 @@ const Navbar = () => {
                 <Globe className="w-4 h-4" />
                 <span>{"English"}</span>
               </Link>
-            )}
+            )} */}
 
             <Link href="/register" className="hidden sm:block">
               <Button
