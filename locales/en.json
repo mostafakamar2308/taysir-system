@@ -1,0 +1,350 @@
+{
+  "Metadata": {
+    "title": "Taysir System",
+    "description": "Taysir System"
+  },
+  "nav": {
+    "home": "Home",
+    "features": "Features",
+    "pricing": "Pricing",
+    "howItWorks": "How It Works",
+    "joinWaitlist": "Join Waitlist",
+    "brand": "Taysir System",
+    "brandSub": "Quran Academy Management Made Easy"
+  },
+  "hero": {
+    "mainHeadline": "Say Goodbye to Chaos, Enjoy Organized Management",
+    "mainSubheadline": "The first Arabic system designed specifically for Quran memorization circle management",
+    "mainDescription": "Many academy directors spend long hours tracking administrative details, losing valuable teaching and supervision time. Taysir was born to carry this burden for you.",
+    "headline": "Choose Your Next Day",
+    "subheadline": "Go from a paper manager to a development leader",
+    "before": {
+      "label": "Your Typical Day",
+      "items": [
+        "4 hours of routine work",
+        "Manual invoices prone to errors",
+        "Random parent communication",
+        "Opportunities lost to chaos"
+      ]
+    },
+    "after": {
+      "label": "Your Day with Taysir",
+      "items": [
+        "Just 30 minutes of oversight",
+        "An automated system that never errs",
+        "Organized communication automatically",
+        "Clear expansion opportunities"
+      ]
+    },
+    "cta": "Join the Waitlist for Free",
+    "trust": "Used by 20+ academies already"
+  },
+  "storyJourney": {
+    "title": "A Transformation Story: From Dawn to Dusk",
+    "transition": "How could your day look?",
+    "before": [
+      {
+        "time": "6 AM",
+        "title": "22 notifications waiting",
+        "content": "You wake up to notification chaos: a teacher absent, a parent inquiring, a new student wanting to register",
+        "emoji": "🌅",
+        "emoji2": "📱",
+        "period": "Dawn - The Exhausting Start"
+      },
+      {
+        "time": "10 AM",
+        "title": "3 hours wasted",
+        "content": "You calculate invoices manually, arrange the schedule on paper, call those late on payments",
+        "emoji": "⏰",
+        "emoji2": "📊",
+        "period": "Morning - Wasted Time"
+      },
+      {
+        "time": "2 PM",
+        "title": "A potential student leaves",
+        "content": "A parent wants to enroll 3 children, but you can't quickly find available slots — they go to your competitor",
+        "emoji": "🚪",
+        "emoji2": "❌",
+        "period": "Noon - Lost Opportunities"
+      },
+      {
+        "time": "9 PM",
+        "title": "You sleep wondering",
+        "content": "Where did my time go? When will I expand? Will I forever be a paper manager?",
+        "emoji": "😴",
+        "emoji2": "❓",
+        "period": "Evening - Exhaustion"
+      }
+    ],
+    "after": [
+      {
+        "time": "6 AM",
+        "title": "One notification",
+        "content": "You wake up to: 'Everything is under control.' The system handled all arrangements overnight",
+        "emoji": "🌅",
+        "emoji2": "✅",
+        "period": "Dawn - A Calm Start"
+      },
+      {
+        "time": "10 AM",
+        "title": "Planning for expansion",
+        "content": "Instead of routine: you read about education, prepare a workshop for teachers, think about new partnerships",
+        "emoji": "📚",
+        "emoji2": "💡",
+        "period": "Morning - True Focus"
+      },
+      {
+        "time": "2 PM",
+        "title": "Registration in 5 minutes",
+        "content": "A parent calls, you send the auto-registration link, booking and payment confirmation done in minutes",
+        "emoji": "🚪",
+        "emoji2": "✅",
+        "period": "Noon - Welcoming Opportunities"
+      },
+      {
+        "time": "9 PM",
+        "title": "You sleep peacefully",
+        "content": "You know your academy grew 30% this month, and you spent the day as a leader, not a paper manager",
+        "emoji": "😊",
+        "emoji2": "📈",
+        "period": "Evening - Achievement"
+      }
+    ]
+  },
+  "problems": {
+    "title": "Do you face these challenges?",
+    "items": [
+      {
+        "title": "Schedule Chaos",
+        "description": "Unstable class schedules causing confusion and disruption."
+      },
+      {
+        "title": "Payment Tracking",
+        "description": "Student payment follow-ups consuming days every month."
+      },
+      {
+        "title": "Random Communication",
+        "description": "Parent communication about student progress is unstructured."
+      },
+      {
+        "title": "Manual Reports",
+        "description": "Performance reports require significant manual effort."
+      },
+      {
+        "title": "Scaling Difficulties",
+        "description": "You want to expand, but administrative complexity stands in the way."
+      }
+    ]
+  },
+  "features": {
+    "title": "Imagine all these tasks happening automatically",
+    "items": [
+      {
+        "title": "Smart Scheduling",
+        "description": "Adapts to changes and notifies everyone automatically"
+      },
+      {
+        "title": "Automated Financial System",
+        "description": "Issues invoices, tracks payments, and prepares financial reports"
+      },
+      {
+        "title": "WhatsApp Integration",
+        "description": "Monthly reports sent automatically to parents"
+      },
+      {
+        "title": "Student Progress Tracking",
+        "description": "One dashboard to track every student and teacher"
+      },
+      {
+        "title": "Multi-branch Management",
+        "description": "Custom interfaces for admin, supervisor, teacher, and parent"
+      },
+      {
+        "title": "Automated Reports",
+        "description": "Detailed performance reports generated automatically"
+      }
+    ]
+  },
+  "calculator": {
+    "title": "How many hours will you save monthly?",
+    "teachers": "Number of Teachers",
+    "students": "Number of Students",
+    "branches": "Number of Branches",
+    "calculate": "Calculate Now",
+    "hoursLabel": "hours / month",
+    "daysLabel": "work days / year",
+    "hoursShort": "hrs",
+    "breakdownTitle": "Where do your hours go?",
+    "breakdown": [
+      { "label": "Sending payment notices & chasing late payers" },
+      { "label": "Coordinating schedules & classes with teachers" },
+      { "label": "Preparing & sending parent progress reports" },
+      { "label": "Manually recording attendance & absences" },
+      { "label": "Preparing financial reports & invoices" },
+      { "label": "Responding to new registration inquiries" }
+    ]
+  },
+  "pricing": {
+    "title": "Plans for every size",
+    "monthly": "Monthly",
+    "yearly": "Yearly",
+    "yearlySave": "Save 2 months",
+    "limitedOffer": "Register now and get the launch offer before spots run out!",
+    "earlyBird": {
+      "first10": {
+        "title": "🏆 First 10 Subscribers",
+        "description": "Pro plan free for 2 months + 40% off the first year"
+      },
+      "others": {
+        "title": "🎁 Other Early Registrants",
+        "description": "40% off the first year of the Pro plan"
+      }
+    },
+    "free": {
+      "name": "Starter",
+      "price": "Free",
+      "badge": "Best for beginners",
+      "cta": "Start Free",
+      "features": [
+        "Up to 5 teachers",
+        "Up to 20 students",
+        "Basic circle management",
+        "Monthly performance reports",
+        "WhatsApp support",
+        "Access to private managers group"
+      ]
+    },
+    "pro": {
+      "name": "Taysir Pro",
+      "originalPrice": "$99",
+      "price": "$59",
+      "period": "/month",
+      "yearlyPeriod": "/year",
+      "badge": "40% early bird discount",
+      "cta": "Join Waitlist - 1 Month Free",
+      "features": [
+        "Up to 15 teachers",
+        "Up to 300 students",
+        "All free plan features",
+        "Complete financial system",
+        "WhatsApp communication",
+        "Detailed financial reports",
+        "Phone support",
+        "Automatic performance report delivery"
+      ]
+    }
+  },
+  "howItWorks": {
+    "title": "Your Journey from Today to Tomorrow",
+    "steps": [
+      {
+        "title": "Register on the list",
+        "description": "Sign up on this website in just one minute",
+        "day": "Day 1"
+      },
+      {
+        "title": "We connect directly",
+        "description": "We reach out immediately to confirm and answer your questions",
+        "day": "Day 2"
+      },
+      {
+        "title": "Full 30-day trial",
+        "description": "Experience the full system with no charges or restrictions",
+        "day": "Week 1"
+      },
+      {
+        "title": "Start your real transformation",
+        "description": "Notice the difference in your time, productivity, and peace of mind",
+        "day": "Week 3"
+      },
+      {
+        "title": "Become a new success story",
+        "description": "Your academy grows while you focus on your mission",
+        "day": "Month 2"
+      }
+    ]
+  },
+  "finalCta": {
+    "title": "Before you close this page...",
+    "story": "Imagine: a month from now, you'll open your eyes to a calm morning. You know your academy runs itself, and your time is yours again. This isn't a dream — it's a decision.",
+    "subtitle": "Decide now to write the next chapter of your story.",
+    "waitlistCount": "Join 20+ directors already on the waitlist",
+    "placeholder": "Your email address",
+    "cta": "Write Your New Chapter"
+  },
+  "footer": {
+    "brand": "Taysir System",
+    "vision": "Making Quran circle management an easy part of teaching, not a barrier.",
+    "quickLinks": "Quick Links",
+    "contact": "Contact Us",
+    "followUs": "Follow Us",
+    "home": "Home",
+    "features": "Features",
+    "pricing": "Pricing",
+    "register": "Register",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service",
+    "email": "info@taysir-system.com",
+    "website": "taysir-system.com",
+    "copyright": "© 2024 Taysir System. Crafted with care for the people of the Quran."
+  },
+  "register": {
+    "title": "Be among the pioneers who will change Quran circle management",
+    "backHome": "Back to Home",
+    "offers": {
+      "title": "Early Registration Benefits",
+      "items": [
+        "One free month of the premium plan",
+        "Permanent 40% discount for the first 20 subscribers",
+        "Priority technical support"
+      ]
+    },
+    "form": {
+      "personalInfo": "Personal Information",
+      "academyInfo": "Academy Information",
+      "incentives": "Bonus Rewards",
+      "fullName": "Full Name",
+      "email": "Email Address",
+      "phone": "Phone Number (WhatsApp)",
+      "sameWhatsapp": "Same number for WhatsApp",
+      "academyName": "Academy or Circle Name",
+      "academySize": "Approximate Number of Teachers",
+      "academySizeOptions": {
+        "small": "1-5 teachers",
+        "medium": "5-15 teachers",
+        "large": "15+ teachers"
+      },
+      "currentMethod": "Current Management Method",
+      "methodOptions": {
+        "excel": "Excel / Spreadsheets",
+        "paper": "Paper / Manual",
+        "software": "Other Software"
+      },
+      "reviewBonus": "I agree to write an honest review after trial (1 extra free month)",
+      "videoBonus": "I agree to record a video review (2 extra free months)",
+      "termsAccept": "I agree to the Terms of Service and Privacy Policy",
+      "submit": "Reserve My Spot Now",
+      "submitting": "Registering..."
+    },
+    "success": {
+      "title": "Registration Successful! 🎉",
+      "subtitle": "Welcome to the Taysir family",
+      "steps": [
+        "We'll contact you via WhatsApp within 24 hours",
+        "You'll receive trial credentials at launch",
+        "Follow us on social media for updates"
+      ],
+      "backHome": "Back to Home"
+    },
+    "validation": {
+      "nameRequired": "Name is required",
+      "nameMax": "Name must be less than 100 characters",
+      "emailRequired": "Email is required",
+      "emailInvalid": "Invalid email address",
+      "phoneRequired": "Phone number is required",
+      "phoneInvalid": "Invalid phone number",
+      "academyRequired": "Academy name is required",
+      "termsRequired": "You must agree to the terms"
+    }
+  }
+}
