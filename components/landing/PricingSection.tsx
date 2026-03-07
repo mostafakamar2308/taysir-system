@@ -80,9 +80,9 @@ const PricingSection = () => {
             initial={{ opacity: 0, x: -20 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
-            className="bg-card rounded-2xl p-8 border border-border hover:shadow-lg transition-shadow"
+            className="bg-card flex flex-col rounded-2xl p-8 border border-border hover:shadow-lg transition-shadow"
           >
-            <Badge variant="secondary" className="mb-4">
+            <Badge variant="secondary" className="mb-4 w-fit">
               <Sparkles className="w-3 h-3 me-1" />
               {t("pricing.free.badge")}
             </Badge>
@@ -94,7 +94,7 @@ const PricingSection = () => {
                 {t("pricing.free.price")}
               </span>
             </div>
-            <ul className="space-y-3 mb-8">
+            <ul className="space-y-3 mb-8 flex-1">
               {freeFeatures.map((feature, i) => (
                 <li
                   key={i}
@@ -105,7 +105,7 @@ const PricingSection = () => {
                 </li>
               ))}
             </ul>
-            <Link href="/register" className="mb-auto block">
+            <Link href="/register">
               <Button variant="outline" className="w-full py-5 text-base">
                 {t("pricing.free.cta")}
               </Button>
@@ -151,7 +151,12 @@ const PricingSection = () => {
                   </li>
                 ))}
               </ul>
-              <Link href="/register">
+              <Link target="_blank" href="https://wa.me/201018303125">
+                <Button variant="outline" className="w-full py-5 text-base">
+                  {t("pricing.contact-us")}
+                </Button>
+              </Link>
+              <Link className="mt-2 block" href="/register">
                 <Button className="w-full py-5 text-base bg-primary text-primary-foreground shadow-primary hover:opacity-90">
                   {t("pricing.pro.cta")}
                 </Button>

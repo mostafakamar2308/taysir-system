@@ -8,6 +8,7 @@ import { usePathname } from "next/navigation";
 interface NavLinkCompatProps extends Omit<LinkProps, "className"> {
   className?: string;
   activeClassName?: string;
+  children?: React.ReactNode;
 }
 
 const NavLink = forwardRef<HTMLAnchorElement, NavLinkCompatProps>(

@@ -79,7 +79,7 @@ const Footer = () => {
               <li className="flex items-center gap-2">
                 <Mail className="w-4 h-4 text-primary" />
                 <a
-                  href="mailto:info@taysir-system.com"
+                  href="mailto:mostafakamar.dev@gmail.com"
                   className="hover:text-primary transition-colors"
                 >
                   {t("footer.email")}

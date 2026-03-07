@@ -48,7 +48,7 @@ export default async function RootLayout({
   setRequestLocale(locale);
 
   return (
-    <html lang={locale}>
+    <html className="scroll-smooth" lang={locale}>
       <body
         dir={locale === "en" ? "ltr" : "rtl"}
         className={`${cairo.className} relative`}
