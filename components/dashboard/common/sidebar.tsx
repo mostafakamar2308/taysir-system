@@ -66,9 +66,9 @@ const sidebarGroups = [
   {
     label: "الحصص",
     items: [
+      { title: "الجداول", url: "/ar/dashboard/sessions", icon: Clock },
       { title: "البرامج", url: "/ar/dashboard/programs", icon: BookOpen },
       { title: "الأداء", url: "/ar/dashboard/performance", icon: BarChart3 },
-      { title: "الجداول", url: "/ar/dashboard/timetables", icon: Clock },
     ],
   },
   {

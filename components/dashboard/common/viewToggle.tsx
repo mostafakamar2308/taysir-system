@@ -6,7 +6,7 @@ interface ViewToggleProps {
   onViewChange: (view: "cards" | "table") => void;
 }
 
-export function ViewToggle({ view, onViewChange }: ViewToggleProps) {
+const ViewToggle = ({ view, onViewChange }: ViewToggleProps) => {
   return (
     <div className="flex items-center gap-1 rounded-lg border border-border bg-muted p-1">
       <Button
@@ -27,4 +27,6 @@ export function ViewToggle({ view, onViewChange }: ViewToggleProps) {
       </Button>
     </div>
   );
-}
+};
+
+export default ViewToggle;

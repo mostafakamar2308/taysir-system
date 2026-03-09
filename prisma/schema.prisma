@@ -34,8 +34,10 @@ model Academy {
   tutors      Tutor[]
   students    Student[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  sessions          Session[]
+  recurringPatterns RecurringPattern[]
 }
 
 model User {
@@ -47,6 +49,8 @@ model User {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  timezone String @default("Africa/Cairo")
 
   superAdmin SuperAdmin?
   admin      Admin?
@@ -83,6 +87,7 @@ model Student {
   id          Int       @id @default(autoincrement())
   name        String
   email       String?
+  age         Int       @default(12)
   phone       String?
   country     String?
   timezone    String
@@ -96,8 +101,14 @@ model Student {
   academyId Int
   academy   Academy @relation(fields: [academyId], references: [id])
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  planId Int?
+  plan   Plan? @relation(fields: [planId], references: [id])
+
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  sessions              Session[]
+  recurringPatterns     RecurringPattern[]
+  studentAvailabilities StudentAvailability[]
 }
 
 model Supervisor {
@@ -126,9 +137,12 @@ model Tutor {
   specialities    Speciality[]
   active          Boolean?
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  students  Student[]
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  students            Student[]
+  sessions            Session[]
+  recurringPatterns   RecurringPattern[]
+  tutorAvailabilities TutorAvailability[]
 
   @@index([userId])
 }
@@ -148,6 +162,89 @@ model Plan {
   title           String
   sessionsPerWeek Int
 
+  students Student[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Session {
+  id              Int      @id @default(autoincrement())
+  startTime       DateTime
+  endTime         DateTime
+  durationMinutes Int
+  status          Int      @default(0)
+  topic           String?
+  notes           String?
+
+  studentId Int
+  student   Student @relation(fields: [studentId], references: [id])
+  tutorId   Int
+  tutor     Tutor   @relation(fields: [tutorId], references: [id])
+  academyId Int
+  academy   Academy @relation(fields: [academyId], references: [id])
+
+  recurringPatternId Int?
+  recurringPattern   RecurringPattern? @relation(fields: [recurringPatternId], references: [id])
+
+  attendance Attendance?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RecurringPattern {
+  id              Int       @id @default(autoincrement())
+  daysOfWeek      Int[]
+  startTime       DateTime
+  durationMinutes Int
+  startDate       DateTime
+  endDate         DateTime?
+
+  studentId Int
+  student   Student @relation(fields: [studentId], references: [id])
+  tutorId   Int
+  tutor     Tutor   @relation(fields: [tutorId], references: [id])
+  academyId Int
+  academy   Academy @relation(fields: [academyId], references: [id])
+
+  sessions Session[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Attendance {
+  id              Int      @id @default(autoincrement())
+  sessionId       Int      @unique
+  session         Session  @relation(fields: [sessionId], references: [id])
+  status          Int
+  reason          String?
+  madeUpSessionId Int?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model TutorAvailability {
+  id        Int      @id @default(autoincrement())
+  tutorId   Int
+  tutor     Tutor    @relation(fields: [tutorId], references: [id])
+  dayOfWeek Int
+  startTime DateTime
+  endTime   DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tutorId, dayOfWeek, startTime])
+}
+
+model StudentAvailability {
+  id        Int      @id @default(autoincrement())
+  studentId Int
+  student   Student  @relation(fields: [studentId], references: [id])
+  dayOfWeek Int
+  startTime DateTime
+  endTime   DateTime
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

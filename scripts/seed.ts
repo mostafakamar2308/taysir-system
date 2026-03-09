@@ -1,5 +1,6 @@
 import db from "@/lib/prisma";
 import { Role } from "@/types/user";
+import { SessionStatus, AttendanceStatus } from "@/types/session";
 import bcrypt from "bcrypt";
 
 const ACADEMY_NAMES = ["Al-Noor Academy", "Iqra Institute", "Tajweed Center"];
@@ -19,6 +20,18 @@ const PLANS = [
 // Helper
 const randomElement = <T>(arr: T[]): T =>
   arr[Math.floor(Math.random() * arr.length)];
+
+// Generate random date between start and end
+function randomDate(start: Date, end: Date): Date {
+  return new Date(
+    start.getTime() + Math.random() * (end.getTime() - start.getTime()),
+  );
+}
+
+// Add minutes to a date
+function addMinutes(date: Date, minutes: number): Date {
+  return new Date(date.getTime() + minutes * 60000);
+}
 
 interface RoleData {
   academyId?: number;
@@ -86,6 +99,11 @@ async function main() {
 
   // Clean up existing data (order matters)
   await db.$transaction([
+    db.attendance.deleteMany(),
+    db.session.deleteMany(),
+    db.recurringPattern.deleteMany(),
+    db.studentAvailability.deleteMany(),
+    db.tutorAvailability.deleteMany(),
     db.student.deleteMany(),
     db.tutor.deleteMany(),
     db.supervisor.deleteMany(),
@@ -125,6 +143,10 @@ async function main() {
   );
   console.log("✅ Created Super Admin");
 
+  // Store tutor IDs and student IDs per academy for later use
+  const academyTutors: Record<number, number[]> = {};
+  const academyStudents: Record<number, number[]> = {};
+
   // Create Academies, Admins, Supervisors, Tutors, and Students
   for (let i = 0; i < ACADEMY_NAMES.length; i++) {
     const academyName = ACADEMY_NAMES[i];
@@ -133,6 +155,9 @@ async function main() {
       data: { name: academyName },
     });
     console.log(`📚 Created academy: ${academy.name}`);
+
+    academyTutors[academy.id] = [];
+    academyStudents[academy.id] = [];
 
     // Admin
     await createUserWithRole(
@@ -179,9 +204,10 @@ async function main() {
       });
       tutorIds.push(tutorRecord!.id);
     }
+    academyTutors[academy.id] = tutorIds;
     console.log(`  👨‍🏫 Created 10 tutors for ${academy.name}`);
 
-    // Students (30)
+    // Students (30) – assign random tutor from this academy
     for (let st = 1; st <= 30; st++) {
       const tutorId = randomElement(tutorIds);
       const startDate = new Date();
@@ -189,7 +215,7 @@ async function main() {
       const renewalDate = new Date(startDate);
       renewalDate.setMonth(renewalDate.getMonth() + 1);
 
-      await db.student.create({
+      const student = await db.student.create({
         data: {
           name: `Student ${i + 1}-${st}`,
           email: `student${i + 1}_${st}@example.com`,
@@ -202,15 +228,136 @@ async function main() {
             "Morocco",
           ]),
           timezone: randomElement(["GMT+2", "GMT+3", "GMT+4"]),
-          status: Math.floor(Math.random() * 3),
+          status: Math.floor(Math.random() * 3), // 0 trial, 1 subscribed, 2 lead
           startDate,
           renewalDate,
           tutorId,
           academyId: academy.id,
+          planId: randomElement(createdPlans).id, // assign random plan
         },
       });
+      academyStudents[academy.id].push(student.id);
     }
     console.log(`  🧑‍🎓 Created 30 students for ${academy.name}`);
+  }
+
+  // ─── Create Sessions for Active Students (status = 1) ─────────────────
+  console.log("\n📅 Creating sessions for active students...");
+
+  const now = new Date();
+  const threeMonthsAgo = new Date(now);
+  threeMonthsAgo.setMonth(now.getMonth() - 3);
+  const threeMonthsLater = new Date(now);
+  threeMonthsLater.setMonth(now.getMonth() + 3);
+
+  // For each academy
+  for (const academyId of Object.keys(academyStudents).map(Number)) {
+    const studentIds = academyStudents[academyId];
+    const tutorIds = academyTutors[academyId];
+
+    // Fetch active students (status = 1 = subscribed)
+    const activeStudents = await db.student.findMany({
+      where: {
+        id: { in: studentIds },
+        status: 1, // subscribed
+      },
+      include: { tutor: true },
+    });
+
+    for (const student of activeStudents) {
+      const tutorId = student.tutorId;
+      if (!tutorId) continue; // skip if no tutor assigned
+
+      // Generate around 10 sessions (8-12)
+      const numSessions = 8 + Math.floor(Math.random() * 5); // 8-12
+
+      for (let s = 0; s < numSessions; s++) {
+        // Random start time between 3 months ago and 3 months from now
+        const startTime = randomDate(threeMonthsAgo, threeMonthsLater);
+        // Duration: 30, 45, or 60 minutes
+        const duration = randomElement([30, 45, 60]);
+        const endTime = addMinutes(startTime, duration);
+
+        // Determine session status based on time
+        let status: SessionStatus;
+        let attendanceData: {
+          status: AttendanceStatus;
+          reason?: string;
+        } | null = null;
+
+        if (startTime < now) {
+          // Past session: mostly completed, some cancelled
+          const rand = Math.random();
+          if (rand < 0.7) {
+            status = SessionStatus.COMPLETED;
+            // Attendance for completed sessions
+            const attRand = Math.random();
+            if (attRand < 0.6) {
+              attendanceData = { status: AttendanceStatus.ATTENDED };
+            } else if (attRand < 0.8) {
+              attendanceData = {
+                status: AttendanceStatus.ABSENT_EXCUSED,
+                reason: "مرض",
+              };
+            } else if (attRand < 0.95) {
+              attendanceData = { status: AttendanceStatus.LATE };
+            } else {
+              attendanceData = {
+                status: AttendanceStatus.ABSENT_UNEXCUSED,
+                reason: "بدون عذر",
+              };
+            }
+          } else if (rand < 0.9) {
+            status = SessionStatus.CANCELLED;
+            attendanceData = { status: AttendanceStatus.CANCELLED };
+          } else {
+            status = SessionStatus.RESCHEDULED;
+          }
+        } else {
+          // Future session: mostly scheduled
+          status =
+            Math.random() < 0.9
+              ? SessionStatus.SCHEDULED
+              : SessionStatus.RESCHEDULED;
+        }
+
+        // Create session
+        const session = await db.session.create({
+          data: {
+            startTime,
+            endTime,
+            durationMinutes: duration,
+            status,
+            topic: randomElement([
+              "مراجعة سورة البقرة",
+              "أحكام التجويد",
+              "حفظ جزء 30",
+              "تفسير الآيات",
+              "تصحيح التلاوة",
+              null,
+            ]),
+            notes: Math.random() < 0.3 ? "ملاحظة: أداء جيد" : null,
+            studentId: student.id,
+            tutorId,
+            academyId,
+          },
+        });
+
+        // Create attendance if applicable
+        if (attendanceData) {
+          await db.attendance.create({
+            data: {
+              sessionId: session.id,
+              status: attendanceData.status,
+              reason: attendanceData.reason,
+            },
+          });
+        }
+      }
+    }
+    console.log(
+      `  ✅ Created sessions for ${activeStudents.length} active students in academy ${academyId}`,
+    );
   }
 
   console.log("🌱 Seeding finished successfully!");
