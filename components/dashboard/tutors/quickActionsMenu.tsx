@@ -8,42 +8,51 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { DashboardStudent } from "@/types/student";
 import {
   MoreHorizontal,
   Eye,
   Pencil,
   Phone,
   Mail,
-  RefreshCw,
-  StickyNote,
+  UserPlus,
+  Trash2,
 } from "lucide-react";
-import Link from "next/link";
+import { DashboardTutor } from "@/types/tutor";
+import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
 
-export function QuickActionsMenu({ student }: { student: DashboardStudent }) {
+export function QuickActionsMenu({ tutor }: { tutor: DashboardTutor }) {
+  const { toast } = useToast();
+  const router = useRouter();
+
+  const handleAction = (action: string) => {
+    toast({ title: `تم تنفيذ: ${action}` });
+  };
+
   return (
-    <DropdownMenu>
+    <DropdownMenu dir="rtl">
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="h-8 w-8">
           <MoreHorizontal className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44">
-        <DropdownMenuItem className="gap-2 text-sm">
-          <Link
-            className="flex gap-2 items-center"
-            href={`/ar/dashboard/students/${student.id}`}
-          >
-            <Eye className="h-3.5 w-3.5" /> عرض الملف
-          </Link>
+        <DropdownMenuItem
+          onClick={() => router.push(`/dashboard/tutors/${tutor.id}`)}
+          className="gap-2 text-sm"
+        >
+          <Eye className="h-3.5 w-3.5" /> عرض الملف
         </DropdownMenuItem>
-        <DropdownMenuItem className="gap-2 text-sm">
+        <DropdownMenuItem
+          onClick={() => handleAction("تعديل")}
+          className="gap-2 text-sm"
+        >
           <Pencil className="h-3.5 w-3.5" /> تعديل
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem className="gap-2 text-sm" asChild>
           <a
-            href={`https://wa.me/${student.phone.replace("+", "")}`}
+            href={`https://wa.me/${tutor.phone.replace("+", "")}`}
             target="_blank"
             rel="noreferrer"
           >
@@ -51,16 +60,22 @@ export function QuickActionsMenu({ student }: { student: DashboardStudent }) {
           </a>
         </DropdownMenuItem>
         <DropdownMenuItem className="gap-2 text-sm" asChild>
-          <a href={`mailto:${student.email}`}>
+          <a href={`mailto:${tutor.email}`}>
             <Mail className="h-3.5 w-3.5" /> بريد إلكتروني
           </a>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="gap-2 text-sm">
-          <RefreshCw className="h-3.5 w-3.5" /> تجديد الاشتراك
+        <DropdownMenuItem
+          onClick={() => handleAction("تعيين طلاب")}
+          className="gap-2 text-sm"
+        >
+          <UserPlus className="h-3.5 w-3.5" /> تعيين طلاب
         </DropdownMenuItem>
-        <DropdownMenuItem className="gap-2 text-sm">
-          <StickyNote className="h-3.5 w-3.5" /> إضافة ملاحظة
+        <DropdownMenuItem
+          onClick={() => handleAction("حذف")}
+          className="gap-2 text-sm text-destructive"
+        >
+          <Trash2 className="h-3.5 w-3.5" /> حذف
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

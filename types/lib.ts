@@ -3,6 +3,8 @@ export type SortField =
   | "age"
   | "status"
   | "renewalDate"
+  | "studentCount"
+  | "pricePerSession"
   | "startDate"
   | "createdAt";
 export type SortDir = "asc" | "desc";

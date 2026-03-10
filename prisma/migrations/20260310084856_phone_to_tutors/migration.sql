@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Tutor" ADD COLUMN     "phone" TEXT NOT NULL DEFAULT '01018303125',
+ADD COLUMN     "zoomAuthenticated" BOOLEAN NOT NULL DEFAULT false;

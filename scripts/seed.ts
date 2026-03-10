@@ -253,7 +253,6 @@ async function main() {
   // For each academy
   for (const academyId of Object.keys(academyStudents).map(Number)) {
     const studentIds = academyStudents[academyId];
-    const tutorIds = academyTutors[academyId];
 
     // Fetch active students (status = 1 = subscribed)
     const activeStudents = await db.student.findMany({

@@ -1,55 +1,48 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
-import StudentCard from "@/components/dashboard/students/studentCard";
-import StatsCards from "@/components/dashboard/students/statsCard";
-import ViewToggle from "@/components/dashboard/common/viewToggle";
-import { Download, Filter, GraduationCap, Search } from "lucide-react";
-import { DashboardStudent } from "@/types/student";
 import { useRouter, useSearchParams } from "next/navigation";
+import { DashboardTutor } from "@/types/tutor";
+import { BookOpen, Download, Filter, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plan } from "@/generated/prisma/browser";
-import { SortDir, SortField } from "@/types/lib";
-import { exportStudentsToCSV } from "@/lib/export";
+import ViewToggle from "@/components/dashboard/common/viewToggle";
 import FilterPanel from "@/components/dashboard/common/filterPanel";
 import BulkActionsBar from "@/components/dashboard/students/bulkActionBar";
-import { StudentTable } from "./studenTable";
-import { EmptyState } from "./emptyState";
+import StatsCards from "@/components/dashboard/tutors/statsCard";
+import TutorCard from "@/components/dashboard/tutors/tutorCard";
+import TutorTable from "@/components/dashboard/tutors/tutorTable";
+import { EmptyState } from "@/components/dashboard/students/emptyState";
+import { exportTutorsToCSV } from "@/lib/export";
+import { SortField, SortDir } from "@/types/lib";
 
-interface StudentsClientProps {
-  students: DashboardStudent[];
-  plans: Plan[];
+interface TutorsViewerProps {
+  tutors: DashboardTutor[];
 }
 
-const statusLabels: Record<number, string> = {
-  0: "تجريبي",
-  1: "مشترك",
-  2: "عميل محتمل",
-  3: "منسحب",
-  4: "متوقف",
-};
+// const statusLabels: Record<string, string> = {
+//   active: "نشط",
+//   inactive: "غير نشط",
+// };
 
-const statusColors: Record<number, string> = {
-  0: "bg-blue-100 text-blue-700",
-  1: "bg-green-100 text-green-700",
-  2: "bg-amber-100 text-amber-700",
-  3: "bg-red-100 text-red-700",
-  4: "bg-gray-100 text-gray-700",
-};
+// const statusColors: Record<string, string> = {
+//   active: "bg-primary/10 text-primary",
+//   inactive: "bg-muted text-muted-foreground",
+// };
 
-const StudentsViewer = ({ students, plans }: StudentsClientProps) => {
+export default function TutorsViewer({ tutors }: TutorsViewerProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+
   const [view, setView] = useState<"cards" | "table">("cards");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showFilters, setShowFilters] = useState(false);
+
+  // URL params
   const search = searchParams.get("q") || "";
-  const statusFilter = searchParams.get("status") || "";
-  const tutorFilter = searchParams.get("tutor") || "";
-  const countryFilter = searchParams.get("country") || "";
-  const planFilter = searchParams.get("plan") || "";
+  const statusFilter = searchParams.get("status") || ""; // "active" or "inactive"
+  const specialityFilter = searchParams.get("speciality") || "";
   const sortField = (searchParams.get("sort") as SortField) || "name";
   const sortDir = (searchParams.get("dir") as SortDir) || "asc";
 
@@ -67,87 +60,64 @@ const StudentsViewer = ({ students, plans }: StudentsClientProps) => {
     router.push("?", { scroll: false });
   }, [router]);
 
+  // Filter options
   const filterOptions = useMemo(
     () => ({
-      tutors: Array.from(new Set(students.map((s) => s.tutorName))).filter(
-        Boolean,
-      ),
-      countries: Array.from(new Set(students.map((s) => s.country))).filter(
-        Boolean,
-      ),
-      statuses: Object.entries(statusLabels).map(([value, label]) => ({
-        value,
-        label,
-      })),
-      plans: plans.map((plan) => ({
-        label: plan.title,
-        value: String(plan.id),
-      })),
+      statuses: [
+        { value: "active", label: "نشط" },
+        { value: "inactive", label: "غير نشط" },
+      ],
+      specialities: Array.from(
+        new Set(tutors.flatMap((t) => t.specialities)),
+      ).filter(Boolean),
     }),
-    [students, plans],
+    [tutors],
   );
 
-  const filteredStudents = useMemo(() => {
-    const result = students.filter((s) => {
-      if (
-        search &&
-        !s.name.includes(search) &&
-        !s.email.includes(search) &&
-        !s.tutorName.includes(search)
-      )
+  // Filter and sort tutors
+  const filteredTutors = useMemo(() => {
+    const result = tutors.filter((t) => {
+      if (search && !t.name.includes(search) && !t.email.includes(search))
         return false;
-      if (statusFilter && s.status.toString() !== statusFilter) return false;
-      if (tutorFilter && s.tutorName !== tutorFilter) return false;
-      if (countryFilter && s.country !== countryFilter) return false;
-      if (planFilter && String(s.plan) !== planFilter) return false;
+      if (statusFilter) {
+        const isActive = statusFilter === "active";
+        if (t.status !== isActive) return false;
+      }
+      if (specialityFilter && !t.specialities.includes(specialityFilter))
+        return false;
       return true;
     });
 
-    // Sorting
     result.sort((a, b) => {
       let cmp = 0;
       switch (sortField) {
         case "name":
           cmp = a.name.localeCompare(b.name, "ar");
           break;
-        case "age":
-          cmp = a.age - b.age;
+        case "pricePerSession":
+          cmp = a.pricePerSession - b.pricePerSession;
           break;
-        case "status":
-          cmp = a.status - b.status;
+        case "studentCount":
+          cmp = a.studentCount - b.studentCount;
+          break;
+        case "createdAt":
+          cmp = a.createdAt.getTime() - b.createdAt.getTime();
           break;
       }
       return sortDir === "desc" ? -cmp : cmp;
     });
 
     return result;
-  }, [
-    students,
-    search,
-    statusFilter,
-    tutorFilter,
-    countryFilter,
-    planFilter,
-    sortField,
-    sortDir,
-  ]);
+  }, [tutors, search, statusFilter, specialityFilter, sortField, sortDir]);
 
-  const activeFilterCount = [
-    statusFilter,
-    tutorFilter,
-    countryFilter,
-    planFilter,
-  ].filter(Boolean).length;
+  const activeFilterCount = [statusFilter, specialityFilter].filter(
+    Boolean,
+  ).length;
 
   const toggleSort = (field: SortField) => {
-    console.log({ field, sortField });
-
     if (sortField === field) {
-      console.log("Here");
-
       setParam("dir", sortDir === "asc" ? "desc" : "asc");
     } else {
-      console.log("Here 2");
       setParam("sort", field);
       setParam("dir", "asc");
     }
@@ -163,27 +133,28 @@ const StudentsViewer = ({ students, plans }: StudentsClientProps) => {
   };
 
   const toggleSelectAll = () => {
-    if (selected.size === filteredStudents.length) {
+    if (selected.size === filteredTutors.length) {
       setSelected(new Set());
     } else {
-      setSelected(new Set(filteredStudents.map((s) => String(s.id))));
+      setSelected(new Set(filteredTutors.map((t) => String(t.id))));
     }
   };
 
   const handleExport = () => {
-    exportStudentsToCSV(filteredStudents);
+    exportTutorsToCSV(filteredTutors);
   };
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <GraduationCap className="h-6 w-6 text-primary" />
-            الطلاب
+            <BookOpen className="h-6 w-6 text-primary" />
+            المعلمين
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
-            {students.length} طالب مسجل
+            {tutors.length} معلم · {tutors.filter((t) => t.status).length} نشط
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -226,23 +197,34 @@ const StudentsViewer = ({ students, plans }: StudentsClientProps) => {
         </div>
       </div>
 
+      {/* Filter Panel */}
       {showFilters && (
         <FilterPanel
-          filterOptions={filterOptions}
+          filterOptions={{
+            statuses: filterOptions.statuses,
+            specialities: filterOptions.specialities.map((s) => ({
+              value: s,
+              label: s,
+            })),
+            // we don't have tutors/countries for tutors, so omit or pass empty arrays
+            tutors: [],
+            countries: [],
+            plans: [],
+          }}
           currentFilters={{
             status: statusFilter,
-            tutor: tutorFilter,
-            country: countryFilter,
-            plan: planFilter,
-            speciality: "",
+            speciality: specialityFilter,
+            tutor: "",
+            country: "",
+            plan: "",
           }}
-          onFilterChange={setParam}
+          onFilterChange={(key, value) => setParam(key, value)}
           onClear={clearFilters}
           activeCount={activeFilterCount}
         />
       )}
 
-      {/* Bulk actions */}
+      {/* Bulk Actions */}
       {selected.size > 0 && (
         <BulkActionsBar
           selectedCount={selected.size}
@@ -250,17 +232,11 @@ const StudentsViewer = ({ students, plans }: StudentsClientProps) => {
         />
       )}
 
-      <StatsCards
-        students={students}
-        currentStatusFilter={statusFilter}
-        onStatusClick={(status) =>
-          setParam("status", status === statusFilter ? "" : status)
-        }
-        statusLabels={statusLabels}
-        statusColors={statusColors}
-      />
+      {/* Stats Cards */}
+      <StatsCards tutors={tutors} />
 
-      {filteredStudents.length === 0 ? (
+      {/* Main Content */}
+      {filteredTutors.length === 0 ? (
         <EmptyState
           hasFilters={activeFilterCount > 0 || !!search}
           onClear={clearFilters}
@@ -269,23 +245,25 @@ const StudentsViewer = ({ students, plans }: StudentsClientProps) => {
         <>
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              {filteredStudents.length} نتيجة
+              {filteredTutors.length} نتيجة
             </p>
-            {/* <SortDropdown
-              sortField={sortField}
-              sortDir={sortDir}
-              onSort={toggleSort}
-            /> */}
+            {/* Add SortDropdown if desired, similar to students page */}
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredStudents.map((student) => (
-              <StudentCard key={student.id} student={student} />
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {filteredTutors.map((tutor) => (
+              <TutorCard
+                key={tutor.id}
+                tutor={tutor}
+                isSelected={selected.has(String(tutor.id))}
+                onSelect={() => toggleSelect(String(tutor.id))}
+                selectionMode={selected.size > 0}
+              />
             ))}
           </div>
         </>
       ) : (
-        <StudentTable
-          students={filteredStudents}
+        <TutorTable
+          tutors={filteredTutors}
           selected={selected}
           onSelect={toggleSelect}
           onSelectAll={toggleSelectAll}
@@ -296,6 +274,4 @@ const StudentsViewer = ({ students, plans }: StudentsClientProps) => {
       )}
     </div>
   );
-};
-
-export default StudentsViewer;
+}

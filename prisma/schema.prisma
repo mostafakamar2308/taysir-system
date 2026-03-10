@@ -56,6 +56,8 @@ model User {
   admin      Admin?
   supervisor Supervisor?
   tutor      Tutor?
+  notes      Note[]
+  payments   Payment[]
 }
 
 model SuperAdmin {
@@ -95,6 +97,13 @@ model Student {
   startDate   DateTime  @default(now())
   renewalDate DateTime?
 
+  source                String? // e.g., "facebook", "snapchat", "referral"
+  currentProgram        String? // e.g., "Quran Memorization", "Tajweed"
+  emergencyContactName  String?
+  emergencyContactPhone String?
+  preferredLanguage     String? // e.g., "ar", "en"
+  profilePicture        String?
+
   tutorId Int?
   tutor   Tutor? @relation(fields: [tutorId], references: [id])
 
@@ -109,6 +118,8 @@ model Student {
   sessions              Session[]
   recurringPatterns     RecurringPattern[]
   studentAvailabilities StudentAvailability[]
+  notes                 Note[]
+  payments              Payment[]
 }
 
 model Supervisor {
@@ -137,12 +148,20 @@ model Tutor {
   specialities    Speciality[]
   active          Boolean?
 
+  phone             String
+  bio               String? // short description
+  qualifications    String? // text, could be JSON or simple string
+  profilePicture    String? // URL
+  maxStudents       Int?
+  zoomAuthenticated Boolean @default(false)
+
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt
   students            Student[]
   sessions            Session[]
   recurringPatterns   RecurringPattern[]
   tutorAvailabilities TutorAvailability[]
+  notes               Note[]
 
   @@index([userId])
 }
@@ -161,11 +180,14 @@ model Plan {
   id              Int    @id @default(autoincrement())
   title           String
   sessionsPerWeek Int
+  price           Float  @default(0)
+  billingPeriod   String @default("monthly")
 
   students Student[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  payments  Payment[]
 }
 
 model Session {
@@ -247,4 +269,53 @@ model StudentAvailability {
   endTime   DateTime
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Note {
+  id         Int    @id @default(autoincrement())
+  content    String
+  targetType Int
+  targetId   Int // ID of the target (Student.id or Tutor.id)
+  authorId   String // User.id who wrote the note
+  author     User   @relation(fields: [authorId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tutor     Tutor?   @relation(fields: [tutorId], references: [id])
+  tutorId   Int?
+  student   Student? @relation(fields: [studentId], references: [id])
+  studentId Int?
+
+  @@index([targetType, targetId])
+  @@index([authorId])
+}
+
+model Payment {
+  id          Int       @id @default(autoincrement())
+  amount      Float
+  currency    String    @default("EGP") // or whatever
+  status      Int       @default(0)
+  method      Int?
+  date        DateTime  @default(now())
+  dueDate     DateTime? // for invoices
+  description String? // e.g., "Monthly subscription March 2026"
+
+  studentId Int
+  student   Student @relation(fields: [studentId], references: [id])
+
+  // Optional link to a plan
+  planId Int?
+  plan   Plan? @relation(fields: [planId], references: [id])
+
+  // Who recorded/confirmed the payment
+  recordedBy String? // User.id
+  recorder   User?   @relation(fields: [recordedBy], references: [id])
+
+  invoiceUrl String? // link to PDF or external invoice
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([studentId])
+  @@index([status])
 }

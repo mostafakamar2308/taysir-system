@@ -12,3 +12,11 @@ export type DashboardStudent = {
   renewalDate: Date | null;
   plan?: number;
 };
+
+export enum StudentStatus {
+  trial,
+  subscribed,
+  lead,
+  churned,
+  paused,
+}

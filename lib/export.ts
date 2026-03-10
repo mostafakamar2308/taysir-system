@@ -1,6 +1,42 @@
 import { DashboardStudent } from "@/types/student";
+import { DashboardTutor } from "@/types/tutor";
 
-export function exportToCSV(students: DashboardStudent[]) {
+export function exportTutorsToCSV(tutors: DashboardTutor[]) {
+  const headers = [
+    "الاسم",
+    "الحالة",
+    "التخصصات",
+    "سعر الحصة (ر.س)",
+    "عدد الطلاب",
+    "المنطقة الزمنية",
+    "تاريخ الانضمام",
+    "البريد الإلكتروني",
+    "رقم الهاتف",
+  ];
+
+  const rows = tutors.map((t) => [
+    t.name,
+    t.status ? "نشط" : "غير نشط",
+    t.specialities.join("، ") || "-",
+    t.pricePerSession.toString(),
+    t.studentCount.toString(),
+    t.timezone,
+    new Date(t.createdAt).toLocaleDateString("ar-EG"),
+    t.email,
+    t.phone,
+  ]);
+
+  const csv = "\uFEFF" + [headers, ...rows].map((r) => r.join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "tutors.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export function exportStudentsToCSV(students: DashboardStudent[]) {
   const headers = [
     "الاسم",
     "العمر",

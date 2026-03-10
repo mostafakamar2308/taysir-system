@@ -16,6 +16,7 @@ interface FilterOptions {
   countries: string[];
   statuses: { value: string; label: string }[];
   plans: { value: string; label: string }[];
+  specialities?: { value: string; label: string }[];
 }
 
 interface FilterPanelProps {
@@ -25,6 +26,7 @@ interface FilterPanelProps {
     tutor: string;
     country: string;
     plan: string;
+    speciality: string;
   };
   onFilterChange: (key: string, value: string) => void;
   onClear: () => void;
