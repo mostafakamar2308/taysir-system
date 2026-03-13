@@ -75,7 +75,6 @@ interface RevenuesTabProps {
 
 export default function RevenuesTab({
   payments,
-  setPayments,
   students,
   plans,
   academyId,

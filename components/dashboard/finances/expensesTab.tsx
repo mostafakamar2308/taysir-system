@@ -72,7 +72,6 @@ interface ExpensesTabProps {
 }
 export default function ExpensesTab({
   expenses,
-  setExpenses,
   tutors,
   academyId,
 }: ExpensesTabProps) {
@@ -172,7 +171,7 @@ export default function ExpensesTab({
       <Card>
         <CardContent className="p-4">
           <div className="flex flex-wrap items-center gap-3">
-            <div className="relative flex-1 min-w-[200px]">
+            <div className="relative flex-1 min-w-50">
               <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 className="pr-9"
@@ -185,7 +184,7 @@ export default function ExpensesTab({
               value={costCenterFilter}
               onValueChange={setCostCenterFilter}
             >
-              <SelectTrigger className="w-[140px]">
+              <SelectTrigger className="w-35">
                 <SelectValue placeholder="مركز التكلفة" />
               </SelectTrigger>
               <SelectContent>
@@ -198,7 +197,7 @@ export default function ExpensesTab({
               </SelectContent>
             </Select>
             <Select value={paidFilter} onValueChange={setPaidFilter}>
-              <SelectTrigger className="w-[120px]">
+              <SelectTrigger className="w-30">
                 <SelectValue placeholder="الحالة" />
               </SelectTrigger>
               <SelectContent>
@@ -209,13 +208,13 @@ export default function ExpensesTab({
             </Select>
             <Input
               type="date"
-              className="w-[140px]"
+              className="w-35"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
             />
             <Input
               type="date"
-              className="w-[140px]"
+              className="w-35"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
             />
@@ -252,7 +251,7 @@ export default function ExpensesTab({
                   <TableHead>مدفوع؟</TableHead>
                   <TableHead>المرجع</TableHead>
                   <TableHead>المعلم</TableHead>
-                  <TableHead className="w-[50px]"></TableHead>
+                  <TableHead className="w-12.5"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

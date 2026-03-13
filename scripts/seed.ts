@@ -132,6 +132,13 @@ async function main() {
     db.tutorAvailability.deleteMany(),
     db.payment.deleteMany(),
     db.expense.deleteMany(),
+    // New models - delete in correct order
+    db.studentTopicProgress.deleteMany(),
+    db.studentProgramEnrollment.deleteMany(),
+    db.programTopic.deleteMany(),
+    db.program.deleteMany(),
+    db.report.deleteMany(),
+    // Then the original ones
     db.student.deleteMany(),
     db.tutor.deleteMany(),
     db.supervisor.deleteMany(),
@@ -560,6 +567,149 @@ async function main() {
     }
     console.log(`  ✅ Created expenses for academy ${academyId}`);
   }
+
+  // ─── Create Programs and Enrollments ─────────────────
+  console.log("\n📚 Creating programs and enrollments...");
+
+  // Helper to generate topics based on program name
+  function generateTopicsForProgram(
+    programName: string,
+  ): { title: string; description: string; order: number }[] {
+    const topicsMap: Record<string, { title: string; description: string }[]> =
+      {
+        "حفظ القرآن الكريم - المستوى الأول": [
+          { title: "سورة الناس", description: "حفظ سورة الناس مع التجويد" },
+          { title: "سورة الفلق", description: "حفظ سورة الفلق مع التجويد" },
+          { title: "سورة الإخلاص", description: "حفظ سورة الإخلاص والتفسير" },
+          { title: "سورة المسد", description: "حفظ سورة المسد" },
+          { title: "سورة النصر", description: "حفظ سورة النصر" },
+          { title: "سورة الكافرون", description: "حفظ سورة الكافرون" },
+          { title: "سورة الكوثر", description: "حفظ سورة الكوثر" },
+          { title: "مراجعة شاملة", description: "مراجعة جميع السور المحفوظة" },
+        ],
+        "أحكام التجويد": [
+          {
+            title: "أحكام النون الساكنة والتنوين",
+            description: "الإظهار، الإدغام، الإقلاب، الإخفاء",
+          },
+          {
+            title: "أحكام الميم الساكنة",
+            description: "الإخفاء الشفوي، الإدغام الشفوي، الإظهار الشفوي",
+          },
+          { title: "المدود", description: "المد الطبيعي والفرعي وأقسامه" },
+          { title: "أحكام اللام", description: "لام التعريف ولام الفعل" },
+          {
+            title: "التفخيم والترقيق",
+            description: "حروف التفخيم والترقيق وأحكامها",
+          },
+        ],
+        "القراءات العشر": [
+          { title: "قراءة نافع", description: "رواية ورش وقالون عن نافع" },
+          { title: "قراءة ابن كثير", description: "رواية البزي وقنبل" },
+          { title: "قراءة أبو عمرو", description: "رواية الدوري والسوسي" },
+        ],
+      };
+    const topics = topicsMap[programName] || [
+      { title: "موضوع عام", description: "" },
+    ];
+    return topics.map((t, idx) => ({ ...t, order: idx + 1 }));
+  }
+
+  const programTemplates = [
+    {
+      name: "حفظ القرآن الكريم - المستوى الأول",
+      description: "برنامج حفظ جزء عم",
+      level: "مبتدئ",
+      duration: 12,
+    },
+    {
+      name: "أحكام التجويد",
+      description: "أحكام التجويد النظرية والتطبيقية",
+      level: "متوسط",
+      duration: 8,
+    },
+    {
+      name: "القراءات العشر",
+      description: "دراسة القراءات العشر",
+      level: "متقدم",
+      duration: 24,
+    },
+  ];
+
+  for (const academyId of Object.keys(academyStudents).map(Number)) {
+    const createdPrograms: number[] = [];
+
+    // Create programs for this academy
+    for (const tmpl of programTemplates) {
+      const topicsData = generateTopicsForProgram(tmpl.name);
+      const program = await db.program.create({
+        data: {
+          name: tmpl.name,
+          description: tmpl.description,
+          level: tmpl.level,
+          duration: tmpl.duration,
+          academyId,
+          topics: {
+            create: topicsData,
+          },
+        },
+        include: { topics: true },
+      });
+      createdPrograms.push(program.id);
+    }
+
+    // Get all students of this academy
+    const students = await db.student.findMany({ where: { academyId } });
+
+    for (const student of students) {
+      // 50% chance of being enrolled in a random program
+      if (Math.random() > 0.5) continue;
+
+      const programId = randomElement(createdPrograms);
+      const program = await db.program.findUnique({
+        where: { id: programId },
+        include: { topics: true },
+      });
+      if (!program) continue;
+
+      // Random enrollment status: 60% active, 20% completed, 20% dropped
+      const statusRand = Math.random();
+      const status = statusRand < 0.6 ? 0 : statusRand < 0.8 ? 1 : 2;
+      const enrolledAt = randomDate(new Date(2025, 0, 1), new Date());
+      const completedAt =
+        status === 1 ? randomDate(enrolledAt, new Date()) : null;
+
+      const enrollment = await db.studentProgramEnrollment.create({
+        data: {
+          studentId: student.id,
+          programId,
+          enrolledAt,
+          completedAt,
+          status,
+        },
+      });
+
+      // Create topic progress records
+      for (const topic of program.topics) {
+        // If program completed, all topics completed; otherwise random chance
+        const completed = status === 1 ? true : Math.random() > 0.3;
+        const completedAtTopic = completed
+          ? randomDate(enrolledAt, new Date())
+          : null;
+        await db.studentTopicProgress.create({
+          data: {
+            enrollmentId: enrollment.id,
+            topicId: topic.id,
+            completed,
+            completedAt: completedAtTopic,
+            notes: completed ? "تم بنجاح" : null,
+            sessionId: null, // optionally link a session later
+          },
+        });
+      }
+    }
+  }
+  console.log("  ✅ Created programs and enrollments");
 
   console.log("🌱 Seeding finished successfully!");
 }
