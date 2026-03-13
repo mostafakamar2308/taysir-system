@@ -12,10 +12,35 @@ const SPECIALITIES = [
   "Arabic Language",
 ];
 const PLANS = [
-  { title: "Basic", sessionsPerWeek: 2 },
-  { title: "Standard", sessionsPerWeek: 3 },
-  { title: "Premium", sessionsPerWeek: 5 },
+  { title: "Basic", sessionsPerWeek: 2, price: 100, billingPeriod: "monthly" },
+  {
+    title: "Standard",
+    sessionsPerWeek: 3,
+    price: 200,
+    billingPeriod: "monthly",
+  },
+  {
+    title: "Premium",
+    sessionsPerWeek: 5,
+    price: 300,
+    billingPeriod: "monthly",
+  },
 ];
+
+// Payment status and method constants (matching your enums)
+const PaymentStatus = {
+  PENDING: 0,
+  PAID: 1,
+  FAILED: 2,
+  REFUNDED: 3,
+};
+
+const PaymentMethod = {
+  CASH: 0,
+  CARD: 1,
+  BANK_TRANSFER: 2,
+  ONLINE: 3,
+};
 
 // Helper
 const randomElement = <T>(arr: T[]): T =>
@@ -82,6 +107,7 @@ async function createUserWithRole(
           userId: user.id,
           academyId: roleData.academyId!,
           pricePerSession: roleData.pricePerSession || 20.0,
+          phone: "01018303125",
           active: true,
           specialities: {
             connect: roleData.specialities?.map((id) => ({ id })) || [],
@@ -104,6 +130,8 @@ async function main() {
     db.recurringPattern.deleteMany(),
     db.studentAvailability.deleteMany(),
     db.tutorAvailability.deleteMany(),
+    db.payment.deleteMany(),
+    db.expense.deleteMany(),
     db.student.deleteMany(),
     db.tutor.deleteMany(),
     db.supervisor.deleteMany(),
@@ -357,6 +385,180 @@ async function main() {
     console.log(
       `  ✅ Created sessions for ${activeStudents.length} active students in academy ${academyId}`,
     );
+  }
+
+  // ─── Create Payments (Revenues) ─────────────────
+  console.log("\n💰 Creating payments for students...");
+
+  for (const academyId of Object.keys(academyStudents).map(Number)) {
+    const students = await db.student.findMany({
+      where: { academyId },
+      include: { plan: true },
+    });
+
+    for (const student of students) {
+      // Generate 0-6 payments over the last 6 months
+      const numPayments = Math.floor(Math.random() * 6); // 0-5
+      const planPrice = student.plan?.price || 100; // fallback
+      const planCurrency = "SAR";
+
+      for (let p = 0; p < numPayments; p++) {
+        // Random date within last 6 months
+        const paymentDate = randomDate(
+          new Date(now.getFullYear(), now.getMonth() - 6, 1),
+          now,
+        );
+        // Random status: mostly PAID, occasionally PENDING or FAILED
+        const statusRand = Math.random();
+        let status = PaymentStatus.PAID;
+        if (statusRand > 0.8) status = PaymentStatus.PENDING;
+        else if (statusRand > 0.95) status = PaymentStatus.FAILED;
+
+        const method = randomElement([
+          PaymentMethod.CASH,
+          PaymentMethod.CARD,
+          PaymentMethod.BANK_TRANSFER,
+          PaymentMethod.ONLINE,
+          null,
+        ]);
+
+        await db.payment.create({
+          data: {
+            amount: planPrice,
+            currency: planCurrency,
+            status,
+            method: method !== null ? method : null,
+            date: paymentDate,
+            dueDate: null,
+            description: `اشتراك ${student.plan?.title || ""}`,
+            studentId: student.id,
+            planId: student.planId,
+            recordedBy: null,
+            invoiceUrl:
+              Math.random() > 0.5
+                ? `https://invoice.example.com/${student.id}-${p}`
+                : null,
+            channel: randomElement(["متجر", "يدوي", "واتساب", null]),
+            notes: null,
+          },
+        });
+      }
+    }
+    console.log(`  ✅ Created payments for students in academy ${academyId}`);
+  }
+
+  // ─── Create Expenses ─────────────────
+  console.log("\n📝 Creating expenses for academies...");
+
+  const costCenters = [
+    "رواتب",
+    "إيجار",
+    "تسويق",
+    "أدوات وبرمجيات",
+    "صيانة",
+    "متنوعة",
+  ];
+  const nowYear = now.getFullYear();
+  const nowMonth = now.getMonth();
+
+  for (const academyId of Object.keys(academyTutors).map(Number)) {
+    const tutors = await db.tutor.findMany({
+      where: { academyId },
+      include: { user: true },
+    });
+
+    // Create fixed expenses for each of the last 3 months
+    for (let monthOffset = 2; monthOffset >= 0; monthOffset--) {
+      const expenseMonth = new Date(nowYear, nowMonth - monthOffset, 15);
+      const monthStr = `${expenseMonth.getFullYear()}-${String(expenseMonth.getMonth() + 1).padStart(2, "0")}`;
+
+      // Rent expense (always paid)
+      await db.expense.create({
+        data: {
+          date: expenseMonth,
+          description: "إيجار المكتب",
+          costCenter: randomElement(costCenters),
+          amount: 3000,
+          currency: "SAR",
+          paymentMethod: PaymentMethod.BANK_TRANSFER,
+          paid: true,
+          reference: `RENT-${monthStr}`,
+          notes: null,
+          tutorId: null,
+          salaryMonth: null,
+          academyId,
+        },
+      });
+
+      // Marketing expense (sometimes paid)
+      await db.expense.create({
+        data: {
+          date: expenseMonth,
+          description: "إعلانات فيسبوك",
+          costCenter: "تسويق",
+          amount: 800,
+          currency: "SAR",
+          paymentMethod: PaymentMethod.ONLINE,
+          paid: Math.random() > 0.3,
+          reference: Math.random() > 0.5 ? `FB-${monthStr}` : null,
+          notes: null,
+          tutorId: null,
+          salaryMonth: null,
+          academyId,
+        },
+      });
+
+      // Software subscription (Zoom, etc.)
+      await db.expense.create({
+        data: {
+          date: expenseMonth,
+          description: "اشتراك Zoom",
+          costCenter: "أدوات وبرمجيات",
+          amount: 400,
+          currency: "SAR",
+          paymentMethod: PaymentMethod.CARD,
+          paid: true,
+          reference: null,
+          notes: "اشتراك شهري",
+          tutorId: null,
+          salaryMonth: null,
+          academyId,
+        },
+      });
+    }
+
+    // Create tutor salary expenses for last 2 months
+    for (const tutor of tutors) {
+      for (let monthOffset = 1; monthOffset >= 0; monthOffset--) {
+        const salaryMonth = new Date(nowYear, nowMonth - monthOffset, 28);
+        const monthStr = `${salaryMonth.getFullYear()}-${String(salaryMonth.getMonth() + 1).padStart(2, "0")}`;
+
+        // Random sessions count (20-60)
+        const sessionsCount = 20 + Math.floor(Math.random() * 40);
+        const salaryAmount = sessionsCount * tutor.pricePerSession;
+
+        // 80% chance salary is already recorded
+        if (Math.random() > 0.2) {
+          await db.expense.create({
+            data: {
+              date: salaryMonth,
+              description: `راتب شهر ${monthStr}`,
+              costCenter: "رواتب",
+              amount: salaryAmount,
+              currency: "SAR",
+              paymentMethod: PaymentMethod.BANK_TRANSFER,
+              paid: Math.random() > 0.3, // 70% paid
+              reference: `SAL-${tutor.id}-${monthStr}`,
+              notes: null,
+              tutorId: tutor.id,
+              salaryMonth: monthStr,
+              academyId,
+            },
+          });
+        }
+      }
+    }
+    console.log(`  ✅ Created expenses for academy ${academyId}`);
   }
 
   console.log("🌱 Seeding finished successfully!");

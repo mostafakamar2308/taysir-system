@@ -9,7 +9,6 @@ export default async function StudentProfilePage({
   params: Promise<{ id: string }>;
 }) {
   const id = parseInt((await params).id);
-  console.log({ id });
   if (isNaN(id)) notFound();
 
   const student = await db.student.findUnique({

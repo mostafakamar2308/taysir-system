@@ -59,6 +59,7 @@ const sidebarGroups = [
   {
     label: "المالية",
     items: [
+      { title: "الماليات", url: "/ar/dashboard/finances", icon: TrendingUp },
       { title: "الإيرادات", url: "/ar/dashboard/revenues", icon: TrendingUp },
       { title: "المصروفات", url: "/ar/dashboard/expenses", icon: Banknote },
     ],

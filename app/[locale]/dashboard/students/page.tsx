@@ -44,5 +44,22 @@ export default async function StudentsPage({
     plan: student.plan?.id,
   }));
 
-  return <StudentsViewer students={transformedStudents} plans={plans} />;
+  const tutors = await db.tutor.findMany({
+    include: { user: true },
+    where: { active: true },
+  });
+  const tutorOptions = tutors.map((t) => ({
+    id: t.id,
+    name: t.user.name ?? "",
+  }));
+  const academyId = 9;
+
+  return (
+    <StudentsViewer
+      students={transformedStudents}
+      tutors={tutorOptions}
+      academyId={academyId}
+      plans={plans}
+    />
+  );
 }

@@ -15,12 +15,15 @@ import { SortDir, SortField } from "@/types/lib";
 import { exportStudentsToCSV } from "@/lib/export";
 import FilterPanel from "@/components/dashboard/common/filterPanel";
 import BulkActionsBar from "@/components/dashboard/students/bulkActionBar";
-import { StudentTable } from "./studenTable";
-import { EmptyState } from "./emptyState";
+import { StudentTable } from "@/components/dashboard/students/studenTable";
+import { EmptyState } from "@/components/dashboard/students/emptyState";
+import AddStudentDialog from "@/components/dashboard/students/addStudentDialog";
 
 interface StudentsClientProps {
   students: DashboardStudent[];
   plans: Plan[];
+  tutors: { id: number; name: string }[];
+  academyId: number;
 }
 
 const statusLabels: Record<number, string> = {
@@ -39,7 +42,12 @@ const statusColors: Record<number, string> = {
   4: "bg-gray-100 text-gray-700",
 };
 
-const StudentsViewer = ({ students, plans }: StudentsClientProps) => {
+const StudentsViewer = ({
+  students,
+  plans,
+  tutors,
+  academyId,
+}: StudentsClientProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [view, setView] = useState<"cards" | "table">("cards");
@@ -276,6 +284,11 @@ const StudentsViewer = ({ students, plans }: StudentsClientProps) => {
               sortDir={sortDir}
               onSort={toggleSort}
             /> */}
+            <AddStudentDialog
+              tutors={tutors}
+              plans={plans}
+              academyId={academyId}
+            />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filteredStudents.map((student) => (

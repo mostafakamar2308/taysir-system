@@ -16,9 +16,17 @@ import TutorTable from "@/components/dashboard/tutors/tutorTable";
 import { EmptyState } from "@/components/dashboard/students/emptyState";
 import { exportTutorsToCSV } from "@/lib/export";
 import { SortField, SortDir } from "@/types/lib";
+import AddTutorDialog from "@/components/dashboard/tutors/addTutorDialog";
 
 interface TutorsViewerProps {
   tutors: DashboardTutor[];
+  specialities: {
+    id: number;
+    createdAt: Date;
+    updatedAt: Date;
+    title: string;
+  }[];
+  academyId: number;
 }
 
 // const statusLabels: Record<string, string> = {
@@ -31,7 +39,11 @@ interface TutorsViewerProps {
 //   inactive: "bg-muted text-muted-foreground",
 // };
 
-export default function TutorsViewer({ tutors }: TutorsViewerProps) {
+export default function TutorsViewer({
+  tutors,
+  academyId,
+  specialities,
+}: TutorsViewerProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -248,6 +260,7 @@ export default function TutorsViewer({ tutors }: TutorsViewerProps) {
               {filteredTutors.length} نتيجة
             </p>
             {/* Add SortDropdown if desired, similar to students page */}
+            <AddTutorDialog specialities={specialities} academyId={academyId} />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {filteredTutors.map((tutor) => (

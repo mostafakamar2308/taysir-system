@@ -50,5 +50,15 @@ export default async function TutorsPage({
     zoomAuthenticated: t.zoomAuthenticated,
   }));
 
-  return <TutorsViewer tutors={transformed} />;
+  const specialities = await db.speciality.findMany();
+
+  const academyId = 9;
+
+  return (
+    <TutorsViewer
+      specialities={specialities}
+      academyId={academyId}
+      tutors={transformed}
+    />
+  );
 }

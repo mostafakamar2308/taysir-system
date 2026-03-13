@@ -38,6 +38,7 @@ model Academy {
   updatedAt         DateTime           @updatedAt
   sessions          Session[]
   recurringPatterns RecurringPattern[]
+  expenses          Expense[]
 }
 
 model User {
@@ -162,6 +163,7 @@ model Tutor {
   recurringPatterns   RecurringPattern[]
   tutorAvailabilities TutorAvailability[]
   notes               Note[]
+  expenses            Expense[]
 
   @@index([userId])
 }
@@ -211,8 +213,9 @@ model Session {
 
   attendance Attendance?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  sessionReport SessionReport?
 }
 
 model RecurringPattern {
@@ -299,6 +302,8 @@ model Payment {
   date        DateTime  @default(now())
   dueDate     DateTime? // for invoices
   description String? // e.g., "Monthly subscription March 2026"
+  channel     String? // القناة (optional)
+  notes       String? // ملاحظات
 
   studentId Int
   student   Student @relation(fields: [studentId], references: [id])
@@ -318,4 +323,52 @@ model Payment {
 
   @@index([studentId])
   @@index([status])
+}
+
+model Expense {
+  id            Int      @id @default(autoincrement())
+  date          DateTime
+  description   String
+  costCenter    String? // e.g., "رواتب", "إيجار", "تسويق"
+  amount        Float
+  currency      String   @default("EGP")
+  paymentMethod Int? // reuse same enum as Payment.method (0=CASH,1=CARD,2=BANK_TRANSFER,3=ONLINE)
+  paid          Boolean  @default(false)
+  reference     String? // receipt number, invoice link
+  notes         String?
+
+  // For tutor salaries
+  tutorId     Int?
+  tutor       Tutor?  @relation(fields: [tutorId], references: [id])
+  salaryMonth String? // format: YYYY-MM
+
+  academyId Int
+  academy   Academy @relation(fields: [academyId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([academyId])
+  @@index([tutorId])
+  @@index([date])
+}
+
+model SessionReport {
+  id        Int     @id @default(autoincrement())
+  sessionId Int     @unique
+  session   Session @relation(fields: [sessionId], references: [id])
+
+  memorization String?
+  revision     String?
+  tajweed      String?
+  strengths    String?
+  weaknesses   String?
+  nextGoals    String?
+  // Optional JSON for extra fields
+  details      Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sessionId])
 }
