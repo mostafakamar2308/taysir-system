@@ -39,6 +39,8 @@ model Academy {
   sessions          Session[]
   recurringPatterns RecurringPattern[]
   expenses          Expense[]
+  programs          Program[]
+  reports           Report[]
 }
 
 model User {
@@ -59,6 +61,7 @@ model User {
   tutor      Tutor?
   notes      Note[]
   payments   Payment[]
+  reports    Report[]
 }
 
 model SuperAdmin {
@@ -114,13 +117,75 @@ model Student {
   planId Int?
   plan   Plan? @relation(fields: [planId], references: [id])
 
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
-  sessions              Session[]
-  recurringPatterns     RecurringPattern[]
-  studentAvailabilities StudentAvailability[]
-  notes                 Note[]
-  payments              Payment[]
+  createdAt                 DateTime                   @default(now())
+  updatedAt                 DateTime                   @updatedAt
+  sessions                  Session[]
+  recurringPatterns         RecurringPattern[]
+  studentAvailabilities     StudentAvailability[]
+  notes                     Note[]
+  payments                  Payment[]
+  studentProgramEnrollments StudentProgramEnrollment[]
+}
+
+model Program {
+  id          Int     @id @default(autoincrement())
+  name        String
+  description String?
+  level       String?
+  duration    Int? // estimated weeks
+  academyId   Int
+  academy     Academy @relation(fields: [academyId], references: [id])
+
+  topics      ProgramTopic[]
+  enrollments StudentProgramEnrollment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ProgramTopic {
+  id          Int     @id @default(autoincrement())
+  programId   Int
+  program     Program @relation(fields: [programId], references: [id])
+  title       String
+  description String?
+  order       Int // position in program
+
+  progress StudentTopicProgress[]
+  sessions Session[] // optional link to sessions
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model StudentProgramEnrollment {
+  id          Int       @id @default(autoincrement())
+  studentId   Int
+  student     Student   @relation(fields: [studentId], references: [id])
+  programId   Int
+  program     Program   @relation(fields: [programId], references: [id])
+  enrolledAt  DateTime  @default(now())
+  completedAt DateTime?
+  status      Int       @default(0) // 0=active, 1=completed, 2=dropped
+
+  topics StudentTopicProgress[]
+
+  @@unique([studentId, programId])
+}
+
+model StudentTopicProgress {
+  id           Int                      @id @default(autoincrement())
+  enrollmentId Int
+  enrollment   StudentProgramEnrollment @relation(fields: [enrollmentId], references: [id])
+  topicId      Int
+  topic        ProgramTopic             @relation(fields: [topicId], references: [id])
+  completed    Boolean                  @default(false)
+  completedAt  DateTime?
+  notes        String?
+  sessionId    Int? // optional link to session where completed
+  session      Session?                 @relation(fields: [sessionId], references: [id])
+
+  @@unique([enrollmentId, topicId])
 }
 
 model Supervisor {
@@ -213,9 +278,13 @@ model Session {
 
   attendance Attendance?
 
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  sessionReport SessionReport?
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+  sessionReport          SessionReport?
+  programTopic           ProgramTopic?          @relation(fields: [programTopicId], references: [id])
+  programTopicId         Int?
+  studentTopicProgresses StudentTopicProgress[]
+  sessionFeedback        SessionFeedback?
 }
 
 model RecurringPattern {
@@ -371,4 +440,30 @@ model SessionReport {
   updatedAt DateTime @updatedAt
 
   @@index([sessionId])
+}
+
+model SessionFeedback {
+  id        Int      @id @default(autoincrement())
+  sessionId Int      @unique
+  session   Session  @relation(fields: [sessionId], references: [id])
+  rating    Int? // 1-5
+  comment   String?
+  createdAt DateTime @default(now())
+}
+
+model Report {
+  id          Int      @id @default(autoincrement())
+  title       String
+  type        String // "student_progress", "tutor_performance", "financial"
+  month       String // YYYY-MM
+  generatedAt DateTime @default(now())
+  fileUrl     String? // URL to the generated file (PDF, CSV)
+  createdBy   String? // User.id
+  user        User?    @relation(fields: [createdBy], references: [id])
+  academyId   Int
+  academy     Academy  @relation(fields: [academyId], references: [id])
+
+  @@index([academyId])
+  @@index([type])
+  @@index([month])
 }
