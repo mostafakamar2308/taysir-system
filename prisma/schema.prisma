@@ -44,6 +44,7 @@ model Academy {
   maxTutors         Int
   maxStudents       Int
   primaryColor      String
+  currencies        Currency[]
 }
 
 model User {
@@ -105,6 +106,8 @@ model Student {
   status      Int       @default(0)
   startDate   DateTime  @default(now())
   renewalDate DateTime?
+  currency    Currency  @relation(fields: [currencyId], references: [id])
+  currencyId  Int
 
   source                String? // e.g., "facebook", "snapchat", "referral"
   currentProgram        String? // e.g., "Quran Memorization", "Tajweed"
@@ -215,15 +218,16 @@ model Tutor {
   academyId Int
   academy   Academy @relation(fields: [academyId], references: [id])
 
-  pricePerSession Float
-  specialities    Speciality[]
-  active          Boolean?
-
+  pricePerSession   Float
+  specialities      Speciality[]
+  active            Boolean?
+  currency          Currency     @relation(fields: [currencyId], references: [id])
+  currencyId        Int
   bio               String? // short description
   qualifications    String? // text, could be JSON or simple string
   profilePicture    String? // URL
   maxStudents       Int?
-  zoomAuthenticated Boolean @default(false)
+  zoomAuthenticated Boolean      @default(false)
 
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt
@@ -369,7 +373,8 @@ model Note {
 model Payment {
   id          Int       @id @default(autoincrement())
   amount      Float
-  currency    String    @default("EGP") // or whatever
+  currencyId  Int
+  currency    Currency  @relation(fields: [currencyId], references: [id])
   status      Int       @default(0)
   method      Int?
   date        DateTime  @default(now())
@@ -404,7 +409,8 @@ model Expense {
   description   String
   costCenter    String? // e.g., "رواتب", "إيجار", "تسويق"
   amount        Float
-  currency      String   @default("EGP")
+  currencyId    Int
+  currency      Currency @relation(fields: [currencyId], references: [id])
   paymentMethod Int? // reuse same enum as Payment.method (0=CASH,1=CARD,2=BANK_TRANSFER,3=ONLINE)
   paid          Boolean  @default(false)
   reference     String? // receipt number, invoice link
@@ -470,4 +476,24 @@ model Report {
   @@index([academyId])
   @@index([type])
   @@index([month])
+}
+
+model Currency {
+  id           Int       @id @default(autoincrement())
+  academyId    Int
+  academy      Academy   @relation(fields: [academyId], references: [id])
+  code         String // ISO code: USD, SAR, EGP
+  name         String // US Dollar, Saudi Riyal, Egyptian Pound
+  symbol       String // $, ﷼, £
+  exchangeRate Float // relative to the academy's base currency (default)
+  isDefault    Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  students     Student[]
+  tutors       Tutor[]
+  payments     Payment[]
+  expenses     Expense[]
+
+  @@unique([academyId, code])
+  @@index([academyId])
 }

@@ -13,6 +13,7 @@ import {
   Users,
   Shield,
   ShieldCheck,
+  Coins,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -123,11 +124,18 @@ const getSidebarGroups = (role: number) => {
     // Only academy admins (role 1) get the user management link
     if (role === Role.Admin) {
       // Insert into the last group (الإعدادات)
-      groups[groups.length - 1].items.push({
-        title: "إدارة المستخدمين",
-        url: "/ar/dashboard/settings/users",
-        icon: Users,
-      });
+      groups[groups.length - 1].items.push(
+        {
+          title: "إعدادات الأكاديمية",
+          url: "/ar/dashboard/settings/academy",
+          icon: Coins,
+        },
+        {
+          title: "إدارة المستخدمين",
+          url: "/ar/dashboard/settings/users",
+          icon: Users,
+        },
+      );
     }
   }
 

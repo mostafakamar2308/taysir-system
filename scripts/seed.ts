@@ -73,6 +73,7 @@ interface RoleData {
   pricePerSession?: number;
   specialities?: number[];
   phone?: string;
+  currencyId?: number; // added for tutors
 }
 
 async function createUserWithRole(
@@ -123,6 +124,7 @@ async function createUserWithRole(
           academyId: roleData.academyId!,
           pricePerSession: roleData.pricePerSession || 20.0,
           active: true,
+          currencyId: roleData.currencyId!, // required now
           specialities: {
             connect: roleData.specialities?.map((id) => ({ id })) || [],
           },
@@ -160,6 +162,7 @@ async function main() {
     db.academy.deleteMany(),
     db.speciality.deleteMany(),
     db.plan.deleteMany(),
+    db.currency.deleteMany(), // added
   ]);
 
   // Create Plans
@@ -190,9 +193,10 @@ async function main() {
   );
   console.log("✅ Created Super Admin");
 
-  // Store tutor IDs and student IDs per academy for later use
+  // Store tutor IDs, student IDs, and default currency per academy
   const academyTutors: Record<number, number[]> = {};
   const academyStudents: Record<number, number[]> = {};
+  const academyDefaultCurrency: Record<number, number> = {}; // currencyId
 
   // Create Academies, Admins, Supervisors, Tutors, and Students
   for (let i = 0; i < ACADEMY_NAMES.length; i++) {
@@ -207,6 +211,46 @@ async function main() {
       },
     });
     console.log(`📚 Created academy: ${academy.name}`);
+
+    // Create currencies for this academy
+    const currencies = [
+      {
+        code: "SAR",
+        name: "ريال سعودي",
+        symbol: "ر.س",
+        exchangeRate: 1.0,
+        isDefault: true,
+      },
+      {
+        code: "USD",
+        name: "دولار أمريكي",
+        symbol: "$",
+        exchangeRate: 0.27,
+        isDefault: false,
+      },
+      {
+        code: "EGP",
+        name: "جنيه مصري",
+        symbol: "ج.م",
+        exchangeRate: 5.0,
+        isDefault: false,
+      },
+    ];
+    const createdCurrencies = await Promise.all(
+      currencies.map((c) =>
+        db.currency.create({
+          data: {
+            ...c,
+            academyId: academy.id,
+          },
+        }),
+      ),
+    );
+    const defaultCurrency = createdCurrencies.find((c) => c.isDefault)!;
+    academyDefaultCurrency[academy.id] = defaultCurrency.id;
+    console.log(
+      `  💱 Created ${createdCurrencies.length} currencies for ${academy.name}`,
+    );
 
     academyTutors[academy.id] = [];
     academyStudents[academy.id] = [];
@@ -248,6 +292,7 @@ async function main() {
               Math.floor(Math.random() * createdSpecialities.length)
             ].id,
           ].filter((v, idx, arr) => arr.indexOf(v) === idx), // unique
+          currencyId: defaultCurrency.id,
         },
       );
 
@@ -285,7 +330,8 @@ async function main() {
           renewalDate,
           tutorId,
           academyId: academy.id,
-          planId: randomElement(createdPlans).id, // assign random plan
+          planId: randomElement(createdPlans).id,
+          currencyId: defaultCurrency.id, // required now
         },
       });
       academyStudents[academy.id].push(student.id);
@@ -408,11 +454,11 @@ async function main() {
       where: { academyId },
       include: { plan: true },
     });
+    const defaultCurrencyId = academyDefaultCurrency[academyId];
 
     for (const student of students) {
       const numPayments = Math.floor(Math.random() * 6); // 0-5
       const planPrice = student.plan?.price || 100;
-      const planCurrency = "SAR";
 
       for (let p = 0; p < numPayments; p++) {
         const paymentDate = randomDate(
@@ -435,7 +481,7 @@ async function main() {
         await db.payment.create({
           data: {
             amount: planPrice,
-            currency: planCurrency,
+            currencyId: defaultCurrencyId, // using academy's default
             status,
             method: method !== null ? method : null,
             date: paymentDate,
@@ -476,6 +522,7 @@ async function main() {
       where: { academyId },
       include: { user: true },
     });
+    const defaultCurrencyId = academyDefaultCurrency[academyId];
 
     for (let monthOffset = 2; monthOffset >= 0; monthOffset--) {
       const expenseMonth = new Date(nowYear, nowMonth - monthOffset, 15);
@@ -487,7 +534,7 @@ async function main() {
           description: "إيجار المكتب",
           costCenter: randomElement(costCenters),
           amount: 3000,
-          currency: "SAR",
+          currencyId: defaultCurrencyId,
           paymentMethod: PaymentMethod.BANK_TRANSFER,
           paid: true,
           reference: `RENT-${monthStr}`,
@@ -504,7 +551,7 @@ async function main() {
           description: "إعلانات فيسبوك",
           costCenter: "تسويق",
           amount: 800,
-          currency: "SAR",
+          currencyId: defaultCurrencyId,
           paymentMethod: PaymentMethod.ONLINE,
           paid: Math.random() > 0.3,
           reference: Math.random() > 0.5 ? `FB-${monthStr}` : null,
@@ -521,7 +568,7 @@ async function main() {
           description: "اشتراك Zoom",
           costCenter: "أدوات وبرمجيات",
           amount: 400,
-          currency: "SAR",
+          currencyId: defaultCurrencyId,
           paymentMethod: PaymentMethod.CARD,
           paid: true,
           reference: null,
@@ -547,7 +594,7 @@ async function main() {
               description: `راتب شهر ${monthStr}`,
               costCenter: "رواتب",
               amount: salaryAmount,
-              currency: "SAR",
+              currencyId: defaultCurrencyId,
               paymentMethod: PaymentMethod.BANK_TRANSFER,
               paid: Math.random() > 0.3,
               reference: `SAL-${tutor.id}-${monthStr}`,
