@@ -27,7 +27,7 @@ const PLANS = [
   },
 ];
 
-// Payment status and method constants (matching your enums)
+// Payment status and method constants
 const PaymentStatus = {
   PENDING: 0,
   PAID: 1,
@@ -58,10 +58,21 @@ function addMinutes(date: Date, minutes: number): Date {
   return new Date(date.getTime() + minutes * 60000);
 }
 
+// Random hex color
+function randomColor(): string {
+  const letters = "0123456789ABCDEF";
+  let color = "#";
+  for (let i = 0; i < 6; i++) {
+    color += letters[Math.floor(Math.random() * 16)];
+  }
+  return color;
+}
+
 interface RoleData {
   academyId?: number;
   pricePerSession?: number;
   specialities?: number[];
+  phone?: string;
 }
 
 async function createUserWithRole(
@@ -71,6 +82,8 @@ async function createUserWithRole(
   roleData: RoleData = {},
 ) {
   const PASSWORD_HASH = await bcrypt.hash("password123", 10);
+  const phone =
+    roleData.phone || (role === Role.Tutor ? "01018303125" : "+966501234567");
 
   const user = await db.user.create({
     data: {
@@ -78,6 +91,8 @@ async function createUserWithRole(
       password: PASSWORD_HASH,
       name,
       role,
+      phone,
+      preferredLanguage: "ar",
     },
   });
 
@@ -107,7 +122,6 @@ async function createUserWithRole(
           userId: user.id,
           academyId: roleData.academyId!,
           pricePerSession: roleData.pricePerSession || 20.0,
-          phone: "01018303125",
           active: true,
           specialities: {
             connect: roleData.specialities?.map((id) => ({ id })) || [],
@@ -132,13 +146,11 @@ async function main() {
     db.tutorAvailability.deleteMany(),
     db.payment.deleteMany(),
     db.expense.deleteMany(),
-    // New models - delete in correct order
     db.studentTopicProgress.deleteMany(),
     db.studentProgramEnrollment.deleteMany(),
     db.programTopic.deleteMany(),
     db.program.deleteMany(),
     db.report.deleteMany(),
-    // Then the original ones
     db.student.deleteMany(),
     db.tutor.deleteMany(),
     db.supervisor.deleteMany(),
@@ -187,7 +199,12 @@ async function main() {
     const academyName = ACADEMY_NAMES[i];
 
     const academy = await db.academy.create({
-      data: { name: academyName },
+      data: {
+        name: academyName,
+        maxTutors: 20,
+        maxStudents: 100,
+        primaryColor: randomColor(),
+      },
     });
     console.log(`📚 Created academy: ${academy.name}`);
 
@@ -285,34 +302,28 @@ async function main() {
   const threeMonthsLater = new Date(now);
   threeMonthsLater.setMonth(now.getMonth() + 3);
 
-  // For each academy
   for (const academyId of Object.keys(academyStudents).map(Number)) {
     const studentIds = academyStudents[academyId];
 
-    // Fetch active students (status = 1 = subscribed)
     const activeStudents = await db.student.findMany({
       where: {
         id: { in: studentIds },
-        status: 1, // subscribed
+        status: 1,
       },
       include: { tutor: true },
     });
 
     for (const student of activeStudents) {
       const tutorId = student.tutorId;
-      if (!tutorId) continue; // skip if no tutor assigned
+      if (!tutorId) continue;
 
-      // Generate around 10 sessions (8-12)
       const numSessions = 8 + Math.floor(Math.random() * 5); // 8-12
 
       for (let s = 0; s < numSessions; s++) {
-        // Random start time between 3 months ago and 3 months from now
         const startTime = randomDate(threeMonthsAgo, threeMonthsLater);
-        // Duration: 30, 45, or 60 minutes
         const duration = randomElement([30, 45, 60]);
         const endTime = addMinutes(startTime, duration);
 
-        // Determine session status based on time
         let status: SessionStatus;
         let attendanceData: {
           status: AttendanceStatus;
@@ -320,11 +331,9 @@ async function main() {
         } | null = null;
 
         if (startTime < now) {
-          // Past session: mostly completed, some cancelled
           const rand = Math.random();
           if (rand < 0.7) {
             status = SessionStatus.COMPLETED;
-            // Attendance for completed sessions
             const attRand = Math.random();
             if (attRand < 0.6) {
               attendanceData = { status: AttendanceStatus.ATTENDED };
@@ -348,14 +357,12 @@ async function main() {
             status = SessionStatus.RESCHEDULED;
           }
         } else {
-          // Future session: mostly scheduled
           status =
             Math.random() < 0.9
               ? SessionStatus.SCHEDULED
               : SessionStatus.RESCHEDULED;
         }
 
-        // Create session
         const session = await db.session.create({
           data: {
             startTime,
@@ -377,7 +384,6 @@ async function main() {
           },
         });
 
-        // Create attendance if applicable
         if (attendanceData) {
           await db.attendance.create({
             data: {
@@ -404,18 +410,15 @@ async function main() {
     });
 
     for (const student of students) {
-      // Generate 0-6 payments over the last 6 months
       const numPayments = Math.floor(Math.random() * 6); // 0-5
-      const planPrice = student.plan?.price || 100; // fallback
+      const planPrice = student.plan?.price || 100;
       const planCurrency = "SAR";
 
       for (let p = 0; p < numPayments; p++) {
-        // Random date within last 6 months
         const paymentDate = randomDate(
           new Date(now.getFullYear(), now.getMonth() - 6, 1),
           now,
         );
-        // Random status: mostly PAID, occasionally PENDING or FAILED
         const statusRand = Math.random();
         let status = PaymentStatus.PAID;
         if (statusRand > 0.8) status = PaymentStatus.PENDING;
@@ -474,12 +477,10 @@ async function main() {
       include: { user: true },
     });
 
-    // Create fixed expenses for each of the last 3 months
     for (let monthOffset = 2; monthOffset >= 0; monthOffset--) {
       const expenseMonth = new Date(nowYear, nowMonth - monthOffset, 15);
       const monthStr = `${expenseMonth.getFullYear()}-${String(expenseMonth.getMonth() + 1).padStart(2, "0")}`;
 
-      // Rent expense (always paid)
       await db.expense.create({
         data: {
           date: expenseMonth,
@@ -497,7 +498,6 @@ async function main() {
         },
       });
 
-      // Marketing expense (sometimes paid)
       await db.expense.create({
         data: {
           date: expenseMonth,
@@ -515,7 +515,6 @@ async function main() {
         },
       });
 
-      // Software subscription (Zoom, etc.)
       await db.expense.create({
         data: {
           date: expenseMonth,
@@ -534,17 +533,13 @@ async function main() {
       });
     }
 
-    // Create tutor salary expenses for last 2 months
     for (const tutor of tutors) {
       for (let monthOffset = 1; monthOffset >= 0; monthOffset--) {
         const salaryMonth = new Date(nowYear, nowMonth - monthOffset, 28);
         const monthStr = `${salaryMonth.getFullYear()}-${String(salaryMonth.getMonth() + 1).padStart(2, "0")}`;
-
-        // Random sessions count (20-60)
         const sessionsCount = 20 + Math.floor(Math.random() * 40);
         const salaryAmount = sessionsCount * tutor.pricePerSession;
 
-        // 80% chance salary is already recorded
         if (Math.random() > 0.2) {
           await db.expense.create({
             data: {
@@ -554,7 +549,7 @@ async function main() {
               amount: salaryAmount,
               currency: "SAR",
               paymentMethod: PaymentMethod.BANK_TRANSFER,
-              paid: Math.random() > 0.3, // 70% paid
+              paid: Math.random() > 0.3,
               reference: `SAL-${tutor.id}-${monthStr}`,
               notes: null,
               tutorId: tutor.id,
@@ -571,7 +566,6 @@ async function main() {
   // ─── Create Programs and Enrollments ─────────────────
   console.log("\n📚 Creating programs and enrollments...");
 
-  // Helper to generate topics based on program name
   function generateTopicsForProgram(
     programName: string,
   ): { title: string; description: string; order: number }[] {
@@ -639,7 +633,6 @@ async function main() {
   for (const academyId of Object.keys(academyStudents).map(Number)) {
     const createdPrograms: number[] = [];
 
-    // Create programs for this academy
     for (const tmpl of programTemplates) {
       const topicsData = generateTopicsForProgram(tmpl.name);
       const program = await db.program.create({
@@ -658,11 +651,9 @@ async function main() {
       createdPrograms.push(program.id);
     }
 
-    // Get all students of this academy
     const students = await db.student.findMany({ where: { academyId } });
 
     for (const student of students) {
-      // 50% chance of being enrolled in a random program
       if (Math.random() > 0.5) continue;
 
       const programId = randomElement(createdPrograms);
@@ -672,7 +663,6 @@ async function main() {
       });
       if (!program) continue;
 
-      // Random enrollment status: 60% active, 20% completed, 20% dropped
       const statusRand = Math.random();
       const status = statusRand < 0.6 ? 0 : statusRand < 0.8 ? 1 : 2;
       const enrolledAt = randomDate(new Date(2025, 0, 1), new Date());
@@ -689,9 +679,7 @@ async function main() {
         },
       });
 
-      // Create topic progress records
       for (const topic of program.topics) {
-        // If program completed, all topics completed; otherwise random chance
         const completed = status === 1 ? true : Math.random() > 0.3;
         const completedAtTopic = completed
           ? randomDate(enrolledAt, new Date())
@@ -703,7 +691,7 @@ async function main() {
             completed,
             completedAt: completedAtTopic,
             notes: completed ? "تم بنجاح" : null,
-            sessionId: null, // optionally link a session later
+            sessionId: null,
           },
         });
       }

@@ -41,6 +41,9 @@ model Academy {
   expenses          Expense[]
   programs          Program[]
   reports           Report[]
+  maxTutors         Int
+  maxStudents       Int
+  primaryColor      String
 }
 
 model User {
@@ -53,7 +56,9 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  timezone String @default("Africa/Cairo")
+  timezone          String  @default("Africa/Cairo")
+  phone             String?
+  preferredLanguage String  @default("ar")
 
   superAdmin SuperAdmin?
   admin      Admin?
@@ -214,7 +219,6 @@ model Tutor {
   specialities    Speciality[]
   active          Boolean?
 
-  phone             String
   bio               String? // short description
   qualifications    String? // text, could be JSON or simple string
   profilePicture    String? // URL
