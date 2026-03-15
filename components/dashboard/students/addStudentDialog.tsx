@@ -22,16 +22,21 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { createStudent } from "@/actions/student";
 import { Plus } from "lucide-react";
+import { Currency, Program } from "@/generated/prisma/client";
 
 interface AddStudentDialogProps {
   tutors: { id: number; name: string }[];
   plans: { id: number; title: string }[];
-  academyId: number; // from context
+  currencies: Currency[];
+  programs: Program[];
+  academyId?: number;
 }
 
 export default function AddStudentDialog({
   tutors,
   plans,
+  currencies,
+  programs,
   academyId,
 }: AddStudentDialogProps) {
   const [open, setOpen] = useState(false);
@@ -42,6 +47,7 @@ export default function AddStudentDialog({
   async function handleSubmit(formData: FormData) {
     setLoading(true);
     try {
+      if (!academyId) return;
       formData.append("academyId", academyId.toString());
       await createStudent(formData);
       toast({ title: "تم إضافة الطالب بنجاح" });
@@ -134,6 +140,25 @@ export default function AddStudentDialog({
               </Select>
             </div>
             <div>
+              <Label htmlFor="currencyId">العملة</Label>
+              <Select
+                name="currencyId"
+                defaultValue={currencies[0].id.toString()}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="اختر العملة" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">بدون عملة</SelectItem>
+                  {currencies.map((p) => (
+                    <SelectItem key={p.id} value={p.id.toString()}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <Label htmlFor="tutorId">المعلم</Label>
               <Select name="tutorId" defaultValue={String(tutors[0].id)}>
                 <SelectTrigger>
@@ -154,8 +179,20 @@ export default function AddStudentDialog({
               <Input id="source" name="source" />
             </div>
             <div>
-              <Label htmlFor="currentProgram">البرنامج الحالي</Label>
-              <Input id="currentProgram" name="currentProgram" />
+              <Label htmlFor="programId">البرنامج</Label>
+              <Select name="programId" defaultValue={programs[0].id.toString()}>
+                <SelectTrigger>
+                  <SelectValue placeholder="اختر العملة" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">بدون برنامج</SelectItem>
+                  {programs.map((p) => (
+                    <SelectItem key={p.id} value={p.id.toString()}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label htmlFor="preferredLanguage">اللغة المفضلة</Label>

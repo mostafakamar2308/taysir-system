@@ -1,7 +1,7 @@
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
-import { Users, UserCheck, DollarSign } from "lucide-react";
+import { Users, UserCheck } from "lucide-react";
 import { DashboardTutor } from "@/types/tutor";
 
 interface StatsCardsProps {
@@ -12,12 +12,6 @@ export default function StatsCards({ tutors }: StatsCardsProps) {
   const total = tutors.length;
   const active = tutors.filter((t) => t.status).length;
   const totalStudents = tutors.reduce((sum, t) => sum + t.studentCount, 0);
-  const avgPrice =
-    total > 0
-      ? Math.round(
-          tutors.reduce((sum, t) => sum + t.pricePerSession, 0) / total,
-        )
-      : 0;
 
   const stats = [
     {
@@ -37,12 +31,6 @@ export default function StatsCards({ tutors }: StatsCardsProps) {
       value: totalStudents,
       icon: Users,
       color: "bg-blue-100 text-blue-700",
-    },
-    {
-      label: "متوسط السعر",
-      value: `${avgPrice} ر.س`,
-      icon: DollarSign,
-      color: "bg-amber-100 text-amber-700",
     },
   ];
 

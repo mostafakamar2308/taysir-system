@@ -70,7 +70,9 @@ export default function TutorCard({
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div className="flex items-center gap-2 text-muted-foreground">
             <DollarSign className="h-3.5 w-3.5 shrink-0" />
-            <span>{tutor.pricePerSession} ر.س / حصة</span>
+            <span>
+              {tutor.pricePerSession} {tutor.currency} / حصة
+            </span>
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
             <Globe className="h-3.5 w-3.5 shrink-0" />

@@ -17,6 +17,7 @@ import { EmptyState } from "@/components/dashboard/students/emptyState";
 import { exportTutorsToCSV } from "@/lib/export";
 import { SortField, SortDir } from "@/types/lib";
 import AddTutorDialog from "@/components/dashboard/tutors/addTutorDialog";
+import { Currency } from "@/generated/prisma/client";
 
 interface TutorsViewerProps {
   tutors: DashboardTutor[];
@@ -26,22 +27,14 @@ interface TutorsViewerProps {
     updatedAt: Date;
     title: string;
   }[];
+  currencies: Currency[];
   academyId: number;
 }
-
-// const statusLabels: Record<string, string> = {
-//   active: "نشط",
-//   inactive: "غير نشط",
-// };
-
-// const statusColors: Record<string, string> = {
-//   active: "bg-primary/10 text-primary",
-//   inactive: "bg-muted text-muted-foreground",
-// };
 
 export default function TutorsViewer({
   tutors,
   academyId,
+  currencies,
   specialities,
 }: TutorsViewerProps) {
   const router = useRouter();
@@ -260,7 +253,11 @@ export default function TutorsViewer({
               {filteredTutors.length} نتيجة
             </p>
             {/* Add SortDropdown if desired, similar to students page */}
-            <AddTutorDialog specialities={specialities} academyId={academyId} />
+            <AddTutorDialog
+              currencies={currencies}
+              specialities={specialities}
+              academyId={academyId}
+            />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {filteredTutors.map((tutor) => (

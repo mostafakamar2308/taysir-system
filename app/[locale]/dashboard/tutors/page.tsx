@@ -2,39 +2,53 @@ import db from "@/lib/prisma";
 import { DashboardTutor } from "@/types/tutor";
 import TutorsViewer from "@/components/dashboard/tutors/viewer";
 import { dayLabels } from "@/components/dashboard/studentProfile/viewer";
+import { user } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
-export default async function TutorsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{
-    q?: string;
-    status?: string;
-    speciality?: string;
-    sort?: string;
-    dir?: string;
-  }>;
-}) {
-  // Fetch tutors with related data
+const TutorsPage = async () => {
+  const currentUser = await user();
+  if (!currentUser) redirect("/login");
+  const tutors1 = await db.tutor.findMany({
+    where: {
+      user: {},
+    },
+    select: {
+      user: {},
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  console.log({ tutors1: tutors1.map((t) => t.user.email) });
+
   const tutors = await db.tutor.findMany({
+    where: {
+      academyId: currentUser.academyId,
+    },
     include: {
       user: true,
       specialities: true,
-      students: { select: { id: true } }, // for count
+      students: { select: { id: true } },
       tutorAvailabilities: true,
+      currency: true,
     },
     orderBy: { createdAt: "desc" },
+  });
+
+  const currencies = await db.currency.findMany({
+    where: { academyId: currentUser.academyId },
   });
 
   const transformed: DashboardTutor[] = tutors.map((t) => ({
     id: t.id,
     name: t.user.name ?? "",
     email: t.user.email,
-    phone: t.phone ?? "",
+    phone: t.user.phone ?? "",
     status: t.active ?? false,
     specialities: t.specialities.map((s) => s.title),
     pricePerSession: t.pricePerSession,
     timezone: t.user.timezone,
     createdAt: t.createdAt,
+    currency: t.currency.name,
     studentCount: t.students.length,
     timetable: t.tutorAvailabilities.map((a) => ({
       day: dayLabels[a.dayOfWeek] || a.dayOfWeek.toString(),
@@ -52,13 +66,14 @@ export default async function TutorsPage({
 
   const specialities = await db.speciality.findMany();
 
-  const academyId = 9;
-
   return (
     <TutorsViewer
       specialities={specialities}
-      academyId={academyId}
+      academyId={currentUser.academyId!}
+      currencies={currencies}
       tutors={transformed}
     />
   );
-}
+};
+
+export default TutorsPage;

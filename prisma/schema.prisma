@@ -45,6 +45,7 @@ model Academy {
   maxStudents       Int
   primaryColor      String
   currencies        Currency[]
+  plans             Plan[]
 }
 
 model User {
@@ -144,8 +145,8 @@ model Program {
   academyId   Int
   academy     Academy @relation(fields: [academyId], references: [id])
 
-  topics      ProgramTopic[]
-  enrollments StudentProgramEnrollment[]
+  topics   ProgramTopic[]
+  students StudentProgramEnrollment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -258,7 +259,9 @@ model Plan {
   price           Float  @default(0)
   billingPeriod   String @default("monthly")
 
-  students Student[]
+  students  Student[]
+  academyId Int
+  academy   Academy   @relation(fields: [academyId], references: [id])
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt

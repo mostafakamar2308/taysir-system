@@ -159,21 +159,13 @@ async function main() {
     db.admin.deleteMany(),
     db.superAdmin.deleteMany(),
     db.user.deleteMany(),
-    db.academy.deleteMany(),
-    db.speciality.deleteMany(),
     db.plan.deleteMany(),
     db.currency.deleteMany(), // added
+    db.academy.deleteMany(),
+    db.speciality.deleteMany(),
   ]);
 
   // Create Plans
-  const createdPlans = await Promise.all(
-    PLANS.map((plan) =>
-      db.plan.create({
-        data: plan,
-      }),
-    ),
-  );
-  console.log(`✅ Created ${createdPlans.length} plans`);
 
   // Create Specialities
   const createdSpecialities = await Promise.all(
@@ -210,8 +202,16 @@ async function main() {
         primaryColor: randomColor(),
       },
     });
-    console.log(`📚 Created academy: ${academy.name}`);
 
+    console.log(`📚 Created academy: ${academy.name}`);
+    const createdPlans = await Promise.all(
+      PLANS.map((plan) =>
+        db.plan.create({
+          data: { ...plan, academyId: academy.id },
+        }),
+      ),
+    );
+    console.log(`✅ Created ${createdPlans.length} plans for ${academy.name}`);
     // Create currencies for this academy
     const currencies = [
       {

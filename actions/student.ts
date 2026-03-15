@@ -20,6 +20,7 @@ const createStudentSchema = z.object({
   emergencyContactPhone: z.string().optional().nullable(),
   preferredLanguage: z.string().optional().nullable(),
   tutorId: z.number().optional().nullable(),
+  currencyId: z.number(),
   planId: z.number().optional().nullable(),
   academyId: z.number(),
 });
@@ -35,6 +36,7 @@ export async function createStudent(formData: FormData) {
     phone: formData.get("phone") || null,
     country: formData.get("country") || null,
     timezone: formData.get("timezone"),
+    currencyId: parseInt(formData.get("currencyId") as string),
     status: formData.get("status")
       ? parseInt(formData.get("status") as string)
       : 0,
@@ -45,7 +47,6 @@ export async function createStudent(formData: FormData) {
       ? new Date(formData.get("renewalDate") as string)
       : null,
     source: formData.get("source") || null,
-    currentProgram: formData.get("currentProgram") || null,
     emergencyContactName: formData.get("emergencyContactName") || null,
     emergencyContactPhone: formData.get("emergencyContactPhone") || null,
     preferredLanguage: formData.get("preferredLanguage") || null,
@@ -60,8 +61,14 @@ export async function createStudent(formData: FormData) {
 
   const validated = createStudentSchema.parse(rawData);
 
-  await db.student.create({
+  const student = await db.student.create({
     data: validated,
+  });
+  await db.studentProgramEnrollment.create({
+    data: {
+      programId: parseInt(formData.get("programId") as string),
+      studentId: student.id,
+    },
   });
 
   revalidatePath("/dashboard/students");

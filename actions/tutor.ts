@@ -18,6 +18,7 @@ const createTutorSchema = z.object({
   qualifications: z.string().optional().nullable(),
   maxStudents: z.number().optional().nullable(),
   zoomAuthenticated: z.boolean().default(false),
+  currencyId: z.number(),
   academyId: z.number(),
 });
 
@@ -43,11 +44,19 @@ export async function createTutor(formData: FormData) {
     maxStudents: formData.get("maxStudents")
       ? parseInt(formData.get("maxStudents") as string)
       : null,
+    currencyId: parseInt(formData.get("currencyId") as string),
     zoomAuthenticated: formData.get("zoomAuthenticated") === "true",
     academyId: parseInt(formData.get("academyId") as string),
   };
 
   const validated = createTutorSchema.parse(rawData);
+
+  const academy = await db.academy.findUnique({
+    where: { id: validated.academyId },
+  });
+  if (!academy) {
+    throw new Error("Academy not found");
+  }
 
   // Create user first
   const hashedPassword = await bcrypt.hash("default123", 10); // You should generate a random password or let the user set it
@@ -61,18 +70,17 @@ export async function createTutor(formData: FormData) {
     },
   });
 
-  // Create tutor record linked to user
   await db.tutor.create({
     data: {
       userId: user.id,
       academyId: validated.academyId,
       pricePerSession: validated.pricePerSession,
       active: validated.active,
-      phone: validated.phone,
       bio: validated.bio,
       qualifications: validated.qualifications,
       maxStudents: validated.maxStudents,
       zoomAuthenticated: validated.zoomAuthenticated,
+      currencyId: validated.currencyId,
       specialities: {
         connect: validated.specialities?.map((id) => ({ id })),
       },

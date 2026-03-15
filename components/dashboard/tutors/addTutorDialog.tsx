@@ -27,11 +27,13 @@ import { Plus } from "lucide-react";
 
 interface AddTutorDialogProps {
   specialities: { id: number; title: string }[];
+  currencies: { id: number; name: string }[];
   academyId: number;
 }
 
 export default function AddTutorDialog({
   specialities,
+  currencies,
   academyId,
 }: AddTutorDialogProps) {
   const [open, setOpen] = useState(false);
@@ -98,7 +100,7 @@ export default function AddTutorDialog({
               </Select>
             </div>
             <div>
-              <Label htmlFor="pricePerSession">سعر الحصة (ر.س) *</Label>
+              <Label htmlFor="pricePerSession">سعر الحصة</Label>
               <Input
                 id="pricePerSession"
                 name="pricePerSession"
@@ -106,6 +108,21 @@ export default function AddTutorDialog({
                 step="0.01"
                 required
               />
+            </div>
+            <div className="col-span-1">
+              <Label htmlFor="currencyId">العملة</Label>
+              <Select name="currencyId">
+                <SelectTrigger>
+                  <SelectValue placeholder="اختر العملة" />
+                </SelectTrigger>
+                <SelectContent>
+                  {currencies.map((c) => (
+                    <SelectItem key={c.id} value={c.id.toString()}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label htmlFor="maxStudents">الحد الأقصى للطلاب</Label>
@@ -125,9 +142,6 @@ export default function AddTutorDialog({
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground mt-1">
-                اضغط Ctrl لاختيار عدة تخصصات
-              </p>
             </div>
             <div>
               <Label htmlFor="bio">النبذة التعريفية</Label>

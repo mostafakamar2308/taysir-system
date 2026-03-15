@@ -10,7 +10,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plan } from "@/generated/prisma/browser";
+import { Currency, Plan } from "@/generated/prisma/browser";
 import { SortDir, SortField } from "@/types/lib";
 import { exportStudentsToCSV } from "@/lib/export";
 import FilterPanel from "@/components/dashboard/common/filterPanel";
@@ -18,12 +18,15 @@ import BulkActionsBar from "@/components/dashboard/students/bulkActionBar";
 import { StudentTable } from "@/components/dashboard/students/studenTable";
 import { EmptyState } from "@/components/dashboard/students/emptyState";
 import AddStudentDialog from "@/components/dashboard/students/addStudentDialog";
+import { Program } from "@/generated/prisma/client";
 
 interface StudentsClientProps {
   students: DashboardStudent[];
   plans: Plan[];
+  currencies: Currency[];
+  programs: Program[];
   tutors: { id: number; name: string }[];
-  academyId: number;
+  academyId?: number;
 }
 
 const statusLabels: Record<number, string> = {
@@ -47,6 +50,8 @@ const StudentsViewer = ({
   plans,
   tutors,
   academyId,
+  currencies,
+  programs,
 }: StudentsClientProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -287,6 +292,8 @@ const StudentsViewer = ({
             <AddStudentDialog
               tutors={tutors}
               plans={plans}
+              programs={programs}
+              currencies={currencies}
               academyId={academyId}
             />
           </div>
