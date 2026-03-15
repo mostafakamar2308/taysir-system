@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Dialog,
@@ -20,62 +20,82 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { createStudent } from "@/actions/student";
-import { Plus, User, CreditCard, MoreHorizontal } from "lucide-react";
-import { Currency } from "@/generated/prisma/client";
+import { getStudent, updateStudent } from "@/actions/student";
+import { User, CreditCard, MoreHorizontal } from "lucide-react";
 import { StudentStatus } from "@/types/student";
+import { Student } from "@/generated/prisma/browser";
 
-interface AddStudentDialogProps {
+interface EditStudentDialogProps {
+  studentId: number;
   tutors: { id: number; name: string }[];
   plans: { id: number; title: string }[];
-  currencies: Currency[];
-  academyId?: number;
+  currencies: { id: number; name: string }[];
+  trigger?: React.ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export default function AddStudentDialog({
+export default function EditStudentDialog({
+  studentId,
   tutors,
   plans,
   currencies,
-  academyId,
-}: AddStudentDialogProps) {
-  const [open, setOpen] = useState(false);
+  trigger,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+}: EditStudentDialogProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState(StudentStatus.lead.toString());
+  const [student, setStudent] = useState<Student | null>(null);
+
+  const [status, setStatus] = useState(String(student?.status || ""));
   const router = useRouter();
   const { toast } = useToast();
 
-  const isLead = status === StudentStatus.lead.toString();
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setOpen = controlledOnOpenChange || setInternalOpen;
+
+  const isLead = status === String(StudentStatus.lead);
+
+  const formatDateForInput = (date: Date | string | null) => {
+    if (!date) return "";
+    const d = typeof date === "string" ? new Date(date) : date;
+    return d.toISOString().split("T")[0];
+  };
+
+  useEffect(() => {
+    async function fetchStudent() {
+      setStudent(await getStudent(studentId));
+    }
+    if (controlledOpen) fetchStudent();
+  }, [studentId, controlledOpen]);
 
   async function handleSubmit(formData: FormData) {
+    if (!student) return;
     setLoading(true);
     try {
-      if (!academyId) return;
-      formData.append("academyId", academyId.toString());
-      await createStudent(formData);
-      toast({ title: "تم إضافة الطالب بنجاح" });
+      await updateStudent(student.id, formData);
+      toast({ title: "تم تحديث بيانات الطالب" });
       setOpen(false);
       router.refresh();
     } catch (error) {
-      console.log({ error });
+      console.error(error);
       toast({ title: "حدث خطأ", variant: "destructive" });
     } finally {
       setLoading(false);
     }
   }
+  if (!student) return <div></div>;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm" className="gap-1">
-          <Plus className="h-4 w-4" /> إضافة طالب
-        </Button>
-      </DialogTrigger>
+      <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent
         className="max-w-2xl max-h-[90vh] overflow-y-auto"
         dir="rtl"
       >
         <DialogHeader>
-          <DialogTitle>إضافة طالب جديد</DialogTitle>
+          <DialogTitle>تعديل بيانات الطالب</DialogTitle>
         </DialogHeader>
         <form action={handleSubmit} className="space-y-6">
           {/* Group 1: Personal Information */}
@@ -86,27 +106,51 @@ export default function AddStudentDialog({
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="name">الاسم *</Label>
-                <Input id="name" name="name" required />
+                <Input
+                  id="name"
+                  name="name"
+                  defaultValue={student.name}
+                  required
+                />
               </div>
               <div>
                 <Label htmlFor="email">البريد الإلكتروني</Label>
-                <Input id="email" name="email" type="email" />
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  defaultValue={student.email || ""}
+                />
               </div>
               <div>
                 <Label htmlFor="age">العمر *</Label>
-                <Input id="age" name="age" type="number" required />
+                <Input
+                  id="age"
+                  name="age"
+                  type="number"
+                  defaultValue={student.age}
+                  required
+                />
               </div>
               <div>
                 <Label htmlFor="phone">رقم الهاتف</Label>
-                <Input id="phone" name="phone" />
+                <Input
+                  id="phone"
+                  name="phone"
+                  defaultValue={student.phone || ""}
+                />
               </div>
               <div>
                 <Label htmlFor="country">الدولة</Label>
-                <Input id="country" name="country" />
+                <Input
+                  id="country"
+                  name="country"
+                  defaultValue={student.country || ""}
+                />
               </div>
               <div>
                 <Label htmlFor="timezone">المنطقة الزمنية *</Label>
-                <Select name="timezone" defaultValue="Africa/Cairo">
+                <Select name="timezone" defaultValue={student.timezone}>
                   <SelectTrigger>
                     <SelectValue placeholder="اختر المنطقة الزمنية" />
                   </SelectTrigger>
@@ -120,19 +164,47 @@ export default function AddStudentDialog({
 
               <div>
                 <Label htmlFor="preferredLanguage">اللغة المفضلة</Label>
-                <Input id="preferredLanguage" name="preferredLanguage" />
+                <Input
+                  id="preferredLanguage"
+                  name="preferredLanguage"
+                  defaultValue={student.preferredLanguage || ""}
+                />
               </div>
               <div>
                 <Label htmlFor="source">المصدر</Label>
-                <Input id="source" name="source" />
+                <Input
+                  id="source"
+                  name="source"
+                  defaultValue={student.source || ""}
+                />
               </div>
               <div>
                 <Label htmlFor="currentProgram">البرنامج</Label>
-                <Input id="currentProgram" name="currentProgram" />
+                <Input
+                  id="currentProgram"
+                  name="currentProgram"
+                  defaultValue={student.currentProgram || ""}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>جهة اتصال الطوارئ</Label>
+              <div className="grid grid-cols-2 gap-4">
+                <Input
+                  name="emergencyContactName"
+                  placeholder="الاسم"
+                  defaultValue={student.emergencyContactName || ""}
+                />
+                <Input
+                  name="emergencyContactPhone"
+                  placeholder="الهاتف"
+                  defaultValue={student.emergencyContactPhone || ""}
+                />
               </div>
             </div>
           </div>
 
+          {/* Group 2: Subscription Information (hidden for leads) */}
           {!isLead && (
             <div className="space-y-4">
               <h3 className="text-sm font-semibold flex items-center gap-2 text-muted-foreground border-b pb-2">
@@ -150,13 +222,13 @@ export default function AddStudentDialog({
                       <SelectValue placeholder="اختر الحالة" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={StudentStatus.trial.toString()}>
+                      <SelectItem value={String(StudentStatus.trial)}>
                         تجريبي
                       </SelectItem>
-                      <SelectItem value={StudentStatus.subscribed.toString()}>
+                      <SelectItem value={String(StudentStatus.subscribed)}>
                         مشترك
                       </SelectItem>
-                      <SelectItem value={StudentStatus.lead.toString()}>
+                      <SelectItem value={String(StudentStatus.lead)}>
                         عميل محتمل
                       </SelectItem>
                     </SelectContent>
@@ -164,7 +236,12 @@ export default function AddStudentDialog({
                 </div>
                 <div>
                   <Label htmlFor="planId">الخطة</Label>
-                  <Select name="planId" defaultValue={String(plans[0]?.id)}>
+                  <Select
+                    name="planId"
+                    defaultValue={
+                      student.planId ? String(student.planId) : "none"
+                    }
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="اختر الخطة" />
                     </SelectTrigger>
@@ -182,7 +259,7 @@ export default function AddStudentDialog({
                   <Label htmlFor="currencyId">العملة</Label>
                   <Select
                     name="currencyId"
-                    defaultValue={currencies[0]?.id.toString()}
+                    defaultValue={String(student.currencyId)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="اختر العملة" />
@@ -199,7 +276,12 @@ export default function AddStudentDialog({
                 </div>
                 <div>
                   <Label htmlFor="tutorId">المعلم</Label>
-                  <Select name="tutorId" defaultValue={String(tutors[0]?.id)}>
+                  <Select
+                    name="tutorId"
+                    defaultValue={
+                      student.tutorId ? String(student.tutorId) : "none"
+                    }
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="اختر المعلم" />
                     </SelectTrigger>
@@ -215,11 +297,21 @@ export default function AddStudentDialog({
                 </div>
                 <div>
                   <Label htmlFor="startDate">تاريخ البدء</Label>
-                  <Input id="startDate" name="startDate" type="date" />
+                  <Input
+                    id="startDate"
+                    name="startDate"
+                    type="date"
+                    defaultValue={formatDateForInput(student.startDate)}
+                  />
                 </div>
                 <div>
                   <Label htmlFor="renewalDate">تاريخ التجديد</Label>
-                  <Input id="renewalDate" name="renewalDate" type="date" />
+                  <Input
+                    id="renewalDate"
+                    name="renewalDate"
+                    type="date"
+                    defaultValue={formatDateForInput(student.renewalDate)}
+                  />
                 </div>
               </div>
             </div>
@@ -243,13 +335,13 @@ export default function AddStudentDialog({
                       <SelectValue placeholder="اختر الحالة" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={StudentStatus.trial.toString()}>
+                      <SelectItem value={String(StudentStatus.trial)}>
                         تجريبي
                       </SelectItem>
-                      <SelectItem value={StudentStatus.subscribed.toString()}>
+                      <SelectItem value={String(StudentStatus.subscribed)}>
                         مشترك
                       </SelectItem>
-                      <SelectItem value={StudentStatus.lead.toString()}>
+                      <SelectItem value={String(StudentStatus.lead)}>
                         عميل محتمل
                       </SelectItem>
                     </SelectContent>
@@ -259,7 +351,7 @@ export default function AddStudentDialog({
             </div>
           )}
 
-          {/* Group 3: Other Information (if any) */}
+          {/* Group 3: Other Information */}
           <div className="space-y-4">
             <h3 className="text-sm font-semibold flex items-center gap-2 text-muted-foreground border-b pb-2">
               <MoreHorizontal className="h-4 w-4" /> أخرى
@@ -271,6 +363,7 @@ export default function AddStudentDialog({
                   id="imageUrl"
                   name="imageUrl"
                   placeholder="رابط الصورة"
+                  defaultValue={student.imageUrl || ""}
                 />
               </div>
               <div>
@@ -280,20 +373,18 @@ export default function AddStudentDialog({
             </div>
           </div>
 
-          <DialogTrigger asChild>
-            <div className="flex justify-end gap-2 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setOpen(false)}
-              >
-                إلغاء
-              </Button>
-              <Button type="submit" disabled={loading}>
-                {loading ? "جاري الحفظ..." : "إضافة"}
-              </Button>
-            </div>
-          </DialogTrigger>
+          <div className="flex justify-end gap-2 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+            >
+              إلغاء
+            </Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? "جاري الحفظ..." : "حفظ التغييرات"}
+            </Button>
+          </div>
         </form>
       </DialogContent>
     </Dialog>

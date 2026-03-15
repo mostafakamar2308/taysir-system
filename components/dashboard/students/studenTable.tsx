@@ -11,7 +11,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { SortDir, SortField } from "@/types/lib";
-import { DashboardStudent } from "@/types/student";
+import { DashboardStudent, StudentStatus } from "@/types/student";
 import { QuickActionsMenu } from "./quickActionsMenu";
 
 interface StudentTableProps {
@@ -22,7 +22,18 @@ interface StudentTableProps {
   sortField: SortField;
   sortDir: SortDir;
   onSort: (field: SortField) => void;
+  tutors: { id: number; name: string }[];
+  plans: { id: number; title: string }[];
+  currencies: { id: number; name: string }[];
+  academyId?: number;
 }
+const statusLabels: Record<StudentStatus, string> = {
+  [StudentStatus.trial]: "تجريبي",
+  [StudentStatus.subscribed]: "مشترك",
+  [StudentStatus.lead]: "عميل محتمل",
+  [StudentStatus.churned]: "منسحب",
+  [StudentStatus.paused]: "متوقف",
+};
 
 const SortableHead = ({
   field,
@@ -64,6 +75,9 @@ export function StudentTable({
   sortField,
   sortDir,
   onSort,
+  currencies,
+  plans,
+  tutors,
 }: StudentTableProps) {
   return (
     <div className="rounded-md border shadow-sm overflow-hidden">
@@ -132,7 +146,7 @@ export function StudentTable({
                 <span
                   className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium`}
                 >
-                  {s.status}
+                  {statusLabels[s.status]}
                 </span>
               </TableCell>
               {/* <TableCell>{s.currentProgram}</TableCell> */}
@@ -142,7 +156,12 @@ export function StudentTable({
                 {s.renewalDate?.toLocaleDateString() || "-"}
               </TableCell>
               <TableCell>
-                <QuickActionsMenu student={s} />
+                <QuickActionsMenu
+                  tutors={tutors}
+                  plans={plans}
+                  currencies={currencies}
+                  student={s}
+                />
               </TableCell>
             </TableRow>
           ))}

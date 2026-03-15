@@ -5,7 +5,7 @@ import StudentCard from "@/components/dashboard/students/studentCard";
 import StatsCards from "@/components/dashboard/students/statsCard";
 import ViewToggle from "@/components/dashboard/common/viewToggle";
 import { Download, Filter, GraduationCap, Search } from "lucide-react";
-import { DashboardStudent } from "@/types/student";
+import { DashboardStudent, StudentStatus } from "@/types/student";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,31 +18,29 @@ import BulkActionsBar from "@/components/dashboard/students/bulkActionBar";
 import { StudentTable } from "@/components/dashboard/students/studenTable";
 import { EmptyState } from "@/components/dashboard/students/emptyState";
 import AddStudentDialog from "@/components/dashboard/students/addStudentDialog";
-import { Program } from "@/generated/prisma/client";
 
 interface StudentsClientProps {
   students: DashboardStudent[];
   plans: Plan[];
   currencies: Currency[];
-  programs: Program[];
   tutors: { id: number; name: string }[];
   academyId?: number;
 }
 
-const statusLabels: Record<number, string> = {
-  0: "تجريبي",
-  1: "مشترك",
-  2: "عميل محتمل",
-  3: "منسحب",
-  4: "متوقف",
+const statusLabels: Record<StudentStatus, string> = {
+  [StudentStatus.trial]: "تجريبي",
+  [StudentStatus.subscribed]: "مشترك",
+  [StudentStatus.lead]: "عميل محتمل",
+  [StudentStatus.churned]: "منسحب",
+  [StudentStatus.paused]: "متوقف",
 };
 
-const statusColors: Record<number, string> = {
-  0: "bg-blue-100 text-blue-700",
-  1: "bg-green-100 text-green-700",
-  2: "bg-amber-100 text-amber-700",
-  3: "bg-red-100 text-red-700",
-  4: "bg-gray-100 text-gray-700",
+const statusColors: Record<StudentStatus, string> = {
+  [StudentStatus.trial]: "bg-blue-100 text-blue-700",
+  [StudentStatus.subscribed]: "bg-green-100 text-green-700",
+  [StudentStatus.lead]: "bg-amber-100 text-amber-700",
+  [StudentStatus.churned]: "bg-red-100 text-red-700",
+  [StudentStatus.paused]: "bg-gray-100 text-gray-700",
 };
 
 const StudentsViewer = ({
@@ -51,7 +49,6 @@ const StudentsViewer = ({
   tutors,
   academyId,
   currencies,
-  programs,
 }: StudentsClientProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -153,14 +150,9 @@ const StudentsViewer = ({
   ].filter(Boolean).length;
 
   const toggleSort = (field: SortField) => {
-    console.log({ field, sortField });
-
     if (sortField === field) {
-      console.log("Here");
-
       setParam("dir", sortDir === "asc" ? "desc" : "asc");
     } else {
-      console.log("Here 2");
       setParam("sort", field);
       setParam("dir", "asc");
     }
@@ -185,6 +177,15 @@ const StudentsViewer = ({
 
   const handleExport = () => {
     exportStudentsToCSV(filteredStudents);
+  };
+
+  // Convert selected Set to array of numbers for bulk actions
+  const selectedIds = useMemo(() => {
+    return Array.from(selected).map((id) => parseInt(id));
+  }, [selected]);
+
+  const handleBulkActionSuccess = () => {
+    router.refresh();
   };
 
   return (
@@ -259,7 +260,11 @@ const StudentsViewer = ({
       {selected.size > 0 && (
         <BulkActionsBar
           selectedCount={selected.size}
+          selectedIds={selectedIds}
+          tutors={tutors}
+          plans={plans}
           onClearSelection={() => setSelected(new Set())}
+          onSuccess={handleBulkActionSuccess}
         />
       )}
 
@@ -284,22 +289,23 @@ const StudentsViewer = ({
             <p className="text-sm text-muted-foreground">
               {filteredStudents.length} نتيجة
             </p>
-            {/* <SortDropdown
-              sortField={sortField}
-              sortDir={sortDir}
-              onSort={toggleSort}
-            /> */}
             <AddStudentDialog
               tutors={tutors}
               plans={plans}
-              programs={programs}
               currencies={currencies}
               academyId={academyId}
             />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filteredStudents.map((student) => (
-              <StudentCard key={student.id} student={student} />
+              <StudentCard
+                key={student.id}
+                student={student}
+                tutors={tutors}
+                plans={plans}
+                currencies={currencies}
+                academyId={academyId}
+              />
             ))}
           </div>
         </>
@@ -312,6 +318,9 @@ const StudentsViewer = ({
           sortField={sortField}
           sortDir={sortDir}
           onSort={toggleSort}
+          tutors={tutors}
+          plans={plans}
+          currencies={currencies}
         />
       )}
     </div>

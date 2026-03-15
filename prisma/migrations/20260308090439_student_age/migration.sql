@@ -1,6 +1,0 @@
--- AlterTable
-ALTER TABLE "Student" ADD COLUMN     "age" INTEGER NOT NULL DEFAULT 12,
-ADD COLUMN     "planId" INTEGER;
-
--- AddForeignKey
-ALTER TABLE "Student" ADD CONSTRAINT "Student_planId_fkey" FOREIGN KEY ("planId") REFERENCES "Plan"("id") ON DELETE SET NULL ON UPDATE CASCADE;

@@ -8,8 +8,14 @@ import {
   TrendingUp,
   CalendarDays,
 } from "lucide-react";
+import { user } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { StudentStatus } from "@/types/student";
 
 const Page: React.FC = async () => {
+  const currentUser = await user();
+  if (!currentUser) redirect("/login");
+
   const [
     totalStudents,
     subscribedStudents,
@@ -18,12 +24,23 @@ const Page: React.FC = async () => {
     totalSupervisors,
     leadStudents,
   ] = await Promise.all([
-    db.student.count({ where: { academyId: 5 } }),
-    db.student.count({ where: { academyId: 5 } }),
-    db.student.count({ where: { academyId: 5 } }),
-    db.tutor.count({ where: { active: true, academyId: 5 } }),
-    db.supervisor.count({ where: { academyId: 5 } }),
-    db.student.count({ where: { academyId: 5 } }),
+    db.student.count({ where: { academyId: currentUser.academyId } }),
+    db.student.count({
+      where: {
+        academyId: currentUser.academyId,
+        status: StudentStatus.subscribed,
+      },
+    }),
+    db.student.count({
+      where: { academyId: currentUser.academyId, status: StudentStatus.trial },
+    }),
+    db.tutor.count({
+      where: { active: true, academyId: currentUser.academyId },
+    }),
+    db.supervisor.count({ where: { academyId: currentUser.academyId } }),
+    db.student.count({
+      where: { academyId: currentUser.academyId, status: StudentStatus.lead },
+    }),
   ]);
 
   const stats = [

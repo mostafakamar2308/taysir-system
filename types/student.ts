@@ -6,17 +6,20 @@ export type DashboardStudent = {
   phone: string;
   country: string;
   timezone: string;
-  status: number;
+  status: StudentStatus;
   tutorName: string;
+  tutorId?: number;
   startDate: Date;
+  currentProgram?: string;
   renewalDate: Date | null;
   plan?: number;
+  planName?: string;
 };
 
 export enum StudentStatus {
+  lead,
   trial,
   subscribed,
-  lead,
   churned,
   paused,
 }

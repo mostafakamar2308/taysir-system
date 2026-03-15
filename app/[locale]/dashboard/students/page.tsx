@@ -32,13 +32,10 @@ export default async function StudentsPage({
     orderBy: { createdAt: "desc" },
   });
 
-  const plans = await db.plan.findMany({
-    where: { academyId: currentUser.academyId },
-  });
   const currencies = await db.currency.findMany({
-    where: { academyId: currentUser.academyId },
+    where: {},
   });
-  const programs = await db.program.findMany({
+  const plans = await db.plan.findMany({
     where: { academyId: currentUser.academyId },
   });
 
@@ -53,8 +50,11 @@ export default async function StudentsPage({
     status: student.status,
     startDate: student.startDate,
     renewalDate: student.renewalDate,
+    currentProgram: student.currentProgram || undefined,
     tutorName: student.tutor?.user?.name || "غير معين",
+    tutorId: student.tutor?.id,
     plan: student.plan?.id,
+    planName: student.plan?.title,
   }));
 
   const tutors = await db.tutor.findMany({
@@ -73,7 +73,6 @@ export default async function StudentsPage({
       academyId={currentUser.academyId}
       plans={plans}
       currencies={currencies}
-      programs={programs}
     />
   );
 }

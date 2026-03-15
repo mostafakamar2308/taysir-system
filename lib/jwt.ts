@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 const JWT_SECRET = process.env.JWT_SECRET!;
 
 export interface TokenPayload {
-  id: string;
+  id: number;
   email: string;
   name: string;
   role: number;

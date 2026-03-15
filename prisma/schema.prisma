@@ -25,39 +25,12 @@ model Waitlist {
   @@index([id])
 }
 
-model Academy {
-  id   Int    @id @default(autoincrement())
-  name String
-
-  admin       Admin?
-  supervisors Supervisor[]
-  tutors      Tutor[]
-  students    Student[]
-
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  sessions          Session[]
-  recurringPatterns RecurringPattern[]
-  expenses          Expense[]
-  programs          Program[]
-  reports           Report[]
-  maxTutors         Int
-  maxStudents       Int
-  primaryColor      String
-  currencies        Currency[]
-  plans             Plan[]
-}
-
 model User {
-  id       String  @id @default(cuid())
-  email    String  @unique
-  password String
-  name     String?
-  role     Int
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
+  id                Int     @id @default(autoincrement())
+  email             String  @unique
+  password          String
+  name              String?
+  role              Int
   timezone          String  @default("Africa/Cairo")
   phone             String?
   preferredLanguage String  @default("ar")
@@ -67,25 +40,42 @@ model User {
   supervisor Supervisor?
   tutor      Tutor?
   notes      Note[]
-  payments   Payment[]
+  revenues   Revenue[]
   reports    Report[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  expenses  Expense[]
 }
 
-model SuperAdmin {
-  id     Int    @id @default(autoincrement())
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+model Academy {
+  id                Int       @id @default(autoincrement())
+  name              String
+  maxTutors         Int
+  maxStudents       Int
+  primaryColor      String
+  defaultCurrencyId Int?
+  defaultCurrency   Currency? @relation(fields: [currencyId], references: [id])
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  admin             Admin?
+  supervisors       Supervisor[]
+  tutors            Tutor[]
+  students          Student[]
+  sessions          Session[]
+  recurringPatterns RecurringPattern[]
+  expenses          Expense[]
+  reports           Report[]
+  plans             Plan[]
 
-  @@index([userId])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  currencyId Int?
 }
 
 model Admin {
-  id     Int    @id @default(autoincrement())
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     Int  @id @default(autoincrement())
+  userId Int  @unique
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   academyId Int     @unique
   academy   Academy @relation(fields: [academyId], references: [id])
@@ -110,12 +100,13 @@ model Student {
   currency    Currency  @relation(fields: [currencyId], references: [id])
   currencyId  Int
 
-  source                String? // e.g., "facebook", "snapchat", "referral"
-  currentProgram        String? // e.g., "Quran Memorization", "Tajweed"
+  source                String?
+  currentProgram        String?
   emergencyContactName  String?
   emergencyContactPhone String?
-  preferredLanguage     String? // e.g., "ar", "en"
-  profilePicture        String?
+  preferredLanguage     String?
+  imageUrl              String?
+  currentSubscriptionId Int?
 
   tutorId Int?
   tutor   Tutor? @relation(fields: [tutorId], references: [id])
@@ -126,81 +117,24 @@ model Student {
   planId Int?
   plan   Plan? @relation(fields: [planId], references: [id])
 
-  createdAt                 DateTime                   @default(now())
-  updatedAt                 DateTime                   @updatedAt
-  sessions                  Session[]
-  recurringPatterns         RecurringPattern[]
-  studentAvailabilities     StudentAvailability[]
-  notes                     Note[]
-  payments                  Payment[]
-  studentProgramEnrollments StudentProgramEnrollment[]
-}
-
-model Program {
-  id          Int     @id @default(autoincrement())
-  name        String
-  description String?
-  level       String?
-  duration    Int? // estimated weeks
-  academyId   Int
-  academy     Academy @relation(fields: [academyId], references: [id])
-
-  topics   ProgramTopic[]
-  students StudentProgramEnrollment[]
+  sessions              Session[]
+  recurringPatterns     RecurringPattern[]
+  studentAvailabilities StudentAvailability[]
+  notes                 Note[]
+  payments              Revenue[]
+  subscriptions         Subscription[]        @relation("StudentSubscriptions")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-}
 
-model ProgramTopic {
-  id          Int     @id @default(autoincrement())
-  programId   Int
-  program     Program @relation(fields: [programId], references: [id])
-  title       String
-  description String?
-  order       Int // position in program
-
-  progress StudentTopicProgress[]
-  sessions Session[] // optional link to sessions
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model StudentProgramEnrollment {
-  id          Int       @id @default(autoincrement())
-  studentId   Int
-  student     Student   @relation(fields: [studentId], references: [id])
-  programId   Int
-  program     Program   @relation(fields: [programId], references: [id])
-  enrolledAt  DateTime  @default(now())
-  completedAt DateTime?
-  status      Int       @default(0) // 0=active, 1=completed, 2=dropped
-
-  topics StudentTopicProgress[]
-
-  @@unique([studentId, programId])
-}
-
-model StudentTopicProgress {
-  id           Int                      @id @default(autoincrement())
-  enrollmentId Int
-  enrollment   StudentProgramEnrollment @relation(fields: [enrollmentId], references: [id])
-  topicId      Int
-  topic        ProgramTopic             @relation(fields: [topicId], references: [id])
-  completed    Boolean                  @default(false)
-  completedAt  DateTime?
-  notes        String?
-  sessionId    Int? // optional link to session where completed
-  session      Session?                 @relation(fields: [sessionId], references: [id])
-
-  @@unique([enrollmentId, topicId])
+  @@index([tutorId])
+  @@index([status])
 }
 
 model Supervisor {
-  id     Int    @id @default(autoincrement())
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     Int  @id @default(autoincrement())
+  userId Int  @unique
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   academyId Int
   academy   Academy @relation(fields: [academyId], references: [id])
@@ -212,26 +146,24 @@ model Supervisor {
 }
 
 model Tutor {
-  id     Int    @id @default(autoincrement())
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     Int  @id @default(autoincrement())
+  userId Int  @unique
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  academyId Int
-  academy   Academy @relation(fields: [academyId], references: [id])
+  academyId  Int
+  academy    Academy  @relation(fields: [academyId], references: [id])
+  currency   Currency @relation(fields: [currencyId], references: [id])
+  currencyId Int
 
   pricePerSession   Float
-  specialities      Speciality[]
   active            Boolean?
-  currency          Currency     @relation(fields: [currencyId], references: [id])
-  currencyId        Int
-  bio               String? // short description
-  qualifications    String? // text, could be JSON or simple string
-  profilePicture    String? // URL
-  maxStudents       Int?
-  zoomAuthenticated Boolean      @default(false)
+  bio               String?
+  qualifications    String?
+  imageUrl          String?
+  zoomAuthenticated Boolean  @default(false)
+  zoomUrl           String?
 
-  createdAt           DateTime            @default(now())
-  updatedAt           DateTime            @updatedAt
+  specialities        Speciality[]
   students            Student[]
   sessions            Session[]
   recurringPatterns   RecurringPattern[]
@@ -239,17 +171,10 @@ model Tutor {
   notes               Note[]
   expenses            Expense[]
 
-  @@index([userId])
-}
-
-model Speciality {
-  id    Int    @id @default(autoincrement())
-  title String
-
-  tutor Tutor[]
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }
 
 model Plan {
@@ -257,45 +182,48 @@ model Plan {
   title           String
   sessionsPerWeek Int
   price           Float  @default(0)
-  billingPeriod   String @default("monthly")
+  billingPeriod   Int    @default(30)
 
-  students  Student[]
-  academyId Int
-  academy   Academy   @relation(fields: [academyId], references: [id])
+  currencyId Int
+  currency   Currency  @relation(fields: [currencyId], references: [id])
+  academyId  Int
+  academy    Academy   @relation(fields: [academyId], references: [id])
+  students   Student[]
+  revenues   Revenue[]
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  payments  Payment[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  subscriptions Subscription[]
 }
 
 model Session {
   id              Int      @id @default(autoincrement())
   startTime       DateTime
   endTime         DateTime
-  durationMinutes Int
+  durationMinutes Int      @default(60)
   status          Int      @default(0)
   topic           String?
   notes           String?
+  isTrial         Boolean  @default(false)
 
-  studentId Int
-  student   Student @relation(fields: [studentId], references: [id])
-  tutorId   Int
-  tutor     Tutor   @relation(fields: [tutorId], references: [id])
-  academyId Int
-  academy   Academy @relation(fields: [academyId], references: [id])
-
+  studentId          Int
+  student            Student           @relation(fields: [studentId], references: [id])
+  tutorId            Int
+  tutor              Tutor             @relation(fields: [tutorId], references: [id])
+  academyId          Int
+  academy            Academy           @relation(fields: [academyId], references: [id])
   recurringPatternId Int?
   recurringPattern   RecurringPattern? @relation(fields: [recurringPatternId], references: [id])
 
-  attendance Attendance?
+  attendance    Attendance?
+  sessionReport SessionReport?
 
-  createdAt              DateTime               @default(now())
-  updatedAt              DateTime               @updatedAt
-  sessionReport          SessionReport?
-  programTopic           ProgramTopic?          @relation(fields: [programTopicId], references: [id])
-  programTopicId         Int?
-  studentTopicProgresses StudentTopicProgress[]
-  sessionFeedback        SessionFeedback?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([studentId])
+  @@index([tutorId])
+  @@index([isTrial])
 }
 
 model RecurringPattern {
@@ -320,14 +248,15 @@ model RecurringPattern {
 }
 
 model Attendance {
-  id              Int      @id @default(autoincrement())
-  sessionId       Int      @unique
-  session         Session  @relation(fields: [sessionId], references: [id])
-  status          Int
-  reason          String?
-  madeUpSessionId Int?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                      Int     @id @default(autoincrement())
+  sessionId               Int     @unique
+  session                 Session @relation(fields: [sessionId], references: [id])
+  tutorAttendanceStatus   Int
+  studentAttendanceStatus Int
+  reason                  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model TutorAvailability {
@@ -339,8 +268,6 @@ model TutorAvailability {
   endTime   DateTime
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  @@unique([tutorId, dayOfWeek, startTime])
 }
 
 model StudentAvailability {
@@ -358,8 +285,8 @@ model Note {
   id         Int    @id @default(autoincrement())
   content    String
   targetType Int
-  targetId   Int // ID of the target (Student.id or Tutor.id)
-  authorId   String // User.id who wrote the note
+  targetId   Int
+  authorId   Int
   author     User   @relation(fields: [authorId], references: [id])
 
   createdAt DateTime @default(now())
@@ -373,7 +300,7 @@ model Note {
   @@index([authorId])
 }
 
-model Payment {
+model Revenue {
   id          Int       @id @default(autoincrement())
   amount      Float
   currencyId  Int
@@ -381,51 +308,49 @@ model Payment {
   status      Int       @default(0)
   method      Int?
   date        DateTime  @default(now())
-  dueDate     DateTime? // for invoices
+  dueDate     DateTime?
   description String? // e.g., "Monthly subscription March 2026"
-  channel     String? // القناة (optional)
-  notes       String? // ملاحظات
+  channel     String?
+  notes       String?
+  invoiceUrl  String?
 
-  studentId Int
-  student   Student @relation(fields: [studentId], references: [id])
-
-  // Optional link to a plan
-  planId Int?
-  plan   Plan? @relation(fields: [planId], references: [id])
-
-  // Who recorded/confirmed the payment
-  recordedBy String? // User.id
+  studentId  Int
+  student    Student @relation(fields: [studentId], references: [id])
+  planId     Int?
+  plan       Plan?   @relation(fields: [planId], references: [id])
+  recordedBy Int?
   recorder   User?   @relation(fields: [recordedBy], references: [id])
 
-  invoiceUrl String? // link to PDF or external invoice
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  subscriptionId Int?
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id])
 
   @@index([studentId])
   @@index([status])
 }
 
 model Expense {
-  id            Int      @id @default(autoincrement())
-  date          DateTime
-  description   String
-  costCenter    String? // e.g., "رواتب", "إيجار", "تسويق"
-  amount        Float
-  currencyId    Int
-  currency      Currency @relation(fields: [currencyId], references: [id])
-  paymentMethod Int? // reuse same enum as Payment.method (0=CASH,1=CARD,2=BANK_TRANSFER,3=ONLINE)
-  paid          Boolean  @default(false)
-  reference     String? // receipt number, invoice link
-  notes         String?
+  id          Int      @id @default(autoincrement())
+  date        DateTime
+  description String
+  costCenter  String?
+  amount      Float
+  currencyId  Int
+  currency    Currency @relation(fields: [currencyId], references: [id])
+  method      Int?
+  status      Int      @default(0)
+  invoiceUrl  String?
+  notes       String?
 
-  // For tutor salaries
   tutorId     Int?
   tutor       Tutor?  @relation(fields: [tutorId], references: [id])
-  salaryMonth String? // format: YYYY-MM
+  salaryMonth String?
 
-  academyId Int
-  academy   Academy @relation(fields: [academyId], references: [id])
+  academyId  Int
+  academy    Academy @relation(fields: [academyId], references: [id])
+  recordedBy Int?
+  user       User?   @relation(fields: [recordedBy], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -439,29 +364,20 @@ model SessionReport {
   id        Int     @id @default(autoincrement())
   sessionId Int     @unique
   session   Session @relation(fields: [sessionId], references: [id])
+  rating    Int? // 1-5
 
-  memorization String?
-  revision     String?
-  tajweed      String?
-  strengths    String?
-  weaknesses   String?
-  nextGoals    String?
+  outcomes   String?
+  strengths  String?
+  weaknesses String?
+  nextGoals  String?
+  comments   String?
   // Optional JSON for extra fields
-  details      Json?
+  details    Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([sessionId])
-}
-
-model SessionFeedback {
-  id        Int      @id @default(autoincrement())
-  sessionId Int      @unique
-  session   Session  @relation(fields: [sessionId], references: [id])
-  rating    Int? // 1-5
-  comment   String?
-  createdAt DateTime @default(now())
 }
 
 model Report {
@@ -471,7 +387,7 @@ model Report {
   month       String // YYYY-MM
   generatedAt DateTime @default(now())
   fileUrl     String? // URL to the generated file (PDF, CSV)
-  createdBy   String? // User.id
+  createdBy   Int? // User.id
   user        User?    @relation(fields: [createdBy], references: [id])
   academyId   Int
   academy     Academy  @relation(fields: [academyId], references: [id])
@@ -481,22 +397,63 @@ model Report {
   @@index([month])
 }
 
-model Currency {
-  id           Int       @id @default(autoincrement())
-  academyId    Int
-  academy      Academy   @relation(fields: [academyId], references: [id])
-  code         String // ISO code: USD, SAR, EGP
-  name         String // US Dollar, Saudi Riyal, Egyptian Pound
-  symbol       String // $, ﷼, £
-  exchangeRate Float // relative to the academy's base currency (default)
-  isDefault    Boolean   @default(false)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  students     Student[]
-  tutors       Tutor[]
-  payments     Payment[]
-  expenses     Expense[]
+model Speciality {
+  id    Int    @id @default(autoincrement())
+  title String
 
-  @@unique([academyId, code])
-  @@index([academyId])
+  tutor Tutor[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Currency {
+  id Int @id @default(autoincrement())
+
+  code   String // ISO code: USD, SAR, EGP
+  name   String // US Dollar, Saudi Riyal, Egyptian Pound
+  symbol String // $, ﷼, £
+
+  students  Student[]
+  tutors    Tutor[]
+  payments  Revenue[]
+  expenses  Expense[]
+  academies Academy[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  plans     Plan[]
+
+  @@index([code])
+}
+
+model SuperAdmin {
+  id     Int  @id @default(autoincrement())
+  userId Int  @unique
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Subscription {
+  id        Int       @id @default(autoincrement())
+  studentId Int
+  student   Student   @relation("StudentSubscriptions", fields: [studentId], references: [id])
+  planId    Int
+  plan      Plan      @relation(fields: [planId], references: [id])
+  startDate DateTime
+  endDate   DateTime?
+  status    Int       @default(0) // 0=active, 1=cancelled, 2=expired, 3=pending
+  autoRenew Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  payments Revenue[]
+
+  @@index([studentId])
+  @@index([planId])
+  @@index([status])
 }
