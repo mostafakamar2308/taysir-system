@@ -14,7 +14,6 @@ export async function addToWaitlist(formData: FormData) {
       rawData[key] = value;
     }
   });
-  console.log({ rawData });
 
   const result = waitlistSchema.safeParse(rawData);
 

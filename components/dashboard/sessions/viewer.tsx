@@ -200,22 +200,6 @@ export default function SessionsViewer({
     router.refresh();
   };
 
-  //   const handleAttendanceUpdate = async (
-  //     sessionId: number,
-  //     status: AttendanceStatus,
-  //     reason?: string,
-  //   ) => {
-  //     try {
-  //       // This will be handled by the server action in detail panel
-  //       // We'll just refresh after action
-  //       router.refresh();
-  //     } catch (error) {
-  //       console.log({ error });
-
-  //       toast({ title: "حدث خطأ", variant: "destructive" });
-  //     }
-  //   };
-
   const activeFilterCount = [filterTutor, filterStudent, filterStatus].filter(
     (v) => v !== "all",
   ).length;

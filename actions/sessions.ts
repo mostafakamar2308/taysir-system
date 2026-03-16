@@ -29,8 +29,6 @@ type UpdateSessionInput = Partial<CreateSessionInput> & {
 };
 
 export async function createSession(input: CreateSessionInput) {
-  console.log({ input });
-
   // Convert local date+time to UTC
   const startUTC = localToUTC(input.date, input.startTime);
   const endUTC = dayjs.utc(startUTC).add(input.duration, "minute").toDate();

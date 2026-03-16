@@ -2,7 +2,6 @@ export enum SessionStatus {
   SCHEDULED,
   COMPLETED,
   CANCELLED,
-  RESCHEDULED,
 }
 
 export enum AttendanceStatus {

@@ -5,7 +5,7 @@ import StudentCard from "@/components/dashboard/students/studentCard";
 import StatsCards from "@/components/dashboard/students/statsCard";
 import ViewToggle from "@/components/dashboard/common/viewToggle";
 import { Download, Filter, GraduationCap, Search } from "lucide-react";
-import { DashboardStudent, StudentStatus } from "@/types/student";
+import { DashboardStudent } from "@/types/student";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import BulkActionsBar from "@/components/dashboard/students/bulkActionBar";
 import { StudentTable } from "@/components/dashboard/students/studenTable";
 import { EmptyState } from "@/components/dashboard/students/emptyState";
 import AddStudentDialog from "@/components/dashboard/students/addStudentDialog";
+import { statusColors, statusLabels } from "@/lib/enums";
 
 interface StudentsClientProps {
   students: DashboardStudent[];
@@ -26,22 +27,6 @@ interface StudentsClientProps {
   tutors: { id: number; name: string }[];
   academyId?: number;
 }
-
-const statusLabels: Record<StudentStatus, string> = {
-  [StudentStatus.trial]: "تجريبي",
-  [StudentStatus.subscribed]: "مشترك",
-  [StudentStatus.lead]: "عميل محتمل",
-  [StudentStatus.churned]: "منسحب",
-  [StudentStatus.paused]: "متوقف",
-};
-
-const statusColors: Record<StudentStatus, string> = {
-  [StudentStatus.trial]: "bg-blue-100 text-blue-700",
-  [StudentStatus.subscribed]: "bg-green-100 text-green-700",
-  [StudentStatus.lead]: "bg-amber-100 text-amber-700",
-  [StudentStatus.churned]: "bg-red-100 text-red-700",
-  [StudentStatus.paused]: "bg-gray-100 text-gray-700",
-};
 
 const StudentsViewer = ({
   students,

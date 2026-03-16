@@ -1,24 +1,13 @@
 import db from "@/lib/prisma";
 import { DashboardTutor } from "@/types/tutor";
 import TutorsViewer from "@/components/dashboard/tutors/viewer";
-import { dayLabels } from "@/components/dashboard/studentProfile/viewer";
 import { user } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { dayLabels } from "@/lib/enums";
 
 const TutorsPage = async () => {
   const currentUser = await user();
   if (!currentUser) redirect("/login");
-  const tutors1 = await db.tutor.findMany({
-    where: {
-      user: {},
-    },
-    select: {
-      user: {},
-    },
-    orderBy: { createdAt: "desc" },
-  });
-
-  console.log({ tutors1: tutors1.map((t) => t.user.email) });
 
   const tutors = await db.tutor.findMany({
     where: {
@@ -35,7 +24,7 @@ const TutorsPage = async () => {
   });
 
   const currencies = await db.currency.findMany({
-    where: { academyId: currentUser.academyId },
+    where: {},
   });
 
   const transformed: DashboardTutor[] = tutors.map((t) => ({

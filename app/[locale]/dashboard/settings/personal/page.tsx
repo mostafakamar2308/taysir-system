@@ -4,8 +4,6 @@ import { redirect } from "next/navigation";
 import ProfileClient from "@/components/dashboard/settings/personal/viewer";
 
 export default async function ProfilePage() {
-  console.log("Herer");
-
   const token = await getTokenFromCookie();
   if (!token) redirect("/login");
   const payload = verifyToken(token);
@@ -33,7 +31,6 @@ export default async function ProfilePage() {
     timezone: user.timezone || "Africa/Cairo",
     preferredLanguage: user.preferredLanguage || "ar",
   };
-  console.log("Here");
 
   return <ProfileClient user={transformed} />;
 }

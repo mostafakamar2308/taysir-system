@@ -1,13 +1,18 @@
 import db from "@/lib/prisma";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import StudentProfileClient from "@/components/dashboard/studentProfile/viewer";
-import { StudentProfile } from "@/components/dashboard/studentProfile/viewer";
+import { user } from "@/lib/auth";
+import { getSessionStatus } from "@/lib/session";
+import { StudentProfile } from "@/types/studentProfile";
 
 export default async function StudentProfilePage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const currentUser = await user();
+  if (!currentUser) redirect("/login");
+
   const id = parseInt((await params).id);
   if (isNaN(id)) notFound();
 
@@ -15,17 +20,33 @@ export default async function StudentProfilePage({
     where: { id },
     include: {
       tutor: { include: { user: true } },
-      plan: true,
+      plan: {
+        include: {
+          currency: true,
+        },
+      },
       studentAvailabilities: true,
       notes: {
         include: { author: true },
         orderBy: { createdAt: "desc" },
       },
-      payments: true,
+      subscriptions: {
+        include: {
+          plan: { include: { currency: true } },
+          payments: true,
+        },
+        orderBy: { startDate: "desc" },
+      },
+      payments: {
+        include: {
+          currency: true,
+        },
+      },
       sessions: {
         include: {
           tutor: { include: { user: true } },
           attendance: true,
+          sessionReport: true,
         },
         orderBy: { startTime: "desc" },
       },
@@ -34,7 +55,6 @@ export default async function StudentProfilePage({
 
   if (!student) notFound();
 
-  // Transform data to match the client's expected shape
   const transformed: StudentProfile = {
     id: student.id,
     name: student.name,
@@ -51,7 +71,7 @@ export default async function StudentProfilePage({
     emergencyContactName: student.emergencyContactName,
     emergencyContactPhone: student.emergencyContactPhone,
     preferredLanguage: student.preferredLanguage,
-    profilePicture: student.profilePicture,
+    imageUrl: student.imageUrl,
     tutorId: student.tutorId,
     tutorName: student.tutor?.user.name ?? null,
     planId: student.planId,
@@ -62,6 +82,7 @@ export default async function StudentProfilePage({
           sessionsPerWeek: student.plan.sessionsPerWeek,
           price: student.plan.price,
           billingPeriod: student.plan.billingPeriod,
+          currency: student.plan.currency.code,
         }
       : null,
     availabilities: student.studentAvailabilities.map((a) => ({
@@ -78,6 +99,24 @@ export default async function StudentProfilePage({
         hour12: false,
       }),
     })),
+    subscriptions: student.subscriptions.map((sub) => ({
+      id: sub.id,
+      planId: sub.planId,
+      planTitle: sub.plan.title,
+      planSessionsPerWeek: sub.plan.sessionsPerWeek,
+      planPrice: sub.plan.price,
+      planCurrency: sub.plan.currency.code,
+      startDate: sub.startDate.toISOString(),
+      endDate: sub.endDate?.toISOString() ?? null,
+      status: sub.status,
+      autoRenew: sub.autoRenew,
+      payments: sub.payments.map((p) => ({
+        id: p.id,
+        amount: p.amount,
+        date: p.date.toISOString(),
+        status: p.status,
+      })),
+    })),
     notes: student.notes.map((n) => ({
       id: n.id,
       content: n.content,
@@ -87,7 +126,7 @@ export default async function StudentProfilePage({
     payments: student.payments.map((p) => ({
       id: p.id,
       amount: p.amount,
-      currency: p.currency,
+      currency: p.currency.code,
       status: p.status,
       method: p.method,
       date: p.date.toISOString(),
@@ -102,7 +141,7 @@ export default async function StudentProfilePage({
       startTime: s.startTime.toISOString(),
       endTime: s.endTime.toISOString(),
       durationMinutes: s.durationMinutes,
-      status: s.status,
+      status: getSessionStatus(s),
       topic: s.topic,
       notes: s.notes,
       studentId: s.studentId,
@@ -112,15 +151,47 @@ export default async function StudentProfilePage({
       attendance: s.attendance
         ? {
             id: s.attendance.id,
-            status: s.attendance.status,
+            status: s.attendance.studentAttendanceStatus,
             reason: s.attendance.reason,
           }
         : undefined,
+      report: s.sessionReport
+        ? {
+            id: s.sessionReport.id,
+            rating: s.sessionReport.rating,
+            outcomes: s.sessionReport.outcomes,
+            strengths: s.sessionReport.strengths,
+            weaknesses: s.sessionReport.weaknesses,
+            nextGoals: s.sessionReport.nextGoals,
+            comments: s.sessionReport.comments,
+          }
+        : null,
       recurringPatternId: s.recurringPatternId,
     })),
   };
 
-  const plans = await db.plan.findMany();
+  const plans = await db.plan.findMany({
+    where: {
+      academyId: currentUser.academyId,
+    },
+  });
 
-  return <StudentProfileClient plans={plans} student={transformed} />;
+  const tutors = await db.tutor.findMany({
+    where: {
+      academyId: currentUser.academyId,
+    },
+    include: {
+      user: true,
+    },
+  });
+  const currencies = await db.currency.findMany({});
+
+  return (
+    <StudentProfileClient
+      tutors={tutors.map((t) => ({ id: t.id, name: t.user.name }))}
+      currencies={currencies}
+      plans={plans}
+      student={transformed}
+    />
+  );
 }

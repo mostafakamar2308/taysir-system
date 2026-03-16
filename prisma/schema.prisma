@@ -205,6 +205,7 @@ model Session {
   topic           String?
   notes           String?
   isTrial         Boolean  @default(false)
+  cancelledBy     Int?
 
   studentId          Int
   student            Student           @relation(fields: [studentId], references: [id])

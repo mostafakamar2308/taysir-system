@@ -295,3 +295,79 @@ export async function bulkAddNote(studentIds: number[], content: string) {
 
   revalidatePath("/ar/dashboard/students");
 }
+
+export async function changePlan(studentId: number, newPlanId: number) {
+  const token = await getTokenFromCookie();
+  if (!token) throw new Error("غير مصرح");
+  const payload = verifyToken(token);
+  if (!payload) throw new Error("غير مصرح");
+
+  // Expire current active subscription (if any)
+  await db.subscription.updateMany({
+    where: {
+      studentId,
+      status: 0, // active
+    },
+    data: {
+      status: 2, // expired
+      endDate: dayjs().toDate(),
+    },
+  });
+
+  // Create new subscription
+  const newSubscription = await db.subscription.create({
+    data: {
+      studentId,
+      planId: newPlanId,
+      startDate: new Date(),
+      status: 0, // active
+      autoRenew: true,
+    },
+  });
+
+  // Optionally set as current subscription on student
+  await db.student.update({
+    where: { id: studentId },
+    data: { currentSubscriptionId: newSubscription.id, planId: newPlanId },
+  });
+
+  revalidatePath(`/ar/dashboard/students/${studentId}`);
+  revalidatePath("/ar/dashboard/students");
+  return newSubscription;
+}
+
+export async function recordPayment(
+  studentId: number,
+  subscriptionId: number,
+  amount: number,
+  method: number,
+  description?: string,
+) {
+  const token = await getTokenFromCookie();
+  if (!token) throw new Error("غير مصرح");
+  const payload = verifyToken(token);
+  if (!payload) throw new Error("غير مصرح");
+
+  // Get subscription to find its plan's currency
+  const subscription = await db.subscription.findUnique({
+    where: { id: subscriptionId },
+    include: { plan: true },
+  });
+  if (!subscription) throw new Error("الاشتراك غير موجود");
+
+  const payment = await db.revenue.create({
+    data: {
+      amount,
+      currencyId: subscription.plan.currencyId,
+      status: 1, // PAID (you can also allow pending)
+      method,
+      date: new Date(),
+      description: description || `دفعة اشتراك ${subscription.plan.title}`,
+      studentId,
+      subscriptionId,
+    },
+  });
+
+  revalidatePath(`/ar/dashboard/students/${studentId}`);
+  return payment;
+}

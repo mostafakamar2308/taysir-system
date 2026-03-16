@@ -71,11 +71,6 @@ export default async function FinancesPage() {
     name: t.user.name ?? "",
   }));
 
-  console.log({
-    transformedPayments,
-    transformedExpenses,
-  });
-
   return (
     <FinancesClient
       initialPayments={transformedPayments}

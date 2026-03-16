@@ -27,7 +27,7 @@ import { Student } from "@/generated/prisma/browser";
 
 interface EditStudentDialogProps {
   studentId: number;
-  tutors: { id: number; name: string }[];
+  tutors: { id: number; name: string | null }[];
   plans: { id: number; title: string }[];
   currencies: { id: number; name: string }[];
   trigger?: React.ReactNode;
