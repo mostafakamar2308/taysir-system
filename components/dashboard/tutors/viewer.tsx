@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import ViewToggle from "@/components/dashboard/common/viewToggle";
 import FilterPanel from "@/components/dashboard/common/filterPanel";
-import BulkActionsBar from "@/components/dashboard/students/bulkActionBar";
 import StatsCards from "@/components/dashboard/tutors/statsCard";
 import TutorCard from "@/components/dashboard/tutors/tutorCard";
 import TutorTable from "@/components/dashboard/tutors/tutorTable";
@@ -229,13 +228,13 @@ export default function TutorsViewer({
         />
       )}
 
-      {/* Bulk Actions */}
+      {/* Bulk Actions
       {selected.size > 0 && (
         <BulkActionsBar
           selectedCount={selected.size}
           onClearSelection={() => setSelected(new Set())}
         />
-      )}
+      )} */}
 
       {/* Stats Cards */}
       <StatsCards tutors={tutors} />
@@ -259,7 +258,7 @@ export default function TutorsViewer({
               academyId={academyId}
             />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filteredTutors.map((tutor) => (
               <TutorCard
                 key={tutor.id}

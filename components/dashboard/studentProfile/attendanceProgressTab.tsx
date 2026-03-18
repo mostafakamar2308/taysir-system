@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ import { StudentProfile, SessionRecord } from "@/types/studentProfile";
 import { AttendanceSummary } from "@/components/dashboard/studentProfile/attendanceSummary";
 import { attendanceStatusColors, attendanceStatusLabels } from "@/lib/enums";
 import { AttendanceStatus } from "@/types/session";
+import { cn } from "@/lib/utils";
 
 interface AttendanceProgressTabProps {
   student: StudentProfile;
@@ -158,10 +159,9 @@ export default function AttendanceProgressTab({
                 {student.sessions.map((s) => {
                   const isExpanded = expandedSessions.has(s.id);
                   return (
-                    <>
+                    <Fragment key={s.id}>
                       <TableRow
-                        key={s.id}
-                        className="cursor-pointer"
+                        className={cn(s.report && "cursor-pointer")}
                         onClick={() => toggleExpand(s.id)}
                       >
                         <TableCell>{formatDate(s.startTime)}</TableCell>
@@ -192,11 +192,13 @@ export default function AttendanceProgressTab({
                           {s.report ? <SessionReportDialog session={s} /> : "—"}
                         </TableCell>
                         <TableCell>
-                          {isExpanded ? (
-                            <ChevronUp className="h-4 w-4" />
-                          ) : (
-                            <ChevronDown className="h-4 w-4" />
-                          )}
+                          {s.report ? (
+                            isExpanded ? (
+                              <ChevronUp className="h-4 w-4" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4" />
+                            )
+                          ) : null}
                         </TableCell>
                       </TableRow>
                       {isExpanded && s.report && (
@@ -257,7 +259,7 @@ export default function AttendanceProgressTab({
                           </TableCell>
                         </TableRow>
                       )}
-                    </>
+                    </Fragment>
                   );
                 })}
               </TableBody>

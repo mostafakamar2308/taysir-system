@@ -6,6 +6,7 @@ import { localToUTC } from "@/lib/dates";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { AttendanceStatus, SessionStatus } from "@/types/session";
+import { Role } from "@/types/user";
 
 dayjs.extend(utc);
 
@@ -83,7 +84,6 @@ export async function createSession(input: CreateSessionInput) {
       },
     });
 
-    // Generate sessions up to 6 months ahead (or until endDate)
     const start = dayjs.utc(startUTC);
     const end = input.recurEndDate
       ? dayjs.utc(input.recurEndDate).endOf("day")
@@ -198,13 +198,23 @@ export async function deleteSession(
 
 export async function updateAttendance(
   sessionId: number,
+  role: Role,
   status: AttendanceStatus,
   reason?: string,
 ) {
   const attendance = await db.attendance.upsert({
     where: { sessionId },
-    update: { status, reason },
-    create: { sessionId, status, reason },
+    update: {
+      studentAttendanceStatus: role === Role.Tutor ? undefined : status,
+      tutorAttendanceStatus: role === Role.Tutor ? status : undefined,
+      reason,
+    },
+    create: {
+      sessionId,
+      studentAttendanceStatus: status,
+      tutorAttendanceStatus: status,
+      reason,
+    },
   });
 
   // Also update session status if needed
@@ -253,7 +263,8 @@ export async function getSessionsForWeek(startDate: Date, endDate: Date) {
     attendance: s.attendance
       ? {
           id: s.attendance.id,
-          status: s.attendance.status,
+          tutorAttendance: s.attendance.tutorAttendanceStatus,
+          studentAttendance: s.attendance.studentAttendanceStatus,
           reason: s.attendance.reason,
         }
       : undefined,

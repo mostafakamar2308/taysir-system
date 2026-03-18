@@ -146,7 +146,9 @@ export default function TutorTable({
                     {tutor.specialities.join("، ") || "—"}
                   </span>
                 </TableCell>
-                <TableCell>{tutor.pricePerSession} ر.س</TableCell>
+                <TableCell>
+                  {tutor.pricePerSession} {tutor.currency}
+                </TableCell>
                 <TableCell className="text-muted-foreground text-xs">
                   {tutor.timezone}
                 </TableCell>

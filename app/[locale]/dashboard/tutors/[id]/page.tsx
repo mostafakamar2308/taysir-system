@@ -7,12 +7,10 @@ import type {
   TutorSession,
   TutorNote,
   TutorAvailability,
+  TutorPayment,
 } from "@/types/tutor";
-import {
-  attendanceStatusMap,
-  sessionStatusMap,
-  studentStatusMap,
-} from "@/components/dashboard/studentProfile/viewer";
+import { getSessionStatus } from "@/lib/session";
+import dayjs from "@/lib/dayjs";
 
 export default async function TutorProfilePage({
   params,
@@ -22,11 +20,25 @@ export default async function TutorProfilePage({
   const id = parseInt((await params).id);
   if (isNaN(id)) notFound();
 
+  const startOfMonth = dayjs.utc().startOf("month").toDate();
+  const endOfMonth = dayjs.utc().endOf("month").toDate();
+  const startOfLastMonth = dayjs
+    .utc()
+    .subtract(1, "month")
+    .startOf("month")
+    .toDate();
+  const endOfLastMonth = dayjs
+    .utc()
+    .subtract(1, "month")
+    .endOf("month")
+    .toDate();
+
   const tutor = await db.tutor.findUnique({
     where: { id },
     include: {
       user: true,
       specialities: true,
+      currency: true,
       students: {
         include: {
           plan: true,
@@ -41,9 +53,13 @@ export default async function TutorProfilePage({
         },
       },
       sessions: {
+        where: {
+          startTime: { gte: startOfMonth, lte: endOfMonth },
+        },
         include: {
           student: true,
           attendance: true,
+          sessionReport: true,
         },
         orderBy: { startTime: "desc" },
       },
@@ -52,41 +68,148 @@ export default async function TutorProfilePage({
         orderBy: { createdAt: "desc" },
       },
       tutorAvailabilities: true,
+      expenses: {
+        where: {
+          tutorId: id,
+          salaryMonth: dayjs().format("YYYY-MM"),
+        },
+        include: { currency: true },
+      },
     },
   });
 
   if (!tutor) notFound();
 
-  // Transform students
+  // Compute monthly payment stats
+  const attendedSessions = tutor.sessions.filter(
+    (s) =>
+      s.attendance?.studentAttendanceStatus === 0 || // ATTENDED
+      s.attendance?.studentAttendanceStatus === 3, // LATE (adjust based on your enum)
+  ).length;
+  const totalMonthlyEarnings = attendedSessions * tutor.pricePerSession;
+  const paidThisMonth = tutor.expenses.reduce((sum, e) => sum + e.amount, 0);
+  const pendingThisMonth = totalMonthlyEarnings - paidThisMonth;
+
+  const lastMonthStudentIds = await db.session.findMany({
+    where: {
+      tutorId: id,
+      startTime: { gte: startOfLastMonth, lte: endOfLastMonth },
+    },
+    distinct: ["studentId"],
+    select: { studentId: true },
+  });
+  const lastMonthStudentSet = new Set(
+    lastMonthStudentIds.map((s) => s.studentId),
+  );
+  const currentMonthStudentIds = tutor.sessions.map((s) => s.studentId);
+  const currentMonthStudentSet = new Set(currentMonthStudentIds);
+  const retainedCount = [...lastMonthStudentSet].filter((sid) =>
+    currentMonthStudentSet.has(sid),
+  ).length;
+  const retentionRate =
+    lastMonthStudentSet.size > 0
+      ? (retainedCount / lastMonthStudentSet.size) * 100
+      : 100;
+
+  const totalCompletedSessions = tutor.sessions.filter(
+    (s) => s.status === 1,
+  ).length;
+  const attendedStudentSessions = tutor.sessions.filter(
+    (s) =>
+      s.status === 1 &&
+      (s.attendance?.studentAttendanceStatus === 0 ||
+        s.attendance?.studentAttendanceStatus === 3),
+  ).length;
+  const attendanceRate =
+    totalCompletedSessions > 0
+      ? (attendedStudentSessions / totalCompletedSessions) * 100
+      : 0;
+
+  // Report adherence and quality
+  const sessionsWithReport = tutor.sessions.filter(
+    (s) => s.sessionReport,
+  ).length;
+  const reportAdherence =
+    tutor.sessions.length > 0
+      ? (sessionsWithReport / tutor.sessions.length) * 100
+      : 0;
+
+  const highQualityReports = tutor.sessions.filter(
+    (s) =>
+      s.sessionReport &&
+      s.sessionReport.outcomes &&
+      s.sessionReport.strengths &&
+      s.sessionReport.weaknesses &&
+      s.sessionReport.nextGoals,
+  ).length;
+  const reportQuality =
+    sessionsWithReport > 0
+      ? (highQualityReports / sessionsWithReport) * 100
+      : 0;
+
+  // Weighted score
+  const weightedScore =
+    attendanceRate * 0.4 +
+    retentionRate * 0.3 +
+    reportAdherence * 0.2 +
+    reportQuality * 0.1;
+
+  let scoreHint = "";
+  let scoreColor = "";
+  if (weightedScore >= 70) {
+    scoreHint = "أداء ممتاز – استمر على هذا النهج";
+    scoreColor = "text-green-600";
+  } else if (weightedScore >= 60) {
+    scoreHint = "أداء جيد – نوصي بعقد جلسة تحسين مع المعلم";
+    scoreColor = "text-yellow-600";
+  } else if (weightedScore >= 50) {
+    scoreHint = "يحتاج تحسين – ضع خطة تطوير واضحة";
+    scoreColor = "text-orange-600";
+  } else {
+    scoreHint = "أداء ضعيف – فكر في نقل الطلاب أو الاستغناء عن المعلم";
+    scoreColor = "text-red-600";
+  }
+
+  // Transform other data
   const transformedStudents: AssignedStudent[] = tutor.students.map((s) => ({
     id: s.id,
     name: s.name,
     age: s.age,
-    status: studentStatusMap[s.status],
+    status: s.status,
     planTitle: s.plan?.title ?? null,
     nextSessionDate: s.sessions[0]?.startTime.toISOString() ?? null,
   }));
 
-  // Transform sessions
   const transformedSessions: TutorSession[] = tutor.sessions.map((s) => ({
     id: s.id,
     startTime: s.startTime.toISOString(),
     endTime: s.endTime.toISOString(),
     durationMinutes: s.durationMinutes,
-    status: sessionStatusMap[s.status],
+    status: getSessionStatus(s),
     topic: s.topic,
     studentId: s.studentId,
     studentName: s.student.name,
     attendance: s.attendance
       ? {
           id: s.attendance.id,
-          status: attendanceStatusMap[s.attendance.status],
+          tutorAttendance: s.attendance.tutorAttendanceStatus,
+          studentAttendance: s.attendance.studentAttendanceStatus,
           reason: s.attendance.reason,
+        }
+      : undefined,
+    report: s.sessionReport
+      ? {
+          id: s.sessionReport.id,
+          outcomes: s.sessionReport.outcomes,
+          strengths: s.sessionReport.strengths,
+          weaknesses: s.sessionReport.weaknesses,
+          nextGoals: s.sessionReport.nextGoals,
+          comments: s.sessionReport.comments,
+          rating: s.sessionReport.rating,
         }
       : undefined,
   }));
 
-  // Transform notes
   const transformedNotes: TutorNote[] = tutor.notes.map((n) => ({
     id: n.id,
     content: n.content,
@@ -94,7 +217,16 @@ export default async function TutorProfilePage({
     createdAt: n.createdAt.toISOString(),
   }));
 
-  // Transform availabilities
+  const transformedPayments: TutorPayment[] = tutor.expenses.map((e) => ({
+    id: e.id,
+    amount: e.amount,
+    currency: e.currency.code,
+    status: e.status,
+    method: e.method,
+    date: e.updatedAt.toISOString(),
+    description: e.description,
+  }));
+
   const transformedAvailabilities: TutorAvailability[] =
     tutor.tutorAvailabilities.map((a) => ({
       id: a.id,
@@ -114,8 +246,11 @@ export default async function TutorProfilePage({
   const transformed: TutorProfile = {
     id: tutor.id,
     name: tutor.user.name ?? "",
+    academyId: tutor.academyId,
+    currencyId: tutor.currencyId,
     email: tutor.user.email,
-    phone: tutor.phone,
+    phone: tutor.user.phone,
+    currency: tutor.currency.code,
     timezone: tutor.user.timezone,
     academyName:
       (
@@ -129,14 +264,32 @@ export default async function TutorProfilePage({
     active: tutor.active ?? false,
     bio: tutor.bio,
     qualifications: tutor.qualifications,
-    profilePicture: tutor.profilePicture,
-    maxStudents: tutor.maxStudents,
+    imageUrl: tutor.imageUrl,
     availabilities: transformedAvailabilities,
     students: transformedStudents,
     sessions: transformedSessions,
     notes: transformedNotes,
-    payments: [],
+    payments: transformedPayments,
+    monthlyStats: {
+      totalSessions: tutor.sessions.length,
+      attendedSessions,
+      attendanceRate,
+      totalEarnings: totalMonthlyEarnings,
+      paid: paidThisMonth,
+      pending: pendingThisMonth,
+    },
+    performanceMetrics: {
+      attendanceRate,
+      retentionRate,
+      reportAdherence,
+      reportQuality,
+      weightedScore,
+      scoreHint,
+      scoreColor,
+    },
   };
 
-  return <TutorProfileClient tutor={transformed} />;
+  const currencies = await db.currency.findMany({});
+
+  return <TutorProfileClient currencies={currencies} tutor={transformed} />;
 }

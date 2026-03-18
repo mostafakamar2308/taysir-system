@@ -47,9 +47,21 @@ export interface TutorSession {
   studentName: string;
   attendance?: {
     id: number;
-    status: AttendanceStatus;
+    tutorAttendance: AttendanceStatus;
+    studentAttendance: AttendanceStatus;
     reason: string | null;
   };
+  report?: TutorSessionReport;
+}
+
+export interface TutorSessionReport {
+  id: number;
+  outcomes: string | null;
+  strengths: string | null;
+  weaknesses: string | null;
+  nextGoals: string | null;
+  comments: string | null;
+  rating: number | null;
 }
 
 export interface TutorPayment {
@@ -71,11 +83,24 @@ export interface AssignedStudent {
   nextSessionDate: string | null;
 }
 
+export interface PerformanceMetrics {
+  attendanceRate: number;
+  retentionRate: number;
+  reportAdherence: number;
+  reportQuality: number;
+  weightedScore: number;
+  scoreHint: string;
+  scoreColor: string;
+}
+
 export interface TutorProfile {
   id: number;
   name: string;
   email: string;
+  academyId: number;
+  currencyId: number;
   phone: string | null;
+  currency: string;
   timezone: string;
   academyName: string;
   pricePerSession: number;
@@ -83,11 +108,19 @@ export interface TutorProfile {
   active: boolean;
   bio: string | null;
   qualifications: string | null;
-  profilePicture: string | null;
-  maxStudents: number | null;
+  imageUrl: string | null;
   availabilities: TutorAvailability[];
   students: AssignedStudent[];
   sessions: TutorSession[];
   notes: TutorNote[];
   payments: TutorPayment[];
+  monthlyStats: {
+    totalSessions: number;
+    attendedSessions: number;
+    attendanceRate: number;
+    totalEarnings: number;
+    paid: number;
+    pending: number;
+  };
+  performanceMetrics: PerformanceMetrics;
 }

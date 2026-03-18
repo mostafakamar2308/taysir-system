@@ -4,6 +4,7 @@ import StudentProfileClient from "@/components/dashboard/studentProfile/viewer";
 import { user } from "@/lib/auth";
 import { getSessionStatus } from "@/lib/session";
 import { StudentProfile } from "@/types/studentProfile";
+import dayjs from "@/lib/dayjs";
 
 export default async function StudentProfilePage({
   params,
@@ -15,6 +16,8 @@ export default async function StudentProfilePage({
 
   const id = parseInt((await params).id);
   if (isNaN(id)) notFound();
+
+  const startOfMonth = dayjs.utc().startOf("month").toDate();
 
   const student = await db.student.findUnique({
     where: { id },
@@ -43,6 +46,9 @@ export default async function StudentProfilePage({
         },
       },
       sessions: {
+        where: {
+          startTime: { gte: startOfMonth },
+        },
         include: {
           tutor: { include: { user: true } },
           attendance: true,

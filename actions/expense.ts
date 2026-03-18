@@ -1,6 +1,8 @@
 "use server";
 
 import db from "@/lib/prisma";
+import { PaymentStatus } from "@/types/payment";
+import { AttendanceStatus } from "@/types/session";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -9,10 +11,10 @@ const expenseSchema = z.object({
   description: z.string().min(1),
   costCenter: z.string().nullable().optional(),
   amount: z.number().positive(),
-  currency: z.string().default("SAR"),
-  paymentMethod: z.number().nullable().optional(),
-  paid: z.boolean().default(false),
-  reference: z.string().nullable().optional(),
+  currencyId: z.number(),
+  method: z.number().nullable().optional(),
+  status: z.number(),
+  invoiceUrl: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
   tutorId: z.number().nullable().optional(),
   salaryMonth: z.string().nullable().optional(),
@@ -25,12 +27,15 @@ export async function createExpense(formData: FormData) {
     description: formData.get("description") as string,
     costCenter: (formData.get("costCenter") as string) || null,
     amount: parseFloat(formData.get("amount") as string),
-    currency: (formData.get("currency") as string) || "SAR",
-    paymentMethod: formData.get("paymentMethod")
+    currencyId: parseInt(formData.get("currency") as string),
+    method: formData.get("paymentMethod")
       ? parseInt(formData.get("paymentMethod") as string)
       : null,
-    paid: formData.get("paid") === "true",
-    reference: (formData.get("reference") as string) || null,
+    status:
+      formData.get("paid") === "true"
+        ? PaymentStatus.PAID
+        : PaymentStatus.PENDING,
+    invoiceUrl: (formData.get("invoiceUrl") as string) || null,
     notes: (formData.get("notes") as string) || null,
     tutorId: formData.get("tutorId")
       ? parseInt(formData.get("tutorId") as string)
@@ -52,12 +57,12 @@ export async function updateExpense(id: number, formData: FormData) {
     description: formData.get("description") as string,
     costCenter: (formData.get("costCenter") as string) || null,
     amount: parseFloat(formData.get("amount") as string),
-    currency: (formData.get("currency") as string) || "SAR",
+    currencyId: parseInt(formData.get("currency") as string),
     paymentMethod: formData.get("paymentMethod")
       ? parseInt(formData.get("paymentMethod") as string)
       : null,
     paid: formData.get("paid") === "true",
-    reference: (formData.get("reference") as string) || null,
+    invoiceUrl: (formData.get("invoiceUrl") as string) || null,
     notes: (formData.get("notes") as string) || null,
     tutorId: formData.get("tutorId")
       ? parseInt(formData.get("tutorId") as string)
@@ -77,8 +82,8 @@ export async function deleteExpense(id: number) {
   revalidatePath("/dashboard/finances");
 }
 
-export async function toggleExpensePaid(id: number, paid: boolean) {
-  await db.expense.update({ where: { id }, data: { paid } });
+export async function updateExpenseStatus(id: number, status: PaymentStatus) {
+  await db.expense.update({ where: { id }, data: { status: status } });
   revalidatePath("/dashboard/finances");
 }
 
@@ -90,15 +95,18 @@ export async function calculateSalaries(month: string) {
   const sessions = await db.session.findMany({
     where: {
       startTime: { gte: startDate, lt: endDate },
-      status: 1, // COMPLETED
-      attendance: { status: { in: [0, 3] } }, // ATTENDED or LATE
+      attendance: {
+        tutorAttendanceStatus: {
+          in: [AttendanceStatus.ATTENDED, AttendanceStatus.LATE],
+        },
+      },
     },
     include: { tutor: { include: { user: true } } },
   });
 
   const tutorMap = new Map<
     number,
-    { name: string; price: number; count: number }
+    { name: string; price: number; count: number; currencyId: number }
   >();
 
   for (const s of sessions) {
@@ -107,6 +115,7 @@ export async function calculateSalaries(month: string) {
         name: s.tutor.user.name ?? "",
         price: s.tutor.pricePerSession,
         count: 0,
+        currencyId: s.tutor.currencyId,
       });
     }
     tutorMap.get(s.tutorId)!.count++;
@@ -118,6 +127,7 @@ export async function calculateSalaries(month: string) {
     sessionsCount: data.count,
     pricePerSession: data.price,
     total: data.count * data.price,
+    currencyId: data.currencyId,
     existingExpense: null,
   }));
 
@@ -147,7 +157,7 @@ export async function generateSalaryExpenses(
     description: `راتب شهر ${new Date(month + "-01").toLocaleDateString("ar-EG", { month: "long", year: "numeric" })}`,
     costCenter: "رواتب",
     amount: s.total,
-    currency: "SAR",
+    currencyId: s.currencyId,
     paymentMethod: 2, // BANK_TRANSFER
     paid: false,
     tutorId: s.tutorId,

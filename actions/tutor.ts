@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import bcrypt from "bcrypt";
 import { Role } from "@/types/user";
+import { getTokenFromCookie, verifyToken } from "@/lib/jwt";
 
 const createTutorSchema = z.object({
   name: z.string().min(1, "الاسم مطلوب"),
@@ -23,6 +24,11 @@ const createTutorSchema = z.object({
 });
 
 export async function createTutor(formData: FormData) {
+  const token = await getTokenFromCookie();
+  if (!token) throw new Error("غير مصرح");
+  const payload = verifyToken(token);
+  if (!payload) throw new Error("غير مصرح");
+
   // Parse specialities from multiselect (sent as comma-separated values)
   const specialitiesStr = formData.get("specialities") as string;
   const specialities = specialitiesStr
@@ -78,7 +84,6 @@ export async function createTutor(formData: FormData) {
       active: validated.active,
       bio: validated.bio,
       qualifications: validated.qualifications,
-      maxStudents: validated.maxStudents,
       zoomAuthenticated: validated.zoomAuthenticated,
       currencyId: validated.currencyId,
       specialities: {
@@ -87,5 +92,92 @@ export async function createTutor(formData: FormData) {
     },
   });
 
+  revalidatePath("/ar/dashboard/tutors");
+}
+
+const updateTutorSchema = z.object({
+  name: z.string().min(1, "الاسم مطلوب"),
+  email: z.string().email("بريد إلكتروني غير صالح"),
+  phone: z.string().optional().nullable(),
+  timezone: z.string().min(1, "المنطقة الزمنية مطلوبة"),
+  pricePerSession: z.number().positive("سعر الحصة يجب أن يكون أكبر من 0"),
+  bio: z.string().optional().nullable(),
+  qualifications: z.string().optional().nullable(),
+  active: z.boolean(),
+  zoomAuthenticated: z.boolean().optional(),
+  zoomUrl: z.string().optional().nullable(),
+});
+
+export async function updateTutor(id: number, formData: FormData) {
+  const token = await getTokenFromCookie();
+  if (!token) throw new Error("غير مصرح");
+  const payload = verifyToken(token);
+  if (!payload) throw new Error("غير مصرح");
+
+  const rawData = {
+    name: formData.get("name"),
+    email: formData.get("email"),
+    phone: formData.get("phone") || null,
+    timezone: formData.get("timezone"),
+    pricePerSession: parseFloat(formData.get("pricePerSession") as string),
+    bio: formData.get("bio") || null,
+    qualifications: formData.get("qualifications") || null,
+    active: formData.get("active") === "true",
+    zoomAuthenticated: formData.get("zoomAuthenticated") === "true",
+    zoomUrl: formData.get("zoomUrl") || null,
+  };
+
+  const validated = updateTutorSchema.parse(rawData);
+
+  // Update user and tutor in transaction
+  await db.$transaction([
+    db.user.update({
+      where: {
+        id: (
+          await db.tutor.findUnique({ where: { id }, select: { userId: true } })
+        )?.userId,
+      },
+      data: {
+        name: validated.name,
+        email: validated.email,
+        phone: validated.phone,
+        timezone: validated.timezone,
+      },
+    }),
+    db.tutor.update({
+      where: { id },
+      data: {
+        pricePerSession: validated.pricePerSession,
+        bio: validated.bio,
+        qualifications: validated.qualifications,
+        active: validated.active,
+        zoomAuthenticated: validated.zoomAuthenticated,
+        zoomUrl: validated.zoomUrl,
+      },
+    }),
+  ]);
+
+  revalidatePath(`/dashboard/tutors/${id}`);
   revalidatePath("/dashboard/tutors");
+}
+
+export async function addTutorNote(tutorId: number, content: string) {
+  const token = await getTokenFromCookie();
+  if (!token) throw new Error("غير مصرح");
+  const payload = verifyToken(token);
+  if (!payload) throw new Error("غير مصرح");
+
+  await db.note.create({
+    data: {
+      content,
+      targetType: Role.Tutor,
+      targetId: tutorId,
+      tutorId,
+      authorId: payload.id,
+    },
+  });
+
+  console.log(await db.note.findMany({ where: { tutorId } }));
+
+  revalidatePath(`/ar/dashboard/tutors/${tutorId}`);
 }
