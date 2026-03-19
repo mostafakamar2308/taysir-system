@@ -39,12 +39,7 @@ import {
   Search,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import {
-  createExpense,
-  updateExpense,
-  deleteExpense,
-  toggleExpensePaid,
-} from "@/actions/expense";
+import { createExpense, updateExpense, deleteExpense } from "@/actions/expense";
 import {
   costCenters,
   paymentMethodLabels,
@@ -125,7 +120,7 @@ export default function ExpensesTab({
   };
 
   const handleTogglePaid = async (id: number, currentPaid: boolean) => {
-    await toggleExpensePaid(id, !currentPaid);
+    // await toggleExpensePaid(id, !currentPaid);
     router.refresh();
   };
 
