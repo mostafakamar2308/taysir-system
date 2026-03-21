@@ -1,20 +1,21 @@
 "use server";
 
 import db from "@/lib/prisma";
+import { PaymentStatus } from "@/types/payment";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 const paymentSchema = z.object({
   amount: z.number().positive(),
-  currency: z.string().default("SAR"),
-  status: z.number().default(0), // 0 = PENDING
+  currencyId: z.number(),
+  status: z.number().default(PaymentStatus.PENDING),
   method: z.number().nullable().optional(),
   date: z.date(),
   dueDate: z.date().nullable().optional(),
   description: z.string().nullable().optional(),
   studentId: z.number(),
   planId: z.number().nullable().optional(),
-  recordedBy: z.string().nullable().optional(),
+  recordedBy: z.number().nullable().optional(),
   invoiceUrl: z.string().nullable().optional(),
   channel: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
@@ -24,7 +25,7 @@ const paymentSchema = z.object({
 export async function createPayment(formData: FormData) {
   const rawData = {
     amount: parseFloat(formData.get("amount") as string),
-    currency: (formData.get("currency") as string) || "SAR",
+    currencyId: parseInt(formData.get("currency") as string) || "SAR",
     status: formData.get("status")
       ? parseInt(formData.get("status") as string)
       : 0,
@@ -49,15 +50,15 @@ export async function createPayment(formData: FormData) {
 
   const validated = paymentSchema.parse(rawData);
 
-  await db.payment.create({ data: validated });
+  await db.revenue.create({ data: validated });
 
-  revalidatePath("/dashboard/finances");
+  revalidatePath("/ar/dashboard/finances");
 }
 
 export async function updatePayment(id: number, formData: FormData) {
   const rawData = {
     amount: parseFloat(formData.get("amount") as string),
-    currency: (formData.get("currency") as string) || "SAR",
+    currencyId: parseInt(formData.get("currency") as string),
     status: formData.get("status")
       ? parseInt(formData.get("status") as string)
       : 0,
@@ -79,19 +80,22 @@ export async function updatePayment(id: number, formData: FormData) {
     notes: (formData.get("notes") as string) || null,
   };
 
-  const validated = paymentSchema.partial().parse(rawData); // allow partial update
+  const validated = paymentSchema.partial().parse(rawData);
 
-  await db.payment.update({ where: { id }, data: validated });
+  await db.revenue.update({ where: { id }, data: validated });
 
-  revalidatePath("/dashboard/finances");
+  revalidatePath("/ar/dashboard/finances");
 }
 
 export async function deletePayment(id: number) {
-  await db.payment.delete({ where: { id } });
-  revalidatePath("/dashboard/finances");
+  await db.revenue.delete({ where: { id } });
+  revalidatePath("/ar/dashboard/finances");
 }
 
 export async function markPaymentAsPaid(id: number) {
-  await db.payment.update({ where: { id }, data: { status: 1 } }); // 1 = PAID
-  revalidatePath("/dashboard/finances");
+  await db.revenue.update({
+    where: { id },
+    data: { status: PaymentStatus.PAID },
+  }); // 1 = PAID
+  revalidatePath("/ar/dashboard/finances");
 }

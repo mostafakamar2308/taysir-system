@@ -48,7 +48,7 @@ export async function createExpense(formData: FormData) {
 
   await db.expense.create({ data: validated });
 
-  revalidatePath("/dashboard/finances");
+  revalidatePath("/ar/dashboard/finances");
 }
 
 export async function updateExpense(id: number, formData: FormData) {
@@ -74,17 +74,17 @@ export async function updateExpense(id: number, formData: FormData) {
 
   await db.expense.update({ where: { id }, data: validated });
 
-  revalidatePath("/dashboard/finances");
+  revalidatePath("/ar/dashboard/finances");
 }
 
 export async function deleteExpense(id: number) {
   await db.expense.delete({ where: { id } });
-  revalidatePath("/dashboard/finances");
+  revalidatePath("/ar/dashboard/finances");
 }
 
 export async function updateExpenseStatus(id: number, status: PaymentStatus) {
   await db.expense.update({ where: { id }, data: { status: status } });
-  revalidatePath("/dashboard/finances");
+  revalidatePath("/ar/dashboard/finances");
 }
 
 export async function calculateSalaries(month: string) {
@@ -168,5 +168,5 @@ export async function generateSalaryExpenses(
 
   await db.expense.createMany({ data: expensesToCreate });
 
-  revalidatePath("/dashboard/finances");
+  revalidatePath("/ar/dashboard/finances");
 }

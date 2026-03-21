@@ -7,7 +7,6 @@ export async function addToWaitlist(formData: FormData) {
   // Convert FormData to object
   const rawData: Record<string, unknown> = {};
   formData.forEach((value, key) => {
-    // Handle checkboxes (they come as 'on' or undefined)
     if (key === "reviewBonus" || key === "videoBonus" || key === "terms") {
       rawData[key] = value === "true";
     } else {

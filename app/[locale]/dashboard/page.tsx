@@ -5,8 +5,9 @@ import dayjs from "@/lib/dayjs";
 import { StudentStatus } from "@/types/student";
 import { SessionStatus, AttendanceStatus } from "@/types/session";
 import { PaymentStatus } from "@/types/payment";
-import DashboardClient from "@/components/dashboard/overview/viewer";
 import { SubscriptionStatus } from "@/types/subscription";
+import { HistoryActionType, TargetType } from "@/types/history";
+import DashboardClient from "@/components/dashboard/overview/viewer";
 
 export default async function DashboardPage() {
   const currentUser = await user();
@@ -17,39 +18,92 @@ export default async function DashboardPage() {
   const today = now.startOf("day");
   const startOfWeek = now.startOf("week");
   const endOfWeek = now.endOf("week");
+  const startOfLastWeek = startOfWeek.subtract(1, "week");
+  const endOfLastWeek = endOfWeek.subtract(1, "week");
+
   const startOfMonth = now.startOf("month");
   const endOfMonth = now.endOf("month");
-  const startOfPrevMonth = now.subtract(1, "month").startOf("month");
-  const endOfPrevMonth = now.subtract(1, "month").endOf("month");
+  const startOfLastMonth = startOfMonth.subtract(1, "month");
+  const endOfLastMonth = endOfMonth.subtract(1, "month");
 
-  // ----- Basic stats -----
+  // ---------- Basic counts with previous period ----------
   const [
     totalStudents,
+    totalStudentsPrev,
     subscribedStudents,
+    subscribedPrev,
     trialStudents,
+    trialPrev,
     leadStudents,
+    leadPrev,
     newStudentsThisWeek,
+    newStudentsLastWeek,
     activeTutors,
+    activeTutorsPrev,
     totalSupervisors,
+    supervisorsPrev,
+    revenueThisMonth,
+    revenuePrevMonth,
+    expenseThisMonth,
+    expensePrevMonth,
   ] = await Promise.all([
     db.student.count({ where: { academyId } }),
     db.student.count({
+      where: { academyId, createdAt: { lt: startOfMonth.toDate() } },
+    }),
+    db.student.count({
       where: { academyId, status: StudentStatus.subscribed },
     }),
+    db.student.count({
+      where: {
+        academyId,
+        status: StudentStatus.subscribed,
+        createdAt: { lt: startOfMonth.toDate() },
+      },
+    }),
     db.student.count({ where: { academyId, status: StudentStatus.trial } }),
+    db.student.count({
+      where: {
+        academyId,
+        status: StudentStatus.trial,
+        createdAt: { lt: startOfMonth.toDate() },
+      },
+    }),
     db.student.count({ where: { academyId, status: StudentStatus.lead } }),
+    db.student.count({
+      where: {
+        academyId,
+        status: StudentStatus.lead,
+        createdAt: { lt: startOfMonth.toDate() },
+      },
+    }),
     db.student.count({
       where: {
         academyId,
         createdAt: { gte: startOfWeek.toDate(), lte: endOfWeek.toDate() },
       },
     }),
+    db.student.count({
+      where: {
+        academyId,
+        createdAt: {
+          gte: startOfLastWeek.toDate(),
+          lte: endOfLastWeek.toDate(),
+        },
+      },
+    }),
     db.tutor.count({ where: { academyId, active: true } }),
+    db.tutor.count({
+      where: {
+        academyId,
+        active: true,
+        createdAt: { lt: startOfMonth.toDate() },
+      },
+    }),
     db.supervisor.count({ where: { academyId } }),
-  ]);
-
-  // ----- Revenue this month vs previous -----
-  const [revenueThisMonth, revenuePrevMonth] = await Promise.all([
+    db.supervisor.count({
+      where: { academyId, createdAt: { lt: startOfMonth.toDate() } },
+    }),
     db.revenue.aggregate({
       where: {
         student: { academyId },
@@ -61,59 +115,148 @@ export default async function DashboardPage() {
     db.revenue.aggregate({
       where: {
         student: { academyId },
-        date: { gte: startOfPrevMonth.toDate(), lte: endOfPrevMonth.toDate() },
+        date: { gte: startOfLastMonth.toDate(), lte: endOfLastMonth.toDate() },
+        status: PaymentStatus.PAID,
+      },
+      _sum: { amount: true },
+    }),
+    db.expense.aggregate({
+      where: {
+        academyId,
+        date: { gte: startOfMonth.toDate(), lte: endOfMonth.toDate() },
+        status: PaymentStatus.PAID,
+      },
+      _sum: { amount: true },
+    }),
+    db.expense.aggregate({
+      where: {
+        academyId,
+        date: { gte: startOfLastMonth.toDate(), lte: endOfLastMonth.toDate() },
         status: PaymentStatus.PAID,
       },
       _sum: { amount: true },
     }),
   ]);
 
-  // ----- LTV / CAC (simplified) -----
-  // Total revenue from all paid revenues
-  const totalRevenue = await db.revenue.aggregate({
-    where: { student: { academyId }, status: PaymentStatus.PAID },
-    _sum: { amount: true },
-  });
-  // Total students ever
-  const totalEverStudents = await db.student.count({ where: { academyId } });
-  // Marketing expenses (costCenter = "تسويق")
-  const marketingExpenses = await db.expense.aggregate({
-    where: { academyId, costCenter: "تسويق", status: PaymentStatus.PAID },
-    _sum: { amount: true },
-  });
-  const ltv =
-    totalEverStudents > 0
-      ? (totalRevenue._sum.amount || 0) / totalEverStudents
-      : 0;
-  const cac = marketingExpenses._sum.amount || 0;
+  const thirtyDaysAgo = now.subtract(30, "day");
+  const sixtyDaysAgo = now.subtract(60, "day");
 
-  // ----- Conversion rates -----
-  // Lead to trial: count students who were ever lead and then became trial/subscribed (simplified: we can use status history, but not available; approximate using those with status > lead)
-  const leadToTrialCount = await db.student.count({
-    where: {
-      academyId,
-      status: { in: [StudentStatus.trial, StudentStatus.subscribed] },
-    },
-  });
-  const leadCount = leadStudents + leadToTrialCount; // total leads ever (approximate)
+  // Helper to run raw SQL for lead denominator
+  async function countLeadsActiveInPeriod(
+    start: Date,
+    end: Date,
+  ): Promise<number> {
+    const result = await db.$queryRaw<{ count: number }[]>`
+    SELECT COUNT(DISTINCT "targetId") as count
+    FROM "History" h
+    WHERE h."academyId" = ${academyId}
+      AND h."targetType" = ${TargetType.Student}
+      AND h."action" = ${HistoryActionType.LeadCreated}
+      AND h."createdAt" < ${end}
+      AND NOT EXISTS (
+        SELECT 1 FROM "History" conv
+        WHERE conv."targetId" = h."targetId"
+          AND conv."targetType" = ${TargetType.Student}
+          AND conv."academyId" = ${academyId}
+          AND conv."action" IN (${HistoryActionType.LeadToTrial}, ${HistoryActionType.LeadToSubscription})
+          AND conv."createdAt" < ${start}
+      )
+  `;
+    return Number(result[0]?.count ?? 0);
+  }
+
+  // Helper to count trials active in period
+  async function countTrialsActiveInPeriod(
+    start: Date,
+    end: Date,
+  ): Promise<number> {
+    const result = await db.$queryRaw<{ count: number }[]>`
+    SELECT COUNT(DISTINCT h."targetId") as count
+    FROM "History" h
+    WHERE h."academyId" = ${academyId}
+      AND h."targetType" = ${TargetType.Student}
+      AND h."action" = ${HistoryActionType.LeadToTrial}
+      AND h."createdAt" < ${end}
+      AND NOT EXISTS (
+        SELECT 1 FROM "History" conv
+        WHERE conv."targetId" = h."targetId"
+          AND conv."targetType" = ${TargetType.Student}
+          AND conv."academyId" = ${academyId}
+          AND conv."action" = ${HistoryActionType.TrialToSubscription}
+          AND conv."createdAt" < ${start}
+      )
+  `;
+    return Number(result[0]?.count ?? 0);
+  }
+
+  // Get numerators (same as before)
+  const [leadToTrialCount, leadToTrialCountPrev] = await Promise.all([
+    db.history.count({
+      where: {
+        academyId,
+        action: HistoryActionType.LeadToTrial,
+        createdAt: { gte: thirtyDaysAgo.toDate(), lt: now.toDate() },
+      },
+    }),
+    db.history.count({
+      where: {
+        academyId,
+        action: HistoryActionType.LeadToTrial,
+        createdAt: { gte: sixtyDaysAgo.toDate(), lt: thirtyDaysAgo.toDate() },
+      },
+    }),
+  ]);
+
+  const [trialToSubscribedCount, trialToSubscribedCountPrev] =
+    await Promise.all([
+      db.history.count({
+        where: {
+          academyId,
+          action: HistoryActionType.TrialToSubscription,
+          createdAt: { gte: thirtyDaysAgo.toDate(), lt: now.toDate() },
+        },
+      }),
+      db.history.count({
+        where: {
+          academyId,
+          action: HistoryActionType.TrialToSubscription,
+          createdAt: { gte: sixtyDaysAgo.toDate(), lt: thirtyDaysAgo.toDate() },
+        },
+      }),
+    ]);
+
+  // Get denominators
+  const totalLeadsLast30 = await countLeadsActiveInPeriod(
+    thirtyDaysAgo.toDate(),
+    now.toDate(),
+  );
+  const totalLeadsPrev30 = await countLeadsActiveInPeriod(
+    sixtyDaysAgo.toDate(),
+    thirtyDaysAgo.toDate(),
+  );
+  const totalTrialsLast30 = await countTrialsActiveInPeriod(
+    thirtyDaysAgo.toDate(),
+    now.toDate(),
+  );
+  const totalTrialsPrev30 = await countTrialsActiveInPeriod(
+    sixtyDaysAgo.toDate(),
+    thirtyDaysAgo.toDate(),
+  );
+
+  // Calculate rates
   const leadToTrialRate =
-    leadCount > 0 ? (leadToTrialCount / leadCount) * 100 : 0;
-
-  // Trial to subscribed
-  const trialToSubscribedCount = await db.student.count({
-    where: { academyId, status: StudentStatus.subscribed },
-  });
-  const trialCountEver = await db.student.count({
-    where: {
-      academyId,
-      status: { in: [StudentStatus.trial, StudentStatus.subscribed] },
-    },
-  });
+    totalLeadsLast30 > 0 ? (leadToTrialCount / totalLeadsLast30) * 100 : 0;
+  const leadToTrialRatePrev =
+    totalLeadsPrev30 > 0 ? (leadToTrialCountPrev / totalLeadsPrev30) * 100 : 0;
   const trialToSubscribedRate =
-    trialCountEver > 0 ? (trialToSubscribedCount / trialCountEver) * 100 : 0;
+    totalTrialsLast30 > 0
+      ? (trialToSubscribedCount / totalTrialsLast30) * 100
+      : 0;
+  const trialToSubscribedRatePrev =
+    totalTrialsPrev30 > 0
+      ? (trialToSubscribedCountPrev / totalTrialsPrev30) * 100
+      : 0;
 
-  // ----- Danger signs (students at risk) -----
-  // Use the same criteria as in student profile warnings: late payment, last session absent unexcused, attendance <80%
   const students = await db.student.findMany({
     where: { academyId, status: StudentStatus.subscribed },
     include: {
@@ -121,10 +264,10 @@ export default async function DashboardPage() {
         where: { status: SessionStatus.COMPLETED },
         include: { attendance: true },
         orderBy: { startTime: "desc" },
-        take: 1, // last session
+        take: 1,
       },
       subscriptions: {
-        where: { status: 0 }, // active
+        where: { status: SubscriptionStatus.active },
         include: { plan: true },
       },
     },
@@ -141,7 +284,7 @@ export default async function DashboardPage() {
       const daysUntilRenewal = subscription?.endDate
         ? dayjs(subscription.endDate).diff(now, "day")
         : 30;
-      const latePayment = hasActiveSubscription && daysUntilRenewal < 0; // expired
+      const latePayment = hasActiveSubscription && daysUntilRenewal < 0;
       const nearRenewal =
         hasActiveSubscription && daysUntilRenewal >= 0 && daysUntilRenewal <= 7;
       return lastSessionAbsentUnexcused || latePayment || nearRenewal;
@@ -157,19 +300,19 @@ export default async function DashboardPage() {
         : "غياب بدون عذر",
     }));
 
-  // ----- Attendance Sheet: today's sessions with missing attendance -----
+  // ---------- Attendance Sheet ----------
   const todaySessions = await db.session.findMany({
     where: {
       academyId,
       startTime: { gte: today.toDate(), lt: today.add(1, "day").toDate() },
-      attendance: null, // no attendance recorded
+      attendance: null,
     },
     include: {
       student: { select: { id: true, name: true, phone: true } },
     },
   });
 
-  // ----- Reconciliation: Late Payments & Near-end Subscriptions -----
+  // ---------- Reconciliation ----------
   const activeSubscriptions = await db.subscription.findMany({
     where: {
       student: { academyId },
@@ -183,9 +326,7 @@ export default async function DashboardPage() {
 
   const latePayments = activeSubscriptions
     .filter((sub) => {
-      // If endDate is past, payment is late
       if (sub.endDate && dayjs(sub.endDate).isBefore(now, "day")) return true;
-      // If no endDate, assume 30 days from startDate
       const defaultEnd = dayjs(sub.startDate).add(30, "day");
       return defaultEnd.isBefore(now, "day");
     })
@@ -220,7 +361,7 @@ export default async function DashboardPage() {
       ),
     }));
 
-  // ----- Reports Sheet: today's sessions without a session report -----
+  // ---------- Reports Sheet ----------
   const sessionsWithoutReport = await db.session.findMany({
     where: {
       academyId,
@@ -233,23 +374,78 @@ export default async function DashboardPage() {
     },
   });
 
+  // Helper to compute percent change
+  const calcPercentChange = (current: number, previous: number) => {
+    if (previous === 0) return current > 0 ? 100 : 0;
+    return ((current - previous) / previous) * 100;
+  };
+
+  const stats = {
+    totalStudents: {
+      value: totalStudents,
+      change: calcPercentChange(totalStudents, totalStudentsPrev),
+    },
+    subscribedStudents: {
+      value: subscribedStudents,
+      change: calcPercentChange(subscribedStudents, subscribedPrev),
+    },
+    trialStudents: {
+      value: trialStudents,
+      change: calcPercentChange(trialStudents, trialPrev),
+    },
+    leadStudents: {
+      value: leadStudents,
+      change: calcPercentChange(leadStudents, leadPrev),
+    },
+    newStudentsThisWeek: {
+      value: newStudentsThisWeek,
+      change: calcPercentChange(newStudentsThisWeek, newStudentsLastWeek),
+    },
+    activeTutors: {
+      value: activeTutors,
+      change: calcPercentChange(activeTutors, activeTutorsPrev),
+    },
+    totalSupervisors: {
+      value: totalSupervisors,
+      change: calcPercentChange(totalSupervisors, supervisorsPrev),
+    },
+    revenueThisMonth: {
+      value: revenueThisMonth._sum.amount || 0,
+      change: calcPercentChange(
+        revenueThisMonth._sum.amount || 0,
+        revenuePrevMonth._sum.amount || 0,
+      ),
+    },
+    expenseThisMonth: {
+      value: expenseThisMonth._sum.amount || 0,
+      change: calcPercentChange(
+        expenseThisMonth._sum.amount || 0,
+        expensePrevMonth._sum.amount || 0,
+      ),
+    },
+    leadToTrialRate: {
+      value: leadToTrialRate,
+      change: leadToTrialRate - leadToTrialRatePrev,
+    },
+    trialToSubscribedRate: {
+      value: trialToSubscribedRate,
+      change: trialToSubscribedRate - trialToSubscribedRatePrev,
+    },
+  };
+  console.log({
+    leadToTrialRate,
+    leadToTrialRatePrev,
+    trialToSubscribedRate,
+    trialToSubscribedRatePrev,
+    trialToSubscribedCount,
+    trialToSubscribedCountPrev,
+    leadToTrialCount,
+    leadToTrialCountPrev,
+  });
+
   return (
     <DashboardClient
-      stats={{
-        totalStudents,
-        subscribedStudents,
-        trialStudents,
-        leadStudents,
-        newStudentsThisWeek,
-        activeTutors,
-        totalSupervisors,
-        revenueThisMonth: revenueThisMonth._sum.amount || 0,
-        revenuePrevMonth: revenuePrevMonth._sum.amount || 0,
-        ltv,
-        cac,
-        leadToTrialRate,
-        trialToSubscribedRate,
-      }}
+      stats={stats}
       atRiskStudents={atRiskStudents}
       attendanceSheet={todaySessions.map((s) => ({
         sessionId: s.id,

@@ -2,12 +2,16 @@ import db from "@/lib/prisma";
 import bcrypt from "bcrypt";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
+import {
+  TargetType,
+  HistoryActionType,
+  HistoryChange,
+  HistoryMetadata,
+} from "@/types/history";
+import { Role } from "@/types/user";
 
 dayjs.extend(utc);
 
-// ----------------------------------------------------------------------
-// Constants
-// ----------------------------------------------------------------------
 const ACADEMY_NAMES = ["Al-Noor Academy", "Iqra Institute", "Tajweed Center"];
 const SPECIALITIES = [
   "Tajweed",
@@ -72,6 +76,28 @@ const PaymentMethodMap = {
   ONLINE: 3,
 };
 
+// TargetType mapping (use same as your TypeScript enum)
+const TargetTypeMap = {
+  SuperAdmin: 0,
+  Admin: 1,
+  Supervisor: 2,
+  Tutor: 3,
+  Student: 4,
+  Session: 5,
+};
+
+// HistoryActionType mapping (use same as your TypeScript enum)
+const HistoryActionMap = {
+  LeadToTrial: 0,
+  TrialToSubscription: 1,
+  UrgentStudentContact: 2,
+  TutorReportReminder: 3,
+  StudentAbscenceReminder: 4,
+  StudentLatePaymentReminder: 5,
+  StudentNearEndSubscriptionReminder: 6,
+  StudentTutorChange: 7,
+};
+
 // ----------------------------------------------------------------------
 // Helper functions
 // ----------------------------------------------------------------------
@@ -106,6 +132,8 @@ async function main() {
     db.revenue.deleteMany(),
     db.expense.deleteMany(),
     db.note.deleteMany(),
+    db.history.deleteMany(),
+    db.subscription.deleteMany(),
     db.student.deleteMany(),
     db.tutor.deleteMany(),
     db.supervisor.deleteMany(),
@@ -156,6 +184,7 @@ async function main() {
   const academyIds: number[] = [];
   const academyTutors: Record<number, number[]> = {};
   const academyStudents: Record<number, number[]> = {};
+  const academyAdmins: Record<number, number> = {}; // store admin user id per academy
 
   // For each academy
   for (let i = 0; i < ACADEMY_NAMES.length; i++) {
@@ -206,6 +235,7 @@ async function main() {
     await db.admin.create({
       data: { userId: adminUser.id, academyId: academy.id },
     });
+    academyAdmins[academy.id] = adminUser.id;
     console.log(`  ✅ Created admin`);
 
     // Create 2 supervisors
@@ -321,10 +351,26 @@ async function main() {
               : null,
         },
       });
+      if (status === StudentStatusMap.lead)
+        await db.history.create({
+          data: {
+            action: HistoryActionType.LeadCreated,
+            targetId: student.id,
+            academyId: academy.id,
+            targetType: TargetType.Student,
+            recordedBy: adminUser.id,
+            recorderType: Role.Admin,
+          },
+        });
       students.push({ id: student.id, status, tutorId });
       academyStudents[academy.id].push(student.id);
     }
     console.log(`  ✅ Created 200 students`);
+
+    // ==================== CREATE SESSIONS ====================
+    const now = dayjs.utc();
+    const sixMonthsAgo = now.subtract(6, "month");
+    const threeMonthsAgo = now.subtract(3, "month");
 
     // For each student, create 50 past sessions and a recurring pattern for future sessions
     for (const student of students) {
@@ -332,8 +378,6 @@ async function main() {
       const studentId = student.id;
 
       // Past 50 sessions (random dates in last 6 months)
-      const now = dayjs.utc();
-      const sixMonthsAgo = now.subtract(6, "month");
       for (let s = 0; s < 50; s++) {
         const startTime = randomDate(sixMonthsAgo.toDate(), now.toDate());
         const duration = randomElement([30, 45, 60]);
@@ -454,18 +498,16 @@ async function main() {
     }
     console.log(`  ✅ Created sessions for all students`);
 
-    // Create revenue records for subscribed students (payments over last 6 months)
+    // ==================== CREATE REVENUES ====================
     const subscribedStudents = students.filter(
       (s) => s.status === StudentStatusMap.subscribed,
     );
     for (const student of subscribedStudents) {
       const temp = await db.student.findUnique({ where: { id: student.id } });
       const planId = temp?.planId;
-      if (!planId) return;
+      if (!planId) continue;
       const plan = await db.plan.findFirst({
-        where: {
-          id: planId,
-        },
+        where: { id: planId },
       });
       if (!plan) continue;
       const numPayments = Math.floor(Math.random() * 6) + 1; // 1-6
@@ -509,6 +551,8 @@ async function main() {
     }
     console.log(`  ✅ Created revenues for subscribed students`);
 
+    // ==================== CREATE EXPENSES ====================
+    // Fixed expenses for last 3 months
     for (let monthOffset = 2; monthOffset >= 0; monthOffset--) {
       const expenseMonth = dayjs.utc().subtract(monthOffset, "month").date(15);
 
@@ -619,6 +663,216 @@ async function main() {
       }
     }
     console.log(`  ✅ Created expenses for academy`);
+
+    // ==================== CREATE HISTORY RECORDS ====================
+    console.log(`  📝 Creating history records...`);
+
+    // Helper to record history
+    async function addHistory(
+      targetType: TargetType,
+      targetId: number,
+      action: HistoryActionType,
+      recordedBy: number,
+      academyId: number,
+      changes?: HistoryChange,
+      metadata?: HistoryMetadata,
+    ) {
+      await db.history.create({
+        data: {
+          targetType,
+          targetId,
+          action,
+          changes: changes,
+          metadata: metadata,
+          recordedBy,
+          recorderType: TargetTypeMap.Admin, // assuming admin recorded, but you may differentiate
+          academyId,
+        },
+      });
+    }
+
+    // For each student, generate history events
+    for (const student of students) {
+      const studentId = student.id;
+      const studentStatus = student.status;
+      const adminId = academyAdmins[academy.id];
+      const nowUtc = dayjs.utc();
+
+      // 1. LeadToTrial – if status changed from lead to trial at some point
+      // Since we created students with fixed status, we'll simulate this by picking a random date within last 3 months
+      if (
+        studentStatus === StudentStatusMap.trial ||
+        studentStatus === StudentStatusMap.subscribed
+      ) {
+        const conversionDate = randomDate(
+          threeMonthsAgo.toDate(),
+          nowUtc.toDate(),
+        );
+        await addHistory(
+          TargetTypeMap.Student,
+          studentId,
+          HistoryActionMap.LeadToTrial,
+          adminId,
+          academy.id,
+          {
+            oldStatus: StudentStatusMap.lead,
+            newStatus: StudentStatusMap.trial,
+          },
+          { conversionDate: conversionDate.toISOString() },
+        );
+      }
+
+      // 2. TrialToSubscription – if student is subscribed
+      if (studentStatus === StudentStatusMap.subscribed) {
+        const conversionDate = randomDate(
+          threeMonthsAgo.toDate(),
+          nowUtc.toDate(),
+        );
+        await addHistory(
+          TargetTypeMap.Student,
+          studentId,
+          HistoryActionMap.TrialToSubscription,
+          adminId,
+          academy.id,
+          {
+            oldStatus: StudentStatusMap.trial,
+            newStatus: StudentStatusMap.subscribed,
+          },
+          { conversionDate: conversionDate.toISOString() },
+        );
+      }
+
+      // 3. StudentTutorChange – randomly assign new tutor for some students (20% chance)
+      if (Math.random() < 0.2) {
+        const oldTutorId = student.tutorId;
+        const newTutorId = randomElement(
+          tutorIds.filter((id) => id !== oldTutorId),
+        );
+        if (newTutorId) {
+          const changeDate = randomDate(
+            threeMonthsAgo.toDate(),
+            nowUtc.toDate(),
+          );
+          await addHistory(
+            TargetTypeMap.Student,
+            studentId,
+            HistoryActionMap.StudentTutorChange,
+            adminId,
+            academy.id,
+            { oldTutorId, newTutorId },
+            { changeDate: changeDate.toISOString() },
+          );
+          // Actually update tutor for this student? We'll keep original tutor for consistency; just record history.
+        }
+      }
+
+      // 4. UrgentStudentContact – 30% chance for subscribed/trial students
+      if (
+        [StudentStatusMap.trial, StudentStatusMap.subscribed].includes(
+          studentStatus,
+        ) &&
+        Math.random() < 0.3
+      ) {
+        const contactDate = randomDate(
+          threeMonthsAgo.toDate(),
+          nowUtc.toDate(),
+        );
+        await addHistory(
+          TargetTypeMap.Student,
+          studentId,
+          HistoryActionMap.UrgentStudentContact,
+          adminId,
+          academy.id,
+          undefined,
+          { reason: "غياب متكرر", date: contactDate.toISOString() },
+        );
+      }
+
+      // 5. StudentAbscenceReminder – 40% chance
+      if (Math.random() < 0.4) {
+        const reminderDate = randomDate(
+          threeMonthsAgo.toDate(),
+          nowUtc.toDate(),
+        );
+        await addHistory(
+          TargetTypeMap.Student,
+          studentId,
+          HistoryActionMap.StudentAbscenceReminder,
+          adminId,
+          academy.id,
+          undefined,
+          { reason: "غياب 3 حصص متتالية", date: reminderDate.toISOString() },
+        );
+      }
+
+      // 6. StudentLatePaymentReminder – only for subscribed students, 30% chance
+      if (
+        studentStatus === StudentStatusMap.subscribed &&
+        Math.random() < 0.3
+      ) {
+        const reminderDate = randomDate(
+          threeMonthsAgo.toDate(),
+          nowUtc.toDate(),
+        );
+        await addHistory(
+          TargetTypeMap.Student,
+          studentId,
+          HistoryActionMap.StudentLatePaymentReminder,
+          adminId,
+          academy.id,
+          undefined,
+          {
+            amount: 150,
+            dueDate: dayjs(reminderDate).add(7, "day").toISOString(),
+            date: reminderDate.toISOString(),
+          },
+        );
+      }
+
+      // 7. StudentNearEndSubscriptionReminder – 30% chance for subscribed students
+      if (
+        studentStatus === StudentStatusMap.subscribed &&
+        Math.random() < 0.3
+      ) {
+        const reminderDate = randomDate(
+          threeMonthsAgo.toDate(),
+          nowUtc.toDate(),
+        );
+        await addHistory(
+          TargetTypeMap.Student,
+          studentId,
+          HistoryActionMap.StudentNearEndSubscriptionReminder,
+          adminId,
+          academy.id,
+          undefined,
+          {
+            endDate: dayjs(reminderDate).add(5, "day").toISOString(),
+            date: reminderDate.toISOString(),
+          },
+        );
+      }
+    }
+
+    // For each tutor, generate TutorReportReminder events (30% chance)
+    for (const tutorId of tutorIds) {
+      if (Math.random() < 0.3) {
+        const reminderDate = randomDate(
+          threeMonthsAgo.toDate(),
+          dayjs.utc().toDate(),
+        );
+        await addHistory(
+          TargetTypeMap.Tutor,
+          tutorId,
+          HistoryActionMap.TutorReportReminder,
+          academyAdmins[academy.id],
+          academy.id,
+          undefined,
+          { reason: "تقرير حصة مفقود", date: reminderDate.toISOString() },
+        );
+      }
+    }
+
+    console.log(`  ✅ Created history records for academy ${academy.id}`);
   }
 
   console.log("\n🌱 Seeding finished successfully!");

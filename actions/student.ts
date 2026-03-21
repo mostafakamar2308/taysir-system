@@ -1,9 +1,17 @@
 "use server";
 
+import {
+  recordLeadCreatedHistory,
+  recordStudentPlanChangeHistory,
+  recordStudentStatusChangeHistory,
+  recordStudentTutorChangeHistory,
+} from "@/lib/history";
 import { getTokenFromCookie, verifyToken } from "@/lib/jwt";
 import db from "@/lib/prisma";
+import { HistoryActionType, TargetType } from "@/types/history";
 import { StudentStatus } from "@/types/student";
 import { SubscriptionStatus } from "@/types/subscription";
+import { Role } from "@/types/user";
 import dayjs from "dayjs";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -30,6 +38,11 @@ const createStudentSchema = z.object({
 });
 
 export async function createStudent(formData: FormData) {
+  const token = await getTokenFromCookie();
+  if (!token) throw new Error("غير مصرح");
+  const payload = verifyToken(token);
+  if (!payload || !payload.academyId) throw new Error("غير مصرح");
+
   const rawData = {
     name: formData.get("name"),
     email: formData.get("email") || null,
@@ -64,14 +77,22 @@ export async function createStudent(formData: FormData) {
 
   const validated = createStudentSchema.parse(rawData);
 
-  await db.student.create({
+  const student = await db.student.create({
     data: validated,
   });
+  if (validated.status === StudentStatus.lead) {
+    await recordLeadCreatedHistory(student.id, payload.id, validated.academyId);
+  }
 
   revalidatePath("/ar/dashboard/students");
 }
 
 export async function updateStudent(id: number, formData: FormData) {
+  const token = await getTokenFromCookie();
+  if (!token) throw new Error("غير مصرح");
+  const payload = verifyToken(token);
+  if (!payload || !payload.academyId) throw new Error("غير مصرح");
+
   const rawData = {
     name: formData.get("name"),
     email: formData.get("email") || null,
@@ -116,6 +137,18 @@ export async function updateStudent(id: number, formData: FormData) {
     data: validated,
   });
 
+  if (validated.status === StudentStatus.lead)
+    await db.history.create({
+      data: {
+        targetType: TargetType.Student,
+        targetId: id,
+        action: HistoryActionType.LeadCreated,
+        recordedBy: payload.id,
+        academyId: payload.academyId,
+        recorderType: Role.Admin,
+      },
+    });
+
   revalidatePath("/ar/dashboard/students");
 }
 
@@ -157,11 +190,26 @@ export async function changeStudentStatusWithSubscription(
   const payload = verifyToken(token);
   if (!payload) throw new Error("غير مصرح");
 
+  const student = await db.student.findUnique({
+    where: {
+      id: studentId,
+    },
+  });
+  if (!student) throw new Error("هذا الطالب غير موجود");
+
   // Update student status
   await db.student.update({
     where: { id: studentId },
     data: { status },
   });
+
+  await recordStudentStatusChangeHistory(
+    studentId,
+    student.status,
+    status,
+    payload.id,
+    student.academyId,
+  );
 
   // If status is subscribed and subscription data provided, create a subscription
   if (status === StudentStatus.subscribed && subscriptionData) {
@@ -186,7 +234,6 @@ export async function changeStudentStatusWithSubscription(
       },
     });
 
-    // Optionally set as current subscription on student
     await db.student.update({
       where: { id: studentId },
       data: { currentSubscriptionId: subscription.id },
@@ -213,11 +260,21 @@ export async function assignTutor(studentId: number, tutorId: number | null) {
   const token = await getTokenFromCookie();
   if (!token) throw new Error("غير مصرح");
   const payload = verifyToken(token);
-  if (!payload) throw new Error("غير مصرح");
+  if (!payload || !payload.academyId) throw new Error("غير مصرح");
 
   await db.student.update({
     where: { id: studentId },
     data: { tutorId },
+  });
+  await db.history.create({
+    data: {
+      targetType: TargetType.Student,
+      targetId: studentId,
+      action: HistoryActionType.StudentTutorChange,
+      recordedBy: payload.id,
+      recorderType: TargetType.Admin,
+      academyId: payload.academyId,
+    },
   });
 
   revalidatePath("/ar/dashboard/students");
@@ -251,10 +308,30 @@ export async function bulkAssignTutor(
   const payload = verifyToken(token);
   if (!payload) throw new Error("غير مصرح");
 
+  // Fetch current tutors for these students
+  const students = await db.student.findMany({
+    where: { id: { in: studentIds } },
+    select: { id: true, tutorId: true, academyId: true },
+  });
+
+  // Update all students
   await db.student.updateMany({
     where: { id: { in: studentIds } },
     data: { tutorId },
   });
+
+  // Record history for each student (if tutor changed)
+  for (const student of students) {
+    if (student.tutorId !== tutorId) {
+      await recordStudentTutorChangeHistory(
+        student.id,
+        student.tutorId,
+        tutorId,
+        payload.id,
+        student.academyId,
+      );
+    }
+  }
 
   revalidatePath("/ar/dashboard/students");
 }
@@ -269,11 +346,29 @@ export async function bulkChangeStatus(
   const payload = verifyToken(token);
   if (!payload) throw new Error("غير مصرح");
 
-  // Update students' status
+  // Fetch current statuses
+  const students = await db.student.findMany({
+    where: { id: { in: studentIds } },
+    select: { id: true, status: true, academyId: true },
+  });
+
+  // Update statuses
   await db.student.updateMany({
     where: { id: { in: studentIds } },
     data: { status, planId },
   });
+
+  for (const student of students) {
+    if (student.status !== status) {
+      await recordStudentStatusChangeHistory(
+        student.id,
+        student.status,
+        status,
+        payload.id,
+        student.academyId,
+      );
+    }
+  }
 
   revalidatePath("/ar/dashboard/students");
 }
@@ -302,14 +397,21 @@ export async function changePlan(studentId: number, newPlanId: number) {
   const payload = verifyToken(token);
   if (!payload) throw new Error("غير مصرح");
 
-  // Expire current active subscription (if any)
+  // Get the student to know the old plan and academyId
+  const student = await db.student.findUnique({
+    where: { id: studentId },
+    select: { planId: true, academyId: true },
+  });
+  if (!student) throw new Error("Student not found");
+
+  // Expire current active subscription
   await db.subscription.updateMany({
     where: {
       studentId,
-      status: 0, // active
+      status: SubscriptionStatus.active,
     },
     data: {
-      status: 2, // expired
+      status: SubscriptionStatus.expired,
       endDate: dayjs().toDate(),
     },
   });
@@ -320,16 +422,30 @@ export async function changePlan(studentId: number, newPlanId: number) {
       studentId,
       planId: newPlanId,
       startDate: new Date(),
-      status: 0, // active
+      status: SubscriptionStatus.active,
       autoRenew: true,
     },
   });
 
-  // Optionally set as current subscription on student
+  // Update student's current subscription and plan
   await db.student.update({
     where: { id: studentId },
-    data: { currentSubscriptionId: newSubscription.id, planId: newPlanId },
+    data: {
+      currentSubscriptionId: newSubscription.id,
+      planId: newPlanId,
+    },
   });
+
+  // Record history if plan changed
+  if (student.planId !== newPlanId) {
+    await recordStudentPlanChangeHistory(
+      studentId,
+      student.planId,
+      newPlanId,
+      payload.id,
+      student.academyId,
+    );
+  }
 
   revalidatePath(`/ar/dashboard/students/${studentId}`);
   revalidatePath("/ar/dashboard/students");

@@ -3,25 +3,22 @@
 import db from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { localToUTC } from "@/lib/dates";
-import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
+import dayjs from "@/lib/dayjs";
 import { AttendanceStatus, SessionStatus } from "@/types/session";
 import { Role } from "@/types/user";
-
-dayjs.extend(utc);
 
 type CreateSessionInput = {
   studentId: number;
   tutorId: number;
-  academyId: number; // from context
-  date: string; // YYYY-MM-DD
-  startTime: string; // HH:mm
+  academyId: number;
+  date: string;
+  startTime: string;
   duration: number;
   topic?: string;
   notes?: string;
   isRecurring: boolean;
-  recurDays?: number[]; // 0-6
-  recurEndDate?: string; // YYYY-MM-DD
+  recurDays?: number[];
+  recurEndDate?: string;
 };
 
 type UpdateSessionInput = Partial<CreateSessionInput> & {
@@ -30,11 +27,9 @@ type UpdateSessionInput = Partial<CreateSessionInput> & {
 };
 
 export async function createSession(input: CreateSessionInput) {
-  // Convert local date+time to UTC
   const startUTC = localToUTC(input.date, input.startTime);
   const endUTC = dayjs.utc(startUTC).add(input.duration, "minute").toDate();
 
-  // Basic conflict check (tutor and student)
   const conflicts = await db.session.findMany({
     where: {
       OR: [{ tutorId: input.tutorId }, { studentId: input.studentId }],
@@ -46,12 +41,10 @@ export async function createSession(input: CreateSessionInput) {
   });
 
   if (conflicts.length > 0) {
-    // You can return a structured error
     throw new Error("Conflict detected");
   }
 
   if (!input.isRecurring) {
-    // Single session
     const session = await db.session.create({
       data: {
         startTime: startUTC,
@@ -65,14 +58,14 @@ export async function createSession(input: CreateSessionInput) {
         status: SessionStatus.SCHEDULED,
       },
     });
-    revalidatePath("/dashboard/sessions");
+    revalidatePath("/ar/dashboard/sessions");
     return session;
   } else {
     // Recurring pattern
     const pattern = await db.recurringPattern.create({
       data: {
         daysOfWeek: input.recurDays!,
-        startTime: startUTC, // we store the time part (date will be ignored later)
+        startTime: startUTC,
         durationMinutes: input.duration,
         startDate: dayjs.utc(startUTC).startOf("day").toDate(),
         endDate: input.recurEndDate
@@ -116,7 +109,7 @@ export async function createSession(input: CreateSessionInput) {
     }
 
     await db.session.createMany({ data: sessionsToCreate });
-    revalidatePath("/dashboard/sessions");
+    revalidatePath("/ar/dashboard/sessions");
     return pattern;
   }
 }
@@ -159,7 +152,7 @@ export async function updateSession(input: UpdateSessionInput) {
     },
   });
 
-  revalidatePath("/dashboard/sessions");
+  revalidatePath("/ar/dashboard/sessions");
   return updated;
 }
 
@@ -193,7 +186,7 @@ export async function deleteSession(
     await db.session.delete({ where: { id } });
   }
 
-  revalidatePath("/dashboard/sessions");
+  revalidatePath("/ar/dashboard/sessions");
 }
 
 export async function updateAttendance(
@@ -230,7 +223,7 @@ export async function updateAttendance(
     });
   }
 
-  revalidatePath("/dashboard/sessions");
+  revalidatePath("/ar/dashboard/sessions");
   return attendance;
 }
 
@@ -252,7 +245,7 @@ export async function getSessionsForWeek(startDate: Date, endDate: Date) {
     startTime: s.startTime.toISOString(),
     endTime: s.endTime.toISOString(),
     durationMinutes: s.durationMinutes,
-    status: s.status, // convert to lowercase for UI
+    status: s.status,
     topic: s.topic,
     notes: s.notes,
     studentId: s.studentId,

@@ -157,8 +157,8 @@ export async function updateTutor(id: number, formData: FormData) {
     }),
   ]);
 
-  revalidatePath(`/dashboard/tutors/${id}`);
-  revalidatePath("/dashboard/tutors");
+  revalidatePath(`/ar/dashboard/tutors/${id}`);
+  revalidatePath("/ar/dashboard/tutors");
 }
 
 export async function addTutorNote(tutorId: number, content: string) {

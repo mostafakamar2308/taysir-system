@@ -51,7 +51,7 @@ export async function login(formData: FormData) {
 
   if (user.role === Role.SuperAdmin) {
     // SuperAdmin
-    redirect("/dashboard/admin/academies");
+    redirect("/ar/dashboard/admin/academies");
   } else if (user.role === Role.Admin) {
     // Admin (academy owner)
     redirect("/ar/dashboard");

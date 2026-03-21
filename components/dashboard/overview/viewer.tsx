@@ -4,24 +4,33 @@ import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MessageSquare, Plus, AlertTriangle } from "lucide-react";
+import {
+  MessageSquare,
+  Plus,
+  AlertTriangle,
+  TrendingUp,
+  TrendingDown,
+} from "lucide-react";
 import dayjs from "@/lib/dayjs";
+
+interface StatItem {
+  value: number;
+  change: number;
+}
 
 interface DashboardClientProps {
   stats: {
-    totalStudents: number;
-    subscribedStudents: number;
-    trialStudents: number;
-    leadStudents: number;
-    newStudentsThisWeek: number;
-    activeTutors: number;
-    totalSupervisors: number;
-    revenueThisMonth: number;
-    revenuePrevMonth: number;
-    ltv: number;
-    cac: number;
-    leadToTrialRate: number;
-    trialToSubscribedRate: number;
+    totalStudents: StatItem;
+    subscribedStudents: StatItem;
+    trialStudents: StatItem;
+    leadStudents: StatItem;
+    newStudentsThisWeek: StatItem;
+    activeTutors: StatItem;
+    totalSupervisors: StatItem;
+    revenueThisMonth: StatItem;
+    expenseThisMonth: StatItem;
+    leadToTrialRate: StatItem;
+    trialToSubscribedRate: StatItem;
   };
   atRiskStudents: Array<{
     id: number;
@@ -63,24 +72,47 @@ interface DashboardClientProps {
   academyId: number;
 }
 
-export default function DashboardClient(props: DashboardClientProps) {
-  const [quickActionState, setQuickActionState] = useState({
-    addStudent: false,
-    addTutor: false,
-    addSession: false,
-    addExpense: false,
-  });
+function StatCard({
+  label,
+  value,
+  change,
+}: {
+  label: string;
+  value: number | string;
+  change: number;
+}) {
+  const isPositive = change > 0;
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <p className="text-sm text-muted-foreground">{label}</p>
+        <div className="flex items-baseline gap-2">
+          <p className="text-2xl font-bold">{value}</p>
+          {change !== 0 && (
+            <span
+              className={`text-xs ${isPositive ? "text-green-600" : "text-red-600"} flex items-center`}
+            >
+              {isPositive ? (
+                <TrendingUp className="h-3 w-3 ml-1" />
+              ) : (
+                <TrendingDown className="h-3 w-3 ml-1" />
+              )}
+              {Math.abs(change).toFixed(1)}%
+            </span>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
+export default function DashboardClient(props: DashboardClientProps) {
   const formatTime = (iso: string) => dayjs(iso).format("h:mm A");
 
   const handleWhatsApp = (phone: string | null, text?: string) => {
     if (!phone) return;
     const url = `https://wa.me/${phone.replace(/\D/g, "")}${text ? `?text=${encodeURIComponent(text)}` : ""}`;
     window.open(url, "_blank");
-  };
-
-  const openDialog = (key: keyof typeof quickActionState) => {
-    setQuickActionState((prev) => ({ ...prev, [key]: true }));
   };
 
   return (
@@ -96,71 +128,133 @@ export default function DashboardClient(props: DashboardClientProps) {
           <CardTitle className="text-base">إجراءات سريعة</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-          <Button size="sm" onClick={() => openDialog("addStudent")}>
+          <Button size="sm">
             <Plus className="h-4 w-4 ml-2" /> إضافة طالب
           </Button>
-          <Button size="sm" onClick={() => openDialog("addTutor")}>
+          <Button size="sm">
             <Plus className="h-4 w-4 ml-2" /> إضافة معلم
           </Button>
-          <Button size="sm" onClick={() => openDialog("addSession")}>
+          <Button size="sm">
             <Plus className="h-4 w-4 ml-2" /> إضافة حصة
           </Button>
-          <Button size="sm" onClick={() => openDialog("addExpense")}>
+          <Button size="sm">
             <Plus className="h-4 w-4 ml-2" /> تسجيل مصروف
+          </Button>
+          <Button size="sm">
+            <Plus className="h-4 w-4 ml-2" /> تسجيل إيراد
           </Button>
         </CardContent>
       </Card>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard label="إجمالي الطلاب" value={props.stats.totalStudents} />
-        <StatCard label="المشتركين" value={props.stats.subscribedStudents} />
-        <StatCard label="تجريبي" value={props.stats.trialStudents} />
-        <StatCard label="عملاء محتملين" value={props.stats.leadStudents} />
+        <StatCard
+          label="إجمالي الطلاب"
+          value={props.stats.totalStudents.value}
+          change={props.stats.totalStudents.change}
+        />
+        <StatCard
+          label="المشتركين"
+          value={props.stats.subscribedStudents.value}
+          change={props.stats.subscribedStudents.change}
+        />
+        <StatCard
+          label="تجريبي"
+          value={props.stats.trialStudents.value}
+          change={props.stats.trialStudents.change}
+        />
+        <StatCard
+          label="عملاء محتملين"
+          value={props.stats.leadStudents.value}
+          change={props.stats.leadStudents.change}
+        />
         <StatCard
           label="جدد هذا الأسبوع"
-          value={props.stats.newStudentsThisWeek}
+          value={props.stats.newStudentsThisWeek.value}
+          change={props.stats.newStudentsThisWeek.change}
         />
-        <StatCard label="معلمين نشطين" value={props.stats.activeTutors} />
-        <StatCard label="مشرفين" value={props.stats.totalSupervisors} />
+        <StatCard
+          label="معلمين نشطين"
+          value={props.stats.activeTutors.value}
+          change={props.stats.activeTutors.change}
+        />
+        <StatCard
+          label="مشرفين"
+          value={props.stats.totalSupervisors.value}
+          change={props.stats.totalSupervisors.change}
+        />
         <StatCard
           label="إيرادات هذا الشهر"
-          value={`${props.stats.revenueThisMonth} ر.س`}
+          value={`${props.stats.revenueThisMonth.value} ر.س`}
+          change={props.stats.revenueThisMonth.change}
+        />
+        <StatCard
+          label="مصروفات هذا الشهر"
+          value={`${props.stats.expenseThisMonth.value} ر.س`}
+          change={props.stats.expenseThisMonth.change}
         />
       </div>
 
-      {/* Conversion Rates & Financial Health */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Conversion Rates */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">تحويل Lead → Trial</CardTitle>
+            <CardTitle className="text-sm">
+              تحويل Lead → Trial (آخر 30 يوم)
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">
-              {props.stats.leadToTrialRate.toFixed(1)}%
+            <div className="flex items-baseline gap-2">
+              <p className="text-2xl font-bold">
+                {props.stats.leadToTrialRate.value.toFixed(1)}%
+              </p>
+              {props.stats.leadToTrialRate.change !== 0 && (
+                <span
+                  className={`text-xs ${props.stats.leadToTrialRate.change > 0 ? "text-green-600" : "text-red-600"} flex items-center`}
+                >
+                  {props.stats.leadToTrialRate.change > 0 ? (
+                    <TrendingUp className="h-3 w-3 ml-1" />
+                  ) : (
+                    <TrendingDown className="h-3 w-3 ml-1" />
+                  )}
+                  {Math.abs(props.stats.leadToTrialRate.change).toFixed(1)}%
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              مقارنة بالفترة السابقة (30-60 يوم)
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">تحويل Trial → مشترك</CardTitle>
+            <CardTitle className="text-sm">
+              تحويل Trial → مشترك (آخر 30 يوم)
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">
-              {props.stats.trialToSubscribedRate.toFixed(1)}%
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">LTV / CAC</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">
-              {props.stats.ltv.toFixed(0)} / {props.stats.cac.toFixed(0)}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              القيمة الدائمة للعميل / تكلفة اكتساب العميل
+            <div className="flex items-baseline gap-2">
+              <p className="text-2xl font-bold">
+                {props.stats.trialToSubscribedRate.value.toFixed(1)}%
+              </p>
+              {props.stats.trialToSubscribedRate.change !== 0 && (
+                <span
+                  className={`text-xs ${props.stats.trialToSubscribedRate.change > 0 ? "text-green-600" : "text-red-600"} flex items-center`}
+                >
+                  {props.stats.trialToSubscribedRate.change > 0 ? (
+                    <TrendingUp className="h-3 w-3 ml-1" />
+                  ) : (
+                    <TrendingDown className="h-3 w-3 ml-1" />
+                  )}
+                  {Math.abs(props.stats.trialToSubscribedRate.change).toFixed(
+                    1,
+                  )}
+                  %
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              مقارنة بالفترة السابقة (30-60 يوم)
             </p>
           </CardContent>
         </Card>
@@ -265,7 +359,6 @@ export default function DashboardClient(props: DashboardClientProps) {
         {/* Reconciliation Sheet */}
         <TabsContent value="reconciliation">
           <div className="space-y-6">
-            {/* Late Payments */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-base text-destructive">
@@ -311,8 +404,6 @@ export default function DashboardClient(props: DashboardClientProps) {
                 )}
               </CardContent>
             </Card>
-
-            {/* Near-end Subscriptions */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-base text-amber-600">
@@ -409,17 +500,5 @@ export default function DashboardClient(props: DashboardClientProps) {
         </TabsContent>
       </Tabs>
     </div>
-  );
-}
-
-// Simple stat card component
-function StatCard({ label, value }: { label: string; value: number | string }) {
-  return (
-    <Card>
-      <CardContent className="p-4">
-        <p className="text-sm text-muted-foreground">{label}</p>
-        <p className="text-2xl font-bold">{value}</p>
-      </CardContent>
-    </Card>
   );
 }

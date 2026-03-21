@@ -7,7 +7,7 @@ import { Role } from "@/types/user";
 
 const academySchema = z.object({
   name: z.string().min(1, "الاسم مطلوب"),
-  adminId: z.string().optional().nullable(),
+  adminId: z.number().optional().nullable(),
   maxStudents: z.number().int().positive().optional().nullable(),
   maxTutors: z.number().int().positive().optional().nullable(),
   primaryColor: z.string().optional().nullable(),
@@ -15,7 +15,7 @@ const academySchema = z.object({
 
 export async function createAcademy(formData: FormData) {
   const name = formData.get("name") as string;
-  const adminId = (formData.get("adminId") as string) || null;
+  const adminId = parseInt(formData.get("adminId") as string) || null;
   const maxStudents = formData.get("maxStudents")
     ? parseInt(formData.get("maxStudents") as string)
     : null;

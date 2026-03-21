@@ -13,6 +13,7 @@ const createUserSchema = z.object({
   password: z.string().min(8, "كلمة المرور يجب أن تكون 8 أحرف على الأقل"),
   role: z.number().min(2).max(3), // Supervisor(2) or Tutor(3)
   academyId: z.number(),
+  currencyId: z.number(),
 });
 
 const updateUserSchema = z.object({
@@ -32,6 +33,7 @@ export async function createUser(formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
   const role = parseInt(formData.get("role") as string);
+  const currencyId = parseInt(formData.get("role") as string);
   const academyId = payload.academyId!; // from the admin's token
 
   const validated = createUserSchema.parse({
@@ -40,6 +42,7 @@ export async function createUser(formData: FormData) {
     password,
     role,
     academyId,
+    currencyId,
   });
 
   // Check if user already exists
@@ -71,9 +74,9 @@ export async function createUser(formData: FormData) {
       data: {
         userId: user.id,
         academyId: validated.academyId,
-        pricePerSession: 0, // default, will be updated later
-        phone: "",
+        pricePerSession: 0,
         active: true,
+        currencyId: validated.currencyId,
       },
     });
   }
@@ -82,7 +85,7 @@ export async function createUser(formData: FormData) {
   return { success: true };
 }
 
-export async function updateUser(userId: string, formData: FormData) {
+export async function updateUser(userId: number, formData: FormData) {
   const token = await getTokenFromCookie();
   if (!token) throw new Error("غير مصرح");
   const payload = verifyToken(token);
@@ -115,7 +118,7 @@ export async function updateUser(userId: string, formData: FormData) {
   return { success: true };
 }
 
-export async function toggleUserActive(userId: string) {
+export async function toggleUserActive(userId: number) {
   const token = await getTokenFromCookie();
   if (!token) throw new Error("غير مصرح");
   const payload = verifyToken(token);
@@ -142,7 +145,7 @@ export async function toggleUserActive(userId: string) {
   return { success: true };
 }
 
-export async function resetPassword(userId: string) {
+export async function resetPassword(userId: number) {
   const token = await getTokenFromCookie();
   if (!token) throw new Error("غير مصرح");
   const payload = verifyToken(token);
