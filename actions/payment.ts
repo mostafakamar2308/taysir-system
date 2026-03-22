@@ -1,9 +1,12 @@
 "use server";
 
+import { getTokenFromCookie, verifyToken } from "@/lib/jwt";
 import db from "@/lib/prisma";
-import { PaymentStatus } from "@/types/payment";
+import { PaymentMethod, PaymentStatus } from "@/types/payment";
+import { Role } from "@/types/user";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import dayjs from "@/lib/dayjs";
 
 const paymentSchema = z.object({
   amount: z.number().positive(),
@@ -98,4 +101,43 @@ export async function markPaymentAsPaid(id: number) {
     data: { status: PaymentStatus.PAID },
   }); // 1 = PAID
   revalidatePath("/ar/dashboard/finances");
+}
+
+export async function createRevenueFromDashboard(revenueData: {
+  amount: number;
+  method: PaymentMethod;
+  status: PaymentStatus;
+  studentId: number;
+  dueDate: string | null;
+  recordedBy: null;
+  academyId: number;
+  date: string;
+  description: string;
+  invoiceUrl: string;
+  notes: string;
+}) {
+  const token = await getTokenFromCookie();
+  if (!token) throw new Error("غير مصرح");
+  const payload = verifyToken(token);
+  if (!payload || payload.role !== Role.Admin) throw new Error("غير مصرح");
+
+  const student = await db.student.findUnique({
+    where: { id: revenueData.studentId },
+  });
+  if (!student) throw new Error("لا يوجد طالب بهذا الاسم");
+
+  await db.revenue.create({
+    data: {
+      ...revenueData,
+      currencyId: student.currencyId,
+      planId: student.planId,
+      recordedBy: payload.id,
+      subscriptionId: student.currentSubscriptionId,
+      date: dayjs.utc(revenueData.date).toDate(),
+      dueDate: revenueData.dueDate
+        ? dayjs.utc(revenueData.date).toDate()
+        : null,
+    },
+  });
+  revalidatePath("/ar/dashboard");
 }

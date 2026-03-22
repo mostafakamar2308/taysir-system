@@ -3,12 +3,13 @@
 import db from "@/lib/prisma";
 import { PaymentStatus } from "@/types/payment";
 import { AttendanceStatus } from "@/types/session";
+import dayjs from "@/lib/dayjs";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 const expenseSchema = z.object({
   date: z.date(),
-  description: z.string().min(1),
+  description: z.string(),
   costCenter: z.string().nullable().optional(),
   amount: z.number().positive(),
   currencyId: z.number(),
@@ -23,18 +24,15 @@ const expenseSchema = z.object({
 
 export async function createExpense(formData: FormData) {
   const rawData = {
-    date: new Date(formData.get("date") as string),
+    date: dayjs.utc(formData.get("date") as string).toDate(),
     description: formData.get("description") as string,
     costCenter: (formData.get("costCenter") as string) || null,
     amount: parseFloat(formData.get("amount") as string),
-    currencyId: parseInt(formData.get("currency") as string),
+    currencyId: parseInt(formData.get("currencyId") as string),
     method: formData.get("paymentMethod")
       ? parseInt(formData.get("paymentMethod") as string)
       : null,
-    status:
-      formData.get("paid") === "true"
-        ? PaymentStatus.PAID
-        : PaymentStatus.PENDING,
+    status: parseInt(formData.get("status") as string),
     invoiceUrl: (formData.get("invoiceUrl") as string) || null,
     notes: (formData.get("notes") as string) || null,
     tutorId: formData.get("tutorId")

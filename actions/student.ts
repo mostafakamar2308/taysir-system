@@ -102,7 +102,9 @@ export async function updateStudent(id: number, formData: FormData) {
     phone: formData.get("phone") || null,
     country: formData.get("country") || null,
     timezone: formData.get("timezone"),
-    currencyId: parseInt(formData.get("currencyId") as string),
+    currencyId: formData.get("currencyId")
+      ? parseInt(formData.get("currencyId") as string)
+      : undefined,
     status: formData.get("status")
       ? parseInt(formData.get("status") as string)
       : 0,
@@ -124,11 +126,14 @@ export async function updateStudent(id: number, formData: FormData) {
       : null,
     imageUrl: formData.get("imageUrl") || null,
   };
+  console.log({ rawData });
+  console.log(formData.get("currencyId") as string);
 
   const validated = createStudentSchema
     .omit({ academyId: true })
     .extend({
       imageUrl: z.string().nullable().optional(),
+      currencyId: z.number().optional(),
     })
     .parse(rawData);
 
@@ -475,7 +480,7 @@ export async function recordPayment(
     data: {
       amount,
       currencyId: subscription.plan.currencyId,
-      status: 1, // PAID (you can also allow pending)
+      status: 1,
       method,
       date: new Date(),
       description: description || `دفعة اشتراك ${subscription.plan.title}`,

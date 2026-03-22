@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,24 +26,25 @@ import { useToast } from "@/hooks/use-toast";
 import { createExpense } from "@/actions/expense";
 import { PaymentMethod } from "@/types/payment";
 import { paymentMethodLabels } from "@/lib/enums";
+import { Plus } from "lucide-react";
 
 interface AddExpenseDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
   tutorId: number;
   tutorName: string;
-  currencyId: number;
+  currencyId?: number;
+  currencies?: { id: number; name: string }[];
   academyId: number;
+  children: React.ReactNode;
 }
 
 export default function AddExpenseDialog({
-  open,
-  onOpenChange,
   tutorId,
   tutorName,
-  currencyId,
+  currencyId: optionalCurrencyId,
+  currencies,
   academyId,
 }: AddExpenseDialogProps) {
+  const [open, setOpen] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -50,6 +52,7 @@ export default function AddExpenseDialog({
     date: new Date().toISOString().split("T")[0],
     amount: "",
     description: "",
+    currencyId: optionalCurrencyId,
     costCenter: "رواتب",
     paymentMethod: "",
     paid: false,
@@ -59,7 +62,7 @@ export default function AddExpenseDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.amount) {
+    if (!formData.amount || !formData.currencyId) {
       toast({ title: "يرجى إدخال المبلغ والعملة", variant: "destructive" });
       return;
     }
@@ -73,7 +76,7 @@ export default function AddExpenseDialog({
       );
       form.append("costCenter", formData.costCenter);
       form.append("amount", formData.amount);
-      form.append("currency", currencyId.toString());
+      form.append("currency", formData.currencyId.toString());
       if (formData.paymentMethod)
         form.append("paymentMethod", formData.paymentMethod);
       form.append("paid", String(formData.paid));
@@ -88,7 +91,7 @@ export default function AddExpenseDialog({
 
       await createExpense(form);
       toast({ title: "تم تسجيل المصروف" });
-      onOpenChange(false);
+      setOpen(false);
       router.refresh();
     } catch (error) {
       console.log(error);
@@ -100,7 +103,12 @@ export default function AddExpenseDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" className="gap-1">
+          <Plus className="h-4 w-4" /> تسجيل مصروف
+        </Button>
+      </DialogTrigger>
       <DialogContent className="sm:max-w-md" dir="rtl">
         <DialogHeader>
           <DialogTitle>تسجيل دفعة للمعلم</DialogTitle>
@@ -127,6 +135,28 @@ export default function AddExpenseDialog({
                 }
               />
             </div>
+            {currencies ? (
+              <div className="space-y-2">
+                <Label>العملة</Label>
+                <Select
+                  value={formData.currencyId?.toString()}
+                  onValueChange={(v) =>
+                    setFormData({ ...formData, currencyId: parseInt(v) })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="اختر" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {currencies.map((c) => (
+                      <SelectItem key={c.id} value={c.id.toString()}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
           </div>
           <div className="space-y-2">
             <Label>الوصف (اختياري)</Label>
@@ -198,7 +228,7 @@ export default function AddExpenseDialog({
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}
+              onClick={() => setOpen(false)}
             >
               إلغاء
             </Button>

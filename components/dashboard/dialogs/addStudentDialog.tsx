@@ -22,14 +22,14 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { createStudent } from "@/actions/student";
 import { Plus, User, CreditCard, MoreHorizontal } from "lucide-react";
-import { Currency } from "@/generated/prisma/client";
 import { StudentStatus } from "@/types/student";
 
 interface AddStudentDialogProps {
-  tutors: { id: number; name: string }[];
+  tutors: { id: number; name: string | null }[];
   plans: { id: number; title: string }[];
-  currencies: Currency[];
+  currencies: { id: number; name: string }[];
   academyId?: number;
+  children?: React.ReactNode;
 }
 
 export default function AddStudentDialog({
@@ -37,6 +37,7 @@ export default function AddStudentDialog({
   plans,
   currencies,
   academyId,
+  children,
 }: AddStudentDialogProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -66,9 +67,11 @@ export default function AddStudentDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" className="gap-1">
-          <Plus className="h-4 w-4" /> إضافة طالب
-        </Button>
+        {children || (
+          <Button size="sm" className="gap-1">
+            <Plus className="h-4 w-4" /> إضافة طالب
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent
         className="max-w-2xl max-h-[90vh] overflow-y-auto"

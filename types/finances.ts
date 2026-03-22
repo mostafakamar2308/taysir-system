@@ -34,7 +34,7 @@ export interface ExpenseRecord {
 
 export interface StudentOption {
   id: number;
-  name: string;
+  name: string | null;
 }
 
 export interface TutorOption {

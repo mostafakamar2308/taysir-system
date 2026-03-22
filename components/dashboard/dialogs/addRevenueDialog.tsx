@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,88 +22,45 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { paymentMethodLabels } from "@/lib/finances";
-import {
-  PaymentFormData,
-  PaymentRecord,
-  PlanOption,
-  StudentOption,
-} from "@/types/finances";
+import { StudentOption } from "@/types/finances";
+import { PaymentMethod, PaymentStatus } from "@/types/payment";
+import { createRevenueFromDashboard } from "@/actions/payment";
 
-interface RevenueFormDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  editingPayment: PaymentRecord | null;
-  onSave: (payment: FormData) => void;
+interface AddRevenueDialogProps {
+  children: React.ReactNode;
   students: StudentOption[];
-  plans: PlanOption[];
   academyId: number;
 }
 
-export function RevenueFormDialog({
-  open,
-  onOpenChange,
-  editingPayment,
-  onSave,
+export function AddRevenueDialog({
+  children,
   students,
-  plans,
   academyId,
-}: RevenueFormDialogProps) {
+}: AddRevenueDialogProps) {
+  const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState({
     amount: "",
-    currency: "EGP",
-    status: "0",
-    method: "",
+    status: PaymentStatus.PAID,
+    method: PaymentMethod.BANK_TRANSFER,
     date: new Date().toISOString().split("T")[0],
     dueDate: "",
     description: "",
     studentId: "",
-    planId: "",
     invoiceUrl: "",
-    channel: "",
     notes: "",
   });
 
-  useEffect(() => {
-    if (editingPayment) {
-      setFormData({
-        amount: String(editingPayment.amount),
-        currency: editingPayment.currency,
-        status: String(editingPayment.status),
-        method:
-          editingPayment.method !== null ? String(editingPayment.method) : "",
-        date: editingPayment.date,
-        dueDate: editingPayment.dueDate || "",
-        description: editingPayment.description || "",
-        studentId: String(editingPayment.studentId),
-        planId: editingPayment.planId ? String(editingPayment.planId) : "",
-        invoiceUrl: editingPayment.invoiceUrl || "",
-        channel: editingPayment.channel || "",
-        notes: editingPayment.notes || "",
-      });
-    } else {
-      setFormData({
-        amount: "",
-        currency: "SAR",
-        status: "0",
-        method: "",
-        date: new Date().toISOString().split("T")[0],
-        dueDate: "",
-        description: "",
-        studentId: "",
-        planId: "",
-        invoiceUrl: "",
-        channel: "",
-        notes: "",
-      });
-    }
-  }, [editingPayment, open]);
-
-  const handleChange = (field: string, value: string) => {
+  const handleChange = (field: string, value: string | number) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = () => {
-    if (!formData.amount || !formData.date || !formData.studentId) {
+  const handleSubmit = async () => {
+    if (
+      !formData.amount ||
+      !formData.date ||
+      !formData.studentId ||
+      !formData.method
+    ) {
       toast({
         title: "خطأ",
         description: "يرجى ملء الحقول المطلوبة",
@@ -114,29 +72,26 @@ export function RevenueFormDialog({
     const paymentData = {
       ...formData,
       amount: parseFloat(formData.amount),
-      method: formData.method ? parseInt(formData.method) : null,
-      status: parseInt(formData.status),
+      method: formData.method,
+      status: formData.status,
       studentId: parseInt(formData.studentId),
-      planId: formData.planId ? parseInt(formData.planId) : null,
       dueDate: formData.dueDate || null,
       recordedBy: null,
       academyId,
     };
-
-    onSave(paymentData);
-    onOpenChange(false);
+    await createRevenueFromDashboard(paymentData);
+    setOpen(false);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent
         className="sm:max-w-lg max-h-[90vh] overflow-y-auto"
         dir="rtl"
       >
         <DialogHeader>
-          <DialogTitle>
-            {editingPayment ? "تعديل إيراد" : "إضافة إيراد"}
-          </DialogTitle>
+          <DialogTitle>إضافة إيراد</DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-2 gap-4">
@@ -182,8 +137,8 @@ export function RevenueFormDialog({
             <div className="space-y-2">
               <Label>طريقة الدفع</Label>
               <Select
-                value={formData.method}
-                onValueChange={(v) => handleChange("method", v)}
+                value={formData.method.toString()}
+                onValueChange={(v) => handleChange("method", parseInt(v))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="اختر" />
@@ -200,7 +155,7 @@ export function RevenueFormDialog({
             <div className="space-y-2">
               <Label>الحالة</Label>
               <Select
-                value={formData.status}
+                value={formData.status.toString()}
                 onValueChange={(v) => handleChange("status", v)}
               >
                 <SelectTrigger>
@@ -213,36 +168,6 @@ export function RevenueFormDialog({
                   <SelectItem value="3">مسترد</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>الخطة</Label>
-              <Select
-                value={formData.planId}
-                onValueChange={(v) => handleChange("planId", v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="اختر" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">بدون خطة</SelectItem>
-                  {plans.map((p) => (
-                    <SelectItem key={p.id} value={String(p.id)}>
-                      {p.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>القناة</Label>
-              <Input
-                value={formData.channel}
-                onChange={(e) => handleChange("channel", e.target.value)}
-                placeholder="مثال: متجر"
-              />
             </div>
           </div>
 
@@ -283,12 +208,10 @@ export function RevenueFormDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => setOpen(false)}>
             إلغاء
           </Button>
-          <Button onClick={handleSubmit}>
-            {editingPayment ? "حفظ التعديلات" : "إضافة"}
-          </Button>
+          <Button onClick={handleSubmit}>إضافة</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

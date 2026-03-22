@@ -48,14 +48,13 @@ export default function EditStudentDialog({
   const [loading, setLoading] = useState(false);
   const [student, setStudent] = useState<Student | null>(null);
 
-  const [status, setStatus] = useState(String(student?.status || ""));
   const router = useRouter();
   const { toast } = useToast();
 
   const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
   const setOpen = controlledOnOpenChange || setInternalOpen;
 
-  const isLead = status === String(StudentStatus.lead);
+  const isLead = student?.status === StudentStatus.lead;
 
   const formatDateForInput = (date: Date | string | null) => {
     if (!date) return "";
@@ -215,8 +214,7 @@ export default function EditStudentDialog({
                   <Label htmlFor="status">الحالة</Label>
                   <Select
                     name="status"
-                    value={status}
-                    onValueChange={setStatus}
+                    defaultValue={student.status.toString()}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="اختر الحالة" />
@@ -259,7 +257,7 @@ export default function EditStudentDialog({
                   <Label htmlFor="currencyId">العملة</Label>
                   <Select
                     name="currencyId"
-                    defaultValue={String(student.currencyId)}
+                    defaultValue={student.currencyId.toString()}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="اختر العملة" />
@@ -328,8 +326,7 @@ export default function EditStudentDialog({
                   <Label htmlFor="status">الحالة</Label>
                   <Select
                     name="status"
-                    value={status}
-                    onValueChange={setStatus}
+                    defaultValue={student.status.toString()}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="اختر الحالة" />

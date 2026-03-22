@@ -535,6 +535,7 @@ async function main() {
             method: method !== null ? method : null,
             date: paymentDate,
             dueDate: null,
+            academyId: academy.id,
             description: `Subscription payment`,
             channel: randomElement(["online", "manual", null]),
             notes: null,

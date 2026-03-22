@@ -55,7 +55,7 @@ model Academy {
   maxStudents       Int
   primaryColor      String
   defaultCurrencyId Int?
-  defaultCurrency   Currency? @relation(fields: [currencyId], references: [id])
+  defaultCurrency   Currency? @relation(fields: [defaultCurrencyId], references: [id])
 
   admin             Admin?
   supervisors       Supervisor[]
@@ -66,11 +66,11 @@ model Academy {
   expenses          Expense[]
   reports           Report[]
   plans             Plan[]
+  histories         History[]
+  revenues          Revenue[]
 
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  currencyId Int?
-  histories  History[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Admin {
@@ -315,6 +315,9 @@ model Revenue {
   channel     String?
   notes       String?
   invoiceUrl  String?
+
+  academyId Int
+  academy   Academy @relation(fields: [academyId], references: [id])
 
   studentId  Int
   student    Student @relation(fields: [studentId], references: [id])

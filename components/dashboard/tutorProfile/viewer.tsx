@@ -19,16 +19,15 @@ import {
 } from "lucide-react";
 import type { TutorProfile, TutorSession } from "@/types/tutor";
 import { addTutorNote } from "@/actions/tutor";
-
 import OverviewTab from "@/components/dashboard/tutorProfile/overviewTab";
 import StudentsTab from "@/components/dashboard/tutorProfile/studentsTab";
 import SessionsTab from "@/components/dashboard/tutorProfile/sessionsTab";
 import PaymentsTab from "@/components/dashboard/tutorProfile/paymentsTab";
 import CommunicationTab from "@/components/dashboard/tutorProfile/communicationTab";
 import EditTutorDialog from "@/components/dashboard/tutorProfile/editTutorDialog";
-import AddSessionDialog from "@/components/dashboard/tutorProfile/addSessionDialog";
+import AddSessionDialog from "@/components/dashboard/dialogs/addSessionToTutorDialog";
 import SessionDetailPanel from "@/components/dashboard/tutorProfile/sessionDetailsPanel";
-import AddExpenseDialog from "@/components/dashboard/tutorProfile/addExpenseDialog";
+import AddExpenseDialog from "@/components/dashboard/dialogs/payTutorDialog";
 import ReportsTab from "@/components/dashboard/tutorProfile/reportsTab";
 
 interface TutorProfileClientProps {
@@ -219,8 +218,6 @@ export default function TutorProfileClient({ tutor }: TutorProfileClientProps) {
       />
 
       <AddSessionDialog
-        open={addSessionOpen}
-        onOpenChange={setAddSessionOpen}
         tutorId={tutor.id}
         academyId={tutor.academyId}
         studentOptions={tutor.students.map((s) => ({ id: s.id, name: s.name }))}

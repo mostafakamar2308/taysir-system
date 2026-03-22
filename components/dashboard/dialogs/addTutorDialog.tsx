@@ -29,12 +29,14 @@ interface AddTutorDialogProps {
   specialities: { id: number; title: string }[];
   currencies: { id: number; name: string }[];
   academyId: number;
+  children?: React.ReactNode;
 }
 
 export default function AddTutorDialog({
   specialities,
   currencies,
   academyId,
+  children,
 }: AddTutorDialogProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -61,9 +63,11 @@ export default function AddTutorDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" className="gap-1">
-          <Plus className="h-4 w-4" /> إضافة معلم
-        </Button>
+        {children || (
+          <Button size="sm" className="gap-1">
+            <Plus className="h-4 w-4" /> إضافة معلم
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent
         className="max-w-2xl max-h-[90vh] overflow-y-auto"

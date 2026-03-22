@@ -17,7 +17,7 @@ import FilterPanel from "@/components/dashboard/common/filterPanel";
 import BulkActionsBar from "@/components/dashboard/students/bulkActionBar";
 import { StudentTable } from "@/components/dashboard/students/studenTable";
 import { EmptyState } from "@/components/dashboard/students/emptyState";
-import AddStudentDialog from "@/components/dashboard/students/addStudentDialog";
+import AddStudentDialog from "@/components/dashboard/dialogs/addStudentDialog";
 import { statusColors, statusLabels } from "@/lib/enums";
 
 interface StudentsClientProps {

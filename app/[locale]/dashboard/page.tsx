@@ -26,7 +26,6 @@ export default async function DashboardPage() {
   const startOfLastMonth = startOfMonth.subtract(1, "month");
   const endOfLastMonth = endOfMonth.subtract(1, "month");
 
-  // ---------- Basic counts with previous period ----------
   const [
     totalStudents,
     totalStudentsPrev,
@@ -432,15 +431,18 @@ export default async function DashboardPage() {
       change: trialToSubscribedRate - trialToSubscribedRatePrev,
     },
   };
-  console.log({
-    leadToTrialRate,
-    leadToTrialRatePrev,
-    trialToSubscribedRate,
-    trialToSubscribedRatePrev,
-    trialToSubscribedCount,
-    trialToSubscribedCountPrev,
-    leadToTrialCount,
-    leadToTrialCountPrev,
+
+  const tutors = await db.tutor.findMany({
+    where: { academyId, active: true },
+    include: {
+      user: true,
+    },
+  });
+  const currencies = await db.currency.findMany();
+  const specialities = await db.speciality.findMany();
+  const plans = await db.plan.findMany({ where: { academyId } });
+  const allStudents = await db.student.findMany({
+    where: { academyId },
   });
 
   return (
@@ -465,6 +467,11 @@ export default async function DashboardPage() {
         startTime: s.startTime.toISOString(),
       }))}
       academyId={academyId}
+      plans={plans.map((p) => ({ id: p.id, title: p.title }))}
+      currencies={currencies.map((c) => ({ id: c.id, name: c.name }))}
+      tutors={tutors.map((t) => ({ id: t.id, name: t.user.name }))}
+      students={allStudents.map((t) => ({ id: t.id, name: t.name }))}
+      specialities={specialities.map((s) => ({ id: s.id, title: s.title }))}
     />
   );
 }

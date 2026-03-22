@@ -74,6 +74,5 @@ export function getStudentWarnings(
     });
   }
 
-  // 4. Near payment due date (already covered above)
   return warnings;
 }

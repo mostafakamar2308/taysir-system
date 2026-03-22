@@ -15,7 +15,7 @@ import TutorTable from "@/components/dashboard/tutors/tutorTable";
 import { EmptyState } from "@/components/dashboard/students/emptyState";
 import { exportTutorsToCSV } from "@/lib/export";
 import { SortField, SortDir } from "@/types/lib";
-import AddTutorDialog from "@/components/dashboard/tutors/addTutorDialog";
+import AddTutorDialog from "@/components/dashboard/dialogs/addTutorDialog";
 import { Currency } from "@/generated/prisma/client";
 
 interface TutorsViewerProps {

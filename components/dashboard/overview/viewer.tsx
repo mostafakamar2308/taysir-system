@@ -1,6 +1,4 @@
 "use client";
-
-import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,6 +10,11 @@ import {
   TrendingDown,
 } from "lucide-react";
 import dayjs from "@/lib/dayjs";
+import AddStudentDialog from "@/components/dashboard/dialogs/addStudentDialog";
+import AddTutorDialog from "@/components/dashboard/dialogs/addTutorDialog";
+import AddSessionDialog from "@/components/dashboard/dialogs/addSessionDialog";
+import { AddRevenueDialog } from "../dialogs/addRevenueDialog";
+import { AddExpenseDialog } from "../dialogs/addExpenseDialog";
 
 interface StatItem {
   value: number;
@@ -19,6 +22,11 @@ interface StatItem {
 }
 
 interface DashboardClientProps {
+  students: { id: number; name: string | null }[];
+  tutors: { id: number; name: string | null }[];
+  plans: { id: number; title: string }[];
+  currencies: { id: number; name: string }[];
+  specialities: { id: number; title: string }[];
   stats: {
     totalStudents: StatItem;
     subscribedStudents: StatItem;
@@ -128,136 +136,181 @@ export default function DashboardClient(props: DashboardClientProps) {
           <CardTitle className="text-base">إجراءات سريعة</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-          <Button size="sm">
-            <Plus className="h-4 w-4 ml-2" /> إضافة طالب
-          </Button>
-          <Button size="sm">
-            <Plus className="h-4 w-4 ml-2" /> إضافة معلم
-          </Button>
-          <Button size="sm">
-            <Plus className="h-4 w-4 ml-2" /> إضافة حصة
-          </Button>
-          <Button size="sm">
-            <Plus className="h-4 w-4 ml-2" /> تسجيل مصروف
-          </Button>
-          <Button size="sm">
-            <Plus className="h-4 w-4 ml-2" /> تسجيل إيراد
-          </Button>
+          <AddStudentDialog
+            currencies={props.currencies}
+            plans={props.plans}
+            tutors={props.tutors}
+            academyId={props.academyId}
+          >
+            <Button size="sm">
+              <Plus className="h-4 w-4 ml-2" /> إضافة طالب
+            </Button>
+          </AddStudentDialog>
+          <AddTutorDialog
+            currencies={props.currencies}
+            academyId={props.academyId}
+            specialities={props.specialities}
+          >
+            <Button size="sm">
+              <Plus className="h-4 w-4 ml-2" /> إضافة معلم
+            </Button>
+          </AddTutorDialog>
+          <AddSessionDialog
+            tutors={props.tutors}
+            students={props.students}
+            academyId={props.academyId}
+          >
+            <Button size="sm">
+              <Plus className="h-4 w-4 ml-2" /> إضافة حصة
+            </Button>
+          </AddSessionDialog>
+          <AddExpenseDialog
+            academyId={props.academyId}
+            currencies={props.currencies}
+            tutors={props.tutors}
+          >
+            <Button size="sm">
+              <Plus className="h-4 w-4 ml-2" /> تسجيل مصروف
+            </Button>
+          </AddExpenseDialog>
+          <AddRevenueDialog
+            academyId={props.academyId}
+            students={props.students}
+          >
+            <Button size="sm">
+              <Plus className="h-4 w-4 ml-2" /> تسجيل إيراد
+            </Button>
+          </AddRevenueDialog>
         </CardContent>
       </Card>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard
-          label="إجمالي الطلاب"
-          value={props.stats.totalStudents.value}
-          change={props.stats.totalStudents.change}
-        />
-        <StatCard
-          label="المشتركين"
-          value={props.stats.subscribedStudents.value}
-          change={props.stats.subscribedStudents.change}
-        />
-        <StatCard
-          label="تجريبي"
-          value={props.stats.trialStudents.value}
-          change={props.stats.trialStudents.change}
-        />
-        <StatCard
-          label="عملاء محتملين"
-          value={props.stats.leadStudents.value}
-          change={props.stats.leadStudents.change}
-        />
-        <StatCard
-          label="جدد هذا الأسبوع"
-          value={props.stats.newStudentsThisWeek.value}
-          change={props.stats.newStudentsThisWeek.change}
-        />
-        <StatCard
-          label="معلمين نشطين"
-          value={props.stats.activeTutors.value}
-          change={props.stats.activeTutors.change}
-        />
-        <StatCard
-          label="مشرفين"
-          value={props.stats.totalSupervisors.value}
-          change={props.stats.totalSupervisors.change}
-        />
-        <StatCard
-          label="إيرادات هذا الشهر"
-          value={`${props.stats.revenueThisMonth.value} ر.س`}
-          change={props.stats.revenueThisMonth.change}
-        />
-        <StatCard
-          label="مصروفات هذا الشهر"
-          value={`${props.stats.expenseThisMonth.value} ر.س`}
-          change={props.stats.expenseThisMonth.change}
-        />
+      <div className="space-y-4">
+        <h1 className="text-xl font-bold">إحصائيات المستخدمين</h1>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <StatCard
+            label="إجمالي الطلاب"
+            value={props.stats.totalStudents.value}
+            change={props.stats.totalStudents.change}
+          />
+          <StatCard
+            label="معلمين نشطين"
+            value={props.stats.activeTutors.value}
+            change={props.stats.activeTutors.change}
+          />
+          <StatCard
+            label="مشرفين"
+            value={props.stats.totalSupervisors.value}
+            change={props.stats.totalSupervisors.change}
+          />
+        </div>
       </div>
-
+      <div className="space-y-4">
+        <h1 className="text-xl font-bold">إحصائيات الطلاب</h1>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <StatCard
+            label="المشتركين"
+            value={props.stats.subscribedStudents.value}
+            change={props.stats.subscribedStudents.change}
+          />
+          <StatCard
+            label="تجريبي"
+            value={props.stats.trialStudents.value}
+            change={props.stats.trialStudents.change}
+          />
+          <StatCard
+            label="عملاء محتملين"
+            value={props.stats.leadStudents.value}
+            change={props.stats.leadStudents.change}
+          />
+          <StatCard
+            label="طلاب جدد هذا الأسبوع"
+            value={props.stats.newStudentsThisWeek.value}
+            change={props.stats.newStudentsThisWeek.change}
+          />
+        </div>
+      </div>
+      <div className="space-y-4">
+        <h1 className="text-xl font-bold">إحصائيات الماليات</h1>
+        <div className="grid grid-cols-2 gap-4">
+          <StatCard
+            label="إيرادات هذا الشهر"
+            value={`${props.stats.revenueThisMonth.value} ر.س`}
+            change={props.stats.revenueThisMonth.change}
+          />
+          <StatCard
+            label="مصروفات هذا الشهر"
+            value={`${props.stats.expenseThisMonth.value} ر.س`}
+            change={props.stats.expenseThisMonth.change}
+          />
+        </div>
+      </div>
       {/* Conversion Rates */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">
-              تحويل Lead → Trial (آخر 30 يوم)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-baseline gap-2">
-              <p className="text-2xl font-bold">
-                {props.stats.leadToTrialRate.value.toFixed(1)}%
+      <div className="space-y-4">
+        <h1 className="text-xl font-bold">معدلات التحويل</h1>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">
+                تحويل Lead → Trial (آخر 30 يوم)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-baseline gap-2">
+                <p className="text-2xl font-bold">
+                  {props.stats.leadToTrialRate.value.toFixed(1)}%
+                </p>
+                {props.stats.leadToTrialRate.change !== 0 && (
+                  <span
+                    className={`text-xs ${props.stats.leadToTrialRate.change > 0 ? "text-green-600" : "text-red-600"} flex items-center`}
+                  >
+                    {props.stats.leadToTrialRate.change > 0 ? (
+                      <TrendingUp className="h-3 w-3 ml-1" />
+                    ) : (
+                      <TrendingDown className="h-3 w-3 ml-1" />
+                    )}
+                    {Math.abs(props.stats.leadToTrialRate.change).toFixed(1)}%
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                مقارنة بالفترة السابقة (30-60 يوم)
               </p>
-              {props.stats.leadToTrialRate.change !== 0 && (
-                <span
-                  className={`text-xs ${props.stats.leadToTrialRate.change > 0 ? "text-green-600" : "text-red-600"} flex items-center`}
-                >
-                  {props.stats.leadToTrialRate.change > 0 ? (
-                    <TrendingUp className="h-3 w-3 ml-1" />
-                  ) : (
-                    <TrendingDown className="h-3 w-3 ml-1" />
-                  )}
-                  {Math.abs(props.stats.leadToTrialRate.change).toFixed(1)}%
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              مقارنة بالفترة السابقة (30-60 يوم)
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">
-              تحويل Trial → مشترك (آخر 30 يوم)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-baseline gap-2">
-              <p className="text-2xl font-bold">
-                {props.stats.trialToSubscribedRate.value.toFixed(1)}%
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">
+                تحويل Trial → مشترك (آخر 30 يوم)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-baseline gap-2">
+                <p className="text-2xl font-bold">
+                  {props.stats.trialToSubscribedRate.value.toFixed(1)}%
+                </p>
+                {props.stats.trialToSubscribedRate.change !== 0 && (
+                  <span
+                    className={`text-xs ${props.stats.trialToSubscribedRate.change > 0 ? "text-green-600" : "text-red-600"} flex items-center`}
+                  >
+                    {props.stats.trialToSubscribedRate.change > 0 ? (
+                      <TrendingUp className="h-3 w-3 ml-1" />
+                    ) : (
+                      <TrendingDown className="h-3 w-3 ml-1" />
+                    )}
+                    {Math.abs(props.stats.trialToSubscribedRate.change).toFixed(
+                      1,
+                    )}
+                    %
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                مقارنة بالفترة السابقة (30-60 يوم)
               </p>
-              {props.stats.trialToSubscribedRate.change !== 0 && (
-                <span
-                  className={`text-xs ${props.stats.trialToSubscribedRate.change > 0 ? "text-green-600" : "text-red-600"} flex items-center`}
-                >
-                  {props.stats.trialToSubscribedRate.change > 0 ? (
-                    <TrendingUp className="h-3 w-3 ml-1" />
-                  ) : (
-                    <TrendingDown className="h-3 w-3 ml-1" />
-                  )}
-                  {Math.abs(props.stats.trialToSubscribedRate.change).toFixed(
-                    1,
-                  )}
-                  %
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              مقارنة بالفترة السابقة (30-60 يوم)
-            </p>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* Danger Signs */}

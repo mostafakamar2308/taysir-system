@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,22 +25,22 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { createSession } from "@/actions/sessions";
+import { Plus } from "lucide-react";
 
 interface AddSessionDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
   tutorId: number;
   studentOptions: { id: number; name: string }[];
   academyId: number;
+  children?: React.ReactNode;
 }
 
 export default function AddSessionDialog({
-  open,
-  onOpenChange,
   tutorId,
   studentOptions,
   academyId,
+  children,
 }: AddSessionDialogProps) {
+  const [open, setOpen] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -95,7 +96,6 @@ export default function AddSessionDialog({
       };
       await createSession(input);
       toast({ title: "تمت إضافة الحصة" });
-      onOpenChange(false);
       router.refresh();
     } catch (error) {
       console.log(error);
@@ -112,7 +112,14 @@ export default function AddSessionDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        {children || (
+          <Button size="sm" className="gap-1">
+            <Plus className="h-4 w-4" /> إضافة حصة
+          </Button>
+        )}
+      </DialogTrigger>
       <DialogContent
         className="sm:max-w-lg max-h-[90vh] overflow-y-auto"
         dir="rtl"
@@ -236,7 +243,7 @@ export default function AddSessionDialog({
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}
+              onClick={() => setOpen(false)}
             >
               إلغاء
             </Button>

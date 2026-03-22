@@ -33,6 +33,7 @@ interface StudentProfileClientProps {
   plans: Plan[];
   currencies: Currency[];
   tutors: { id: number; name: string | null }[];
+  academyId: number;
 }
 
 export default function StudentProfileClient({

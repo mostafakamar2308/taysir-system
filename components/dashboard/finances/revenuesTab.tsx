@@ -51,7 +51,7 @@ import {
   formatCurrency,
   formatDate,
 } from "@/lib/finances";
-import { RevenueFormDialog } from "@/components/dashboard/finances/revenueFormDialog";
+import { RevenueFormDialog } from "@/components/dashboard/dialogs/addRevenueDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -169,7 +169,7 @@ export default function RevenuesTab({
       <Card>
         <CardContent className="p-4">
           <div className="flex flex-wrap items-center gap-3">
-            <div className="relative flex-1 min-w-[200px]">
+            <div className="relative flex-1 min-w-50">
               <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 className="pr-9"
@@ -179,7 +179,7 @@ export default function RevenuesTab({
               />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[130px]">
+              <SelectTrigger className="w-32.5">
                 <SelectValue placeholder="الحالة" />
               </SelectTrigger>
               <SelectContent>
@@ -192,7 +192,7 @@ export default function RevenuesTab({
               </SelectContent>
             </Select>
             <Select value={methodFilter} onValueChange={setMethodFilter}>
-              <SelectTrigger className="w-[130px]">
+              <SelectTrigger className="w-32.5">
                 <SelectValue placeholder="طريقة الدفع" />
               </SelectTrigger>
               <SelectContent>
@@ -206,14 +206,14 @@ export default function RevenuesTab({
             </Select>
             <Input
               type="date"
-              className="w-[140px]"
+              className="w-35"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
               placeholder="من"
             />
             <Input
               type="date"
-              className="w-[140px]"
+              className="w-35"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
               placeholder="إلى"
@@ -250,7 +250,7 @@ export default function RevenuesTab({
                   <TableHead>طريقة الدفع</TableHead>
                   <TableHead>الفاتورة</TableHead>
                   <TableHead>الحالة</TableHead>
-                  <TableHead className="w-[50px]"></TableHead>
+                  <TableHead className="w-12.5"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
