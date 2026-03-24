@@ -128,10 +128,7 @@ export default function AddTutorDialog({
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label htmlFor="maxStudents">الحد الأقصى للطلاب</Label>
-              <Input id="maxStudents" name="maxStudents" type="number" />
-            </div>
+
             <div className="col-span-2">
               <Label htmlFor="specialities">التخصصات</Label>
               <Select name="specialities">
@@ -160,10 +157,6 @@ export default function AddTutorDialog({
           <div className="flex items-center gap-2">
             <Switch id="active" name="active" defaultChecked />
             <Label htmlFor="active">نشط</Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <Switch id="zoomAuthenticated" name="zoomAuthenticated" />
-            <Label htmlFor="zoomAuthenticated">مفعل على Zoom</Label>
           </div>
 
           <div className="flex justify-end gap-2 pt-4">

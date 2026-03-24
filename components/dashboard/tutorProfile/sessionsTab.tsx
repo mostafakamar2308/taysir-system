@@ -4,7 +4,6 @@ import { useState, useMemo } from "react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -28,18 +27,16 @@ import {
   sessionStatusLabels,
 } from "@/const/sessions";
 import type { TutorProfile, TutorSession } from "@/types/tutor";
-import { Plus } from "lucide-react";
+import AddSessionDialog from "../dialogs/addSessionToTutorDialog";
 
 interface SessionsTabProps {
   tutor: TutorProfile;
   onSessionClick: (session: TutorSession) => void;
-  onAddSession: () => void;
 }
 
 export default function SessionsTab({
   tutor,
   onSessionClick,
-  onAddSession,
 }: SessionsTabProps) {
   const [sessionFilter, setSessionFilter] = useState("all");
   const [sessionSearch, setSessionSearch] = useState("");
@@ -97,9 +94,14 @@ export default function SessionsTab({
             </SelectContent>
           </Select>
         </div>
-        <Button onClick={onAddSession}>
-          <Plus className="h-4 w-4 ml-2" /> إضافة حصة
-        </Button>
+        <AddSessionDialog
+          tutorId={tutor.id}
+          academyId={tutor.academyId}
+          studentOptions={tutor.students.map((s) => ({
+            id: s.id,
+            name: s.name,
+          }))}
+        />
       </div>
 
       {filteredSessions.length === 0 ? (

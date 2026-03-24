@@ -12,7 +12,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { AlertCircle, Download, Plus } from "lucide-react";
+import {
+  AlertCircle,
+  Download,
+  Plus,
+  TrendingUp,
+  TrendingDown,
+  Calendar,
+} from "lucide-react";
 import { StudentProfile } from "@/types/studentProfile";
 import { PaymentMethod, PaymentStatus } from "@/types/payment";
 import {
@@ -22,8 +29,9 @@ import {
 } from "@/lib/enums";
 import dayjs from "@/lib/dayjs";
 import ChangePlanDialog from "@/components/dashboard/studentProfile/changePlanDialog";
-import RecordPaymentDialog from "@/components/dashboard/studentProfile/recordPaymentDialog";
+import RecordPaymentDialog from "@/components/dashboard/studentProfile/dialogs/recordPaymentDialog";
 import { SubscriptionStatus } from "@/types/subscription";
+import ResolvePaymentDialog from "./dialogs/resolvePaymentDialog";
 
 interface SubscriptionDisplay {
   id: number;
@@ -70,18 +78,59 @@ export default function BillingTab({
   plans,
   subscriptions,
 }: BillingTabProps) {
+  console.log({ student, plans, subscriptions });
+
   const [changePlanOpen, setChangePlanOpen] = useState(false);
   const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
+  const [resolveDialog, setResolveDialog] = useState<{
+    open: boolean;
+    payment: {
+      id: number;
+      amount: number;
+      method: number | null;
+      invoiceUrl: string | null;
+    } | null;
+  }>({ open: false, payment: null });
 
-  const activeSubscription = subscriptions.find((s) => s.status === 0);
-  const pendingPayments =
-    activeSubscription?.payments.filter(
-      (p) => p.status === PaymentStatus.PENDING,
-    ) || [];
+  const activeSubscription = subscriptions.find(
+    (s) => s.status === SubscriptionStatus.active,
+  );
+  const totalEarned = student.payments
+    .filter((p) => p.status === PaymentStatus.PAID)
+    .reduce((sum, p) => sum + p.amount, 0);
+
+  const pendingPayments = student.payments.filter(
+    (p) => p.status === PaymentStatus.PENDING,
+  );
   const totalPending = pendingPayments.reduce((sum, p) => sum + p.amount, 0);
 
-  const formatDate = (d: string) => dayjs(d).locale("ar").format("D MMMM YYYY");
+  // Calculate next payment due date
+  let nextPaymentDue: string | null = null;
+  if (activeSubscription) {
+    // Use endDate if present, otherwise calculate from startDate + billingPeriod
+    if (activeSubscription.endDate) {
+      nextPaymentDue = activeSubscription.endDate;
+    } else {
+      const plan = plans.find((p) => p.id === activeSubscription.planId);
+      if (plan) {
+        const start = dayjs(activeSubscription.startDate);
+        nextPaymentDue = start.add(plan.billingPeriod, "day").toISOString();
+      }
+    }
+  }
 
+  // Payments this month
+  const now = dayjs();
+  const paymentsThisMonth = student.payments.filter(
+    (p) =>
+      dayjs(p.date).isSame(now, "month") && p.status === PaymentStatus.PAID,
+  );
+  const totalPaidThisMonth = paymentsThisMonth.reduce(
+    (sum, p) => sum + p.amount,
+    0,
+  );
+
+  const formatDate = (d: string) => dayjs(d).locale("ar").format("D MMMM YYYY");
   const formatCurrency = (amount: number, currency: string) =>
     `${amount.toLocaleString("ar-EG")} ${currency}`;
 
@@ -93,6 +142,71 @@ export default function BillingTab({
 
   return (
     <div className="space-y-6 mt-4">
+      {/* Financial Overview Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">ملخص مالي</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <TrendingUp className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  إجمالي الإيرادات
+                </p>
+                <p className="text-lg font-bold">
+                  {formatCurrency(totalEarned, student.plan?.currency || "ر.س")}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+              <div className="h-10 w-10 rounded-lg bg-amber-100 flex items-center justify-center">
+                <AlertCircle className="h-5 w-5 text-amber-600" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">مبالغ مستحقة</p>
+                <p className="text-lg font-bold text-amber-600">
+                  {formatCurrency(
+                    totalPending,
+                    student.plan?.currency || "ر.س",
+                  )}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+              <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                <Calendar className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">الدفعة التالية</p>
+                <p className="text-lg font-bold">
+                  {nextPaymentDue ? formatDate(nextPaymentDue) : "—"}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+              <div className="h-10 w-10 rounded-lg bg-green-100 flex items-center justify-center">
+                <TrendingDown className="h-5 w-5 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  مدفوعات هذا الشهر
+                </p>
+                <p className="text-lg font-bold">
+                  {formatCurrency(
+                    totalPaidThisMonth,
+                    student.plan?.currency || "ر.س",
+                  )}
+                </p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Current Subscription Card */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
@@ -178,7 +292,7 @@ export default function BillingTab({
         </CardContent>
       </Card>
 
-      {/* Outstanding Payments */}
+      {/* Outstanding Payments (if any) */}
       {totalPending > 0 && (
         <Card className="border-amber-300 bg-amber-50/50 dark:bg-amber-900/10">
           <CardContent className="p-4 flex items-center justify-between">
@@ -191,7 +305,7 @@ export default function BillingTab({
                 <p className="text-sm text-amber-700 dark:text-amber-400">
                   {formatCurrency(
                     totalPending,
-                    activeSubscription?.planCurrency || "ر.س",
+                    activeSubscription?.planCurrency || "",
                   )}{" "}
                   بانتظار الدفع
                 </p>
@@ -269,9 +383,31 @@ export default function BillingTab({
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {p.invoiceUrl ? (
+                          {p.status === PaymentStatus.PENDING ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                setResolveDialog({
+                                  open: true,
+                                  payment: {
+                                    id: p.id,
+                                    amount: p.amount,
+                                    method: p.method,
+                                    invoiceUrl: p.invoiceUrl,
+                                  },
+                                })
+                              }
+                            >
+                              تسوية
+                            </Button>
+                          ) : p.invoiceUrl ? (
                             <Button variant="ghost" size="sm" asChild>
-                              <a href={p.invoiceUrl}>
+                              <a
+                                href={p.invoiceUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
                                 <Download className="h-4 w-4" />
                               </a>
                             </Button>
@@ -379,6 +515,11 @@ export default function BillingTab({
         onOpenChange={setRecordPaymentOpen}
         studentId={student.id}
         subscriptions={subscriptionOptions}
+      />
+      <ResolvePaymentDialog
+        open={resolveDialog.open}
+        onOpenChange={(open) => setResolveDialog({ ...resolveDialog, open })}
+        payment={resolveDialog.payment}
       />
     </div>
   );

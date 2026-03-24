@@ -27,6 +27,9 @@ import OverviewTab from "@/components/dashboard/studentProfile/overviewTab";
 import SessionsTab from "@/components/dashboard/studentProfile/sessionsTab";
 import AttendanceProgressTab from "@/components/dashboard/studentProfile/attendanceProgressTab";
 import BillingTab from "@/components/dashboard/studentProfile/billingTab";
+import RecordPaymentDialog from "./dialogs/recordPaymentDialog";
+import { SubscriptionStatus } from "@/types/subscription";
+import dayjs from "dayjs";
 
 interface StudentProfileClientProps {
   student: StudentProfile;
@@ -45,37 +48,34 @@ export default function StudentProfileClient({
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("overview");
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [recordPayment, setRecordPayment] = useState(false);
 
   const statusLabel = statusLabels[student.status as StudentStatus];
   const statusColor = statusColors[student.status as StudentStatus];
 
-  const formatDate = (d: string) =>
-    new Date(d).toLocaleDateString("ar-EG", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-
   const handleContact = () => {
-    // Open WhatsApp or email
     if (student.phone) {
       window.open(`https://wa.me/${student.phone.replace("+", "")}`, "_blank");
     }
   };
 
   const handleMarkPayment = () => {
-    // Open record payment dialog (we'll implement later)
-    toast({ title: "تسجيل دفعة" });
+    console.log(student);
+
+    setRecordPayment(true);
   };
 
   const handleAddNote = () => {
-    // Open add note dialog (we'll implement later)
     toast({ title: "إضافة ملاحظة" });
   };
 
   const handleViewAttendance = () => {
     setActiveTab("attendance");
   };
+
+  const activeSubscription =
+    student.subscriptions.find((s) => s.status === SubscriptionStatus.active) ||
+    null;
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto" dir="rtl">
@@ -135,10 +135,18 @@ export default function StudentProfileClient({
                     <span className="font-medium">{student.plan.title}</span>
                   </div>
                 )}
-                {student.renewalDate && (
+
+                {activeSubscription && (
                   <div>
-                    <span className="text-muted-foreground">التجديد: </span>
-                    {formatDate(student.renewalDate)}
+                    <span className="text-muted-foreground">
+                      تاريخ انتهاء الاشتراك:{" "}
+                    </span>
+                    <span className="font-medium">
+                      {activeSubscription.endDate ||
+                        dayjs(activeSubscription.startDate)
+                          .add(30, "d")
+                          .format("dddd YYYY-MM-DD")}
+                    </span>
                   </div>
                 )}
               </div>
@@ -212,7 +220,7 @@ export default function StudentProfileClient({
         </TabsContent>
 
         <TabsContent value="sessions">
-          <SessionsTab student={student} />
+          <SessionsTab tutors={tutors} student={student} />
         </TabsContent>
 
         <TabsContent value="attendance">
@@ -227,6 +235,17 @@ export default function StudentProfileClient({
           />
         </TabsContent>
       </Tabs>
+      <RecordPaymentDialog
+        open={recordPayment}
+        activeSubscriptionId={
+          student.subscriptions.find(
+            (s) => s.status === SubscriptionStatus.active,
+          )?.id
+        }
+        onOpenChange={setRecordPayment}
+        studentId={student.id}
+        subscriptions={student.subscriptions}
+      />
     </div>
   );
 }

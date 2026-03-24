@@ -17,7 +17,6 @@ const createTutorSchema = z.object({
   active: z.boolean().default(true),
   bio: z.string().optional().nullable(),
   qualifications: z.string().optional().nullable(),
-  maxStudents: z.number().optional().nullable(),
   zoomAuthenticated: z.boolean().default(false),
   currencyId: z.number(),
   academyId: z.number(),
@@ -44,14 +43,11 @@ export async function createTutor(formData: FormData) {
       ? parseFloat(formData.get("pricePerSession") as string)
       : undefined,
     specialities,
-    active: formData.get("active") === "true",
+    active: formData.get("active") === "on",
     bio: formData.get("bio") || null,
     qualifications: formData.get("qualifications") || null,
-    maxStudents: formData.get("maxStudents")
-      ? parseInt(formData.get("maxStudents") as string)
-      : null,
     currencyId: parseInt(formData.get("currencyId") as string),
-    zoomAuthenticated: formData.get("zoomAuthenticated") === "true",
+    zoomAuthenticated: formData.get("zoomAuthenticated") === "on",
     academyId: parseInt(formData.get("academyId") as string),
   };
 

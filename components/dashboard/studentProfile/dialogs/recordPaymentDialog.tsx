@@ -77,7 +77,7 @@ export default function RecordPaymentDialog({
       toast({ title: "تم تسجيل الدفعة بنجاح" });
       onOpenChange(false);
       router.refresh();
-    } catch (error) {
+    } catch {
       toast({ title: "حدث خطأ", variant: "destructive" });
     } finally {
       setLoading(false);

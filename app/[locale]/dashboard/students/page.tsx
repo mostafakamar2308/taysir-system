@@ -32,9 +32,7 @@ export default async function StudentsPage({
     orderBy: { createdAt: "desc" },
   });
 
-  const currencies = await db.currency.findMany({
-    where: {},
-  });
+  const currencies = await db.currency.findMany({});
   const plans = await db.plan.findMany({
     where: { academyId: currentUser.academyId },
   });

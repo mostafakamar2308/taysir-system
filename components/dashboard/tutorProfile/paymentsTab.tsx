@@ -11,17 +11,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Download, Plus } from "lucide-react";
+import { Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { TutorProfile } from "@/types/tutor";
 import { paymentStatusColors, paymentStatusLabels } from "@/lib/enums";
+import PayTutorDialog from "@/components/dashboard/dialogs/payTutorDialog";
 
 interface PaymentsTabProps {
   tutor: TutorProfile;
-  onAddExpense: () => void;
+  currencies: { id: number; name: string }[];
 }
 
-export default function PaymentsTab({ tutor, onAddExpense }: PaymentsTabProps) {
+export default function PaymentsTab({ tutor, currencies }: PaymentsTabProps) {
   const { toast } = useToast();
   const { totalEarnings, paid, pending } = tutor.monthlyStats;
 
@@ -74,9 +75,13 @@ export default function PaymentsTab({ tutor, onAddExpense }: PaymentsTabProps) {
             >
               <Download className="h-4 w-4 ml-2" /> تصدير
             </Button>
-            <Button size="sm" onClick={onAddExpense}>
-              <Plus className="h-4 w-4 ml-2" /> تسجيل دفعة
-            </Button>
+            <PayTutorDialog
+              academyId={tutor.academyId}
+              tutorId={tutor.id}
+              tutorName={tutor.name}
+              currencies={currencies}
+              currencyId={tutor.currencyId}
+            />
           </div>
         </CardHeader>
         <CardContent>

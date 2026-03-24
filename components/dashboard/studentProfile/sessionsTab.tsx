@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,8 +27,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Plus } from "lucide-react";
-import { StudentProfile } from "@/types/studentProfile";
+import { MoreHorizontal, Plus, Eye } from "lucide-react";
+import { StudentProfile, SessionRecord } from "@/types/studentProfile";
 import { SessionStatus, AttendanceStatus } from "@/types/session";
 import {
   sessionStatusColors,
@@ -36,15 +37,42 @@ import {
   attendanceStatusLabels,
 } from "@/lib/enums";
 import { useToast } from "@/hooks/use-toast";
+import AttendanceDialog from "@/components/dashboard/studentProfile/dialogs/attendanceDialog";
+import EditSessionDialog from "@/components/dashboard/studentProfile/dialogs/editSessionDialog";
+import DeleteSessionDialog from "@/components/dashboard/studentProfile/dialogs/deleteSessionDialog";
+import ViewReportDialog from "@/components/dashboard/studentProfile/dialogs/viewReportDialog";
+import AddSessionDialog from "@/components/dashboard/studentProfile/dialogs/addSessionDialog";
 
 interface SessionsTabProps {
   student: StudentProfile;
+  tutors: { id: number; name: string | null }[];
 }
 
-export default function SessionsTab({ student }: SessionsTabProps) {
+export default function SessionsTab({ student, tutors }: SessionsTabProps) {
+  const router = useRouter();
   const { toast } = useToast();
   const [sessionFilter, setSessionFilter] = useState<string>("all");
   const [sessionSearch, setSessionSearch] = useState("");
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [attendanceDialog, setAttendanceDialog] = useState<{
+    open: boolean;
+    sessionId: number;
+    currentStatus?: number;
+    currentReason?: string | null;
+  }>({ open: false, sessionId: 0 });
+  const [editDialog, setEditDialog] = useState<{
+    open: boolean;
+    session: SessionRecord | null;
+  }>({ open: false, session: null });
+  const [deleteDialog, setDeleteDialog] = useState<{
+    open: boolean;
+    sessionId: number;
+  }>({ open: false, sessionId: 0 });
+  const [reportDialog, setReportDialog] = useState<{
+    open: boolean;
+    report: NonNullable<SessionRecord["report"]>;
+    sessionDate: string;
+  }>({ open: false, report: null!, sessionDate: "" });
 
   const filteredSessions = useMemo(() => {
     let s = [...student.sessions];
@@ -76,6 +104,35 @@ export default function SessionsTab({ student }: SessionsTabProps) {
       minute: "2-digit",
     });
 
+  const handleRowClick = (session: SessionRecord) => {
+    if (session.report) {
+      setReportDialog({
+        open: true,
+        report: session.report,
+        sessionDate: formatDate(session.startTime),
+      });
+    } else {
+      toast({ title: "لا يوجد تقرير لهذه الحصة" });
+    }
+  };
+
+  const handleEdit = (session: SessionRecord) => {
+    setEditDialog({ open: true, session });
+  };
+
+  const handleDelete = (sessionId: number) => {
+    setDeleteDialog({ open: true, sessionId });
+  };
+
+  const handleMarkAttendance = (session: SessionRecord) => {
+    setAttendanceDialog({
+      open: true,
+      sessionId: session.id,
+      currentStatus: session.attendance?.status,
+      currentReason: session.attendance?.reason,
+    });
+  };
+
   return (
     <div className="space-y-4 mt-4">
       <div className="flex flex-wrap gap-3 items-center justify-between">
@@ -98,7 +155,7 @@ export default function SessionsTab({ student }: SessionsTabProps) {
             </SelectContent>
           </Select>
         </div>
-        <Button onClick={() => toast({ title: "فتح نموذج إضافة حصة" })}>
+        <Button onClick={() => setAddDialogOpen(true)}>
           <Plus className="h-4 w-4 ml-2" /> إضافة حصة
         </Button>
       </div>
@@ -121,6 +178,7 @@ export default function SessionsTab({ student }: SessionsTabProps) {
                   <TableHead>الموضوع</TableHead>
                   <TableHead>الحالة</TableHead>
                   <TableHead>الحضور</TableHead>
+                  <TableHead>التقرير</TableHead>
                   <TableHead>إجراءات</TableHead>
                 </TableRow>
               </TableHeader>
@@ -147,41 +205,45 @@ export default function SessionsTab({ student }: SessionsTabProps) {
                         }
                       </Badge>
                     );
-                  } else if (
-                    s.status === 1 ||
-                    new Date(s.startTime) < new Date()
-                  ) {
+                  } else if (s.status === SessionStatus.COMPLETED) {
                     attendanceCell = (
-                      <Select
-                        onValueChange={(v) =>
-                          toast({
-                            title: `تم تسجيل الحضور: ${attendanceStatusLabels[parseInt(v) as AttendanceStatus]}`,
-                          })
-                        }
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMarkAttendance(s);
+                        }}
                       >
-                        <SelectTrigger className="h-7 text-xs w-28">
-                          <SelectValue placeholder="تسجيل" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {[
-                            AttendanceStatus.ABSENT_EXCUSED,
-                            AttendanceStatus.ABSENT_UNEXCUSED,
-                            AttendanceStatus.ATTENDED,
-                            AttendanceStatus.CANCELLED,
-                            AttendanceStatus.LATE,
-                          ].map((val) => (
-                            <SelectItem key={val} value={val.toString()}>
-                              {attendanceStatusLabels[val]}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        تسجيل
+                      </Button>
                     );
                   } else {
                     attendanceCell = "—";
                   }
+                  const reportCell = s.report ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRowClick(s);
+                      }}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  ) : (
+                    "—"
+                  );
+
                   return (
-                    <TableRow key={s.id}>
+                    <TableRow
+                      key={s.id}
+                      className={
+                        s.report ? "cursor-pointer hover:bg-muted/50" : ""
+                      }
+                      onClick={() => s.report && handleRowClick(s)}
+                    >
                       <TableCell className="whitespace-nowrap">
                         {formatDate(s.startTime)}
                       </TableCell>
@@ -196,6 +258,7 @@ export default function SessionsTab({ student }: SessionsTabProps) {
                         </Badge>
                       </TableCell>
                       <TableCell>{attendanceCell}</TableCell>
+                      <TableCell>{reportCell}</TableCell>
                       <TableCell>
                         <DropdownMenu dir="rtl">
                           <DropdownMenuTrigger asChild>
@@ -203,32 +266,39 @@ export default function SessionsTab({ student }: SessionsTabProps) {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8"
+                              onClick={(e) => e.stopPropagation()}
                             >
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent>
                             <DropdownMenuItem
-                              onClick={() => toast({ title: "عرض التفاصيل" })}
+                              onClick={() =>
+                                router.push(
+                                  `/dashboard/sessions?sessionId=${s.id}`,
+                                )
+                              }
                             >
-                              عرض التفاصيل
+                              عرض تفاصيل الحصة
                             </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => toast({ title: "تعديل الحصة" })}
-                            >
-                              تعديل
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => toast({ title: "إعادة جدولة" })}
-                            >
-                              إعادة جدولة
+                            <DropdownMenuItem onClick={() => handleEdit(s)}>
+                              تعديل الحصة
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               className="text-destructive"
-                              onClick={() => toast({ title: "حذف الحصة" })}
+                              onClick={() => handleDelete(s.id)}
                             >
-                              حذف
+                              حذف الحصة
                             </DropdownMenuItem>
+                            {s.status === SessionStatus.COMPLETED && (
+                              <DropdownMenuItem
+                                onClick={() => handleMarkAttendance(s)}
+                              >
+                                {s.attendance?.status
+                                  ? "تعديل الحضور"
+                                  : "تسجيل الحضور"}
+                              </DropdownMenuItem>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -239,6 +309,49 @@ export default function SessionsTab({ student }: SessionsTabProps) {
             </Table>
           </div>
         </Card>
+      )}
+
+      <AddSessionDialog
+        open={addDialogOpen}
+        onOpenChange={setAddDialogOpen}
+        studentId={student.id}
+        studentName={student.name}
+        tutors={tutors}
+        academyId={student.academyId}
+        currentTutorId={student.tutorId}
+      />
+
+      <AttendanceDialog
+        open={attendanceDialog.open}
+        onOpenChange={(open) =>
+          setAttendanceDialog({ ...attendanceDialog, open })
+        }
+        sessionId={attendanceDialog.sessionId}
+        currentStatus={attendanceDialog.currentStatus}
+        currentReason={attendanceDialog.currentReason}
+      />
+
+      {editDialog.session && (
+        <EditSessionDialog
+          open={editDialog.open}
+          onOpenChange={(open) => setEditDialog({ ...editDialog, open })}
+          session={editDialog.session}
+        />
+      )}
+
+      <DeleteSessionDialog
+        open={deleteDialog.open}
+        onOpenChange={(open) => setDeleteDialog({ ...deleteDialog, open })}
+        sessionId={deleteDialog.sessionId}
+      />
+
+      {reportDialog.report && (
+        <ViewReportDialog
+          open={reportDialog.open}
+          onOpenChange={(open) => setReportDialog({ ...reportDialog, open })}
+          report={reportDialog.report}
+          sessionDate={reportDialog.sessionDate}
+        />
       )}
     </div>
   );

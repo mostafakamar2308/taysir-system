@@ -70,8 +70,6 @@ export default async function StudentProfilePage({
     country: student.country,
     timezone: student.timezone,
     status: student.status,
-    startDate: student.startDate.toISOString(),
-    renewalDate: student.renewalDate?.toISOString() ?? null,
     source: student.source,
     currentProgram: student.currentProgram,
     emergencyContactName: student.emergencyContactName,
@@ -105,6 +103,7 @@ export default async function StudentProfilePage({
         hour12: false,
       }),
     })),
+    academyId: student.academyId,
     subscriptions: student.subscriptions.map((sub) => ({
       id: sub.id,
       planId: sub.planId,
@@ -115,7 +114,6 @@ export default async function StudentProfilePage({
       startDate: sub.startDate.toISOString(),
       endDate: sub.endDate?.toISOString() ?? null,
       status: sub.status,
-      autoRenew: sub.autoRenew,
       payments: sub.payments.map((p) => ({
         id: p.id,
         amount: p.amount,
@@ -198,6 +196,7 @@ export default async function StudentProfilePage({
       currencies={currencies}
       plans={plans}
       student={transformed}
+      academyId={currentUser.academyId!}
     />
   );
 }

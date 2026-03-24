@@ -52,7 +52,7 @@ export default function ChangePlanDialog({
       toast({ title: "تم تغيير الخطة بنجاح" });
       onOpenChange(false);
       router.refresh();
-    } catch (error) {
+    } catch {
       toast({ title: "حدث خطأ", variant: "destructive" });
     } finally {
       setLoading(false);

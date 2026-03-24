@@ -2,10 +2,13 @@
 
 import db from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { localToUTC } from "@/lib/dates";
 import dayjs from "@/lib/dayjs";
 import { AttendanceStatus, SessionStatus } from "@/types/session";
 import { Role } from "@/types/user";
+import { getTokenFromCookie, verifyToken } from "@/lib/jwt";
+import { getSessionStatus } from "@/lib/session";
+import { StudentStatus } from "@/types/student";
+import { recordStudentStatusChangeHistory } from "@/lib/history";
 
 type CreateSessionInput = {
   studentId: number;
@@ -19,6 +22,7 @@ type CreateSessionInput = {
   isRecurring: boolean;
   recurDays?: number[];
   recurEndDate?: string;
+  isTrial?: boolean;
 };
 
 type UpdateSessionInput = Partial<CreateSessionInput> & {
@@ -27,14 +31,20 @@ type UpdateSessionInput = Partial<CreateSessionInput> & {
 };
 
 export async function createSession(input: CreateSessionInput) {
-  const startUTC = localToUTC(input.date, input.startTime);
-  const endUTC = dayjs.utc(startUTC).add(input.duration, "minute").toDate();
+  const token = await getTokenFromCookie();
+  if (!token) throw new Error("غير مصرح");
+  const payload = verifyToken(token);
+  if (!payload || !payload.academyId) throw new Error("غير مصرح");
+
+  const start = dayjs(`${input.date}T${input.startTime}`);
+  const startDate = start.toDate();
+  const endDate = dayjs(start).add(input.duration, "minute").toDate();
 
   const conflicts = await db.session.findMany({
     where: {
       OR: [{ tutorId: input.tutorId }, { studentId: input.studentId }],
-      startTime: { lt: endUTC },
-      endTime: { gt: startUTC },
+      startTime: { lt: endDate },
+      endTime: { gt: startDate },
       status: { not: SessionStatus.CANCELLED },
     },
     include: { tutor: { include: { user: true } }, student: true },
@@ -43,12 +53,34 @@ export async function createSession(input: CreateSessionInput) {
   if (conflicts.length > 0) {
     throw new Error("Conflict detected");
   }
+  const student = await db.student.findUnique({
+    where: { id: input.studentId },
+  });
+  if (!student) throw new Error("هذا الطالب غير موجود");
+
+  if (input.isTrial && student.status !== StudentStatus.trial) {
+    await db.student.update({
+      where: {
+        id: input.studentId,
+      },
+      data: {
+        status: StudentStatus.trial,
+      },
+    });
+    recordStudentStatusChangeHistory(
+      input.studentId,
+      student.status,
+      StudentStatus.trial,
+      payload.id,
+      payload.academyId,
+    );
+  }
 
   if (!input.isRecurring) {
     const session = await db.session.create({
       data: {
-        startTime: startUTC,
-        endTime: endUTC,
+        startTime: startDate,
+        endTime: endDate,
         durationMinutes: input.duration,
         studentId: input.studentId,
         tutorId: input.tutorId,
@@ -65,9 +97,9 @@ export async function createSession(input: CreateSessionInput) {
     const pattern = await db.recurringPattern.create({
       data: {
         daysOfWeek: input.recurDays!,
-        startTime: startUTC,
+        startTime: startDate,
         durationMinutes: input.duration,
-        startDate: dayjs.utc(startUTC).startOf("day").toDate(),
+        startDate: dayjs.utc(start).startOf("day").toDate(),
         endDate: input.recurEndDate
           ? dayjs.utc(input.recurEndDate).endOf("day").toDate()
           : null,
@@ -77,15 +109,17 @@ export async function createSession(input: CreateSessionInput) {
       },
     });
 
-    const start = dayjs.utc(startUTC);
-    const end = input.recurEndDate
+    const recurEndDate = input.recurEndDate
       ? dayjs.utc(input.recurEndDate).endOf("day")
       : start.add(6, "month");
 
     let current = start;
     const sessionsToCreate = [];
 
-    while (current.isBefore(end) || current.isSame(end, "day")) {
+    while (
+      current.isBefore(recurEndDate) ||
+      current.isSame(recurEndDate, "day")
+    ) {
       if (input.recurDays!.includes(current.day())) {
         const sessionStart = current.toDate();
         const sessionEnd = dayjs
@@ -133,12 +167,11 @@ export async function updateSession(input: UpdateSessionInput) {
   }
 
   // Single session update
-  const newStart =
-    input.date && input.startTime
-      ? localToUTC(input.date, input.startTime)
-      : existing.startTime;
+  const newStart = input.startTime
+    ? dayjs(input.startTime).toDate()
+    : existing.startTime;
   const newEnd = input.duration
-    ? dayjs.utc(newStart).add(input.duration, "minute").toDate()
+    ? dayjs(newStart).add(input.duration, "minute").toDate()
     : existing.endTime;
 
   const updated = await db.session.update({
@@ -262,4 +295,44 @@ export async function getSessionsForWeek(startDate: Date, endDate: Date) {
         }
       : undefined,
   }));
+}
+
+export async function updateStudentSessionAttendance(
+  sessionId: number,
+  studentAttendanceStatus: number,
+  reason?: string,
+) {
+  const token = await getTokenFromCookie();
+  if (!token) throw new Error("غير مصرح");
+  const payload = verifyToken(token);
+  if (!payload) throw new Error("غير مصرح");
+
+  const session = await db.session.findUnique({
+    where: { id: sessionId },
+    include: { attendance: true },
+  });
+  if (!session) throw new Error("الحصة غير موجودة");
+  console.log(getSessionStatus(session) === SessionStatus.COMPLETED);
+
+  if (getSessionStatus(session) !== SessionStatus.COMPLETED) {
+    throw new Error("لا يمكن تسجيل الحضور إلا للحصص المكتملة");
+  }
+
+  await db.attendance.upsert({
+    where: { sessionId },
+    update: {
+      studentAttendanceStatus,
+      reason,
+    },
+    create: {
+      sessionId,
+      studentAttendanceStatus,
+      tutorAttendanceStatus:
+        session.attendance?.tutorAttendanceStatus ?? AttendanceStatus.ATTENDED,
+      reason,
+    },
+  });
+
+  revalidatePath(`/ar/dashboard/students/${session.studentId}`);
+  revalidatePath("/ar/dashboard/sessions");
 }

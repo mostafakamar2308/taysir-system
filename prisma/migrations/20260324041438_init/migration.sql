@@ -42,7 +42,6 @@ CREATE TABLE "Academy" (
     "defaultCurrencyId" INTEGER,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "currencyId" INTEGER,
 
     CONSTRAINT "Academy_pkey" PRIMARY KEY ("id")
 );
@@ -68,8 +67,6 @@ CREATE TABLE "Student" (
     "country" TEXT,
     "timezone" TEXT NOT NULL,
     "status" INTEGER NOT NULL DEFAULT 0,
-    "startDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "renewalDate" TIMESTAMP(3),
     "currencyId" INTEGER NOT NULL,
     "source" TEXT,
     "currentProgram" TEXT,
@@ -77,6 +74,7 @@ CREATE TABLE "Student" (
     "emergencyContactPhone" TEXT,
     "preferredLanguage" TEXT,
     "imageUrl" TEXT,
+    "currentSubscriptionId" INTEGER,
     "tutorId" INTEGER,
     "academyId" INTEGER NOT NULL,
     "planId" INTEGER,
@@ -141,6 +139,7 @@ CREATE TABLE "Session" (
     "topic" TEXT,
     "notes" TEXT,
     "isTrial" BOOLEAN NOT NULL DEFAULT false,
+    "cancelledBy" INTEGER,
     "studentId" INTEGER NOT NULL,
     "tutorId" INTEGER NOT NULL,
     "academyId" INTEGER NOT NULL,
@@ -235,11 +234,13 @@ CREATE TABLE "Revenue" (
     "channel" TEXT,
     "notes" TEXT,
     "invoiceUrl" TEXT,
+    "academyId" INTEGER NOT NULL,
     "studentId" INTEGER NOT NULL,
     "planId" INTEGER,
     "recordedBy" INTEGER,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "subscriptionId" INTEGER,
 
     CONSTRAINT "Revenue_pkey" PRIMARY KEY ("id")
 );
@@ -327,6 +328,37 @@ CREATE TABLE "SuperAdmin" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "SuperAdmin_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Subscription" (
+    "id" SERIAL NOT NULL,
+    "studentId" INTEGER NOT NULL,
+    "planId" INTEGER NOT NULL,
+    "startDate" TIMESTAMP(3) NOT NULL,
+    "endDate" TIMESTAMP(3),
+    "status" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Subscription_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "History" (
+    "id" SERIAL NOT NULL,
+    "targetType" INTEGER NOT NULL,
+    "targetId" INTEGER NOT NULL,
+    "action" INTEGER NOT NULL,
+    "changes" JSONB,
+    "metadata" JSONB,
+    "recordedBy" INTEGER NOT NULL,
+    "recorderType" INTEGER NOT NULL,
+    "academyId" INTEGER NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "History_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -434,10 +466,28 @@ CREATE UNIQUE INDEX "SuperAdmin_userId_key" ON "SuperAdmin"("userId");
 CREATE INDEX "SuperAdmin_userId_idx" ON "SuperAdmin"("userId");
 
 -- CreateIndex
+CREATE INDEX "Subscription_studentId_idx" ON "Subscription"("studentId");
+
+-- CreateIndex
+CREATE INDEX "Subscription_planId_idx" ON "Subscription"("planId");
+
+-- CreateIndex
+CREATE INDEX "Subscription_status_idx" ON "Subscription"("status");
+
+-- CreateIndex
+CREATE INDEX "History_targetType_targetId_idx" ON "History"("targetType", "targetId");
+
+-- CreateIndex
+CREATE INDEX "History_action_idx" ON "History"("action");
+
+-- CreateIndex
+CREATE INDEX "History_academyId_idx" ON "History"("academyId");
+
+-- CreateIndex
 CREATE INDEX "_SpecialityToTutor_B_index" ON "_SpecialityToTutor"("B");
 
 -- AddForeignKey
-ALTER TABLE "Academy" ADD CONSTRAINT "Academy_currencyId_fkey" FOREIGN KEY ("currencyId") REFERENCES "Currency"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Academy" ADD CONSTRAINT "Academy_defaultCurrencyId_fkey" FOREIGN KEY ("defaultCurrencyId") REFERENCES "Currency"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Admin" ADD CONSTRAINT "Admin_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -521,6 +571,9 @@ ALTER TABLE "Note" ADD CONSTRAINT "Note_studentId_fkey" FOREIGN KEY ("studentId"
 ALTER TABLE "Revenue" ADD CONSTRAINT "Revenue_currencyId_fkey" FOREIGN KEY ("currencyId") REFERENCES "Currency"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "Revenue" ADD CONSTRAINT "Revenue_academyId_fkey" FOREIGN KEY ("academyId") REFERENCES "Academy"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Revenue" ADD CONSTRAINT "Revenue_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "Student"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -528,6 +581,9 @@ ALTER TABLE "Revenue" ADD CONSTRAINT "Revenue_planId_fkey" FOREIGN KEY ("planId"
 
 -- AddForeignKey
 ALTER TABLE "Revenue" ADD CONSTRAINT "Revenue_recordedBy_fkey" FOREIGN KEY ("recordedBy") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Revenue" ADD CONSTRAINT "Revenue_subscriptionId_fkey" FOREIGN KEY ("subscriptionId") REFERENCES "Subscription"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Expense" ADD CONSTRAINT "Expense_currencyId_fkey" FOREIGN KEY ("currencyId") REFERENCES "Currency"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -552,6 +608,15 @@ ALTER TABLE "Report" ADD CONSTRAINT "Report_academyId_fkey" FOREIGN KEY ("academ
 
 -- AddForeignKey
 ALTER TABLE "SuperAdmin" ADD CONSTRAINT "SuperAdmin_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Subscription" ADD CONSTRAINT "Subscription_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "Student"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Subscription" ADD CONSTRAINT "Subscription_planId_fkey" FOREIGN KEY ("planId") REFERENCES "Plan"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "History" ADD CONSTRAINT "History_academyId_fkey" FOREIGN KEY ("academyId") REFERENCES "Academy"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "_SpecialityToTutor" ADD CONSTRAINT "_SpecialityToTutor_A_fkey" FOREIGN KEY ("A") REFERENCES "Speciality"("id") ON DELETE CASCADE ON UPDATE CASCADE;

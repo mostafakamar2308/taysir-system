@@ -1,3 +1,5 @@
+import { StudentStatus } from "@/types/student";
+
 export interface Plan {
   id: number;
   title: string;
@@ -17,8 +19,8 @@ export interface Availability {
 export interface Note {
   id: number;
   content: string;
-  authorName: string; // from author.name
-  createdAt: string; // ISO string
+  authorName: string;
+  createdAt: string;
 }
 
 export interface SessionRecord {
@@ -64,12 +66,11 @@ export interface StudentProfile {
   phone: string | null;
   country: string | null;
   timezone: string;
-  status: number; // StudentStatus enum int
-  startDate: string;
-  renewalDate: string | null;
+  status: StudentStatus;
   source: string | null;
   currentProgram: string | null;
   emergencyContactName: string | null;
+  academyId: number;
   emergencyContactPhone: string | null;
   preferredLanguage: string | null;
   imageUrl: string | null;
@@ -104,7 +105,6 @@ export type Subscription = {
   startDate: string;
   endDate: string | null;
   status: number;
-  autoRenew: boolean;
   payments: {
     id: number;
     amount: number;

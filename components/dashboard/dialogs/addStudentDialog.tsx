@@ -234,7 +234,7 @@ export default function AddStudentDialog({
               <h3 className="text-sm font-semibold flex items-center gap-2 text-muted-foreground border-b pb-2">
                 <CreditCard className="h-4 w-4" /> الحالة
               </h3>
-              <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="status">الحالة</Label>
                   <Select
@@ -255,6 +255,25 @@ export default function AddStudentDialog({
                       <SelectItem value={StudentStatus.lead.toString()}>
                         عميل محتمل
                       </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="currencyId">العملة</Label>
+                  <Select
+                    name="currencyId"
+                    defaultValue={currencies[0]?.id.toString()}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="اختر العملة" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">بدون عملة</SelectItem>
+                      {currencies.map((c) => (
+                        <SelectItem key={c.id} value={c.id.toString()}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

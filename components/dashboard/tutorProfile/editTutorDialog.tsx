@@ -33,9 +33,9 @@ interface EditTutorDialogProps {
     timezone: string;
     pricePerSession: number;
     currency: string;
-    bio: string | null;
-    qualifications: string | null;
-    active: boolean;
+    bio?: string | null;
+    qualifications?: string | null;
+    active?: boolean;
     zoomAuthenticated?: boolean;
     zoomUrl?: string | null;
   };

@@ -34,7 +34,6 @@ interface AddExpenseDialogProps {
   currencyId?: number;
   currencies?: { id: number; name: string }[];
   academyId: number;
-  children: React.ReactNode;
 }
 
 export default function AddExpenseDialog({

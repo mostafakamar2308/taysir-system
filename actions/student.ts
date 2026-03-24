@@ -9,6 +9,7 @@ import {
 import { getTokenFromCookie, verifyToken } from "@/lib/jwt";
 import db from "@/lib/prisma";
 import { HistoryActionType, TargetType } from "@/types/history";
+import { PaymentStatus } from "@/types/payment";
 import { StudentStatus } from "@/types/student";
 import { SubscriptionStatus } from "@/types/subscription";
 import { Role } from "@/types/user";
@@ -56,15 +57,10 @@ export async function createStudent(formData: FormData) {
     status: formData.get("status")
       ? parseInt(formData.get("status") as string)
       : 0,
-    startDate: formData.get("startDate")
-      ? new Date(formData.get("startDate") as string)
-      : new Date(),
-    renewalDate: formData.get("renewalDate")
-      ? new Date(formData.get("renewalDate") as string)
-      : null,
     source: formData.get("source") || null,
     emergencyContactName: formData.get("emergencyContactName") || null,
     emergencyContactPhone: formData.get("emergencyContactPhone") || null,
+    currentProgram: formData.get("currentProgram") || null,
     preferredLanguage: formData.get("preferredLanguage") || null,
     tutorId: formData.get("tutorId")
       ? parseInt(formData.get("tutorId") as string)
@@ -154,6 +150,26 @@ export async function updateStudent(id: number, formData: FormData) {
       },
     });
 
+  if (
+    [StudentStatus.paused, StudentStatus.churned].includes(validated.status)
+  ) {
+    await db.subscription.updateMany({
+      where: {
+        studentId: id,
+      },
+      data: {
+        status: SubscriptionStatus.cancelled,
+      },
+    });
+    await db.student.update({
+      where: { id },
+      data: {
+        currentSubscriptionId: null,
+        planId: null,
+      },
+    });
+  }
+
   revalidatePath("/ar/dashboard/students");
 }
 
@@ -235,7 +251,6 @@ export async function changeStudentStatusWithSubscription(
         status: dayjs(subscriptionData.startDate).isAfter(dayjs())
           ? SubscriptionStatus.pending
           : SubscriptionStatus.active,
-        autoRenew: subscriptionData.autoRenew,
       },
     });
 
@@ -405,9 +420,11 @@ export async function changePlan(studentId: number, newPlanId: number) {
   // Get the student to know the old plan and academyId
   const student = await db.student.findUnique({
     where: { id: studentId },
-    select: { planId: true, academyId: true },
   });
-  if (!student) throw new Error("Student not found");
+  const plan = await db.plan.findUnique({
+    where: { id: newPlanId },
+  });
+  if (!student || !plan) throw new Error("Student or Plan not found");
 
   // Expire current active subscription
   await db.subscription.updateMany({
@@ -427,8 +444,21 @@ export async function changePlan(studentId: number, newPlanId: number) {
       studentId,
       planId: newPlanId,
       startDate: new Date(),
+      endDate: dayjs().add(1, "month").toDate(),
       status: SubscriptionStatus.active,
-      autoRenew: true,
+    },
+  });
+
+  await db.revenue.create({
+    data: {
+      amount: plan.price,
+      academyId: student.academyId,
+      currencyId: plan.currencyId,
+      studentId,
+      recordedBy: payload.id,
+      subscriptionId: newSubscription.id,
+      dueDate: newSubscription.startDate,
+      status: PaymentStatus.PENDING,
     },
   });
 
@@ -438,8 +468,18 @@ export async function changePlan(studentId: number, newPlanId: number) {
     data: {
       currentSubscriptionId: newSubscription.id,
       planId: newPlanId,
+      status: StudentStatus.subscribed,
     },
   });
+
+  if (student.status !== StudentStatus.subscribed)
+    await recordStudentStatusChangeHistory(
+      student.id,
+      student.status,
+      StudentStatus.subscribed,
+      payload.id,
+      student.academyId,
+    );
 
   // Record history if plan changed
   if (student.planId !== newPlanId) {
@@ -467,7 +507,7 @@ export async function recordPayment(
   const token = await getTokenFromCookie();
   if (!token) throw new Error("غير مصرح");
   const payload = verifyToken(token);
-  if (!payload) throw new Error("غير مصرح");
+  if (!payload || !payload.academyId) throw new Error("غير مصرح");
 
   // Get subscription to find its plan's currency
   const subscription = await db.subscription.findUnique({
@@ -486,9 +526,55 @@ export async function recordPayment(
       description: description || `دفعة اشتراك ${subscription.plan.title}`,
       studentId,
       subscriptionId,
+      academyId: payload.academyId,
+    },
+  });
+
+  await db.subscription.update({
+    where: {
+      id: subscriptionId,
+    },
+    data: {
+      endDate: dayjs().add(1, "month").toDate(),
+      startDate: dayjs().toDate(),
+      status: SubscriptionStatus.active,
     },
   });
 
   revalidatePath(`/ar/dashboard/students/${studentId}`);
   return payment;
+}
+
+export async function resolvePayment(
+  paymentId: number,
+  amount: number,
+  method: number | null,
+  invoiceUrl: string | null,
+) {
+  const token = await getTokenFromCookie();
+  if (!token) throw new Error("غير مصرح");
+  const payload = verifyToken(token);
+  if (!payload) throw new Error("غير مصرح");
+
+  const payment = await db.revenue.findUnique({
+    where: { id: paymentId },
+    include: { student: { select: { id: true } } },
+  });
+  if (!payment) throw new Error("الدفعة غير موجودة");
+  if (payment.status !== PaymentStatus.PENDING)
+    throw new Error("يمكن فقط تسوية الدفعات المعلقة");
+
+  await db.revenue.update({
+    where: { id: paymentId },
+    data: {
+      amount,
+      method,
+      invoiceUrl,
+      status: PaymentStatus.PAID,
+      recordedBy: payload.id,
+    },
+  });
+
+  revalidatePath(`/dashboard/students/${payment.student.id}`);
+  revalidatePath("/dashboard/finances");
 }

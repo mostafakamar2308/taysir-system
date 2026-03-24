@@ -8,7 +8,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,39 +22,45 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { createSession } from "@/actions/sessions";
-import { Plus } from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
+import dayjs from "@/lib/dayjs";
 
 interface AddSessionDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  studentId: number;
+  studentName: string;
   tutors: { id: number; name: string | null }[];
-  students: { id: number; name: string | null }[];
   academyId: number;
-  children?: React.ReactNode;
+  currentTutorId?: number | null;
 }
 
 export default function AddSessionDialog({
+  open,
+  onOpenChange,
+  studentId,
+  studentName,
   tutors,
-  students,
   academyId,
-  children,
+  currentTutorId,
 }: AddSessionDialogProps) {
-  const [open, setOpen] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [studentId, setStudentId] = useState(0);
-  const [tutorId, setTutorId] = useState(0);
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [tutorId, setTutorId] = useState<string>(
+    currentTutorId ? String(currentTutorId) : "",
+  );
+  const [date, setDate] = useState(dayjs().format("YYYY-MM-DD"));
   const [startTime, setStartTime] = useState("09:00");
   const [duration, setDuration] = useState("60");
   const [topic, setTopic] = useState("");
   const [notes, setNotes] = useState("");
-  const [isTrial, setIsTrial] = useState(false);
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurDays, setRecurDays] = useState<number[]>([]);
   const [recurEndDate, setRecurEndDate] = useState("");
+  const [isTrial, setIsTrial] = useState(false);
 
   const dayOptions = [
     { value: 0, label: "الأحد" },
@@ -73,38 +78,43 @@ export default function AddSessionDialog({
     );
   };
 
+  const hasCurrentTutor = !!currentTutorId;
+  const selectedTutorName = tutors.find((t) => t.id === currentTutorId)?.name;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!studentId || !date || !startTime) {
-      toast({
-        title: "يرجى اختيار الطالب وإدخال التاريخ والوقت",
-        variant: "destructive",
-      });
+
+    // Validate tutor
+    if (!tutorId) {
+      toast({ title: "يرجى اختيار المعلم", variant: "destructive" });
       return;
     }
+    if (!date || !startTime) {
+      toast({ title: "يرجى إدخال التاريخ والوقت", variant: "destructive" });
+      return;
+    }
+
     setLoading(true);
     try {
       const input = {
         studentId,
-        tutorId,
+        tutorId: parseInt(tutorId),
         academyId,
         date,
         startTime,
         duration: parseInt(duration),
         topic: topic || undefined,
         notes: notes || undefined,
-        isTrial,
         isRecurring,
         recurDays: isRecurring ? recurDays : undefined,
         recurEndDate: isRecurring ? recurEndDate : undefined,
+        isTrial,
       };
       await createSession(input);
       toast({ title: "تمت إضافة الحصة" });
+      onOpenChange(false);
       router.refresh();
-      setOpen(false);
     } catch (error) {
-      console.log(error);
-
       if (error instanceof Error)
         toast({
           title: "حدث خطأ",
@@ -117,57 +127,45 @@ export default function AddSessionDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {children || (
-          <Button size="sm" className="gap-1">
-            <Plus className="h-4 w-4" /> إضافة حصة
-          </Button>
-        )}
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className="sm:max-w-lg max-h-[90vh] overflow-y-auto"
         dir="rtl"
       >
         <DialogHeader>
-          <DialogTitle>إضافة حصة جديدة</DialogTitle>
+          <DialogTitle>
+            {hasCurrentTutor
+              ? `إضافة حصة للطالب ${studentName} مع المعلم ${selectedTutorName}`
+              : `إضافة حصة للطالب ${studentName}`}
+          </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label>الطالب *</Label>
-            <Select
-              value={studentId.toString()}
-              onValueChange={(val) => setStudentId(parseInt(val))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="اختر الطالب" />
-              </SelectTrigger>
-              <SelectContent>
-                {students.map((s) => (
-                  <SelectItem key={s.id} value={String(s.id)}>
-                    {s.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Tutor selection – disabled if student already has a tutor */}
           <div className="space-y-2">
             <Label>المعلم *</Label>
-            <Select
-              value={tutorId.toString()}
-              onValueChange={(val) => setTutorId(parseInt(val))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="اختر الطالب" />
-              </SelectTrigger>
-              <SelectContent>
-                {tutors.map((s) => (
-                  <SelectItem key={s.id} value={String(s.id)}>
-                    {s.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {hasCurrentTutor ? (
+              <Input
+                value={selectedTutorName || ""}
+                disabled
+                className="bg-muted"
+              />
+            ) : (
+              <Select value={tutorId} onValueChange={setTutorId} required>
+                <SelectTrigger>
+                  <SelectValue placeholder="اختر المعلم" />
+                </SelectTrigger>
+                <SelectContent>
+                  {tutors.map((t) => (
+                    <SelectItem key={t.id} value={String(t.id)}>
+                      {t.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {hasCurrentTutor && (
+              <input type="hidden" name="tutorId" value={tutorId} />
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -177,6 +175,7 @@ export default function AddSessionDialog({
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
+                required
               />
             </div>
             <div className="space-y-2">
@@ -185,6 +184,7 @@ export default function AddSessionDialog({
                 type="time"
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
+                required
               />
             </div>
           </div>
@@ -223,6 +223,8 @@ export default function AddSessionDialog({
               rows={2}
             />
           </div>
+
+          {/* Trial session checkbox */}
           <div className="flex items-center gap-2">
             <Checkbox
               id="trial"
@@ -282,7 +284,7 @@ export default function AddSessionDialog({
             <Button
               type="button"
               variant="outline"
-              onClick={() => setOpen(false)}
+              onClick={() => onOpenChange(false)}
             >
               إلغاء
             </Button>

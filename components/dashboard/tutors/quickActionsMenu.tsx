@@ -14,23 +14,30 @@ import {
   Pencil,
   Phone,
   Mail,
-  UserPlus,
-  Trash2,
+  // UserPlus,
 } from "lucide-react";
 import { DashboardTutor } from "@/types/tutor";
-import { useToast } from "@/hooks/use-toast";
+// import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
+import EditTutorDialog from "@/components/dashboard/tutorProfile/editTutorDialog";
+import { useState } from "react";
 
 export function QuickActionsMenu({ tutor }: { tutor: DashboardTutor }) {
-  const { toast } = useToast();
+  const [editTutor, setEditTutor] = useState(false);
+  // const { toast } = useToast();
   const router = useRouter();
 
-  const handleAction = (action: string) => {
-    toast({ title: `تم تنفيذ: ${action}` });
-  };
+  // const handleAction = (action: string) => {
+  //   toast({ title: `تم تنفيذ: ${action}` });
+  // };
 
   return (
     <DropdownMenu dir="rtl">
+      <EditTutorDialog
+        tutor={tutor}
+        open={editTutor}
+        onOpenChange={setEditTutor}
+      />
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="h-8 w-8">
           <MoreHorizontal className="h-4 w-4" />
@@ -44,7 +51,7 @@ export function QuickActionsMenu({ tutor }: { tutor: DashboardTutor }) {
           <Eye className="h-3.5 w-3.5" /> عرض الملف
         </DropdownMenuItem>
         <DropdownMenuItem
-          onClick={() => handleAction("تعديل")}
+          onClick={() => setEditTutor(true)}
           className="gap-2 text-sm"
         >
           <Pencil className="h-3.5 w-3.5" /> تعديل
@@ -65,18 +72,12 @@ export function QuickActionsMenu({ tutor }: { tutor: DashboardTutor }) {
           </a>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem
+        {/* <DropdownMenuItem
           onClick={() => handleAction("تعيين طلاب")}
           className="gap-2 text-sm"
         >
           <UserPlus className="h-3.5 w-3.5" /> تعيين طلاب
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => handleAction("حذف")}
-          className="gap-2 text-sm text-destructive"
-        >
-          <Trash2 className="h-3.5 w-3.5" /> حذف
-        </DropdownMenuItem>
+        </DropdownMenuItem> */}
       </DropdownMenuContent>
     </DropdownMenu>
   );

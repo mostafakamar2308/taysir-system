@@ -39,6 +39,9 @@ const TutorsPage = async () => {
     createdAt: t.createdAt,
     currency: t.currency.name,
     studentCount: t.students.length,
+    active: !!t.active,
+    bio: t.bio || "",
+    qualifications: t.qualifications || "",
     timetable: t.tutorAvailabilities.map((a) => ({
       day: dayLabels[a.dayOfWeek] || a.dayOfWeek.toString(),
       from: a.startTime.toLocaleTimeString("en-US", {

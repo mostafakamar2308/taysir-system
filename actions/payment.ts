@@ -7,6 +7,7 @@ import { Role } from "@/types/user";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import dayjs from "@/lib/dayjs";
+import { SubscriptionStatus } from "@/types/subscription";
 
 const paymentSchema = z.object({
   amount: z.number().positive(),
@@ -55,6 +56,26 @@ export async function createPayment(formData: FormData) {
 
   await db.revenue.create({ data: validated });
 
+  if (rawData.planId)
+    await db.subscription.upsert({
+      where: {
+        id: rawData.studentId,
+        status: SubscriptionStatus.active,
+      },
+      create: {
+        status: SubscriptionStatus.active,
+        endDate: dayjs().add(1, "month").toDate(),
+        startDate: dayjs().toDate(),
+        studentId: rawData.studentId,
+        planId: rawData.planId,
+      },
+      update: {
+        status: SubscriptionStatus.active,
+        endDate: dayjs().add(1, "month").toDate(),
+        startDate: dayjs().toDate(),
+      },
+    });
+
   revalidatePath("/ar/dashboard/finances");
 }
 
@@ -99,7 +120,7 @@ export async function markPaymentAsPaid(id: number) {
   await db.revenue.update({
     where: { id },
     data: { status: PaymentStatus.PAID },
-  }); // 1 = PAID
+  });
   revalidatePath("/ar/dashboard/finances");
 }
 
@@ -139,5 +160,16 @@ export async function createRevenueFromDashboard(revenueData: {
         : null,
     },
   });
+  if (student.currentSubscriptionId)
+    await db.subscription.update({
+      where: {
+        id: student.currentSubscriptionId,
+      },
+      data: {
+        status: SubscriptionStatus.active,
+        endDate: dayjs().add(1, "month").toDate(),
+        startDate: dayjs().toDate(),
+      },
+    });
   revalidatePath("/ar/dashboard");
 }

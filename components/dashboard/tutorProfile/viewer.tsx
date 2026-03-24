@@ -25,9 +25,7 @@ import SessionsTab from "@/components/dashboard/tutorProfile/sessionsTab";
 import PaymentsTab from "@/components/dashboard/tutorProfile/paymentsTab";
 import CommunicationTab from "@/components/dashboard/tutorProfile/communicationTab";
 import EditTutorDialog from "@/components/dashboard/tutorProfile/editTutorDialog";
-import AddSessionDialog from "@/components/dashboard/dialogs/addSessionToTutorDialog";
 import SessionDetailPanel from "@/components/dashboard/tutorProfile/sessionDetailsPanel";
-import AddExpenseDialog from "@/components/dashboard/dialogs/payTutorDialog";
 import ReportsTab from "@/components/dashboard/tutorProfile/reportsTab";
 
 interface TutorProfileClientProps {
@@ -35,19 +33,19 @@ interface TutorProfileClientProps {
   currencies: { id: number; code: string; name: string }[];
 }
 
-export default function TutorProfileClient({ tutor }: TutorProfileClientProps) {
+export default function TutorProfileClient({
+  tutor,
+  currencies,
+}: TutorProfileClientProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("overview");
 
-  // Dialog states
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [addSessionOpen, setAddSessionOpen] = useState(false);
   const [selectedSession, setSelectedSession] = useState<TutorSession | null>(
     null,
   );
   const [sessionDetailOpen, setSessionDetailOpen] = useState(false);
-  const [addExpenseOpen, setAddExpenseOpen] = useState(false);
 
   const handleAddNote = async (content: string) => {
     try {
@@ -192,15 +190,11 @@ export default function TutorProfileClient({ tutor }: TutorProfileClientProps) {
               setSelectedSession(session);
               setSessionDetailOpen(true);
             }}
-            onAddSession={() => setAddSessionOpen(true)}
           />
         </TabsContent>
 
         <TabsContent value="payments">
-          <PaymentsTab
-            tutor={tutor}
-            onAddExpense={() => setAddExpenseOpen(true)}
-          />
+          <PaymentsTab tutor={tutor} currencies={currencies} />
         </TabsContent>
         <TabsContent value="reports">
           <ReportsTab tutor={tutor} />
@@ -217,12 +211,6 @@ export default function TutorProfileClient({ tutor }: TutorProfileClientProps) {
         onOpenChange={setEditDialogOpen}
       />
 
-      <AddSessionDialog
-        tutorId={tutor.id}
-        academyId={tutor.academyId}
-        studentOptions={tutor.students.map((s) => ({ id: s.id, name: s.name }))}
-      />
-
       {selectedSession && (
         <SessionDetailPanel
           session={selectedSession}
@@ -234,15 +222,6 @@ export default function TutorProfileClient({ tutor }: TutorProfileClientProps) {
           onDeleted={() => setSelectedSession(null)}
         />
       )}
-
-      <AddExpenseDialog
-        open={addExpenseOpen}
-        onOpenChange={setAddExpenseOpen}
-        tutorId={tutor.id}
-        tutorName={tutor.name}
-        currencyId={tutor.currencyId}
-        academyId={tutor.academyId}
-      />
     </div>
   );
 }

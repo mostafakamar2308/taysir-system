@@ -13,8 +13,11 @@ export interface DashboardTutor {
   timezone: string;
   createdAt: Date;
   studentCount: number;
+  qualifications: string;
+  bio: string;
   currency: string;
   zoomAuthenticated: boolean;
+  active: boolean;
   timetable: {
     day: string; // day of week (0-6) or name
     from: string;
