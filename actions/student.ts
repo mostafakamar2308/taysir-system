@@ -526,6 +526,7 @@ export async function recordPayment(
       description: description || `دفعة اشتراك ${subscription.plan.title}`,
       studentId,
       subscriptionId,
+      planId: subscription.planId,
       academyId: payload.academyId,
     },
   });
