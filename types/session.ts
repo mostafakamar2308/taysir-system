@@ -23,12 +23,14 @@ export type DashboardSession = {
   studentId: number;
   studentName: string;
   tutorId: number;
+  isTrial: boolean;
   tutorName: string | null;
   recurringPatternId: number | null;
   attendance:
     | {
         id: number;
-        status: number;
+        tutorAttendance: number;
+        studentAttendance: number;
         reason: string | null;
       }
     | undefined;

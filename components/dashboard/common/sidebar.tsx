@@ -89,6 +89,7 @@ const getSidebarGroups = (role: number) => {
             url: "/ar/dashboard/finances",
             icon: TrendingUp,
           },
+          { title: "الخطط", url: "/ar/dashboard/plans", icon: BookOpen },
           { title: "التقارير", url: "/ar/dashboard/reports", icon: TrendingUp },
         ],
       },
@@ -96,7 +97,6 @@ const getSidebarGroups = (role: number) => {
         label: "الحصص ومؤشرات الأداء",
         items: [
           { title: "الجداول", url: "/ar/dashboard/sessions", icon: Clock },
-          { title: "البرامج", url: "/ar/dashboard/programs", icon: BookOpen },
           {
             title: "مؤشرات الأداء",
             url: "/ar/dashboard/analytics",

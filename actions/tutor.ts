@@ -61,7 +61,7 @@ export async function createTutor(formData: FormData) {
   }
 
   // Create user first
-  const hashedPassword = await bcrypt.hash("default123", 10); // You should generate a random password or let the user set it
+  const hashedPassword = await bcrypt.hash("default123", 10);
   const user = await db.user.create({
     data: {
       email: validated.email,

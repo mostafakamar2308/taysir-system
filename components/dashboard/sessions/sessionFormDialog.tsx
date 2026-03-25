@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { createSession, updateSession } from "@/actions/sessions";
@@ -33,8 +34,9 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   session: DashboardSession | null;
   prefillSlot: { date: Date; hour: number } | null;
-  students: { id: number; name: string }[];
+  students: { id: number; name: string; tutorId: number | null }[];
   tutors: { id: number; name: string | null }[];
+  academyId: number;
   onSave: () => void; // callback after successful save
 }
 
@@ -55,6 +57,7 @@ export function SessionFormDialog({
   prefillSlot,
   students,
   tutors,
+  academyId,
   onSave,
 }: Props) {
   const router = useRouter();
@@ -72,10 +75,17 @@ export function SessionFormDialog({
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurDays, setRecurDays] = useState<number[]>([]);
   const [recurEndDate, setRecurEndDate] = useState("");
+  const [isTrial, setIsTrial] = useState(false);
   const [editScope, setEditScope] = useState<"this" | "future" | "all">("this");
   const [conflicts, setConflicts] = useState<string[]>([]);
   const [overrideConflicts, setOverrideConflicts] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Determine if the student already has a tutor (for read‑only display)
+  const currentStudent = students.find((s) => s.id.toString() === studentId);
+  const currentTutorId = currentStudent?.tutorId ?? null;
+  const hasCurrentTutor = !!currentTutorId;
+  const selectedTutorName = tutors.find((t) => t.id === currentTutorId)?.name;
 
   // Prefill on open
   useEffect(() => {
@@ -89,6 +99,7 @@ export function SessionFormDialog({
       setTopic(session.topic || "");
       setNotes(session.notes || "");
       setIsRecurring(!!session.recurringPatternId);
+      setIsTrial(session.isTrial ?? false);
     } else if (prefillSlot) {
       const d = prefillSlot.date;
       setDate(dayjs(d).format("YYYY-MM-DD"));
@@ -99,6 +110,7 @@ export function SessionFormDialog({
       setTopic("");
       setNotes("");
       setIsRecurring(false);
+      setIsTrial(false);
     } else {
       // Reset
       setStudentId("");
@@ -109,6 +121,7 @@ export function SessionFormDialog({
       setTopic("");
       setNotes("");
       setIsRecurring(false);
+      setIsTrial(false);
     }
     setRecurDays([]);
     setRecurEndDate("");
@@ -138,7 +151,7 @@ export function SessionFormDialog({
       const input = {
         studentId: parseInt(studentId),
         tutorId: parseInt(tutorId),
-        academyId: 9, // Replace with actual academy ID from context
+        academyId,
         date,
         startTime,
         duration: parseInt(duration),
@@ -147,10 +160,16 @@ export function SessionFormDialog({
         isRecurring,
         recurDays: isRecurring ? recurDays : undefined,
         recurEndDate: isRecurring ? recurEndDate : undefined,
+        isTrial,
       };
 
       if (isEdit) {
-        await updateSession({ id: session.id, ...input, scope: editScope });
+        await updateSession({
+          id: session.id,
+          ...input,
+          scope: editScope,
+          startTime: dayjs(`${input.date}T${input.startTime}`).toISOString(),
+        });
         toast({ title: "تم تعديل الحصة بنجاح" });
       } else {
         await createSession(input);
@@ -177,7 +196,10 @@ export function SessionFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        className="sm:max-w-lg max-h-[90vh] overflow-y-auto"
+        dir="rtl"
+      >
         <DialogHeader>
           <DialogTitle>
             {isEdit ? "تعديل الحصة" : "إضافة حصة جديدة"}
@@ -212,36 +234,65 @@ export function SessionFormDialog({
         )}
 
         <div className="space-y-4">
+          {/* Student and Tutor selection */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>الطالب *</Label>
-              <Select value={studentId} onValueChange={setStudentId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="اختر الطالب" />
-                </SelectTrigger>
-                <SelectContent>
-                  {students.map((s) => (
-                    <SelectItem key={s.id} value={s.id.toString()}>
-                      {s.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {isEdit ? (
+                <Input
+                  value={
+                    students.find((s) => s.id.toString() === studentId)?.name ||
+                    ""
+                  }
+                  disabled
+                  className="bg-muted"
+                />
+              ) : (
+                <Select value={studentId} onValueChange={setStudentId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="اختر الطالب" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {students.map((s) => (
+                      <SelectItem key={s.id} value={s.id.toString()}>
+                        {s.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {isEdit && (
+                <input type="hidden" name="studentId" value={studentId} />
+              )}
             </div>
             <div className="space-y-2">
               <Label>المعلم *</Label>
-              <Select value={tutorId} onValueChange={setTutorId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="اختر المعلم" />
-                </SelectTrigger>
-                <SelectContent>
-                  {tutors.map((t) => (
-                    <SelectItem key={t.id} value={t.id.toString()}>
-                      {t.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {isEdit || hasCurrentTutor ? (
+                <Input
+                  value={
+                    isEdit
+                      ? tutors.find((t) => t.id.toString() === tutorId)?.name ||
+                        ""
+                      : selectedTutorName || ""
+                  }
+                  disabled
+                  className="bg-muted"
+                />
+              ) : (
+                <Select value={tutorId} onValueChange={setTutorId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="اختر المعلم" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tutors.map((t) => (
+                      <SelectItem key={t.id} value={t.id.toString()}>
+                        {t.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {isEdit && <input type="hidden" name="tutorId" value={tutorId} />}
             </div>
           </div>
 
@@ -302,6 +353,21 @@ export function SessionFormDialog({
               placeholder="ملاحظات للمعلم..."
               rows={2}
             />
+          </div>
+
+          {/* Trial session checkbox */}
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="trial"
+              checked={isTrial}
+              onCheckedChange={(v) => setIsTrial(v === true)}
+            />
+            <Label
+              htmlFor="trial"
+              className="text-sm font-normal cursor-pointer"
+            >
+              حصة تجريبية
+            </Label>
           </div>
 
           {/* Recurring */}

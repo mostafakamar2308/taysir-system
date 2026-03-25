@@ -40,6 +40,9 @@ export async function createSession(input: CreateSessionInput) {
   const startDate = start.toDate();
   const endDate = dayjs(start).add(input.duration, "minute").toDate();
 
+  if (start.isBefore(dayjs()))
+    throw new Error("لا يمكن أن تكون الحصة في الماضى");
+
   const conflicts = await db.session.findMany({
     where: {
       OR: [{ tutorId: input.tutorId }, { studentId: input.studentId }],
@@ -84,7 +87,7 @@ export async function createSession(input: CreateSessionInput) {
         durationMinutes: input.duration,
         studentId: input.studentId,
         tutorId: input.tutorId,
-        academyId: input.academyId,
+        academyId: payload.academyId,
         topic: input.topic,
         notes: input.notes,
         status: SessionStatus.SCHEDULED,
@@ -201,21 +204,56 @@ export async function deleteSession(
 
   if (session.recurringPatternId && scope !== "this") {
     if (scope === "series") {
-      // Delete pattern and all linked sessions
+      // Delete all sessions in the pattern (and their attendances)
+      const sessionsToDelete = await db.session.findMany({
+        where: { recurringPatternId: session.recurringPatternId },
+        select: { id: true },
+      });
+      // Delete attendances first
+      for (const s of sessionsToDelete) {
+        await db.attendance.deleteMany({ where: { sessionId: s.id } });
+      }
+      // Delete all sessions
+      await db.session.deleteMany({
+        where: { recurringPatternId: session.recurringPatternId },
+      });
+      // Delete the pattern
       await db.recurringPattern.delete({
         where: { id: session.recurringPatternId },
       });
     } else if (scope === "future") {
       // Delete this and all future sessions of the same pattern
+      const futureSessions = await db.session.findMany({
+        where: {
+          recurringPatternId: session.recurringPatternId,
+          startTime: { gte: session.startTime },
+        },
+        select: { id: true },
+      });
+      // Delete attendances
+      for (const s of futureSessions) {
+        await db.attendance.deleteMany({ where: { sessionId: s.id } });
+      }
+      // Delete future sessions
       await db.session.deleteMany({
         where: {
           recurringPatternId: session.recurringPatternId,
           startTime: { gte: session.startTime },
         },
       });
-      // If no sessions left, optionally delete pattern
+      // If no sessions left, delete the pattern
+      const remaining = await db.session.count({
+        where: { recurringPatternId: session.recurringPatternId },
+      });
+      if (remaining === 0) {
+        await db.recurringPattern.delete({
+          where: { id: session.recurringPatternId },
+        });
+      }
     }
   } else {
+    // Single session: delete attendance then session
+    await db.attendance.deleteMany({ where: { sessionId: id } });
     await db.session.delete({ where: { id } });
   }
 
@@ -261,9 +299,15 @@ export async function updateAttendance(
 }
 
 export async function getSessionsForWeek(startDate: Date, endDate: Date) {
+  const token = await getTokenFromCookie();
+  if (!token) throw new Error("غير مصرح");
+  const payload = verifyToken(token);
+  if (!payload || !payload.academyId) throw new Error("غير مصرح");
+
   const sessions = await db.session.findMany({
     where: {
       startTime: { gte: startDate, lt: endDate },
+      academyId: payload.academyId,
     },
     include: {
       student: true,
@@ -278,7 +322,8 @@ export async function getSessionsForWeek(startDate: Date, endDate: Date) {
     startTime: s.startTime.toISOString(),
     endTime: s.endTime.toISOString(),
     durationMinutes: s.durationMinutes,
-    status: s.status,
+    isTrial: s.isTrial,
+    status: getSessionStatus(s),
     topic: s.topic,
     notes: s.notes,
     studentId: s.studentId,

@@ -46,6 +46,7 @@ import {
   attendanceStatusColors,
 } from "@/const/sessions";
 import { formatDateArabic, utcToLocalTime } from "@/lib/dates";
+import { Role } from "@/types/user";
 
 interface Props {
   session: DashboardSession;
@@ -62,9 +63,9 @@ export function SessionDetailPanel({
 }: Props) {
   const router = useRouter();
   const { toast } = useToast();
-  const [attendanceStatus, setAttendanceStatus] = useState<
+  const [studentAttendanceStatus, setStudentAttendanceStatus] = useState<
     AttendanceStatus | ""
-  >(session.attendance?.status || "");
+  >(session.attendance?.studentAttendance || "");
   const [absenceReason, setAbsenceReason] = useState(
     session.attendance?.reason || "",
   );
@@ -75,17 +76,18 @@ export function SessionDetailPanel({
   const endDate = new Date(session.endTime);
 
   const handleAttendanceSave = async () => {
-    if (!attendanceStatus) return;
+    if (!studentAttendanceStatus) return;
     setIsSubmitting(true);
     try {
       await updateAttendance(
         session.id,
-        attendanceStatus as AttendanceStatus,
+        Role.SuperAdmin,
+        studentAttendanceStatus as AttendanceStatus,
         absenceReason || undefined,
       );
       toast({ title: "تم تحديث الحضور" });
       router.refresh();
-      onClose(); // close panel after save (optional)
+      onClose();
     } catch (error) {
       console.log({ error });
 
@@ -184,13 +186,13 @@ export function SessionDetailPanel({
                   <Badge
                     className={
                       attendanceStatusColors[
-                        session.attendance.status as SessionStatus
+                        session.attendance.studentAttendance as SessionStatus
                       ]
                     }
                   >
                     {
                       attendanceStatusLabels[
-                        session.attendance.status as SessionStatus
+                        session.attendance.studentAttendance as SessionStatus
                       ]
                     }
                     {session.attendance.reason &&
@@ -199,9 +201,9 @@ export function SessionDetailPanel({
                 )}
 
                 <Select
-                  value={String(attendanceStatus)}
+                  value={String(studentAttendanceStatus)}
                   onValueChange={(v) =>
-                    setAttendanceStatus(Number(v) as AttendanceStatus)
+                    setStudentAttendanceStatus(Number(v) as AttendanceStatus)
                   }
                 >
                   <SelectTrigger className="h-9">
@@ -218,8 +220,9 @@ export function SessionDetailPanel({
                   </SelectContent>
                 </Select>
 
-                {(attendanceStatus === AttendanceStatus.ABSENT_EXCUSED ||
-                  attendanceStatus === AttendanceStatus.ABSENT_UNEXCUSED) && (
+                {(studentAttendanceStatus === AttendanceStatus.ABSENT_EXCUSED ||
+                  studentAttendanceStatus ===
+                    AttendanceStatus.ABSENT_UNEXCUSED) && (
                   <Input
                     placeholder="سبب الغياب..."
                     value={absenceReason}
@@ -228,7 +231,7 @@ export function SessionDetailPanel({
                   />
                 )}
 
-                {attendanceStatus && (
+                {studentAttendanceStatus && (
                   <Button
                     size="sm"
                     onClick={handleAttendanceSave}
