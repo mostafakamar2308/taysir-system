@@ -38,12 +38,7 @@ import {
   Search,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import {
-  createPayment,
-  updatePayment,
-  deletePayment,
-  markPaymentAsPaid,
-} from "@/actions/payment";
+import { deletePayment, markPaymentAsPaid } from "@/actions/payment";
 import {
   paymentStatusLabels,
   paymentStatusColors,
@@ -51,7 +46,6 @@ import {
   formatCurrency,
   formatDate,
 } from "@/lib/finances";
-import { RevenueFormDialog } from "@/components/dashboard/dialogs/addRevenueDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -64,6 +58,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { PaymentStatus } from "@/types/payment";
 import { PaymentRecord, PlanOption, StudentOption } from "@/types/finances";
+import RevenueFormDialog from "./revenueFormDialog";
 
 interface RevenuesTabProps {
   payments: PaymentRecord[];
@@ -71,6 +66,13 @@ interface RevenuesTabProps {
   students: StudentOption[];
   plans: PlanOption[];
   academyId: number;
+  currencies: {
+    id: number;
+    code: string;
+    name: string;
+    symbol: string;
+  }[];
+  defaultCurrency: { code: string; symbol: string; name: string };
 }
 
 export default function RevenuesTab({
@@ -78,6 +80,8 @@ export default function RevenuesTab({
   students,
   plans,
   academyId,
+  currencies,
+  defaultCurrency,
 }: RevenuesTabProps) {
   const router = useRouter();
   const [search, setSearch] = useState("");
@@ -109,17 +113,6 @@ export default function RevenuesTab({
     });
   }, [payments, search, statusFilter, methodFilter, dateFrom, dateTo]);
 
-  const handleSave = async (payment: FormData) => {
-    if (editingPayment) {
-      await updatePayment(editingPayment.id, payment);
-    } else {
-      await createPayment(payment);
-    }
-    setEditingPayment(null);
-    router.refresh();
-    toast({ title: editingPayment ? "تم التعديل" : "تم الإضافة" });
-  };
-
   const handleDelete = async () => {
     if (deleteId) {
       await deletePayment(deleteId);
@@ -138,7 +131,7 @@ export default function RevenuesTab({
       "التاريخ",
       "الطالب",
       "الوصف",
-      "المبلغ",
+      "المبلغ (" + defaultCurrency.code + ")",
       "طريقة الدفع",
       "الحالة",
     ];
@@ -146,10 +139,11 @@ export default function RevenuesTab({
       p.date,
       p.studentName,
       p.description || "",
-      p.amount,
+      p.amountInDefault,
       p.method !== null ? paymentMethodLabels[p.method] : "",
       paymentStatusLabels[p.status],
     ]);
+
     const csv = [headers, ...rows].map((r) => r.join(",")).join("\n");
     const blob = new Blob(["\uFEFF" + csv], {
       type: "text/csv;charset=utf-8;",
@@ -274,7 +268,10 @@ export default function RevenuesTab({
                       </TableCell>
                       <TableCell>{p.description || "-"}</TableCell>
                       <TableCell className="font-semibold">
-                        {formatCurrency(p.amount)}
+                        {formatCurrency(
+                          p.amountInDefault,
+                          defaultCurrency.code,
+                        )}
                       </TableCell>
                       <TableCell>
                         {p.method !== null
@@ -347,9 +344,9 @@ export default function RevenuesTab({
         open={formOpen}
         onOpenChange={setFormOpen}
         editingPayment={editingPayment}
-        onSave={handleSave}
         students={students}
         plans={plans}
+        currencies={currencies}
         academyId={academyId}
       />
 

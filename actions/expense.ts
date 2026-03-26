@@ -2,10 +2,10 @@
 
 import db from "@/lib/prisma";
 import { PaymentStatus } from "@/types/payment";
-import { AttendanceStatus } from "@/types/session";
 import dayjs from "@/lib/dayjs";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { getTokenFromCookie, verifyToken } from "@/lib/jwt";
 
 const expenseSchema = z.object({
   date: z.date(),
@@ -29,8 +29,8 @@ export async function createExpense(formData: FormData) {
     costCenter: (formData.get("costCenter") as string) || null,
     amount: parseFloat(formData.get("amount") as string),
     currencyId: parseInt(formData.get("currencyId") as string),
-    method: formData.get("paymentMethod")
-      ? parseInt(formData.get("paymentMethod") as string)
+    method: formData.get("method")
+      ? parseInt(formData.get("method") as string)
       : null,
     status: parseInt(formData.get("status") as string),
     invoiceUrl: (formData.get("invoiceUrl") as string) || null,
@@ -55,11 +55,11 @@ export async function updateExpense(id: number, formData: FormData) {
     description: formData.get("description") as string,
     costCenter: (formData.get("costCenter") as string) || null,
     amount: parseFloat(formData.get("amount") as string),
-    currencyId: parseInt(formData.get("currency") as string),
-    paymentMethod: formData.get("paymentMethod")
-      ? parseInt(formData.get("paymentMethod") as string)
+    currencyId: parseInt(formData.get("currencyId") as string),
+    method: formData.get("method")
+      ? parseInt(formData.get("method") as string)
       : null,
-    paid: formData.get("paid") === "true",
+    status: parseInt(formData.get("status") as string),
     invoiceUrl: (formData.get("invoiceUrl") as string) || null,
     notes: (formData.get("notes") as string) || null,
     tutorId: formData.get("tutorId")
@@ -93,52 +93,96 @@ export async function calculateSalaries(month: string) {
   const sessions = await db.session.findMany({
     where: {
       startTime: { gte: startDate, lt: endDate },
-      attendance: {
-        tutorAttendanceStatus: {
-          in: [AttendanceStatus.ATTENDED, AttendanceStatus.LATE],
-        },
-      },
     },
     include: { tutor: { include: { user: true } } },
   });
 
-  const tutorMap = new Map<
+  // Group by tutor to calculate total sessions and total salary
+  const tutorData = new Map<
     number,
     { name: string; price: number; count: number; currencyId: number }
   >();
-
   for (const s of sessions) {
-    if (!tutorMap.has(s.tutorId)) {
-      tutorMap.set(s.tutorId, {
+    if (!tutorData.has(s.tutorId)) {
+      tutorData.set(s.tutorId, {
         name: s.tutor.user.name ?? "",
         price: s.tutor.pricePerSession,
         count: 0,
         currencyId: s.tutor.currencyId,
       });
     }
-    tutorMap.get(s.tutorId)!.count++;
+    tutorData.get(s.tutorId)!.count++;
   }
 
-  const results = Array.from(tutorMap.entries()).map(([tutorId, data]) => ({
-    tutorId,
-    tutorName: data.name,
-    sessionsCount: data.count,
-    pricePerSession: data.price,
-    total: data.count * data.price,
-    currencyId: data.currencyId,
-    existingExpense: null,
-  }));
-
   const expenses = await db.expense.findMany({
-    where: { salaryMonth: month, tutorId: { not: null } },
+    where: {
+      salaryMonth: month,
+      tutorId: { not: null },
+    },
   });
 
-  const expenseMap = new Map(expenses.map((e) => [e.tutorId, e]));
+  // Group expenses by tutor and sum amounts
+  const paidMap = new Map<number, number>();
+  for (const e of expenses) {
+    const tutorId = e.tutorId!;
+    paidMap.set(tutorId, (paidMap.get(tutorId) || 0) + e.amount);
+  }
 
-  return results.map((r) => ({
-    ...r,
-    existingExpense: r.tutorId ? expenseMap.get(r.tutorId) : null,
-  }));
+  // Build results
+  const results = Array.from(tutorData.entries()).map(([tutorId, data]) => {
+    const total = data.count * data.price;
+    const paid = paidMap.get(tutorId) || 0;
+    const remaining = total - paid;
+    return {
+      tutorId,
+      tutorName: data.name,
+      sessionsCount: data.count,
+      pricePerSession: data.price,
+      total,
+      paid,
+      remaining,
+      currencyId: data.currencyId,
+    };
+  });
+
+  return results;
+}
+
+export async function payRemainingSalary(
+  tutorId: number,
+  month: string,
+  amount: number,
+  notes?: string,
+) {
+  const token = await getTokenFromCookie();
+  if (!token) throw new Error("غير مصرح");
+  const payload = verifyToken(token);
+  if (!payload) throw new Error("غير مصرح");
+
+  // Get the tutor's academyId and currencyId
+  const tutor = await db.tutor.findUnique({
+    where: { id: tutorId },
+    select: { academyId: true, currencyId: true },
+  });
+  if (!tutor) throw new Error("المعلم غير موجود");
+
+  await db.expense.create({
+    data: {
+      date: new Date(),
+      description: `راتب شهر ${new Date(month + "-01").toLocaleDateString("ar-EG", { month: "long", year: "numeric" })}`,
+      costCenter: "رواتب",
+      amount,
+      currencyId: tutor.currencyId,
+      status: PaymentStatus.PAID,
+      tutorId,
+      salaryMonth: month,
+      notes: notes || null,
+      academyId: tutor.academyId,
+      recordedBy: payload.id,
+    },
+  });
+
+  revalidatePath("/dashboard/finances");
 }
 
 export async function generateSalaryExpenses(

@@ -27,9 +27,14 @@ const paymentSchema = z.object({
 });
 
 export async function createPayment(formData: FormData) {
+  const token = await getTokenFromCookie();
+  if (!token) throw new Error("غير مصرح");
+  const payload = verifyToken(token);
+  if (!payload || payload.role !== Role.Admin) throw new Error("غير مصرح");
+
   const rawData = {
     amount: parseFloat(formData.get("amount") as string),
-    currencyId: parseInt(formData.get("currency") as string) || "SAR",
+    currencyId: parseInt(formData.get("currencyId") as string),
     status: formData.get("status")
       ? parseInt(formData.get("status") as string)
       : 0,
@@ -45,12 +50,14 @@ export async function createPayment(formData: FormData) {
     planId: formData.get("planId")
       ? parseInt(formData.get("planId") as string)
       : null,
-    recordedBy: (formData.get("recordedBy") as string) || null,
+    recordedBy: payload.id,
     invoiceUrl: (formData.get("invoiceUrl") as string) || null,
     channel: (formData.get("channel") as string) || null,
     notes: (formData.get("notes") as string) || null,
     academyId: parseInt(formData.get("academyId") as string),
   };
+
+  console.log({ rawData });
 
   const validated = paymentSchema.parse(rawData);
 
@@ -80,9 +87,14 @@ export async function createPayment(formData: FormData) {
 }
 
 export async function updatePayment(id: number, formData: FormData) {
+  const token = await getTokenFromCookie();
+  if (!token) throw new Error("غير مصرح");
+  const payload = verifyToken(token);
+  if (!payload || payload.role !== Role.Admin) throw new Error("غير مصرح");
+
   const rawData = {
     amount: parseFloat(formData.get("amount") as string),
-    currencyId: parseInt(formData.get("currency") as string),
+    currencyId: parseInt(formData.get("currencyId") as string),
     status: formData.get("status")
       ? parseInt(formData.get("status") as string)
       : 0,
@@ -98,7 +110,7 @@ export async function updatePayment(id: number, formData: FormData) {
     planId: formData.get("planId")
       ? parseInt(formData.get("planId") as string)
       : null,
-    recordedBy: (formData.get("recordedBy") as string) || null,
+    recordedBy: payload.id,
     invoiceUrl: (formData.get("invoiceUrl") as string) || null,
     channel: (formData.get("channel") as string) || null,
     notes: (formData.get("notes") as string) || null,

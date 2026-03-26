@@ -2,6 +2,7 @@ import db from "@/lib/prisma";
 import { SessionStatus, AttendanceStatus } from "@/types/session";
 import AnalyticsClient from "@/components/dashboard/analytics/viewer";
 import { notFound } from "next/navigation";
+import { PaymentStatus } from "@/types/payment";
 
 export default async function AnalyticsPage() {
   const academy = await db.academy.findFirst();
@@ -42,7 +43,7 @@ export default async function AnalyticsPage() {
       end.setMonth(end.getMonth() + 1);
 
       const [revenueResult, expenseResult] = await Promise.all([
-        db.payment.aggregate({
+        db.revenue.aggregate({
           where: {
             student: { academyId },
             date: { gte: start, lt: end },
@@ -54,7 +55,7 @@ export default async function AnalyticsPage() {
           where: {
             academyId,
             date: { gte: start, lt: end },
-            paid: true,
+            status: PaymentStatus.PAID,
           },
           _sum: { amount: true },
         }),
@@ -88,7 +89,9 @@ export default async function AnalyticsPage() {
           tutorId: tutor.id,
           status: SessionStatus.COMPLETED,
           attendance: {
-            status: { in: [AttendanceStatus.ATTENDED, AttendanceStatus.LATE] },
+            tutorAttendanceStatus: {
+              in: [AttendanceStatus.ATTENDED, AttendanceStatus.LATE],
+            },
           },
         },
       });
@@ -112,85 +115,11 @@ export default async function AnalyticsPage() {
     .sort((a, b) => b.attendanceRate - a.attendanceRate)
     .slice(0, 5);
 
-  // -------------------- Program Completion --------------------
-  const enrollments = await db.studentProgramEnrollment.groupBy({
-    by: ["status"],
-    where: { program: { academyId } },
-    _count: { _all: true },
-  });
-
-  const statusMap: Record<number, { name: string; fill: string }> = {
-    0: { name: "نشط", fill: "hsl(var(--primary))" },
-    1: { name: "مكتمل", fill: "hsl(200 70% 50%)" },
-    2: { name: "منسحب", fill: "hsl(var(--destructive))" },
-  };
-
-  const programCompletion = enrollments.map((e) => ({
-    name: statusMap[e.status]?.name || "أخرى",
-    value: e._count._all,
-    fill: statusMap[e.status]?.fill || "hsl(var(--muted))",
-  }));
-
-  // -------------------- Student Progress --------------------
-  const activeEnrollments = await db.studentProgramEnrollment.findMany({
-    where: {
-      program: { academyId },
-      status: 0, // active
-    },
-    include: {
-      student: { select: { id: true, name: true } },
-      program: { select: { name: true } },
-      topics: { select: { completed: true } },
-    },
-    take: 10,
-  });
-
-  const studentProgress = await Promise.all(
-    activeEnrollments.map(async (enrollment) => {
-      const totalTopics = enrollment.topics.length;
-      const completedTopics = enrollment.topics.filter(
-        (t) => t.completed,
-      ).length;
-
-      // attendance rate for this student (across all sessions)
-      const sessions = await db.session.findMany({
-        where: { studentId: enrollment.studentId },
-        include: { attendance: true },
-      });
-      const totalSessions = sessions.filter(
-        (s) => s.status === SessionStatus.COMPLETED,
-      ).length;
-      const attendedSessions = sessions.filter(
-        (s) =>
-          s.status === SessionStatus.COMPLETED &&
-          s.attendance?.status &&
-          [AttendanceStatus.ATTENDED, AttendanceStatus.LATE].includes(
-            s.attendance.status,
-          ),
-      ).length;
-      const attendanceRate =
-        totalSessions > 0
-          ? Math.round((attendedSessions / totalSessions) * 100)
-          : 0;
-
-      return {
-        studentId: enrollment.student.id,
-        studentName: enrollment.student.name,
-        programName: enrollment.program.name,
-        completedTopics,
-        totalTopics,
-        attendanceRate,
-      };
-    }),
-  );
-
   return (
     <AnalyticsClient
       studentGrowth={studentGrowth}
       revenueExpense={revenueExpense}
       tutorAttendance={topTutorAttendance}
-      programCompletion={programCompletion}
-      studentProgress={studentProgress}
     />
   );
 }

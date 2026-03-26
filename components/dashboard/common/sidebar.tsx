@@ -90,7 +90,6 @@ const getSidebarGroups = (role: number) => {
             icon: TrendingUp,
           },
           { title: "الخطط", url: "/ar/dashboard/plans", icon: BookOpen },
-          { title: "التقارير", url: "/ar/dashboard/reports", icon: TrendingUp },
         ],
       },
       {
@@ -121,19 +120,17 @@ const getSidebarGroups = (role: number) => {
       },
     );
 
-    // Only academy admins (role 1) get the user management link
     if (role === Role.Admin) {
-      // Insert into the last group (الإعدادات)
       groups[groups.length - 1].items.push(
-        {
-          title: "إعدادات الأكاديمية",
-          url: "/ar/dashboard/settings/academy",
-          icon: Coins,
-        },
         {
           title: "إدارة المستخدمين",
           url: "/ar/dashboard/settings/users",
           icon: Users,
+        },
+        {
+          title: "العملات وأسعار الصرف",
+          url: "/ar/dashboard/settings/currencies",
+          icon: Coins,
         },
       );
     }
@@ -150,7 +147,7 @@ export default function Sidebar() {
   const isActive = (path: string) => currentPath === path;
   const sidebarGroups = user ? getSidebarGroups(user.role) : [];
 
-  if (!user) return null; // or loading skeleton
+  if (!user) return null;
 
   return (
     <BaseSidebar className="w-60 bg-white" collapsible="icon" side="right">

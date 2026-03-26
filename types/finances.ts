@@ -1,3 +1,5 @@
+import { PaymentMethod, PaymentStatus } from "@/types/payment";
+
 export interface PaymentRecord {
   id: number;
   amount: number;
@@ -8,12 +10,25 @@ export interface PaymentRecord {
   dueDate: string | null;
   description: string | null;
   studentId: number;
+  amountInDefault: number;
   studentName: string;
   planId: number | null;
-  recordedBy: string | null;
+  recordedBy: number | null;
   invoiceUrl: string | null;
   channel: string | null;
+  currencyId: number;
   notes: string | null;
+}
+
+export interface SalaryCalculation {
+  tutorId: number;
+  tutorName: string;
+  sessionsCount: number;
+  pricePerSession: number;
+  total: number;
+  paid: number;
+  remaining: number;
+  currencyId: number;
 }
 
 export interface ExpenseRecord {
@@ -21,20 +36,23 @@ export interface ExpenseRecord {
   date: string;
   description: string;
   costCenter: string | null;
+  amountInDefault: number;
   amount: number;
+  currencyId: number;
   currency: string;
-  paymentMethod: number | null;
-  paid: boolean;
-  reference: string | null;
+  method: PaymentMethod | null;
+  status: PaymentStatus;
+  invoiceUrl: string | null;
   notes: string | null;
   tutorId: number | null;
-  tutorName: string | null;
   salaryMonth: string | null;
+  tutorName: string | null;
+  paid?: boolean;
 }
 
 export interface StudentOption {
   id: number;
-  name: string | null;
+  name: string;
 }
 
 export interface TutorOption {

@@ -69,8 +69,9 @@ model Academy {
   histories         History[]
   revenues          Revenue[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  academyCurrencyRates AcademyCurrencyRate[]
 }
 
 model Admin {
@@ -423,9 +424,10 @@ model Currency {
   expenses  Expense[]
   academies Academy[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  plans     Plan[]
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  plans                Plan[]
+  academyCurrencyRates AcademyCurrencyRate[]
 
   @@index([code])
 }
@@ -477,5 +479,19 @@ model History {
 
   @@index([targetType, targetId])
   @@index([action])
+  @@index([academyId])
+}
+
+model AcademyCurrencyRate {
+  id         Int      @id @default(autoincrement())
+  academyId  Int
+  academy    Academy  @relation(fields: [academyId], references: [id], onDelete: Cascade)
+  currencyId Int
+  currency   Currency @relation(fields: [currencyId], references: [id])
+  rate       Float // conversion rate to academy's default currency (1 unit of this currency = rate units of default currency)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([academyId, currencyId])
   @@index([academyId])
 }

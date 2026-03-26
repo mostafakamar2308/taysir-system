@@ -30,8 +30,9 @@ export const costCenters = [
   "متنوعة",
 ];
 
-export function formatCurrency(amount: number, currency = "SAR"): string {
-  return `${amount.toLocaleString("ar-EG")} ${currency === "SAR" ? "ر.س" : currency}`;
+export function formatCurrency(amount?: number, currency?: string): string {
+  if (!amount) return "";
+  return `${amount.toLocaleString("ar-EG")} ${currency || ""}`;
 }
 
 export function formatDate(dateStr: string): string {

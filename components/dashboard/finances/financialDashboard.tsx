@@ -36,68 +36,74 @@ import { ExpenseRecord, PaymentRecord } from "@/types/finances";
 interface FinancialDashboardProps {
   payments: PaymentRecord[];
   expenses: ExpenseRecord[];
+  defaultCurrency: { code: string; symbol: string; name: string };
 }
 
 export default function FinancialDashboard({
   payments,
   expenses,
+  defaultCurrency,
 }: FinancialDashboardProps) {
-  const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
-
-  const monthPayments = payments.filter((p) => p.date.startsWith(currentMonth));
-  const monthExpenses = expenses.filter((e) => e.date.startsWith(currentMonth));
-
-  const totalRevenue = monthPayments
+  // Totals from the filtered data using converted amounts
+  const totalRevenue = payments
     .filter((p) => p.status === PaymentStatus.PAID)
-    .reduce((s, p) => s + p.amount, 0);
-  const totalExpenses = monthExpenses
+    .reduce((sum, p) => sum + p.amountInDefault, 0);
+  const totalExpenses = expenses
     .filter((e) => e.paid)
-    .reduce((s, e) => s + e.amount, 0);
+    .reduce((sum, e) => sum + e.amountInDefault, 0);
   const netProfit = totalRevenue - totalExpenses;
-  const pendingRevenue = monthPayments
+  const pendingRevenue = payments
     .filter((p) => p.status === PaymentStatus.PENDING)
-    .reduce((s, p) => s + p.amount, 0);
-  const unpaidExpenses = monthExpenses
+    .reduce((sum, p) => sum + p.amountInDefault, 0);
+  const unpaidExpenses = expenses
     .filter((e) => !e.paid)
-    .reduce((s, e) => s + e.amount, 0);
-  const estimatedSalaries = monthExpenses
+    .reduce((sum, e) => sum + e.amountInDefault, 0);
+  const estimatedSalaries = expenses
     .filter((e) => e.costCenter === "رواتب")
-    .reduce((s, e) => s + e.amount, 0);
+    .reduce((sum, e) => sum + e.amountInDefault, 0);
 
-  // Monthly chart data (last 6 months)
+  // Monthly chart data (last 6 months from the filtered data)
   const monthlyData = useMemo(() => {
-    const months: Record<string, { revenue: number; expenses: number }> = {};
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date();
-      d.setMonth(d.getMonth() - i);
-      const key = d.toISOString().slice(0, 7);
-      months[key] = { revenue: 0, expenses: 0 };
-    }
+    const allMonths = new Set<string>();
+    payments.forEach((p) => allMonths.add(p.date.slice(0, 7)));
+    expenses.forEach((e) => allMonths.add(e.date.slice(0, 7)));
+    const sortedMonths = Array.from(allMonths).sort().slice(-6);
+
+    const monthsData: Record<string, { revenue: number; expenses: number }> =
+      {};
+    sortedMonths.forEach((m) => {
+      monthsData[m] = { revenue: 0, expenses: 0 };
+    });
+
     payments.forEach((p) => {
-      if (p.status === PaymentStatus.PAID && months[p.date.slice(0, 7)]) {
-        months[p.date.slice(0, 7)].revenue += p.amount;
+      const m = p.date.slice(0, 7);
+      if (monthsData[m] && p.status === PaymentStatus.PAID) {
+        monthsData[m].revenue += p.amountInDefault;
       }
     });
     expenses.forEach((e) => {
-      if (e.paid && months[e.date.slice(0, 7)]) {
-        months[e.date.slice(0, 7)].expenses += e.amount;
+      const m = e.date.slice(0, 7);
+      if (monthsData[m] && e.paid) {
+        monthsData[m].expenses += e.amountInDefault;
       }
     });
-    return Object.entries(months).map(([month, values]) => ({
+
+    return sortedMonths.map((month) => ({
       month: new Date(month + "-01").toLocaleDateString("ar-EG", {
         month: "short",
       }),
-      ...values,
+      revenue: monthsData[month].revenue,
+      expenses: monthsData[month].expenses,
     }));
   }, [payments, expenses]);
 
-  // Expenses by category
+  // Expenses by category (using converted amounts)
   const byCategory = useMemo(() => {
     const map = new Map<string, number>();
     expenses.forEach((e) => {
       if (e.paid) {
         const cat = e.costCenter || "أخرى";
-        map.set(cat, (map.get(cat) || 0) + e.amount);
+        map.set(cat, (map.get(cat) || 0) + e.amountInDefault);
       }
     });
     const colors = [
@@ -114,12 +120,12 @@ export default function FinancialDashboard({
     }));
   }, [expenses]);
 
-  // Recent transactions
+  // Recent transactions (using converted amounts)
   const recent = [
     ...payments.map((p) => ({
       date: p.date,
       desc: `${p.studentName} - ${p.description || ""}`,
-      amount: p.amount,
+      amount: p.amountInDefault,
       type: "إيراد" as const,
       statusLabel: paymentStatusLabels[p.status],
       statusColor: paymentStatusColors[p.status],
@@ -127,7 +133,7 @@ export default function FinancialDashboard({
     ...expenses.map((e) => ({
       date: e.date,
       desc: e.description,
-      amount: e.amount,
+      amount: e.amountInDefault,
       type: "مصروف" as const,
       statusLabel: e.paid ? "مدفوع" : "غير مدفوع",
       statusColor: e.paid
@@ -138,40 +144,43 @@ export default function FinancialDashboard({
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 8);
 
+  const formatDefaultCurrency = (amount: number) =>
+    formatCurrency(amount, defaultCurrency.code);
+
   const summaryCards = [
     {
       title: "إجمالي الإيرادات",
-      value: formatCurrency(totalRevenue),
+      value: formatDefaultCurrency(totalRevenue),
       icon: TrendingUp,
       color: "text-primary",
     },
     {
       title: "إجمالي المصروفات",
-      value: formatCurrency(totalExpenses),
+      value: formatDefaultCurrency(totalExpenses),
       icon: TrendingDown,
       color: "text-destructive",
     },
     {
       title: "صافي الربح",
-      value: formatCurrency(netProfit),
+      value: formatDefaultCurrency(netProfit),
       icon: DollarSign,
       color: netProfit >= 0 ? "text-primary" : "text-destructive",
     },
     {
       title: "إيرادات معلقة",
-      value: formatCurrency(pendingRevenue),
+      value: formatDefaultCurrency(pendingRevenue),
       icon: Clock,
       color: "text-amber-600",
     },
     {
       title: "مصروفات غير مدفوعة",
-      value: formatCurrency(unpaidExpenses),
+      value: formatDefaultCurrency(unpaidExpenses),
       icon: AlertCircle,
       color: "text-destructive",
     },
     {
       title: "رواتب الشهر المقدرة",
-      value: formatCurrency(estimatedSalaries),
+      value: formatDefaultCurrency(estimatedSalaries),
       icon: Users,
       color: "text-muted-foreground",
     },
@@ -199,7 +208,7 @@ export default function FinancialDashboard({
         <Card>
           <CardHeader>
             <CardTitle className="text-base">
-              الإيرادات مقابل المصروفات (آخر 6 أشهر)
+              الإيرادات مقابل المصروفات
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -211,7 +220,11 @@ export default function FinancialDashboard({
                 />
                 <XAxis dataKey="month" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                <Tooltip
+                  formatter={(value?: number) =>
+                    formatDefaultCurrency(value || 0)
+                  }
+                />
                 <Line
                   type="monotone"
                   dataKey="revenue"
@@ -248,7 +261,7 @@ export default function FinancialDashboard({
                   cy="50%"
                   outerRadius={90}
                   label={({ name, percent }) =>
-                    `${name} ${(percent * 100).toFixed(0)}%`
+                    `${name} ${percent ? (percent * 100).toFixed(0) : ""}%`
                   }
                   labelLine={false}
                 >
@@ -256,7 +269,11 @@ export default function FinancialDashboard({
                     <Cell key={index} fill={entry.fill} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                <Tooltip
+                  formatter={(value?: number) =>
+                    formatDefaultCurrency(value || 0)
+                  }
+                />
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
@@ -290,7 +307,7 @@ export default function FinancialDashboard({
                     <td className="py-2.5 px-3">{formatDate(t.date)}</td>
                     <td className="py-2.5 px-3">{t.desc}</td>
                     <td className="py-2.5 px-3 font-medium">
-                      {formatCurrency(t.amount)}
+                      {formatDefaultCurrency(t.amount)}
                     </td>
                     <td className="py-2.5 px-3">
                       <Badge

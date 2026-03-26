@@ -33,20 +33,18 @@ import {
   MoreHorizontal,
   Pencil,
   Trash2,
-  CheckCircle,
-  XCircle,
   ExternalLink,
   Search,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { createExpense, updateExpense, deleteExpense } from "@/actions/expense";
+import { deleteExpense } from "@/actions/expense";
 import {
   costCenters,
   paymentMethodLabels,
   formatCurrency,
   formatDate,
 } from "@/lib/finances";
-import { ExpenseFormDialog } from "@/components/dashboard/finances/expensesFormDialog";
+import ExpenseFormDialog from "@/components/dashboard/finances/expenseFormDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -64,11 +62,20 @@ interface ExpensesTabProps {
   setExpenses: (expenses: ExpenseRecord[]) => void;
   tutors: TutorOption[];
   academyId: number;
+  currencies: {
+    id: number;
+    code: string;
+    name: string;
+    symbol: string;
+  }[];
+  defaultCurrency: { code: string; symbol: string; name: string };
 }
 export default function ExpensesTab({
   expenses,
   tutors,
   academyId,
+  currencies,
+  defaultCurrency,
 }: ExpensesTabProps) {
   const router = useRouter();
   const [search, setSearch] = useState("");
@@ -100,17 +107,6 @@ export default function ExpensesTab({
     });
   }, [expenses, search, costCenterFilter, paidFilter, dateFrom, dateTo]);
 
-  const handleSave = async (expense: FormData) => {
-    if (editingExpense) {
-      await updateExpense(editingExpense.id, expense);
-    } else {
-      await createExpense(expense);
-    }
-    setEditingExpense(null);
-    router.refresh();
-    toast({ title: editingExpense ? "تم التعديل" : "تم الإضافة" });
-  };
-
   const handleDelete = async () => {
     if (deleteId) {
       await deleteExpense(deleteId);
@@ -119,17 +115,12 @@ export default function ExpensesTab({
     }
   };
 
-  const handleTogglePaid = async (id: number, currentPaid: boolean) => {
-    // await toggleExpensePaid(id, !currentPaid);
-    router.refresh();
-  };
-
   const exportCSV = () => {
     const headers = [
       "التاريخ",
       "البند",
       "مركز التكلفة",
-      "المبلغ",
+      "المبلغ (" + defaultCurrency.code + ")",
       "طريقة الدفع",
       "مدفوع",
       "المعلم",
@@ -139,8 +130,8 @@ export default function ExpensesTab({
       e.date,
       e.description,
       e.costCenter || "",
-      e.amount,
-      e.paymentMethod !== null ? paymentMethodLabels[e.paymentMethod] : "",
+      e.amountInDefault,
+      e.method !== null ? paymentMethodLabels[e.method] : "",
       e.paid ? "نعم" : "لا",
       e.tutorName || "",
       e.notes || "",
@@ -272,11 +263,14 @@ export default function ExpensesTab({
                         <Badge variant="outline">{e.costCenter || "-"}</Badge>
                       </TableCell>
                       <TableCell className="font-semibold">
-                        {formatCurrency(e.amount)}
+                        {formatCurrency(
+                          e.amountInDefault,
+                          defaultCurrency.code,
+                        )}
                       </TableCell>
                       <TableCell>
-                        {e.paymentMethod !== null
-                          ? paymentMethodLabels[e.paymentMethod]
+                        {e.method !== null
+                          ? paymentMethodLabels[e.method]
                           : "-"}
                       </TableCell>
                       <TableCell>
@@ -291,9 +285,9 @@ export default function ExpensesTab({
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {isLink(e.reference) ? (
+                        {isLink(e.invoiceUrl) ? (
                           <a
-                            href={e.reference!}
+                            href={e.invoiceUrl!}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-primary hover:underline inline-flex items-center gap-1"
@@ -301,7 +295,7 @@ export default function ExpensesTab({
                             <ExternalLink className="h-3.5 w-3.5" /> عرض
                           </a>
                         ) : (
-                          e.reference || "-"
+                          e.invoiceUrl || "-"
                         )}
                       </TableCell>
                       <TableCell>{e.tutorName || "-"}</TableCell>
@@ -322,7 +316,7 @@ export default function ExpensesTab({
                             >
                               <Pencil className="h-4 w-4" /> تعديل
                             </DropdownMenuItem>
-                            <DropdownMenuItem
+                            {/* <DropdownMenuItem
                               onClick={() => handleTogglePaid(e.id, e.paid)}
                               className="gap-2"
                             >
@@ -337,7 +331,7 @@ export default function ExpensesTab({
                                   كمدفوع
                                 </>
                               )}
-                            </DropdownMenuItem>
+                            </DropdownMenuItem> */}
                             <DropdownMenuItem
                               onClick={() => setDeleteId(e.id)}
                               className="gap-2 text-destructive"
@@ -360,7 +354,7 @@ export default function ExpensesTab({
         open={formOpen}
         onOpenChange={setFormOpen}
         editingExpense={editingExpense}
-        onSave={handleSave}
+        currencies={currencies}
         tutors={tutors}
         academyId={academyId}
       />

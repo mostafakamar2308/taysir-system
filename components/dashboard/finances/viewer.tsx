@@ -1,8 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LayoutDashboard, TrendingUp, Banknote, Users } from "lucide-react";
+import {
+  LayoutDashboard,
+  TrendingUp,
+  Banknote,
+  Users,
+  Calendar,
+} from "lucide-react";
 import FinancialDashboard from "@/components/dashboard/finances/financialDashboard";
 import RevenuesTab from "@/components/dashboard/finances/revenuesTab";
 import ExpensesTab from "@/components/dashboard/finances/expensesTab";
@@ -14,6 +20,14 @@ import {
   StudentOption,
   TutorOption,
 } from "@/types/finances";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface FinancesClientProps {
   initialPayments: PaymentRecord[];
@@ -22,7 +36,16 @@ interface FinancesClientProps {
   students: StudentOption[];
   tutors: TutorOption[];
   plans: PlanOption[];
+  currencies: {
+    id: number;
+    code: string;
+    name: string;
+    symbol: string;
+  }[];
+  defaultCurrency: { code: string; symbol: string; name: string };
 }
+
+type PeriodType = "all" | "year" | "month";
 
 export default function FinancesClient({
   initialPayments,
@@ -31,9 +54,56 @@ export default function FinancesClient({
   students,
   tutors,
   plans,
+  currencies,
+  defaultCurrency,
 }: FinancesClientProps) {
   const [payments, setPayments] = useState(initialPayments);
   const [expenses, setExpenses] = useState(initialExpenses);
+
+  // Period filter state
+  const [periodType, setPeriodType] = useState<PeriodType>("all");
+  const [selectedYear, setSelectedYear] = useState<number>(
+    new Date().getFullYear(),
+  );
+  const [selectedMonth, setSelectedMonth] = useState<number>(
+    new Date().getMonth() + 1,
+  );
+
+  // Helper: check if a date string (YYYY-MM-DD) falls within the selected period
+  const isInPeriod = (dateStr: string): boolean => {
+    const year = parseInt(dateStr.slice(0, 4));
+    const month = parseInt(dateStr.slice(5, 7));
+    if (periodType === "all") return true;
+    if (periodType === "year") return year === selectedYear;
+    if (periodType === "month")
+      return year === selectedYear && month === selectedMonth;
+    return false;
+  };
+
+  const filteredPayments = payments.filter((p) => isInPeriod(p.date));
+
+  const filteredExpenses = expenses.filter((e) => isInPeriod(e.date));
+
+  // Year options (last 5 years + current + next)
+  const yearOptions = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    return Array.from({ length: 7 }, (_, i) => currentYear - 3 + i);
+  }, []);
+
+  const monthOptions = [
+    { value: 1, label: "يناير" },
+    { value: 2, label: "فبراير" },
+    { value: 3, label: "مارس" },
+    { value: 4, label: "أبريل" },
+    { value: 5, label: "مايو" },
+    { value: 6, label: "يونيو" },
+    { value: 7, label: "يوليو" },
+    { value: 8, label: "أغسطس" },
+    { value: 9, label: "سبتمبر" },
+    { value: 10, label: "أكتوبر" },
+    { value: 11, label: "نوفمبر" },
+    { value: 12, label: "ديسمبر" },
+  ];
 
   return (
     <div className="p-4 md:p-6 space-y-6" dir="rtl">
@@ -42,6 +112,90 @@ export default function FinancesClient({
         <p className="text-sm text-muted-foreground">
           إدارة الإيرادات والمصروفات والرواتب
         </p>
+      </div>
+
+      {/* Period Filter */}
+      <div className="flex flex-wrap items-center gap-4 p-4 rounded-xl border border-border bg-card">
+        <div className="flex items-center gap-2">
+          <Calendar className="h-5 w-5 text-muted-foreground" />
+          <span className="text-sm font-medium">الفترة:</span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant={periodType === "all" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setPeriodType("all")}
+          >
+            كل الوقت
+          </Button>
+          <Button
+            variant={periodType === "year" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setPeriodType("year")}
+          >
+            سنة كاملة
+          </Button>
+          <Button
+            variant={periodType === "month" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setPeriodType("month")}
+          >
+            شهر محدد
+          </Button>
+        </div>
+
+        {periodType === "year" && (
+          <Select
+            value={selectedYear.toString()}
+            onValueChange={(v) => setSelectedYear(parseInt(v))}
+          >
+            <SelectTrigger className="w-32">
+              <SelectValue placeholder="السنة" />
+            </SelectTrigger>
+            <SelectContent>
+              {yearOptions.map((y) => (
+                <SelectItem key={y} value={y.toString()}>
+                  {y}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        {periodType === "month" && (
+          <>
+            <Select
+              value={selectedYear.toString()}
+              onValueChange={(v) => setSelectedYear(parseInt(v))}
+            >
+              <SelectTrigger className="w-32">
+                <SelectValue placeholder="السنة" />
+              </SelectTrigger>
+              <SelectContent>
+                {yearOptions.map((y) => (
+                  <SelectItem key={y} value={y.toString()}>
+                    {y}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={selectedMonth.toString()}
+              onValueChange={(v) => setSelectedMonth(parseInt(v))}
+            >
+              <SelectTrigger className="w-32">
+                <SelectValue placeholder="الشهر" />
+              </SelectTrigger>
+              <SelectContent>
+                {monthOptions.map((m) => (
+                  <SelectItem key={m.value} value={m.value.toString()}>
+                    {m.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </>
+        )}
       </div>
 
       <Tabs defaultValue="dashboard" className="space-y-4">
@@ -61,25 +215,33 @@ export default function FinancesClient({
         </TabsList>
 
         <TabsContent value="dashboard">
-          <FinancialDashboard payments={payments} expenses={expenses} />
+          <FinancialDashboard
+            defaultCurrency={defaultCurrency}
+            payments={filteredPayments}
+            expenses={filteredExpenses}
+          />
         </TabsContent>
 
         <TabsContent value="revenues">
           <RevenuesTab
-            payments={payments}
+            defaultCurrency={defaultCurrency}
+            payments={filteredPayments}
             setPayments={setPayments}
             students={students}
             plans={plans}
             academyId={academyId}
+            currencies={currencies}
           />
         </TabsContent>
 
         <TabsContent value="expenses">
           <ExpensesTab
-            expenses={expenses}
+            defaultCurrency={defaultCurrency}
+            expenses={filteredExpenses}
             setExpenses={setExpenses}
             tutors={tutors}
             academyId={academyId}
+            currencies={currencies}
           />
         </TabsContent>
 
