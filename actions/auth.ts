@@ -34,9 +34,13 @@ export async function login(formData: FormData) {
 
   // Determine academyId if applicable
   let academyId: number | undefined;
+  let tutorId: number | undefined;
   if (user.admin) academyId = user.admin.academyId;
   else if (user.supervisor) academyId = user.supervisor.academyId;
-  else if (user.tutor) academyId = user.tutor.academyId;
+  else if (user.tutor) {
+    academyId = user.tutor.academyId;
+    tutorId = user.tutor.id;
+  }
 
   const payload = {
     id: user.id,
@@ -44,20 +48,18 @@ export async function login(formData: FormData) {
     name: user.name || "",
     role: user.role,
     academyId,
+    tutorId,
   };
 
   const token = signToken(payload);
   await setTokenCookie(token);
 
   if (user.role === Role.SuperAdmin) {
-    // SuperAdmin
     redirect("/ar/dashboard/admin/academies");
   } else if (user.role === Role.Admin) {
-    // Admin (academy owner)
     redirect("/ar/dashboard");
   } else {
-    // Supervisor (2) or Tutor (3)
-    redirect("/ar/dashboard"); // but we'll show a different dashboard based on role
+    redirect("/ar/dashboard/tutor");
   }
 }
 

@@ -9,6 +9,7 @@ export interface TokenPayload {
   name: string;
   role: number;
   academyId?: number;
+  tutorId?: number;
 }
 
 export function signToken(payload: TokenPayload): string {

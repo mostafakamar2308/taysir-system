@@ -2,7 +2,9 @@ import Sidebar from "@/components/dashboard/common/sidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AuthProvider } from "@/lib/contexts/auth";
 
-const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const Layout: React.FC<{ children: React.ReactNode }> = async ({
+  children,
+}) => {
   return (
     <AuthProvider>
       <SidebarProvider>

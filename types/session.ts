@@ -34,4 +34,13 @@ export type DashboardSession = {
         reason: string | null;
       }
     | undefined;
+  report?: {
+    id: number;
+    rating: number | null;
+    outcomes: string | null;
+    strengths: string | null;
+    weaknesses: string | null;
+    nextGoals: string | null;
+    comments: string | null;
+  };
 };
