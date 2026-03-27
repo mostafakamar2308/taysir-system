@@ -8,12 +8,13 @@ import {
   Clock,
   LayoutDashboard,
   UserCog,
-  Cog,
   LogOut,
   Users,
   Shield,
-  ShieldCheck,
   Coins,
+  Calendar,
+  DollarSign,
+  User,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
@@ -47,29 +48,39 @@ import { useAuth } from "@/lib/contexts/auth";
 import { Role } from "@/types/user";
 
 const getSidebarGroups = (role: number) => {
-  // Base groups for all users
-  const groups = [
-    {
-      label: "الرئيسية",
-      items: [
-        { title: "لوحة التحكم", url: "/ar/dashboard", icon: LayoutDashboard },
-      ],
-    },
-  ];
-
+  // SuperAdmin
   if (role === Role.SuperAdmin) {
-    // SuperAdmin
-    groups.push({
-      label: "الإدارة",
-      items: [
-        { title: "الأكاديميات", url: "/admin/academies", icon: Shield },
-        { title: "المستخدمين", url: "/admin/users", icon: Users },
-        { title: "إعدادات المنصة", url: "/admin/settings", icon: Cog },
-      ],
-    });
-  } else {
-    // Academy admin, supervisor, tutor
-    groups.push(
+    return [
+      {
+        label: "الرئيسية",
+        items: [
+          {
+            title: "لوحة التحكم",
+            url: "/admin/dashboard",
+            icon: LayoutDashboard,
+          },
+        ],
+      },
+      {
+        label: "الإدارة",
+        items: [
+          { title: "الأكاديميات", url: "/admin/academies", icon: Shield },
+          { title: "المستخدمين", url: "/admin/users", icon: Users },
+          { title: "إعدادات المنصة", url: "/admin/settings", icon: UserCog },
+        ],
+      },
+    ];
+  }
+
+  // Academy Admin
+  if (role === Role.Admin) {
+    return [
+      {
+        label: "الرئيسية",
+        items: [
+          { title: "لوحة التحكم", url: "/ar/dashboard", icon: LayoutDashboard },
+        ],
+      },
       {
         label: "المستخدمين",
         items: [
@@ -90,6 +101,11 @@ const getSidebarGroups = (role: number) => {
             icon: TrendingUp,
           },
           { title: "الخطط", url: "/ar/dashboard/plans", icon: BookOpen },
+          {
+            title: "العملات وأسعار الصرف",
+            url: "/ar/dashboard/settings/currencies",
+            icon: Coins,
+          },
         ],
       },
       {
@@ -114,30 +130,89 @@ const getSidebarGroups = (role: number) => {
           {
             title: "إعدادات الأمان",
             url: "/ar/dashboard/settings/security",
-            icon: ShieldCheck,
+            icon: Shield,
+          },
+          {
+            title: "إدارة المستخدمين",
+            url: "/ar/dashboard/settings/users",
+            icon: Users,
           },
         ],
       },
-    );
-
-    if (role === Role.Admin) {
-      groups[groups.length - 1].items.push(
-        {
-          title: "إدارة المستخدمين",
-          url: "/ar/dashboard/settings/users",
-          icon: Users,
-        },
-        {
-          title: "العملات وأسعار الصرف",
-          url: "/ar/dashboard/settings/currencies",
-          icon: Coins,
-        },
-      );
-    }
+    ];
   }
 
-  return groups;
+  // Tutor
+  if (role === Role.Tutor) {
+    return [
+      {
+        label: "الرئيسية",
+        items: [
+          {
+            title: "لوحة التحكم",
+            url: "/ar/dashboard/tutor",
+            icon: LayoutDashboard,
+          },
+        ],
+      },
+      {
+        label: "الحصص",
+        items: [
+          {
+            title: "جدول الحصص",
+            url: "/ar/dashboard/tutor/sessions",
+            icon: Calendar,
+          },
+        ],
+      },
+      {
+        label: "الطلاب",
+        items: [
+          {
+            title: "طلابي",
+            url: "/ar/dashboard/tutor/students",
+            icon: GraduationCap,
+          },
+        ],
+      },
+      {
+        label: "المالية",
+        items: [
+          {
+            title: "أرباحي",
+            url: "/ar/dashboard/tutor/finances",
+            icon: DollarSign,
+          },
+        ],
+      },
+      {
+        label: "الإعدادات",
+        items: [
+          {
+            title: "ملفي الشخصي",
+            url: "/ar/dashboard/settings/personal",
+            icon: User,
+          },
+          {
+            title: "إعدادات الأمان",
+            url: "/ar/dashboard/settings/security",
+            icon: Shield,
+          },
+        ],
+      },
+    ];
+  }
+
+  return [
+    {
+      label: "الرئيسية",
+      items: [
+        { title: "لوحة التحكم", url: "/dashboard", icon: LayoutDashboard },
+      ],
+    },
+  ];
 };
+
 export default function Sidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
@@ -148,6 +223,14 @@ export default function Sidebar() {
   const sidebarGroups = user ? getSidebarGroups(user.role) : [];
 
   if (!user) return null;
+
+  // Role-specific labels for the header
+  const getRoleLabel = () => {
+    if (user.role === Role.SuperAdmin) return "الإدارة العامة";
+    if (user.role === Role.Admin) return "إدارة الأكاديمية";
+    if (user.role === Role.Tutor) return "منصة المعلمين";
+    return "نظام التيسير";
+  };
 
   return (
     <BaseSidebar className="w-60 bg-white" collapsible="icon" side="right">
@@ -162,7 +245,7 @@ export default function Sidebar() {
                 نظام التيسير
               </span>
               <span className="text-xs text-muted-foreground">
-                {user.role === 0 ? "الإدارة العامة" : "إدارة الأكاديميات"}
+                {getRoleLabel()}
               </span>
             </div>
           )}
@@ -228,13 +311,15 @@ export default function Sidebar() {
                       {user.name}
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      {user.role === 0
+                      {user.role === Role.SuperAdmin
                         ? "مدير عام"
-                        : user.role === 1
+                        : user.role === Role.Admin
                           ? "مدير أكاديمية"
-                          : user.role === 2
-                            ? "مشرف"
-                            : "معلم"}
+                          : user.role === Role.Tutor
+                            ? "معلم"
+                            : user.role === Role.Supervisor
+                              ? "مشرف"
+                              : "مستخدم"}
                     </span>
                   </div>
                   <ChevronsUpDown className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -250,9 +335,15 @@ export default function Sidebar() {
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="gap-2 cursor-pointer"
-              onClick={() =>
-                (window.location.href = "/ar/dashboard/settings/personal")
-              }
+              onClick={() => {
+                if (user.role === Role.SuperAdmin) {
+                  window.location.href = "/admin/settings/profile";
+                } else if (user.role === Role.Admin) {
+                  window.location.href = "/ar/dashboard/settings/personal";
+                } else {
+                  window.location.href = "/tutor/profile";
+                }
+              }}
             >
               <UserCog className="h-4 w-4" />
               <span>إعدادات الحساب</span>
