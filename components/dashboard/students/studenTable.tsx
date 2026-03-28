@@ -13,6 +13,7 @@ import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { SortDir, SortField } from "@/types/lib";
 import { DashboardStudent, StudentStatus } from "@/types/student";
 import { QuickActionsMenu } from "./quickActionsMenu";
+import Link from "next/link";
 
 interface StudentTableProps {
   students: DashboardStudent[];
@@ -117,13 +118,6 @@ export function StudentTable({
             {/* <TableHead className="text-right">البرنامج</TableHead> */}
             <TableHead className="text-right">الخطة</TableHead>
             <TableHead className="text-right">المعلم</TableHead>
-            <SortableHead
-              onSort={onSort}
-              sortDir={sortDir}
-              sortField={sortField}
-              field="renewalDate"
-              label="التجديد"
-            />
             <TableHead className="text-right w-10">إجراءات</TableHead>
           </TableRow>
         </TableHeader>
@@ -139,7 +133,14 @@ export function StudentTable({
                   onCheckedChange={() => onSelect(String(s.id))}
                 />
               </TableCell>
-              <TableCell className="font-medium">{s.name}</TableCell>
+              <TableCell className="font-medium">
+                <Link
+                  href={`/ar/dashboard/students/${s.id}`}
+                  className="hover:underline hover:bg-primary"
+                >
+                  {s.name}
+                </Link>
+              </TableCell>
               <TableCell>{s.age}</TableCell>
               <TableCell>{s.country}</TableCell>
               <TableCell>
@@ -152,9 +153,6 @@ export function StudentTable({
               {/* <TableCell>{s.currentProgram}</TableCell> */}
               <TableCell>{s.plan}</TableCell>
               <TableCell>{s.tutorName}</TableCell>
-              <TableCell className="text-muted-foreground text-xs">
-                {s.renewalDate?.toLocaleDateString() || "-"}
-              </TableCell>
               <TableCell>
                 <QuickActionsMenu
                   tutors={tutors}

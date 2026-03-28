@@ -25,7 +25,6 @@ export default async function TutorDashboardPage() {
 
   if (!tutor) redirect("/login");
   const tutorId = tutor.id;
-  console.log(tutor.id);
 
   const now = dayjs.utc();
   const todayStart = now.startOf("day").toDate();
@@ -69,7 +68,6 @@ export default async function TutorDashboardPage() {
   const monthSessions = sessions.filter(
     (s) => s.startTime >= startOfMonth && s.startTime <= endOfMonth,
   );
-  console.log({ monthSessions });
 
   const totalSessionsThisMonth = monthSessions.length;
   const expectedEarnings =

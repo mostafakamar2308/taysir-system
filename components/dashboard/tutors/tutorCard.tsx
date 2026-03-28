@@ -5,6 +5,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Phone, Mail, Clock, BookOpen, DollarSign, Globe } from "lucide-react";
 import { DashboardTutor } from "@/types/tutor";
 import { QuickActionsMenu } from "@/components/dashboard/tutors/quickActionsMenu";
+import Link from "next/link";
 
 interface TutorCardProps {
   tutor: DashboardTutor;
@@ -50,7 +51,11 @@ export default function TutorCard({
               </span>
             </div>
             <div>
-              <h3 className="font-semibold text-foreground">{tutor.name}</h3>
+              <Link href={`/ar/dashboard/tutors/${tutor.id}`}>
+                <h3 className="font-semibold text-foreground hover:text-primary hover:underline">
+                  {tutor.name}
+                </h3>
+              </Link>
               <p className="text-xs text-muted-foreground">
                 {tutor.specialities.join(" · ") || "بدون تخصص"}
               </p>

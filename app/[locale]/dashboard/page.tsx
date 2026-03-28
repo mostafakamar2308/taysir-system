@@ -26,6 +26,35 @@ export default async function DashboardPage() {
   const startOfLastMonth = startOfMonth.subtract(1, "month");
   const endOfLastMonth = endOfMonth.subtract(1, "month");
 
+  const academy = await db.academy.findUnique({
+    where: { id: academyId },
+    include: { defaultCurrency: true },
+  });
+  if (!academy || !academy.defaultCurrency) {
+    throw new Error("Academy default currency not set");
+  }
+  const defaultCurrencyId = academy.defaultCurrencyId!;
+  const defaultCurrencyCode = academy.defaultCurrency.code;
+
+  // Get conversion rates for this academy
+  const rates = await db.academyCurrencyRate.findMany({
+    where: { academyId },
+  });
+  const rateMap = new Map<number, number>();
+  rates.forEach((r) => rateMap.set(r.currencyId, r.rate));
+
+  const convertToDefault = (amount: number, currencyId: number) => {
+    if (currencyId === defaultCurrencyId) return amount;
+    const rate = rateMap.get(currencyId);
+    if (!rate) {
+      console.warn(
+        `No conversion rate for currency ${currencyId}, using amount as is`,
+      );
+      return amount;
+    }
+    return amount * rate;
+  };
+
   const [
     totalStudents,
     totalStudentsPrev,
@@ -41,10 +70,6 @@ export default async function DashboardPage() {
     activeTutorsPrev,
     totalSupervisors,
     supervisorsPrev,
-    revenueThisMonth,
-    revenuePrevMonth,
-    expenseThisMonth,
-    expensePrevMonth,
   ] = await Promise.all([
     db.student.count({ where: { academyId } }),
     db.student.count({
@@ -103,38 +128,6 @@ export default async function DashboardPage() {
     db.supervisor.count({
       where: { academyId, createdAt: { lt: startOfMonth.toDate() } },
     }),
-    db.revenue.aggregate({
-      where: {
-        student: { academyId },
-        date: { gte: startOfMonth.toDate(), lte: endOfMonth.toDate() },
-        status: PaymentStatus.PAID,
-      },
-      _sum: { amount: true },
-    }),
-    db.revenue.aggregate({
-      where: {
-        student: { academyId },
-        date: { gte: startOfLastMonth.toDate(), lte: endOfLastMonth.toDate() },
-        status: PaymentStatus.PAID,
-      },
-      _sum: { amount: true },
-    }),
-    db.expense.aggregate({
-      where: {
-        academyId,
-        date: { gte: startOfMonth.toDate(), lte: endOfMonth.toDate() },
-        status: PaymentStatus.PAID,
-      },
-      _sum: { amount: true },
-    }),
-    db.expense.aggregate({
-      where: {
-        academyId,
-        date: { gte: startOfLastMonth.toDate(), lte: endOfLastMonth.toDate() },
-        status: PaymentStatus.PAID,
-      },
-      _sum: { amount: true },
-    }),
   ]);
 
   const thirtyDaysAgo = now.subtract(30, "day");
@@ -163,6 +156,59 @@ export default async function DashboardPage() {
   `;
     return Number(result[0]?.count ?? 0);
   }
+
+  const revenuesThisMonth = await db.revenue.findMany({
+    where: {
+      student: { academyId },
+      date: { gte: startOfMonth.toDate(), lte: endOfMonth.toDate() },
+      status: PaymentStatus.PAID,
+    },
+    select: { amount: true, currencyId: true },
+  });
+  const revenueThisMonth = revenuesThisMonth.reduce(
+    (sum, r) => sum + convertToDefault(r.amount, r.currencyId),
+    0,
+  );
+
+  const revenuesPrevMonth = await db.revenue.findMany({
+    where: {
+      student: { academyId },
+      date: { gte: startOfLastMonth.toDate(), lte: endOfLastMonth.toDate() },
+      status: PaymentStatus.PAID,
+    },
+    select: { amount: true, currencyId: true },
+  });
+  const revenuePrevMonth = revenuesPrevMonth.reduce(
+    (sum, r) => sum + convertToDefault(r.amount, r.currencyId),
+    0,
+  );
+
+  // Expenses (convert to default currency)
+  const expensesThisMonth = await db.expense.findMany({
+    where: {
+      academyId,
+      date: { gte: startOfMonth.toDate(), lte: endOfMonth.toDate() },
+      status: PaymentStatus.PAID,
+    },
+    select: { amount: true, currencyId: true },
+  });
+  const expenseThisMonth = expensesThisMonth.reduce(
+    (sum, e) => sum + convertToDefault(e.amount, e.currencyId),
+    0,
+  );
+
+  const expensesPrevMonth = await db.expense.findMany({
+    where: {
+      academyId,
+      date: { gte: startOfLastMonth.toDate(), lte: endOfLastMonth.toDate() },
+      status: PaymentStatus.PAID,
+    },
+    select: { amount: true, currencyId: true },
+  });
+  const expensePrevMonth = expensesPrevMonth.reduce(
+    (sum, e) => sum + convertToDefault(e.amount, e.currencyId),
+    0,
+  );
 
   // Helper to count trials active in period
   async function countTrialsActiveInPeriod(
@@ -409,18 +455,12 @@ export default async function DashboardPage() {
       change: calcPercentChange(totalSupervisors, supervisorsPrev),
     },
     revenueThisMonth: {
-      value: revenueThisMonth._sum.amount || 0,
-      change: calcPercentChange(
-        revenueThisMonth._sum.amount || 0,
-        revenuePrevMonth._sum.amount || 0,
-      ),
+      value: revenueThisMonth,
+      change: calcPercentChange(revenueThisMonth, revenuePrevMonth),
     },
     expenseThisMonth: {
-      value: expenseThisMonth._sum.amount || 0,
-      change: calcPercentChange(
-        expenseThisMonth._sum.amount || 0,
-        expensePrevMonth._sum.amount || 0,
-      ),
+      value: expenseThisMonth,
+      change: calcPercentChange(expenseThisMonth, expensePrevMonth),
     },
     leadToTrialRate: {
       value: leadToTrialRate,
@@ -472,6 +512,11 @@ export default async function DashboardPage() {
       tutors={tutors.map((t) => ({ id: t.id, name: t.user.name }))}
       students={allStudents.map((t) => ({ id: t.id, name: t.name }))}
       specialities={specialities.map((s) => ({ id: s.id, title: s.title }))}
+      defaultCurrency={{
+        code: defaultCurrencyCode,
+        symbol: academy.defaultCurrency.symbol,
+        name: academy.defaultCurrency.name,
+      }}
     />
   );
 }

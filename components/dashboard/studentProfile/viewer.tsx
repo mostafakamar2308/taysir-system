@@ -37,13 +37,21 @@ interface StudentProfileClientProps {
   currencies: Currency[];
   tutors: { id: number; name: string | null }[];
   academyId: number;
+  defaultCurrency: {
+    code: string;
+    symbol: string;
+    name: string;
+  };
+  currencyRates: Record<string, number>;
 }
 
 export default function StudentProfileClient({
   student,
   plans,
   currencies,
+  defaultCurrency,
   tutors,
+  currencyRates,
 }: StudentProfileClientProps) {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("overview");
@@ -142,7 +150,9 @@ export default function StudentProfileClient({
                       تاريخ انتهاء الاشتراك:{" "}
                     </span>
                     <span className="font-medium">
-                      {activeSubscription.endDate ||
+                      {dayjs(activeSubscription.endDate).format(
+                        "dddd YYYY-MM-DD",
+                      ) ||
                         dayjs(activeSubscription.startDate)
                           .add(30, "d")
                           .format("dddd YYYY-MM-DD")}
@@ -231,7 +241,9 @@ export default function StudentProfileClient({
           <BillingTab
             subscriptions={student.subscriptions}
             student={student}
+            defaultCurrency={defaultCurrency}
             plans={plans}
+            currencyRates={currencyRates}
           />
         </TabsContent>
       </Tabs>

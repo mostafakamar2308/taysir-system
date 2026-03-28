@@ -14,6 +14,7 @@ import { DashboardTutor } from "@/types/tutor";
 import { QuickActionsMenu } from "@/components/dashboard/tutors/quickActionsMenu";
 import { SortField, SortDir } from "@/types/lib";
 import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import Link from "next/link";
 
 interface TutorTableProps {
   tutors: DashboardTutor[];
@@ -135,7 +136,14 @@ export default function TutorTable({
                     onCheckedChange={() => onSelect(String(tutor.id))}
                   />
                 </TableCell>
-                <TableCell className="font-medium">{tutor.name}</TableCell>
+                <TableCell className="font-medium">
+                  <Link
+                    href={`/ar/dashboard/tutors/${tutor.id}`}
+                    className="hover:text-primary hover:underline"
+                  >
+                    {tutor.name}
+                  </Link>
+                </TableCell>
                 <TableCell>
                   <Badge className={statusColors[statusKey]}>
                     {statusLabels[statusKey]}

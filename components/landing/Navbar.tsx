@@ -89,6 +89,12 @@ const Navbar = () => {
               </Link>
             )} */}
 
+            <Link href="/login" className="hidden sm:block">
+              <Button size="sm" variant={"outline"}>
+                {t("nav.login")}
+              </Button>
+            </Link>
+
             <Link href="/register" className="hidden sm:block">
               <Button
                 size="sm"

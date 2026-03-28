@@ -346,7 +346,9 @@ function SessionItem({ session }: { session: SessionData }) {
           </Badge>
         )}
         <Button variant="ghost" size="sm" asChild>
-          <Link href={`/tutor/sessions/${session.id}`}>عرض</Link>
+          <Link href={`/ar/dashboard/tutor/sessions?sessionId=${session.id}`}>
+            عرض
+          </Link>
         </Button>
       </div>
     </div>

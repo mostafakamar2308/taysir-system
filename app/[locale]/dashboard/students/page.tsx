@@ -46,8 +46,6 @@ export default async function StudentsPage({
     country: student.country || "",
     timezone: student.timezone,
     status: student.status,
-    startDate: student.startDate,
-    renewalDate: student.renewalDate,
     currentProgram: student.currentProgram || undefined,
     tutorName: student.tutor?.user?.name || "غير معين",
     tutorId: student.tutor?.id,

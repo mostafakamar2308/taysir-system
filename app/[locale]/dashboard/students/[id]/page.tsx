@@ -13,7 +13,15 @@ export default async function StudentProfilePage({
 }) {
   const currentUser = await user();
   if (!currentUser) redirect("/login");
-
+  const academy = await db.academy.findUnique({
+    where: {
+      id: currentUser.academyId,
+    },
+    include: {
+      defaultCurrency: true,
+    },
+  });
+  if (!academy) redirect("/login");
   const id = parseInt((await params).id);
   if (isNaN(id)) notFound();
 
@@ -190,12 +198,27 @@ export default async function StudentProfilePage({
   });
   const currencies = await db.currency.findMany({});
 
+  const currencyRates = await db.academyCurrencyRate.findMany({
+    where: {
+      academyId: academy.id,
+    },
+    include: {
+      currency: true,
+    },
+  });
+
+  const rateMap = Object.fromEntries(
+    currencyRates.map((r) => [r.currency.code, r.rate]),
+  );
+
   return (
     <StudentProfileClient
       tutors={tutors.map((t) => ({ id: t.id, name: t.user.name }))}
       currencies={currencies}
       plans={plans}
+      defaultCurrency={academy.defaultCurrency!}
       student={transformed}
+      currencyRates={rateMap}
       academyId={currentUser.academyId!}
     />
   );

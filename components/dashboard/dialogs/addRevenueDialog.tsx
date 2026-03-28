@@ -111,6 +111,9 @@ export function AddRevenueDialog({
                 onChange={(e) => handleChange("amount", e.target.value)}
                 placeholder="0"
               />
+              <div className="text-xs font-light -mt-1 pointer-events-none">
+                سيتم احتساب المبلغ بعملة الطالب
+              </div>
             </div>
           </div>
 

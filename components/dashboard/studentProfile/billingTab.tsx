@@ -19,6 +19,7 @@ import {
   TrendingUp,
   TrendingDown,
   Calendar,
+  CurrencyIcon,
 } from "lucide-react";
 import { StudentProfile } from "@/types/studentProfile";
 import { PaymentMethod, PaymentStatus } from "@/types/payment";
@@ -43,7 +44,6 @@ interface SubscriptionDisplay {
   startDate: string;
   endDate: string | null;
   status: number;
-  autoRenew: boolean;
   payments: { id: number; amount: number; date: string; status: number }[];
 }
 
@@ -57,6 +57,8 @@ interface BillingTabProps {
     billingPeriod: number;
   }[];
   subscriptions: SubscriptionDisplay[];
+  defaultCurrency: { code: string; symbol: string; name: string };
+  currencyRates: Record<string, number>;
 }
 
 const subscriptionStatusLabels: Record<number, string> = {
@@ -77,9 +79,9 @@ export default function BillingTab({
   student,
   plans,
   subscriptions,
+  defaultCurrency,
+  currencyRates,
 }: BillingTabProps) {
-  console.log({ student, plans, subscriptions });
-
   const [changePlanOpen, setChangePlanOpen] = useState(false);
   const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [resolveDialog, setResolveDialog] = useState<{
@@ -91,23 +93,43 @@ export default function BillingTab({
       invoiceUrl: string | null;
     } | null;
   }>({ open: false, payment: null });
+  const [useDefaultCurrency, setUseDefaultCurrency] = useState(false); // toggle
 
   const activeSubscription = subscriptions.find(
     (s) => s.status === SubscriptionStatus.active,
   );
+
+  // Helper to convert amount
+  const convertAmount = (amount: number, currencyCode: string): number => {
+    if (!useDefaultCurrency) return amount;
+    if (currencyCode === defaultCurrency.code) return amount;
+    const rate = currencyRates[currencyCode];
+    if (!rate) return amount; // fallback
+    return amount * rate;
+  };
+
+  // Helper to format with appropriate currency
+  const formatAmount = (amount: number, currencyCode: string): string => {
+    const value = convertAmount(amount, currencyCode);
+    const symbol = useDefaultCurrency ? defaultCurrency.symbol : currencyCode;
+    return `${value.toLocaleString("ar-EG")} ${symbol}`;
+  };
+
   const totalEarned = student.payments
     .filter((p) => p.status === PaymentStatus.PAID)
-    .reduce((sum, p) => sum + p.amount, 0);
+    .reduce((sum, p) => sum + convertAmount(p.amount, p.currency), 0);
 
   const pendingPayments = student.payments.filter(
     (p) => p.status === PaymentStatus.PENDING,
   );
-  const totalPending = pendingPayments.reduce((sum, p) => sum + p.amount, 0);
+  const totalPending = pendingPayments.reduce(
+    (sum, p) => sum + convertAmount(p.amount, p.currency),
+    0,
+  );
 
-  // Calculate next payment due date
+  // Next payment due (still in original currency)
   let nextPaymentDue: string | null = null;
   if (activeSubscription) {
-    // Use endDate if present, otherwise calculate from startDate + billingPeriod
     if (activeSubscription.endDate) {
       nextPaymentDue = activeSubscription.endDate;
     } else {
@@ -119,20 +141,17 @@ export default function BillingTab({
     }
   }
 
-  // Payments this month
   const now = dayjs();
   const paymentsThisMonth = student.payments.filter(
     (p) =>
       dayjs(p.date).isSame(now, "month") && p.status === PaymentStatus.PAID,
   );
   const totalPaidThisMonth = paymentsThisMonth.reduce(
-    (sum, p) => sum + p.amount,
+    (sum, p) => sum + convertAmount(p.amount, p.currency),
     0,
   );
 
   const formatDate = (d: string) => dayjs(d).locale("ar").format("D MMMM YYYY");
-  const formatCurrency = (amount: number, currency: string) =>
-    `${amount.toLocaleString("ar-EG")} ${currency}`;
 
   const subscriptionOptions = subscriptions.map((sub) => ({
     id: sub.id,
@@ -145,7 +164,22 @@ export default function BillingTab({
       {/* Financial Overview Card */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">ملخص مالي</CardTitle>
+          <CardTitle className="text-base flex justify-between items-center">
+            <div className="flex justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setUseDefaultCurrency(!useDefaultCurrency)}
+                className="gap-2"
+              >
+                <CurrencyIcon className="h-4 w-4" />
+                {useDefaultCurrency
+                  ? `عرض بالعملة الأصلية (${defaultCurrency.code})`
+                  : `عرض بالعملة الافتراضية (${defaultCurrency.code})`}
+              </Button>
+            </div>
+            ملخص مالي
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -158,7 +192,7 @@ export default function BillingTab({
                   إجمالي الإيرادات
                 </p>
                 <p className="text-lg font-bold">
-                  {formatCurrency(totalEarned, student.plan?.currency || "ر.س")}
+                  {formatAmount(totalEarned, defaultCurrency.code)}
                 </p>
               </div>
             </div>
@@ -169,10 +203,7 @@ export default function BillingTab({
               <div>
                 <p className="text-sm text-muted-foreground">مبالغ مستحقة</p>
                 <p className="text-lg font-bold text-amber-600">
-                  {formatCurrency(
-                    totalPending,
-                    student.plan?.currency || "ر.س",
-                  )}
+                  {formatAmount(totalPending, defaultCurrency.code)}
                 </p>
               </div>
             </div>
@@ -196,10 +227,7 @@ export default function BillingTab({
                   مدفوعات هذا الشهر
                 </p>
                 <p className="text-lg font-bold">
-                  {formatCurrency(
-                    totalPaidThisMonth,
-                    student.plan?.currency || "ر.س",
-                  )}
+                  {formatAmount(totalPaidThisMonth, defaultCurrency.code)}
                 </p>
               </div>
             </div>
@@ -238,7 +266,7 @@ export default function BillingTab({
                 <div>
                   <p className="text-sm text-muted-foreground">السعر</p>
                   <p className="font-bold text-lg">
-                    {formatCurrency(
+                    {formatAmount(
                       activeSubscription.planPrice,
                       activeSubscription.planCurrency,
                     )}
@@ -273,12 +301,6 @@ export default function BillingTab({
                     </span>
                   </div>
                 )}
-                <div>
-                  <span className="text-muted-foreground">تجديد تلقائي: </span>
-                  <span className="font-medium">
-                    {activeSubscription.autoRenew ? "نعم" : "لا"}
-                  </span>
-                </div>
               </div>
             </div>
           ) : (
@@ -303,11 +325,8 @@ export default function BillingTab({
                   مبالغ مستحقة
                 </p>
                 <p className="text-sm text-amber-700 dark:text-amber-400">
-                  {formatCurrency(
-                    totalPending,
-                    activeSubscription?.planCurrency || "",
-                  )}{" "}
-                  بانتظار الدفع
+                  {formatAmount(totalPending, defaultCurrency.code)} بانتظار
+                  الدفع
                 </p>
               </div>
             </div>
@@ -374,7 +393,7 @@ export default function BillingTab({
                         </TableCell>
                         <TableCell>{p.description || "—"}</TableCell>
                         <TableCell className="font-medium">
-                          {formatCurrency(p.amount, p.currency)}
+                          {formatAmount(p.amount, p.currency)}
                         </TableCell>
                         <TableCell>{paymentMethodLabel}</TableCell>
                         <TableCell>
@@ -467,7 +486,9 @@ export default function BillingTab({
                                 className="flex items-center gap-2 text-xs"
                               >
                                 <span>{formatDate(p.date)}</span>
-                                <span className="font-mono">{p.amount}</span>
+                                <span className="font-mono">
+                                  {formatAmount(p.amount, sub.planCurrency)}
+                                </span>
                                 <Badge
                                   className={
                                     paymentStatusColors[

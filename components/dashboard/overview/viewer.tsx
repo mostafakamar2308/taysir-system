@@ -27,6 +27,11 @@ interface DashboardClientProps {
   plans: { id: number; title: string }[];
   currencies: { id: number; name: string }[];
   specialities: { id: number; title: string }[];
+  defaultCurrency: {
+    code: string;
+    symbol: string;
+    name: string;
+  };
   stats: {
     totalStudents: StatItem;
     subscribedStudents: StatItem;
@@ -235,12 +240,12 @@ export default function DashboardClient(props: DashboardClientProps) {
         <div className="grid grid-cols-2 gap-4">
           <StatCard
             label="إيرادات هذا الشهر"
-            value={`${props.stats.revenueThisMonth.value} ر.س`}
+            value={`${props.stats.revenueThisMonth.value} ${props.defaultCurrency.name}`}
             change={props.stats.revenueThisMonth.change}
           />
           <StatCard
             label="مصروفات هذا الشهر"
-            value={`${props.stats.expenseThisMonth.value} ر.س`}
+            value={`${props.stats.expenseThisMonth.value} ${props.defaultCurrency.name}`}
             change={props.stats.expenseThisMonth.change}
           />
         </div>

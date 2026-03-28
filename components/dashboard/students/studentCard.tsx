@@ -5,6 +5,7 @@ import { DashboardStudent, StudentStatus } from "@/types/student";
 import { Phone, Mail, Clock, BookOpen, Book, AppWindow } from "lucide-react";
 import { QuickActionsMenu } from "./quickActionsMenu";
 import { Currency } from "@/generated/prisma/client";
+import Link from "next/link";
 
 type StudentCardProps = {
   student: DashboardStudent;
@@ -48,7 +49,11 @@ const StudentCard = ({
               </span>
             </div>
             <div>
-              <h3 className="font-semibold text-foreground">{student.name}</h3>
+              <Link href={`/ar/dashboard/students/${student.id}`}>
+                <h3 className="font-semibold hover:underline text-foreground hover:text-primary">
+                  {student.name}
+                </h3>
+              </Link>
               <p className="text-xs text-muted-foreground">{student.country}</p>
             </div>
           </div>

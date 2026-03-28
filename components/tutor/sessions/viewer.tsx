@@ -21,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Calendar, List, Search, CalendarDays } from "lucide-react";
+import { Calendar, List, Search, ArrowRight, ArrowLeft } from "lucide-react";
 import { formatDate, formatTime } from "@/lib/dates";
 import { sessionStatusLabels, sessionStatusColors } from "@/const/sessions";
 import {
@@ -64,7 +64,6 @@ export default function SessionsClient({
   );
   const [detailOpen, setDetailOpen] = useState(false);
 
-  // Open session from URL param
   if (sessionIdParam && !detailSession) {
     const session = initialSessions.find((s) => s.id === sessionIdParam);
     if (session) {
@@ -198,9 +197,9 @@ export default function SessionsClient({
             <Button
               variant="outline"
               size="icon"
-              onClick={() => navigateWeek(1)}
+              onClick={() => navigateWeek(-1)}
             >
-              <CalendarDays className="h-4 w-4 rotate-180" />
+              <ArrowRight className="h-4 w-4" />
             </Button>
             <Button variant="outline" size="sm" onClick={goToday}>
               اليوم
@@ -208,21 +207,21 @@ export default function SessionsClient({
             <Button
               variant="outline"
               size="icon"
-              onClick={() => navigateWeek(-1)}
+              onClick={() => navigateWeek(1)}
             >
-              <CalendarDays className="h-4 w-4" />
+              <ArrowLeft className="h-4 w-4" />
             </Button>
-            <span className="text-sm font-semibold">
+            <div className="text-sm font-semibold">
               {dayjs(weekDates[0]).format("D MMMM")} –{" "}
               {dayjs(weekDates[6]).format("D MMMM YYYY")}
-            </span>
+            </div>
           </div>
           <WeekView
             weekDates={weekDates}
             sessions={initialSessions}
-            onSlotClick={() => {}} // Not needed for tutor
+            onSlotClick={() => {}}
             onSessionClick={handleSessionClick}
-            onMarkAttendance={() => {}} // We'll handle via detail panel
+            onMarkAttendance={() => {}}
           />
         </div>
       )}
@@ -337,14 +336,14 @@ export default function SessionsClient({
       )}
 
       {/* Session Detail Panel */}
-      {detailSession && (
+      {detailSession ? (
         <SessionDetailPanel
           session={detailSession}
           open={detailOpen}
           onOpenChange={setDetailOpen}
           onUpdate={handleUpdate}
         />
-      )}
+      ) : null}
     </div>
   );
 }

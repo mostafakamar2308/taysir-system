@@ -25,7 +25,6 @@ export default async function TutorSessionsPage({
 
   const { view = "calendar", week, filter, sessionId } = await searchParams;
 
-  // Determine week start date for calendar view
   let startDate: Date;
   if (week) {
     startDate = dayjs(week).startOf("week").toDate();

@@ -21,7 +21,7 @@ const demoCredentials = [
     password: "password123",
     role: "مدير أكاديمية",
   },
-  { email: "tutor1_1@example.com", password: "password123", role: "معلم" },
+  { email: "akram@gmail.com", password: "default123", role: "معلم" },
 ];
 
 export default function LoginPage() {

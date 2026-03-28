@@ -23,8 +23,15 @@ import { ChevronDown, ChevronUp, FileText } from "lucide-react";
 import { StudentProfile, SessionRecord } from "@/types/studentProfile";
 import { AttendanceSummary } from "@/components/dashboard/studentProfile/attendanceSummary";
 import { attendanceStatusColors, attendanceStatusLabels } from "@/lib/enums";
-import { AttendanceStatus } from "@/types/session";
+import { AttendanceStatus, SessionStatus } from "@/types/session";
 import { cn } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface AttendanceProgressTabProps {
   student: StudentProfile;
@@ -106,6 +113,16 @@ export default function AttendanceProgressTab({
     new Set(),
   );
 
+  const [sessionStatus, setSessionStatus] = useState<SessionStatus | null>(
+    null,
+  );
+
+  const filteredSessions = sessionStatus
+    ? student.sessions.filter(
+        (s) => s.status.toString() === sessionStatus.toString(),
+      )
+    : student.sessions;
+
   const toggleExpand = (sessionId: number) => {
     setExpandedSessions((prev) => {
       const next = new Set(prev);
@@ -140,7 +157,27 @@ export default function AttendanceProgressTab({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">سجل الحصص مع التقارير</CardTitle>
+          <CardTitle className="text-lg flex justify-between">
+            <Select
+              value={sessionStatus?.toString() || "all"}
+              onValueChange={(val: string) =>
+                val === "all"
+                  ? setSessionStatus(null)
+                  : setSessionStatus(Number(val))
+              }
+            >
+              <SelectTrigger className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">جميع الحالات</SelectItem>
+                <SelectItem value="0">مجدولة</SelectItem>
+                <SelectItem value="1">مكتملة</SelectItem>
+                <SelectItem value="2">ملغاة</SelectItem>
+              </SelectContent>
+            </Select>
+            سجل الحصص مع التقارير
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-auto">
@@ -156,7 +193,7 @@ export default function AttendanceProgressTab({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {student.sessions.map((s) => {
+                {filteredSessions.map((s) => {
                   const isExpanded = expandedSessions.has(s.id);
                   return (
                     <Fragment key={s.id}>
