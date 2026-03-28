@@ -38,7 +38,7 @@ interface SessionDetailPanelProps {
   session: DashboardSession;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onUpdate?: () => void;
+  onUpdate: () => void;
 }
 
 export default function SessionDetailPanel({
@@ -82,7 +82,7 @@ export default function SessionDetailPanel({
       });
       toast({ title: "تم تحديث الحصة" });
       setEditMode(false);
-      onUpdate?.();
+      onUpdate();
       router.refresh();
     } catch (error) {
       if (error instanceof Error)

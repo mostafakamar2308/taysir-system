@@ -119,6 +119,8 @@ export default function SessionsClient({
 
   const handleUpdate = () => {
     router.refresh();
+    setDetailOpen(false);
+    setDetailSession(null);
   };
 
   return (

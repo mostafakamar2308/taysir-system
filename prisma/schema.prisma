@@ -201,7 +201,6 @@ model Session {
   startTime       DateTime
   endTime         DateTime
   durationMinutes Int      @default(60)
-  status          Int      @default(0)
   topic           String?
   notes           String?
   isTrial         Boolean  @default(false)

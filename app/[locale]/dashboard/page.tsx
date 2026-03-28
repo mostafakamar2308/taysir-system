@@ -3,7 +3,7 @@ import { user } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import dayjs from "@/lib/dayjs";
 import { StudentStatus } from "@/types/student";
-import { SessionStatus, AttendanceStatus } from "@/types/session";
+import { AttendanceStatus } from "@/types/session";
 import { PaymentStatus } from "@/types/payment";
 import { SubscriptionStatus } from "@/types/subscription";
 import { HistoryActionType, TargetType } from "@/types/history";
@@ -306,7 +306,7 @@ export default async function DashboardPage() {
     where: { academyId, status: StudentStatus.subscribed },
     include: {
       sessions: {
-        where: { status: SessionStatus.COMPLETED },
+        where: { startTime: { lte: dayjs().toDate() } },
         include: { attendance: true },
         orderBy: { startTime: "desc" },
         take: 1,

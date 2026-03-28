@@ -76,7 +76,7 @@ export function SessionDetailPanel({
   const endDate = new Date(session.endTime);
 
   const handleAttendanceSave = async () => {
-    if (!studentAttendanceStatus) return;
+    if (studentAttendanceStatus === "") return;
     setIsSubmitting(true);
     try {
       await updateAttendance(
@@ -182,7 +182,7 @@ export function SessionDetailPanel({
                   <Label className="font-semibold">تسجيل الحضور</Label>
                 </div>
 
-                {session.attendance && (
+                {session.attendance?.studentAttendance ? (
                   <Badge
                     className={
                       attendanceStatusColors[
@@ -198,7 +198,7 @@ export function SessionDetailPanel({
                     {session.attendance.reason &&
                       ` – ${session.attendance.reason}`}
                   </Badge>
-                )}
+                ) : null}
 
                 <Select
                   value={String(studentAttendanceStatus)}
@@ -220,18 +220,20 @@ export function SessionDetailPanel({
                   </SelectContent>
                 </Select>
 
-                {(studentAttendanceStatus === AttendanceStatus.ABSENT_EXCUSED ||
-                  studentAttendanceStatus ===
-                    AttendanceStatus.ABSENT_UNEXCUSED) && (
+                {studentAttendanceStatus &&
+                [
+                  AttendanceStatus.ABSENT_UNEXCUSED,
+                  AttendanceStatus.ABSENT_EXCUSED,
+                ].includes(studentAttendanceStatus) ? (
                   <Input
                     placeholder="سبب الغياب..."
                     value={absenceReason}
                     onChange={(e) => setAbsenceReason(e.target.value)}
                     className="h-9"
                   />
-                )}
+                ) : null}
 
-                {studentAttendanceStatus && (
+                {studentAttendanceStatus !== "" ? (
                   <Button
                     size="sm"
                     onClick={handleAttendanceSave}
@@ -240,7 +242,7 @@ export function SessionDetailPanel({
                   >
                     {isSubmitting ? "جاري الحفظ..." : "حفظ الحضور"}
                   </Button>
-                )}
+                ) : null}
               </div>
             </>
           )}

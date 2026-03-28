@@ -4,7 +4,6 @@ export const sessionStatusLabels: Record<SessionStatus, string> = {
   [SessionStatus.SCHEDULED]: "مجدول",
   [SessionStatus.COMPLETED]: "مكتمل",
   [SessionStatus.CANCELLED]: "ملغي",
-  [SessionStatus.RESCHEDULED]: "مُعاد جدولته",
 };
 
 export const sessionStatusColors: Record<SessionStatus, string> = {
@@ -12,7 +11,6 @@ export const sessionStatusColors: Record<SessionStatus, string> = {
   [SessionStatus.COMPLETED]: "bg-primary/10 text-primary border-primary/20",
   [SessionStatus.CANCELLED]:
     "bg-destructive/10 text-destructive border-destructive/20",
-  [SessionStatus.RESCHEDULED]: "bg-amber-100 text-amber-700 border-amber-200",
 };
 
 export const attendanceStatusLabels: Record<AttendanceStatus, string> = {

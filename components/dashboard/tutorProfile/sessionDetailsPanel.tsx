@@ -34,6 +34,7 @@ import {
   attendanceStatusLabels,
 } from "@/const/sessions";
 import { TutorSession } from "@/types/tutor";
+import { Role } from "@/types/user";
 
 interface SessionDetailPanelProps {
   session: TutorSession;
@@ -118,7 +119,7 @@ export default function SessionDetailPanel({
     try {
       await updateAttendance(
         session.id,
-        3 /* role = tutor */,
+        Role.SuperAdmin /* role = tutor */,
         parseInt(attendanceStatus),
         attendanceReason || undefined,
       );

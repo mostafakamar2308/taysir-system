@@ -3,6 +3,8 @@ import { user } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Role } from "@/types/user";
 import StudentsClient from "@/components/tutor/students/viewer";
+import { getSessionStatus } from "@/lib/session";
+import dayjs from "dayjs";
 
 export default async function TutorStudentsPage() {
   const currentUser = await user();
@@ -20,7 +22,13 @@ export default async function TutorStudentsPage() {
       phone: true,
       status: true,
       sessions: {
-        where: { tutorId },
+        where: {
+          tutorId,
+          startTime: {
+            lte: dayjs().endOf("month").toDate(),
+            gte: dayjs().startOf("month").toDate(),
+          },
+        },
         orderBy: { startTime: "desc" },
         include: {
           attendance: true,
@@ -42,7 +50,7 @@ export default async function TutorStudentsPage() {
       startTime: s.startTime.toISOString(),
       endTime: s.endTime.toISOString(),
       durationMinutes: s.durationMinutes,
-      status: s.status,
+      status: getSessionStatus(s),
       topic: s.topic,
       notes: s.notes,
       studentId: s.studentId,

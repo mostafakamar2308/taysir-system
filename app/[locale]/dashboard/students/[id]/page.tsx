@@ -26,6 +26,7 @@ export default async function StudentProfilePage({
   if (isNaN(id)) notFound();
 
   const startOfMonth = dayjs.utc().startOf("month").toDate();
+  const endOfMonth = dayjs.utc().endOf("month").toDate();
 
   const student = await db.student.findUnique({
     where: { id },
@@ -55,7 +56,7 @@ export default async function StudentProfilePage({
       },
       sessions: {
         where: {
-          startTime: { gte: startOfMonth },
+          startTime: { gte: startOfMonth, lte: endOfMonth },
         },
         include: {
           tutor: { include: { user: true } },

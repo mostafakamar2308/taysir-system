@@ -4,26 +4,8 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ArrowRight, Calendar, TrendingUp } from "lucide-react";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Progress } from "@/components/ui/progress";
-import {
-  ArrowRight,
-  BookOpen,
-  Calendar,
-  CheckCircle2,
-  TrendingUp,
-  Clock,
-} from "lucide-react";
-import {
-  LineChart,
-  Line,
   BarChart,
   Bar,
   XAxis,
@@ -38,19 +20,7 @@ interface StudentAnalyticsClientProps {
   studentStatus: number;
   totalSessions: number;
   attendanceRate: number;
-  completedTopics: number;
-  totalTopics: number;
-  programName: string;
-  topicProgressOverTime: { month: string; label: string; value: number }[];
   attendanceTrend: { month: string; label: string; value: number }[];
-  topics: {
-    id: number;
-    title: string;
-    description: string | null;
-    completed: boolean;
-    completedAt: string | null;
-    notes: string | null;
-  }[];
 }
 
 const statusMap: Record<number, { label: string; color: string }> = {
@@ -75,12 +45,7 @@ export default function StudentAnalyticsClient({
   studentStatus,
   totalSessions,
   attendanceRate,
-  completedTopics,
-  totalTopics,
-  programName,
-  topicProgressOverTime,
   attendanceTrend,
-  topics,
 }: StudentAnalyticsClientProps) {
   const router = useRouter();
   const statusInfo = statusMap[studentStatus] || {
@@ -89,14 +54,16 @@ export default function StudentAnalyticsClient({
   };
 
   const summaryCards = [
-    { title: "إجمالي الحصص", value: totalSessions.toString(), icon: Calendar },
-    { title: "نسبة الحضور", value: `${attendanceRate}%`, icon: TrendingUp },
     {
-      title: "المواضيع المكتملة",
-      value: `${completedTopics}/${totalTopics}`,
-      icon: CheckCircle2,
+      title: "إجمالي الحصص الكلية",
+      value: totalSessions.toString(),
+      icon: Calendar,
     },
-    { title: "البرنامج الحالي", value: programName, icon: BookOpen },
+    {
+      title: "نسبة الحضور الكلية",
+      value: `${attendanceRate}%`,
+      icon: TrendingUp,
+    },
   ];
 
   return (
@@ -105,7 +72,7 @@ export default function StudentAnalyticsClient({
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => router.push("/dashboard/analytics")}
+          onClick={() => router.push("/ar/dashboard/analytics")}
         >
           <ArrowRight className="h-5 w-5" />
         </Button>
@@ -143,37 +110,7 @@ export default function StudentAnalyticsClient({
         ))}
       </div>
 
-      {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">
-              المواضيع المكتملة عبر الوقت
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
-              <LineChart data={topicProgressOverTime}>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="hsl(var(--border))"
-                />
-                <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip contentStyle={{ direction: "rtl" }} />
-                <Line
-                  type="monotone"
-                  dataKey="value"
-                  stroke="hsl(var(--primary))"
-                  strokeWidth={2}
-                  name="مواضيع مكتملة"
-                  dot={{ fill: "hsl(var(--primary))" }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
         <Card>
           <CardHeader>
             <CardTitle className="text-base">اتجاه الحضور الشهري</CardTitle>
@@ -181,16 +118,13 @@ export default function StudentAnalyticsClient({
           <CardContent>
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={attendanceTrend}>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="hsl(var(--border))"
-                />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis dataKey="label" tick={{ fontSize: 12 }} />
                 <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} />
                 <Tooltip contentStyle={{ direction: "rtl" }} />
                 <Bar
                   dataKey="value"
-                  fill="hsl(var(--primary))"
+                  fill="#10b981"
                   radius={[4, 4, 0, 0]}
                   name="نسبة الحضور %"
                 />
@@ -199,68 +133,6 @@ export default function StudentAnalyticsClient({
           </CardContent>
         </Card>
       </div>
-
-      {/* Program Topics Progress */}
-      {topics.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">
-              تقدم المواضيع في البرنامج
-            </CardTitle>
-            <div className="flex items-center gap-3 mt-2">
-              <Progress
-                value={(completedTopics / totalTopics) * 100}
-                className="h-2 flex-1 max-w-xs"
-              />
-              <span className="text-sm font-medium text-muted-foreground">
-                {Math.round((completedTopics / totalTopics) * 100)}%
-              </span>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-right">الموضوع</TableHead>
-                    <TableHead className="text-right">الحالة</TableHead>
-                    <TableHead className="text-right">تاريخ الإكمال</TableHead>
-                    <TableHead className="text-right">ملاحظات</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {topics.map((topic) => (
-                    <TableRow key={topic.id}>
-                      <TableCell className="font-medium">
-                        {topic.title}
-                      </TableCell>
-                      <TableCell>
-                        {topic.completed ? (
-                          <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 gap-1">
-                            <CheckCircle2 className="h-3 w-3" />
-                            مكتمل
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary" className="gap-1">
-                            <Clock className="h-3 w-3" />
-                            قيد التقدم
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {topic.completedAt || "—"}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {topic.notes || "—"}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

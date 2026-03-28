@@ -55,7 +55,7 @@ const roleBadgeColors: Record<number, string> = {
 };
 
 interface User {
-  id: string;
+  id: number;
   name: string;
   email: string;
   phone: string;

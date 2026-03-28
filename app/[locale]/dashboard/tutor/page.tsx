@@ -2,10 +2,11 @@ import db from "@/lib/prisma";
 import { user } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Role } from "@/types/user";
-import { SessionStatus } from "@/types/session";
 import { PaymentStatus } from "@/types/payment";
 import DashboardClient from "@/components/tutor/dashboard/viewer";
 import dayjs from "@/lib/dayjs";
+import { getSessionStatus } from "@/lib/session";
+import { AttendanceStatus } from "@/types/session";
 
 export default async function TutorDashboardPage() {
   const currentUser = await user();
@@ -32,7 +33,12 @@ export default async function TutorDashboardPage() {
 
   // Fetch all sessions for this tutor
   const sessions = await db.session.findMany({
-    where: { tutorId },
+    where: {
+      tutorId,
+      startTime: {
+        lte: dayjs().endOf("month").toDate(),
+      },
+    },
     include: {
       student: { select: { id: true, name: true, phone: true } },
       attendance: true,
@@ -45,19 +51,17 @@ export default async function TutorDashboardPage() {
   const todaySessions = sessions.filter(
     (s) => s.startTime >= todayStart && s.startTime <= todayEnd,
   );
-  const upcomingSessions = sessions.filter(
-    (s) => s.startTime > todayEnd && s.status === SessionStatus.SCHEDULED,
-  );
+  const upcomingSessions = sessions.filter((s) => s.startTime > todayEnd);
   const pendingAttendance = sessions.filter(
-    (s) =>
-      s.startTime <= now.toDate() &&
-      s.status === SessionStatus.COMPLETED &&
-      !s.attendance,
+    (s) => s.startTime <= now.toDate() && !s.attendance,
   );
   const pendingReports = sessions.filter(
     (s) =>
       s.startTime <= now.toDate() &&
-      s.status === SessionStatus.COMPLETED &&
+      s.attendance &&
+      [AttendanceStatus.ATTENDED, AttendanceStatus.LATE].includes(
+        s.attendance.studentAttendanceStatus,
+      ) &&
       !s.sessionReport,
   );
 
@@ -92,7 +96,7 @@ export default async function TutorDashboardPage() {
     studentId: s.studentId,
     studentName: s.student.name,
     studentPhone: s.student.phone,
-    status: s.status,
+    status: getSessionStatus(s),
     hasAttendance: !!s.attendance,
     hasReport: !!s.sessionReport,
   });

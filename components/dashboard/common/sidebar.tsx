@@ -207,7 +207,7 @@ const getSidebarGroups = (role: number) => {
     {
       label: "الرئيسية",
       items: [
-        { title: "لوحة التحكم", url: "/dashboard", icon: LayoutDashboard },
+        { title: "لوحة التحكم", url: "/ar/dashboard", icon: LayoutDashboard },
       ],
     },
   ];
@@ -337,11 +337,11 @@ export default function Sidebar() {
               className="gap-2 cursor-pointer"
               onClick={() => {
                 if (user.role === Role.SuperAdmin) {
-                  window.location.href = "/admin/settings/profile";
+                  window.location.href = "/ar/dashboard/admin/settings/profile";
                 } else if (user.role === Role.Admin) {
                   window.location.href = "/ar/dashboard/settings/personal";
                 } else {
-                  window.location.href = "/tutor/profile";
+                  window.location.href = "/ar/dashboard/tutor/profile";
                 }
               }}
             >

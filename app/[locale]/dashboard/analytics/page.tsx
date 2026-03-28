@@ -1,13 +1,16 @@
 import db from "@/lib/prisma";
-import { SessionStatus, AttendanceStatus } from "@/types/session";
+import { AttendanceStatus } from "@/types/session";
 import AnalyticsClient from "@/components/dashboard/analytics/viewer";
 import { notFound } from "next/navigation";
 import { PaymentStatus } from "@/types/payment";
+import dayjs from "@/lib/dayjs";
 
 export default async function AnalyticsPage() {
   const academy = await db.academy.findFirst();
   if (!academy) notFound();
   const academyId = academy.id;
+
+  const now = dayjs();
 
   // Helper: get month labels for the last 6 months
   const last6Months = Array.from({ length: 6 }, (_, i) => {
@@ -80,14 +83,20 @@ export default async function AnalyticsPage() {
       const totalSessions = await db.session.count({
         where: {
           tutorId: tutor.id,
-          status: SessionStatus.COMPLETED,
+          cancelledBy: null,
+          startTime: {
+            lte: now.toDate(),
+          },
         },
       });
 
       const attendedSessions = await db.session.count({
         where: {
           tutorId: tutor.id,
-          status: SessionStatus.COMPLETED,
+          cancelledBy: null,
+          startTime: {
+            lte: now.toDate(),
+          },
           attendance: {
             tutorAttendanceStatus: {
               in: [AttendanceStatus.ATTENDED, AttendanceStatus.LATE],
@@ -115,11 +124,55 @@ export default async function AnalyticsPage() {
     .sort((a, b) => b.attendanceRate - a.attendanceRate)
     .slice(0, 5);
 
+  const students = await db.student.findMany({
+    where: { academyId },
+    select: { id: true, name: true },
+  });
+
+  const topStudents = await Promise.all(
+    students.map(async (student) => {
+      const totalSessions = await db.session.count({
+        where: {
+          studentId: student.id,
+          startTime: { lte: now.toDate() },
+        },
+      });
+
+      const attendedSessions = await db.session.count({
+        where: {
+          studentId: student.id,
+          startTime: { lte: now.toDate() },
+          attendance: {
+            studentAttendanceStatus: {
+              in: [AttendanceStatus.ATTENDED, AttendanceStatus.LATE],
+            },
+          },
+        },
+      });
+
+      const attendanceRate =
+        totalSessions > 0
+          ? Math.round((attendedSessions / totalSessions) * 100)
+          : 0;
+
+      return {
+        studentId: student.id,
+        studentName: student.name,
+        attendanceRate,
+      };
+    }),
+  );
+
+  const topFiveStudents = topStudents
+    .sort((a, b) => b.attendanceRate - a.attendanceRate)
+    .slice(0, 5);
+
   return (
     <AnalyticsClient
       studentGrowth={studentGrowth}
       revenueExpense={revenueExpense}
       tutorAttendance={topTutorAttendance}
+      topStudents={topFiveStudents}
     />
   );
 }

@@ -40,7 +40,7 @@ import {
 } from "@/actions/user-management";
 
 interface User {
-  id: string;
+  id: number;
   name: string;
   email: string;
   phone: string | null;
@@ -141,7 +141,7 @@ export default function UserManagementClient({
     }
   };
 
-  const handleToggleActive = async (userId: string) => {
+  const handleToggleActive = async (userId: number) => {
     try {
       await toggleUserActive(userId);
       toast({ title: "تم تحديث الحالة" });
@@ -156,7 +156,7 @@ export default function UserManagementClient({
     }
   };
 
-  const handleResetPassword = async (userId: string) => {
+  const handleResetPassword = async (userId: number) => {
     try {
       const result = await resetPassword(userId);
       // In a real app, you'd send an email; here we show the new password in a toast (for demo only)

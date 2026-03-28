@@ -268,7 +268,7 @@ export default function SessionsViewer({
   return (
     <div className="space-y-5">
       <div className="flex justify-between items-center">
-        <SessionsHeader onAdd={handleAddNew} />
+        <SessionsHeader />
         <ToggleGroup
           type="single"
           value={viewMode}
@@ -298,6 +298,7 @@ export default function SessionsViewer({
         showFilters={showFilters}
         onToggleFilters={() => setShowFilters(!showFilters)}
         activeFilterCount={activeFilterCount}
+        onAdd={handleAddNew}
       />
 
       {showFilters && (

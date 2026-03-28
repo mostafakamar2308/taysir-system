@@ -31,16 +31,24 @@ import type {
   RevenueExpenseData,
 } from "@/types/analytics";
 
+interface TopStudent {
+  studentId: number;
+  studentName: string;
+  attendanceRate: number;
+}
+
 interface AnalyticsClientProps {
   studentGrowth: MonthlyData[];
   revenueExpense: RevenueExpenseData[];
   tutorAttendance: TutorAttendanceData[];
+  topStudents: TopStudent[];
 }
 
 export default function AnalyticsClient({
   studentGrowth,
   revenueExpense,
   tutorAttendance,
+  topStudents,
 }: AnalyticsClientProps) {
   const router = useRouter();
 
@@ -111,20 +119,17 @@ export default function AnalyticsClient({
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
               <LineChart data={studentGrowth}>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="hsl(var(--border))"
-                />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis dataKey="label" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip contentStyle={{ direction: "rtl" }} />
                 <Line
                   type="monotone"
                   dataKey="value"
-                  stroke="hsl(var(--primary))"
+                  stroke="#10b981"
                   strokeWidth={2}
                   name="طلاب جدد"
-                  dot={{ fill: "hsl(var(--primary))" }}
+                  dot={{ fill: "#10b981", r: 4 }}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -138,10 +143,7 @@ export default function AnalyticsClient({
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={tutorAttendance} layout="vertical">
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="hsl(var(--border))"
-                />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis
                   type="number"
                   domain={[0, 100]}
@@ -156,7 +158,7 @@ export default function AnalyticsClient({
                 <Tooltip contentStyle={{ direction: "rtl" }} />
                 <Bar
                   dataKey="attendanceRate"
-                  fill="hsl(var(--primary))"
+                  fill="#10b981"
                   radius={[0, 4, 4, 0]}
                   name="نسبة الحضور %"
                 />
@@ -177,10 +179,7 @@ export default function AnalyticsClient({
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
               <LineChart data={revenueExpense}>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="hsl(var(--border))"
-                />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis dataKey="month" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip contentStyle={{ direction: "rtl" }} />
@@ -188,16 +187,18 @@ export default function AnalyticsClient({
                 <Line
                   type="monotone"
                   dataKey="revenue"
-                  stroke="hsl(var(--primary))"
+                  stroke="#10b981"
                   strokeWidth={2}
                   name="الإيرادات"
+                  dot={{ r: 4, fill: "#10b981" }}
                 />
                 <Line
                   type="monotone"
                   dataKey="expenses"
-                  stroke="hsl(var(--destructive))"
+                  stroke="#ef4444"
                   strokeWidth={2}
                   name="المصروفات"
+                  dot={{ r: 4, fill: "#ef4444" }}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -249,6 +250,59 @@ export default function AnalyticsClient({
                           onClick={() =>
                             router.push(
                               `/dashboard/analytics/tutors/${tutor.tutorId}`,
+                            )
+                          }
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+        {/* Top Students Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">أفضل الطلاب حضوراً</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-right">الطالب</TableHead>
+                    <TableHead className="text-right">نسبة الحضور</TableHead>
+                    <TableHead className="text-right w-20">التحليلات</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {topStudents.map((student) => (
+                    <TableRow key={student.studentId}>
+                      <TableCell className="font-medium">
+                        {student.studentName}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          className={
+                            student.attendanceRate >= 85
+                              ? "bg-primary/10 text-primary"
+                              : "bg-amber-100 text-amber-700"
+                          }
+                        >
+                          {student.attendanceRate}%
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() =>
+                            router.push(
+                              `/dashboard/analytics/students/${student.studentId}`,
                             )
                           }
                         >

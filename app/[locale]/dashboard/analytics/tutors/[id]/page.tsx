@@ -1,7 +1,8 @@
 import db from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import TutorAnalyticsClient from "@/components/dashboard/tutorAnalytics/viewer";
-import { AttendanceStatus, SessionStatus } from "@/types/session";
+import { AttendanceStatus } from "@/types/session";
+import dayjs from "@/lib/dayjs";
 
 export default async function TutorAnalyticsPage({
   params,
@@ -18,6 +19,11 @@ export default async function TutorAnalyticsPage({
       specialities: true,
       students: { select: { id: true } },
       sessions: {
+        where: {
+          startTime: {
+            lte: dayjs().toDate(),
+          },
+        },
         include: { attendance: true },
         orderBy: { startTime: "desc" },
       },
@@ -31,14 +37,14 @@ export default async function TutorAnalyticsPage({
   const totalSessions = tutor.sessions.length;
 
   // Average attendance across all sessions taught by this tutor
-  const completedSessions = tutor.sessions.filter(
-    (s) => s.status === SessionStatus.COMPLETED,
+  const completedSessions = tutor.sessions.filter((s) =>
+    dayjs(s.startTime).isBefore(dayjs()),
   );
   const attendedSessions = completedSessions.filter(
     (s) =>
-      s.attendance?.status &&
+      s.attendance?.studentAttendanceStatus !== undefined &&
       [AttendanceStatus.ATTENDED, AttendanceStatus.LATE].includes(
-        s.attendance.status,
+        s.attendance.studentAttendanceStatus,
       ),
   ).length;
   const avgAttendance =
@@ -84,35 +90,41 @@ export default async function TutorAnalyticsPage({
     {
       name: "حاضر",
       value: tutor.sessions.filter(
-        (s) => s.attendance?.status === AttendanceStatus.ATTENDED,
+        (s) =>
+          s.attendance?.tutorAttendanceStatus === AttendanceStatus.ATTENDED,
       ).length,
-      fill: "hsl(var(--primary))",
+      fill: "hsl(20 24% 52%)",
     },
     {
       name: "غائب بعذر",
       value: tutor.sessions.filter(
-        (s) => s.attendance?.status === AttendanceStatus.ABSENT_EXCUSED,
+        (s) =>
+          s.attendance?.tutorAttendanceStatus ===
+          AttendanceStatus.ABSENT_EXCUSED,
       ).length,
       fill: "hsl(43 74% 52%)",
     },
     {
       name: "غائب بدون عذر",
       value: tutor.sessions.filter(
-        (s) => s.attendance?.status === AttendanceStatus.ABSENT_UNEXCUSED,
+        (s) =>
+          s.attendance?.tutorAttendanceStatus ===
+          AttendanceStatus.ABSENT_UNEXCUSED,
       ).length,
       fill: "hsl(var(--destructive))",
     },
     {
       name: "متأخر",
       value: tutor.sessions.filter(
-        (s) => s.attendance?.status === AttendanceStatus.LATE,
+        (s) => s.attendance?.tutorAttendanceStatus === AttendanceStatus.LATE,
       ).length,
       fill: "hsl(25 95% 53%)",
     },
     {
       name: "ملغى",
       value: tutor.sessions.filter(
-        (s) => s.attendance?.status === AttendanceStatus.CANCELLED,
+        (s) =>
+          s.attendance?.tutorAttendanceStatus === AttendanceStatus.CANCELLED,
       ).length,
       fill: "hsl(var(--muted))",
     },
@@ -127,19 +139,25 @@ export default async function TutorAnalyticsPage({
   const topStudents = await Promise.all(
     students.map(async (student) => {
       const studentSessions = await db.session.findMany({
-        where: { studentId: student.id, tutorId },
+        where: {
+          studentId: student.id,
+          tutorId,
+          startTime: {
+            lte: dayjs().toDate(),
+          },
+        },
         include: { attendance: true },
       });
-      const completed = studentSessions.filter(
-        (s) => s.status === SessionStatus.COMPLETED,
-      );
+      const completed = studentSessions;
+
       const attended = completed.filter(
         (s) =>
-          s.attendance?.status &&
+          s.attendance?.studentAttendanceStatus !== undefined &&
           [AttendanceStatus.ATTENDED, AttendanceStatus.LATE].includes(
-            s.attendance.status,
+            s.attendance.studentAttendanceStatus,
           ),
       ).length;
+
       const rate =
         completed.length > 0
           ? Math.round((attended / completed.length) * 100)

@@ -64,7 +64,11 @@ export default function TutorAnalyticsClient({
 
   const summaryCards = [
     { title: "عدد الطلاب", value: studentCount.toString(), icon: Users },
-    { title: "إجمالي الحصص", value: totalSessions.toString(), icon: Calendar },
+    {
+      title: "إجمالي الحصص الأسبوعية",
+      value: totalSessions.toString(),
+      icon: Calendar,
+    },
     {
       title: "متوسط حضور الطلاب",
       value: `${avgAttendance}%`,
@@ -135,20 +139,17 @@ export default function TutorAnalyticsClient({
           <CardContent>
             <ResponsiveContainer width="100%" height={250}>
               <LineChart data={sessionsTaught}>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="hsl(var(--border))"
-                />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis dataKey="label" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip contentStyle={{ direction: "rtl" }} />
                 <Line
                   type="monotone"
                   dataKey="value"
-                  stroke="hsl(var(--primary))"
+                  stroke="#10b981"
                   strokeWidth={2}
                   name="عدد الحصص"
-                  dot={{ fill: "hsl(var(--primary))" }}
+                  dot={{ fill: "#10b981", r: 4 }}
                 />
               </LineChart>
             </ResponsiveContainer>

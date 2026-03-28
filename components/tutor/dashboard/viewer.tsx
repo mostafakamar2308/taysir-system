@@ -83,7 +83,9 @@ export default function DashboardClient({
               </div>
             </div>
             <Button variant="outline" size="sm" asChild>
-              <Link href="/tutor/sessions?filter=pending">عرض الكل</Link>
+              <Link href="/ar/dashboard/tutor/sessions?filter=pending">
+                عرض الكل
+              </Link>
             </Button>
           </CardContent>
         </Card>
@@ -108,7 +110,9 @@ export default function DashboardClient({
               <Clock className="h-5 w-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">الحصص القادمة</p>
+              <p className="text-xs text-muted-foreground">
+                الحصص اﻷسبوع القادمة
+              </p>
               <p className="text-2xl font-bold">{upcomingSessions.length}</p>
             </div>
           </CardContent>

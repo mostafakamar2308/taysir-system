@@ -34,11 +34,11 @@ export async function markStudentAttendanceByTutor(
     },
     create: {
       sessionId,
-      tutorAttendanceStatus: status,
-      studentAttendanceStatus: 0, // default, will be updated separately if needed
+      tutorAttendanceStatus: AttendanceStatus.ATTENDED,
+      studentAttendanceStatus: status,
       reason: reason ?? null,
     },
   });
 
-  revalidatePath("/tutor/sessions");
+  revalidatePath("/ar/dashboard/tutor/sessions");
 }

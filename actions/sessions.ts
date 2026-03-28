@@ -48,7 +48,7 @@ export async function createSession(input: CreateSessionInput) {
       OR: [{ tutorId: input.tutorId }, { studentId: input.studentId }],
       startTime: { lt: endDate },
       endTime: { gt: startDate },
-      status: { not: SessionStatus.CANCELLED },
+      cancelledBy: { not: null },
     },
     include: { tutor: { include: { user: true } }, student: true },
   });
@@ -90,7 +90,6 @@ export async function createSession(input: CreateSessionInput) {
         academyId: payload.academyId,
         topic: input.topic,
         notes: input.notes,
-        status: SessionStatus.SCHEDULED,
       },
     });
     revalidatePath("/ar/dashboard/sessions");
@@ -269,8 +268,9 @@ export async function updateAttendance(
   const attendance = await db.attendance.upsert({
     where: { sessionId },
     update: {
-      studentAttendanceStatus: role === Role.Tutor ? undefined : status,
-      tutorAttendanceStatus: role === Role.Tutor ? status : undefined,
+      studentAttendanceStatus: status,
+      tutorAttendanceStatus:
+        role === Role.Tutor ? status : AttendanceStatus.ATTENDED,
       reason,
     },
     create: {
@@ -280,19 +280,6 @@ export async function updateAttendance(
       reason,
     },
   });
-
-  // Also update session status if needed
-  if (status === AttendanceStatus.ATTENDED) {
-    await db.session.update({
-      where: { id: sessionId },
-      data: { status: SessionStatus.COMPLETED },
-    });
-  } else if (status === AttendanceStatus.CANCELLED) {
-    await db.session.update({
-      where: { id: sessionId },
-      data: { status: SessionStatus.CANCELLED },
-    });
-  }
 
   revalidatePath("/ar/dashboard/sessions");
   return attendance;
@@ -372,8 +359,7 @@ export async function updateStudentSessionAttendance(
     create: {
       sessionId,
       studentAttendanceStatus,
-      tutorAttendanceStatus:
-        session.attendance?.tutorAttendanceStatus ?? AttendanceStatus.ATTENDED,
+      tutorAttendanceStatus: AttendanceStatus.ATTENDED,
       reason,
     },
   });

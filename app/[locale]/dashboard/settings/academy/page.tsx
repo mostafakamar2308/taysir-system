@@ -6,12 +6,9 @@ import { Role } from "@/types/user";
 
 export default async function CurrenciesPage() {
   const currentUser = await user();
-  if (currentUser?.role !== Role.Admin) redirect("/dashboard"); // only academy admin
+  if (currentUser?.role !== Role.Admin) redirect("/dashboard");
 
-  const currencies = await db.currency.findMany({
-    where: { academyId: currentUser.academyId },
-    orderBy: { isDefault: "desc" },
-  });
+  const currencies = await db.currency.findMany({});
 
   return <CurrenciesClient initialCurrencies={currencies} />;
 }

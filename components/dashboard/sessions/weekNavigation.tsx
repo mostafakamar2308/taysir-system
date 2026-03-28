@@ -7,6 +7,7 @@ import {
   CalendarDays,
   Search,
   Filter,
+  Plus,
 } from "lucide-react";
 import dayjs from "@/lib/dayjs";
 
@@ -20,6 +21,7 @@ interface WeekNavigationProps {
   showFilters: boolean;
   onToggleFilters: () => void;
   activeFilterCount: number;
+  onAdd: () => void;
 }
 
 export function WeekNavigation({
@@ -31,6 +33,7 @@ export function WeekNavigation({
   onSearchChange,
   showFilters,
   onToggleFilters,
+  onAdd,
   activeFilterCount,
 }: WeekNavigationProps) {
   const formatTitle = () => {
@@ -47,6 +50,10 @@ export function WeekNavigation({
 
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-border bg-card p-4">
+      <Button onClick={onAdd} className="gap-2">
+        <Plus className="h-4 w-4" />
+        إضافة حصة
+      </Button>
       <div className="flex items-center gap-2">
         <Button variant="outline" size="icon" onClick={() => onNavigate(-1)}>
           <ChevronRight className="h-4 w-4" />

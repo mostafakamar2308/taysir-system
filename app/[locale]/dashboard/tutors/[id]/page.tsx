@@ -45,7 +45,9 @@ export default async function TutorProfilePage({
           sessions: {
             where: {
               startTime: { gt: new Date() },
-              status: 0, // SCHEDULED
+              cancelledBy: {
+                not: null,
+              },
             },
             orderBy: { startTime: "asc" },
             take: 1,
@@ -112,11 +114,12 @@ export default async function TutorProfilePage({
       : 100;
 
   const totalCompletedSessions = tutor.sessions.filter(
-    (s) => s.status === 1,
+    (s) => !s.cancelledBy && dayjs(s.startTime).isBefore(dayjs()),
   ).length;
   const attendedStudentSessions = tutor.sessions.filter(
     (s) =>
-      s.status === 1 &&
+      !s.cancelledBy &&
+      dayjs(s.startTime).isBefore(dayjs()) &&
       (s.attendance?.studentAttendanceStatus === 0 ||
         s.attendance?.studentAttendanceStatus === 3),
   ).length;
