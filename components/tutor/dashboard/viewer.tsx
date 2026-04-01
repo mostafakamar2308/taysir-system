@@ -83,7 +83,7 @@ export default function DashboardClient({
               </div>
             </div>
             <Button variant="outline" size="sm" asChild>
-              <Link href="/ar/dashboard/tutor/sessions?filter=pending">
+              <Link href="/ar/dashboard/tutor/sessions?view=table">
                 عرض الكل
               </Link>
             </Button>

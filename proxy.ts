@@ -48,7 +48,7 @@ export function proxy(request: NextRequest) {
 
     // Add user info to headers for server components
     const requestHeaders = new Headers(request.headers);
-    requestHeaders.set("x-user-id", payload.id);
+    requestHeaders.set("x-user-id", payload.id.toString());
     requestHeaders.set("x-user-role", String(payload.role));
     requestHeaders.set("x-user-academy-id", String(payload.academyId || ""));
 

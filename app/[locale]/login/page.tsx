@@ -12,16 +12,11 @@ import { login } from "@/actions/auth";
 
 const demoCredentials = [
   {
-    email: "superadmin@example.com",
-    password: "password123",
-    role: "مدير عام",
-  },
-  {
-    email: "admin1@example.com",
-    password: "password123",
+    email: "admin@gmail.com",
+    password: "admin123",
     role: "مدير أكاديمية",
   },
-  { email: "akram@gmail.com", password: "default123", role: "معلم" },
+  { email: "tutor1@academiyati.com", password: "tutor123", role: "معلم" },
 ];
 
 export default function LoginPage() {

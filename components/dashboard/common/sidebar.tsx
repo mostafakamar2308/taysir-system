@@ -1,5 +1,5 @@
 "use client";
-
+import logo from "@/assets/logo-transparent.png";
 import {
   GraduationCap,
   BookOpen,
@@ -46,6 +46,7 @@ import { ChevronDown, ChevronsUpDown } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/contexts/auth";
 import { Role } from "@/types/user";
+import Image from "next/image";
 
 const getSidebarGroups = (role: number) => {
   // SuperAdmin
@@ -227,7 +228,7 @@ export default function Sidebar() {
   // Role-specific labels for the header
   const getRoleLabel = () => {
     if (user.role === Role.SuperAdmin) return "الإدارة العامة";
-    if (user.role === Role.Admin) return "إدارة الأكاديمية";
+    if (user.role === Role.Admin) return "منصة المدير";
     if (user.role === Role.Tutor) return "منصة المعلمين";
     return "نظام التيسير";
   };
@@ -236,13 +237,11 @@ export default function Sidebar() {
     <BaseSidebar className="w-60 bg-white" collapsible="icon" side="right">
       <SidebarHeader className="border-b border-sidebar-border px-4 py-5">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-lg">
-            ت
-          </div>
+          <Image src={logo} alt="logo" width={50} height={50}></Image>
           {!collapsed && (
             <div className="flex flex-col">
               <span className="text-base font-bold text-sidebar-foreground leading-tight">
-                نظام التيسير
+                نظام أكاديميتي
               </span>
               <span className="text-xs text-muted-foreground">
                 {getRoleLabel()}
@@ -341,7 +340,7 @@ export default function Sidebar() {
                 } else if (user.role === Role.Admin) {
                   window.location.href = "/ar/dashboard/settings/personal";
                 } else {
-                  window.location.href = "/ar/dashboard/tutor/profile";
+                  window.location.href = "/ar/dashboard/settings/personal";
                 }
               }}
             >

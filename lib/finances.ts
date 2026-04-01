@@ -31,8 +31,8 @@ export const costCenters = [
 ];
 
 export function formatCurrency(amount?: number, currency?: string): string {
-  if (!amount) return `0 ${currency}`;
-  return `${amount.toLocaleString("ar-EG")} ${currency || ""}`;
+  if (!amount) return `0 ${currency || ""} `;
+  return `${amount.toLocaleString("ar-EG")} ${currency || "EGP"}`;
 }
 
 export function formatDate(dateStr: string): string {

@@ -1,13 +1,6 @@
 "use client";
 import { useTranslations } from "next-intl";
-import {
-  BookOpen,
-  Mail,
-  Globe,
-  Twitter,
-  Facebook,
-  Instagram,
-} from "lucide-react";
+import { BookOpen, Mail, Globe, Facebook } from "lucide-react";
 import Link from "next/link";
 
 const Footer = () => {
@@ -79,7 +72,7 @@ const Footer = () => {
               <li className="flex items-center gap-2">
                 <Mail className="w-4 h-4 text-primary" />
                 <a
-                  href="mailto:mostafakamar.dev@gmail.com"
+                  href="mailto:academiyatisystem@gmail.com"
                   className="hover:text-primary transition-colors"
                 >
                   {t("footer.email")}
@@ -98,10 +91,10 @@ const Footer = () => {
               {t("footer.followUs")}
             </h4>
             <div className="flex gap-3">
-              {[Twitter, Facebook, Instagram].map((Icon, i) => (
+              {[Facebook].map((Icon, i) => (
                 <a
                   key={i}
-                  href="#"
+                  href="https://www.facebook.com/profile.php?id=61575448018616"
                   className="w-10 h-10 rounded-lg bg-primary-foreground/10 flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-colors"
                 >
                   <Icon className="w-4 h-4" />

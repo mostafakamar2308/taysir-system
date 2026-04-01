@@ -165,7 +165,6 @@ export default function TutorProfileClient({
             { val: "sessions", label: "الحصص" },
             { val: "reports", label: "التقارير" },
             { val: "payments", label: "المالية" },
-            { val: "communication", label: "التواصل" },
           ].map((t) => (
             <TabsTrigger
               key={t.val}

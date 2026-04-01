@@ -141,7 +141,7 @@ export function EnrollmentDialog({
                         {student.id || "Mostafa"}
                       </TableCell>
                       <TableCell>
-                        {student.id || "mostafakamar.dev@gmail.com"}
+                        {student.id || "academiyatisystem@gmail.com"}
                       </TableCell>
                       <TableCell>
                         {selectedStudentId === student.id && (

@@ -1,18 +1,14 @@
 import db from "@/lib/prisma";
 import bcrypt from "bcrypt";
-import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
-import {
-  TargetType,
-  HistoryActionType,
-  HistoryChange,
-  HistoryMetadata,
-} from "@/types/history";
+import dayjs from "@/lib/dayjs";
 import { Role } from "@/types/user";
+import { HistoryActionType, TargetType } from "@/types/history";
+import { StudentStatus } from "@/types/student";
+import { AttendanceStatus } from "@/types/session";
+import { SubscriptionStatus } from "@/types/subscription";
+import { PaymentMethod, PaymentStatus } from "@/types/payment";
 
-dayjs.extend(utc);
-
-const ACADEMY_NAMES = ["Al-Noor Academy", "Iqra Institute", "Tajweed Center"];
+const ACADEMY_NAME = "أكاديمية التيسير النموذجية";
 const SPECIALITIES = [
   "Tajweed",
   "Memorization",
@@ -20,100 +16,52 @@ const SPECIALITIES = [
   "Tafseer",
   "Arabic Language",
 ];
-const COUNTRIES = ["Egypt", "Saudi Arabia", "UAE", "Jordan", "Morocco"];
-const TIMEZONES = ["Africa/Cairo", "Asia/Riyadh", "Asia/Dubai"];
-const COST_CENTERS = [
-  "رواتب",
-  "إيجار",
-  "تسويق",
-  "أدوات وبرمجيات",
-  "صيانة",
-  "متنوعة",
+const PLAN_TITLES = ["أساسي", "متوسط", "متقدم", "ممتاز"];
+const PLAN_SESSIONS = [2, 3, 5, 7];
+const PLAN_PRICES = [150, 300, 500, 800];
+const PLAN_BILLING_PERIOD = 30;
+
+const TUTOR_NAMES = [
+  "الشيخ عبدالله",
+  "الشيخ محمد",
+  "الأستاذة نور",
+  "الشيخ أحمد",
+  "الدكتور عمر",
+  "الأستاذة فاطمة",
+  "الشيخ يوسف",
+  "الأستاذة سارة",
+  "الشيخ خالد",
+  "الدكتورة ليلى",
+];
+const TUTOR_PRICES = [50, 60, 70];
+
+// Countries for students
+const COUNTRIES = [
+  "Egypt",
+  "Saudi Arabia",
+  "UAE",
+  "Jordan",
+  "Morocco",
+  "Yemen",
+  "Oman",
+];
+const TIMEZONES = [
+  "Africa/Cairo",
+  "Asia/Riyadh",
+  "Asia/Dubai",
+  "Asia/Aden",
+  "Asia/Muscat",
 ];
 
-// Enums mapped to integers
-const RoleMap = {
-  SuperAdmin: 0,
-  Admin: 1,
-  Supervisor: 2,
-  Tutor: 3,
-};
-
-const StudentStatusMap = {
-  lead: 0,
-  trial: 1,
-  subscribed: 2,
-  churned: 3,
-  paused: 4,
-};
-
-const SessionStatusMap = {
-  SCHEDULED: 0,
-  COMPLETED: 1,
-  CANCELLED: 2,
-  RESCHEDULED: 3,
-};
-
-const AttendanceStatusMap = {
-  ATTENDED: 0,
-  ABSENT_EXCUSED: 1,
-  ABSENT_UNEXCUSED: 2,
-  LATE: 3,
-  CANCELLED: 4,
-};
-
-const PaymentStatusMap = {
-  PENDING: 0,
-  PAID: 1,
-  FAILED: 2,
-  REFUNDED: 3,
-};
-
-const PaymentMethodMap = {
-  CASH: 0,
-  CARD: 1,
-  BANK_TRANSFER: 2,
-  ONLINE: 3,
-};
-
-// TargetType mapping (use same as your TypeScript enum)
-const TargetTypeMap = {
-  SuperAdmin: 0,
-  Admin: 1,
-  Supervisor: 2,
-  Tutor: 3,
-  Student: 4,
-  Session: 5,
-};
-
-// HistoryActionType mapping (use same as your TypeScript enum)
-const HistoryActionMap = {
-  LeadToTrial: 0,
-  TrialToSubscription: 1,
-  UrgentStudentContact: 2,
-  TutorReportReminder: 3,
-  StudentAbscenceReminder: 4,
-  StudentLatePaymentReminder: 5,
-  StudentNearEndSubscriptionReminder: 6,
-  StudentTutorChange: 7,
-};
-
-// ----------------------------------------------------------------------
 // Helper functions
-// ----------------------------------------------------------------------
 const randomElement = <T>(arr: T[]): T =>
   arr[Math.floor(Math.random() * arr.length)];
-const randomDate = (start: Date, end: Date): Date => {
-  return new Date(
-    start.getTime() + Math.random() * (end.getTime() - start.getTime()),
-  );
-};
-const randomColor = (): string => {
-  const letters = "0123456789ABCDEF";
-  let color = "#";
-  for (let i = 0; i < 6; i++) color += letters[Math.floor(Math.random() * 16)];
-  return color;
-};
+const randomInt = (min: number, max: number): number =>
+  Math.floor(Math.random() * (max - min + 1)) + min;
+const randomDate = (start: Date, end: Date): Date =>
+  new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
+const addMinutes = (date: Date, minutes: number): Date =>
+  new Date(date.getTime() + minutes * 60000);
 
 // ----------------------------------------------------------------------
 // Main seed function
@@ -139,6 +87,7 @@ async function main() {
     db.supervisor.deleteMany(),
     db.admin.deleteMany(),
     db.plan.deleteMany(),
+    db.academyCurrencyRate.deleteMany(),
     db.academy.deleteMany(),
     db.currency.deleteMany(),
     db.speciality.deleteMany(),
@@ -146,735 +95,654 @@ async function main() {
     db.superAdmin.deleteMany(),
   ]);
 
-  // Create global currencies
+  // 1. Create currencies
   const currencies = await Promise.all([
-    db.currency.create({
-      data: { code: "SAR", name: "ريال سعودي", symbol: "ر.س" },
-    }),
     db.currency.create({
       data: { code: "USD", name: "دولار أمريكي", symbol: "$" },
     }),
     db.currency.create({
       data: { code: "EGP", name: "جنيه مصري", symbol: "ج.م" },
     }),
+    db.currency.create({
+      data: { code: "SAR", name: "ريال سعودي", symbol: "ر.س" },
+    }),
+    db.currency.create({
+      data: { code: "YER", name: "ريال يمني", symbol: "﷼" },
+    }),
+    db.currency.create({
+      data: { code: "OMR", name: "ريال عماني", symbol: "﷼" },
+    }),
   ]);
-  const [sar] = currencies;
+  const [usd, egp, sar, yer, omr] = currencies;
   console.log("✅ Created currencies");
 
-  // Create specialities
+  // 2. Create specialities
   const specialities = await Promise.all(
     SPECIALITIES.map((title) => db.speciality.create({ data: { title } })),
   );
   console.log("✅ Created specialities");
 
-  // Create super admin
+  // 3. Create super admin (optional, but needed for login)
   const superAdminUser = await db.user.create({
     data: {
-      email: "superadmin@example.com",
-      password: await bcrypt.hash("password123", 10),
+      email: "mostafakamar.dev@gmail.com",
+      password: await bcrypt.hash("24689110134", 10),
       name: "Super Admin",
-      role: RoleMap.SuperAdmin,
-      phone: "+966500000000",
+      role: Role.SuperAdmin,
+      phone: "+201018303125",
     },
   });
   await db.superAdmin.create({ data: { userId: superAdminUser.id } });
   console.log("✅ Created super admin");
 
-  // Store academy data for later use
-  const academyIds: number[] = [];
-  const academyTutors: Record<number, number[]> = {};
-  const academyStudents: Record<number, number[]> = {};
-  const academyAdmins: Record<number, number> = {}; // store admin user id per academy
+  // 4. Create academy with default currency EGP
+  const academy = await db.academy.create({
+    data: {
+      name: ACADEMY_NAME,
+      maxTutors: 20,
+      maxStudents: 500,
+      primaryColor: "#1a9a5c",
+      defaultCurrencyId: egp.id,
+    },
+  });
+  console.log(`✅ Created academy: ${academy.name}`);
 
-  // For each academy
-  for (let i = 0; i < ACADEMY_NAMES.length; i++) {
-    const academyName = ACADEMY_NAMES[i];
-    console.log(`\n📚 Creating ${academyName}...`);
-
-    // Create academy with default currency (SAR for all)
-    const academy = await db.academy.create({
-      data: {
-        name: academyName,
-        maxTutors: 20,
-        maxStudents: 200,
-        primaryColor: randomColor(),
-        defaultCurrencyId: sar.id,
-      },
-    });
-    academyIds.push(academy.id);
-    academyTutors[academy.id] = [];
-    academyStudents[academy.id] = [];
-
-    // Create 3 plans for this academy
-    const plans = [];
-    for (let p = 1; p <= 3; p++) {
-      const plan = await db.plan.create({
-        data: {
-          title: `Plan ${p}`,
-          sessionsPerWeek: p * 2,
-          price: p * 150,
-          billingPeriod: 30, // days
-          currencyId: sar.id,
+  const admin = await db.user.create({
+    data: {
+      name: `أدمن ${ACADEMY_NAME}`,
+      email: "admin@gmail.com",
+      password: await bcrypt.hash("admin123", 10),
+      role: Role.Admin,
+      phone: `+9665${Math.floor(Math.random() * 10000000)}`,
+      timezone: "Asia/Riyadh",
+      admin: {
+        create: {
           academyId: academy.id,
         },
-      });
-      plans.push(plan);
-    }
-    console.log(`  ✅ Created 3 plans`);
+      },
+    },
+  });
+  console.log(`✅ Created admin: ${admin.name}`);
 
-    // Create admin user
-    const adminUser = await db.user.create({
+  // 5. Create currency rates (relative to EGP)
+  const rates = [
+    { currency: usd, rate: 48.0 },
+    { currency: sar, rate: 10.0 },
+    { currency: yer, rate: 0.15 },
+    { currency: omr, rate: 125.0 },
+  ];
+  for (const r of rates) {
+    await db.academyCurrencyRate.create({
       data: {
-        email: `admin${i + 1}@example.com`,
-        password: await bcrypt.hash("password123", 10),
-        name: `Admin ${i + 1}`,
-        role: RoleMap.Admin,
-        phone: `+96650123456${i}`,
+        academyId: academy.id,
+        currencyId: r.currency.id,
+        rate: r.rate,
       },
     });
-    await db.admin.create({
-      data: { userId: adminUser.id, academyId: academy.id },
+  }
+  console.log("✅ Created currency exchange rates");
+
+  // 6. Create plans
+  const plans = [];
+  for (let i = 0; i < PLAN_TITLES.length; i++) {
+    const plan = await db.plan.create({
+      data: {
+        title: PLAN_TITLES[i],
+        sessionsPerWeek: PLAN_SESSIONS[i],
+        price: PLAN_PRICES[i],
+        billingPeriod: PLAN_BILLING_PERIOD,
+        currencyId: egp.id,
+        academyId: academy.id,
+      },
     });
-    academyAdmins[academy.id] = adminUser.id;
-    console.log(`  ✅ Created admin`);
+    plans.push(plan);
+  }
+  console.log(`✅ Created ${plans.length} plans`);
 
-    // Create 2 supervisors
-    for (let s = 1; s <= 2; s++) {
-      const supUser = await db.user.create({
-        data: {
-          email: `supervisor${i + 1}_${s}@example.com`,
-          password: await bcrypt.hash("password123", 10),
-          name: `Supervisor ${i + 1}-${s}`,
-          role: RoleMap.Supervisor,
-          phone: `+96650234567${s}`,
+  // 7. Create tutors
+  const tutors = [];
+  for (let i = 0; i < TUTOR_NAMES.length; i++) {
+    const tutorUser = await db.user.create({
+      data: {
+        email: `tutor${i + 1}@academiyati.com`,
+        password: await bcrypt.hash("tutor123", 10),
+        name: TUTOR_NAMES[i],
+        role: Role.Tutor,
+        phone: `+9665${Math.floor(Math.random() * 10000000)}`,
+        timezone: "Asia/Riyadh",
+      },
+    });
+    const tutor = await db.tutor.create({
+      data: {
+        userId: tutorUser.id,
+        academyId: academy.id,
+        pricePerSession: randomElement(TUTOR_PRICES),
+        active: true,
+        currencyId: egp.id,
+        bio: "معلم معتمد في القرآن وعلومه",
+        qualifications: "إجازة في القراءات العشر",
+        zoomAuthenticated: true,
+        specialities: {
+          connect: [
+            randomElement(specialities).id,
+            randomElement(specialities).id,
+          ]
+            .filter((v, i, a) => a.indexOf(v) === i)
+            .map((id) => ({ id })),
         },
-      });
-      await db.supervisor.create({
-        data: { userId: supUser.id, academyId: academy.id },
-      });
+      },
+    });
+    tutors.push(tutor);
+  }
+  console.log(`✅ Created ${tutors.length} tutors`);
+
+  // Helper to create history records
+  const addHistory = async (
+    targetType: number,
+    targetId: number,
+    action: number,
+    recordedBy: number,
+    academyId: number,
+    changes?: any,
+    metadata?: any,
+  ) => {
+    await db.history.create({
+      data: {
+        targetType,
+        targetId,
+        action,
+        changes: changes ? JSON.stringify(changes) : null,
+        metadata: metadata ? JSON.stringify(metadata) : null,
+        recordedBy,
+        recorderType: TargetType.Admin, // assume admin
+        academyId,
+      },
+    });
+  };
+
+  // Helper to create a student with history
+  const createStudentWithHistory = async (
+    name: string,
+    email: string,
+    status: number,
+    planId: number | null,
+    tutorId: number | null,
+    academyId: number,
+    recordedBy: number,
+    createdAt: Date,
+    conversionDates?: { leadToTrial?: Date; trialToSub?: Date },
+  ) => {
+    const student = await db.student.create({
+      data: {
+        name,
+        email,
+        age: randomInt(8, 25),
+        phone: `+20${Math.floor(Math.random() * 100000000)}`,
+        country: randomElement(COUNTRIES),
+        timezone: randomElement(TIMEZONES),
+        status,
+        currencyId: egp.id,
+        source: randomElement(["facebook", "instagram", "referral", null]),
+        currentProgram: randomElement(["Quran", "Tajweed", "Arabic"]),
+        emergencyContactName: "Emergency Contact",
+        emergencyContactPhone: "+123456789",
+        preferredLanguage: "ar",
+        tutorId,
+        academyId,
+        planId,
+        createdAt,
+      },
+    });
+
+    // Always create LeadCreated (even if status is not lead, we pretend they started as lead)
+    await addHistory(
+      TargetType.Student,
+      student.id,
+      HistoryActionType.LeadCreated,
+      recordedBy,
+      academyId,
+      null,
+      { conversionDate: createdAt.toISOString() },
+    );
+
+    if (status === StudentStatus.trial || status === StudentStatus.subscribed) {
+      // Lead -> Trial
+      const leadToTrialDate =
+        conversionDates?.leadToTrial ||
+        randomDate(createdAt, dayjs(createdAt).add(7, "day").toDate());
+      await addHistory(
+        TargetType.Student,
+        student.id,
+        HistoryActionType.LeadToTrial,
+        recordedBy,
+        academyId,
+        { oldStatus: StudentStatus.lead, newStatus: StudentStatus.trial },
+        { conversionDate: leadToTrialDate.toISOString() },
+      );
     }
-    console.log(`  ✅ Created 2 supervisors`);
 
-    // Create 10 tutors
-    const tutorIds: number[] = [];
-    for (let t = 1; t <= 10; t++) {
-      const tutorUser = await db.user.create({
-        data: {
-          email: `tutor${i + 1}_${t}@example.com`,
-          password: await bcrypt.hash("password123", 10),
-          name: `Tutor ${i + 1}-${t}`,
-          role: RoleMap.Tutor,
-          phone: `+96650345678${t}`,
-        },
-      });
-      const tutor = await db.tutor.create({
-        data: {
-          userId: tutorUser.id,
-          academyId: academy.id,
-          pricePerSession: 15 + (t % 5) * 5, // 15-35
-          active: true,
-          currencyId: sar.id,
-          bio: "Experienced Quran teacher",
-          qualifications: "Ijazah in Hafs",
-          imageUrl: null,
-          zoomAuthenticated: Math.random() > 0.5,
-          zoomUrl: Math.random() > 0.7 ? "https://zoom.us/j/123" : null,
-          specialities: {
-            connect: [
-              randomElement(specialities).id,
-              randomElement(specialities).id,
-            ]
-              .filter((v, i, a) => a.indexOf(v) === i)
-              .map((id) => ({ id })),
-          },
-        },
-      });
-      tutorIds.push(tutor.id);
+    if (status === StudentStatus.subscribed) {
+      // Trial -> Subscription
+      const trialToSubDate =
+        conversionDates?.trialToSub ||
+        randomDate(
+          dayjs(createdAt).add(7, "day").toDate(),
+          dayjs(createdAt).add(30, "day").toDate(),
+        );
+      await addHistory(
+        TargetType.Student,
+        student.id,
+        HistoryActionType.TrialToSubscription,
+        recordedBy,
+        academyId,
+        { oldStatus: StudentStatus.trial, newStatus: StudentStatus.subscribed },
+        { conversionDate: trialToSubDate.toISOString() },
+      );
     }
-    academyTutors[academy.id] = tutorIds;
-    console.log(`  ✅ Created 10 tutors`);
 
-    // Create 200 students per academy
-    const students: { id: number; status: number; tutorId: number | null }[] =
-      [];
-    for (let st = 1; st <= 200; st++) {
-      // Determine status: first 100 leads, next 50 trials, last 50 mix
-      let status: number;
-      if (st <= 100) {
-        status = StudentStatusMap.lead;
-      } else if (st <= 150) {
-        status = StudentStatusMap.trial;
-      } else {
-        // Among last 50: 30 subscribed, 10 churned, 10 paused
-        const r = st - 150; // 1..50
-        if (r <= 30) status = StudentStatusMap.subscribed;
-        else if (r <= 40) status = StudentStatusMap.churned;
-        else status = StudentStatusMap.paused;
-      }
+    return student;
+  };
 
-      const tutorId = randomElement(tutorIds);
-      const startDate = dayjs
-        .utc()
-        .subtract(Math.floor(Math.random() * 180), "day")
-        .toDate();
-      const renewalDate = dayjs.utc(startDate).add(30, "day").toDate();
+  const recordedBy = superAdminUser.id; // using super admin as recorder for now
 
-      const student = await db.student.create({
+  // 8. Create leads (100)
+  const leadStudents = [];
+  for (let i = 1; i <= 100; i++) {
+    const name = `Lead Student ${i}`;
+    const email = `lead${i}@example.com`;
+    const student = await createStudentWithHistory(
+      name,
+      email,
+      StudentStatus.lead,
+      null,
+      null,
+      academy.id,
+      recordedBy,
+      randomDate(dayjs().subtract(6, "month").toDate(), dayjs().toDate()),
+    );
+    leadStudents.push(student);
+  }
+  console.log(`✅ Created ${leadStudents.length} lead students`);
+
+  // 9. Create trials (50)
+  const trialStudents = [];
+  for (let i = 1; i <= 50; i++) {
+    const name = `Trial Student ${i}`;
+    const email = `trial${i}@example.com`;
+    const createdAt = randomDate(
+      dayjs().subtract(3, "month").toDate(),
+      dayjs().toDate(),
+    );
+    const leadToTrialDate = randomDate(
+      createdAt,
+      dayjs(createdAt).add(7, "day").toDate(),
+    );
+    const student = await createStudentWithHistory(
+      name,
+      email,
+      StudentStatus.trial,
+      null,
+      randomElement(tutors).id,
+      academy.id,
+      recordedBy,
+      createdAt,
+      { leadToTrial: leadToTrialDate },
+    );
+    trialStudents.push(student);
+  }
+  console.log(`✅ Created ${trialStudents.length} trial students`);
+
+  // For each trial, create a trial session (past)
+  for (const student of trialStudents) {
+    const tutorId = student.tutorId!;
+    const sessionDate = randomDate(
+      dayjs().subtract(30, "day").toDate(),
+      dayjs().toDate(),
+    );
+    const startTime = dayjs(sessionDate)
+      .hour(randomInt(9, 20))
+      .minute(0)
+      .second(0)
+      .toDate();
+    const endTime = addMinutes(startTime, 60);
+    const session = await db.session.create({
+      data: {
+        startTime,
+        endTime,
+        durationMinutes: 60,
+        topic: "حصة تجريبية",
+        notes: "حصة تعريفية للطالب",
+        isTrial: true,
+        studentId: student.id,
+        tutorId,
+        academyId: academy.id,
+      },
+    });
+    // Add attendance (random)
+    const attendanceStatus = randomElement([
+      AttendanceStatus.ATTENDED,
+      AttendanceStatus.LATE,
+      AttendanceStatus.ABSENT_EXCUSED,
+    ]);
+    await db.attendance.create({
+      data: {
+        sessionId: session.id,
+        tutorAttendanceStatus: AttendanceStatus.ATTENDED,
+        studentAttendanceStatus: attendanceStatus,
+        reason:
+          attendanceStatus === AttendanceStatus.ABSENT_EXCUSED ? "مرض" : null,
+      },
+    });
+    // Add report
+    await db.sessionReport.create({
+      data: {
+        sessionId: session.id,
+        rating: randomInt(3, 5),
+        outcomes: "تم التعرف على مستوى الطالب",
+        strengths: "مستوى جيد في التلاوة",
+        weaknesses: "يحتاج تحسين في أحكام التجويد",
+        nextGoals: "مراجعة أحكام النون الساكنة",
+        comments: "طالب مجتهد",
+      },
+    });
+  }
+  console.log(
+    `✅ Created trial sessions for ${trialStudents.length} trial students`,
+  );
+
+  // 10. Create subscribed students (250)
+  const subscribedStudents = [];
+  const now = dayjs.utc();
+  const sixMonthsAgo = now.subtract(6, "month");
+  for (let i = 1; i <= 250; i++) {
+    const name = `Subscribed Student ${i}`;
+    const email = `sub${i}@example.com`;
+    const createdAt = randomDate(sixMonthsAgo.toDate(), now.toDate());
+    const leadToTrialDate = randomDate(
+      createdAt,
+      dayjs(createdAt).add(7, "day").toDate(),
+    );
+    const trialToSubDate = randomDate(
+      leadToTrialDate,
+      dayjs(leadToTrialDate).add(30, "day").toDate(),
+    );
+    const plan = randomElement(plans);
+    const tutor = randomElement(tutors);
+    const student = await createStudentWithHistory(
+      name,
+      email,
+      StudentStatus.subscribed,
+      plan.id,
+      tutor.id,
+      academy.id,
+      recordedBy,
+      createdAt,
+      { leadToTrial: leadToTrialDate, trialToSub: trialToSubDate },
+    );
+    subscribedStudents.push(student);
+  }
+  console.log(`✅ Created ${subscribedStudents.length} subscribed students`);
+
+  // 11. Create subscriptions and payments for subscribed students
+  for (const student of subscribedStudents) {
+    const plan = plans.find((p) => p.id === student.planId)!;
+    const startDate = randomDate(
+      dayjs().subtract(6, "month").toDate(),
+      dayjs().toDate(),
+    );
+    const subscription = await db.subscription.create({
+      data: {
+        studentId: student.id,
+        planId: plan.id,
+        startDate,
+        endDate: null, // ongoing
+        status: SubscriptionStatus.active,
+      },
+    });
+    // Update student's currentSubscriptionId
+    await db.student.update({
+      where: { id: student.id },
+      data: { currentSubscriptionId: subscription.id },
+    });
+
+    // Generate monthly payments since startDate until now
+    let paymentDate = dayjs(startDate);
+    const endDate = dayjs();
+    while (
+      paymentDate.isBefore(endDate) ||
+      paymentDate.isSame(endDate, "month")
+    ) {
+      const dueDate = paymentDate.add(plan.billingPeriod, "day").toDate();
+      await db.revenue.create({
         data: {
-          name: `Student ${i + 1}-${st}`,
-          email: `student${i + 1}_${st}@example.com`,
-          age: 8 + Math.floor(Math.random() * 15),
-          phone: `+1234567${String(st).padStart(3, "0")}`,
-          country: randomElement(COUNTRIES),
-          timezone: randomElement(TIMEZONES),
-          status: status,
-          startDate,
-          renewalDate,
-          currencyId: sar.id,
-          source: randomElement([
-            "facebook",
-            "snapchat",
-            "instagram",
-            "referral",
-            null,
+          amount: plan.price,
+          currencyId: egp.id,
+          status: PaymentStatus.PAID,
+          method: randomElement([
+            PaymentMethod.CARD,
+            PaymentMethod.BANK_TRANSFER,
+            PaymentMethod.ONLINE,
           ]),
-          currentProgram: randomElement(["Quran", "Tajweed", "Arabic", null]),
-          emergencyContactName: "Emergency Contact",
-          emergencyContactPhone: "+123456789",
-          preferredLanguage: "ar",
-          imageUrl: null,
-          tutorId: tutorId,
+          date: paymentDate.toDate(),
+          dueDate,
+          description: `اشتراك ${plan.title}`,
+          channel: "online",
+          studentId: student.id,
+          planId: plan.id,
           academyId: academy.id,
-          planId:
-            status === StudentStatusMap.subscribed
-              ? randomElement(plans).id
-              : null,
+          subscriptionId: subscription.id,
         },
       });
-      if (status === StudentStatusMap.lead)
-        await db.history.create({
-          data: {
-            action: HistoryActionType.LeadCreated,
-            targetId: student.id,
-            academyId: academy.id,
-            targetType: TargetType.Student,
-            recordedBy: adminUser.id,
-            recorderType: Role.Admin,
-          },
-        });
-      students.push({ id: student.id, status, tutorId });
-      academyStudents[academy.id].push(student.id);
+      paymentDate = paymentDate.add(1, "month");
     }
-    console.log(`  ✅ Created 200 students`);
+  }
+  console.log(`✅ Created subscriptions and payments for subscribed students`);
 
-    // ==================== CREATE SESSIONS ====================
-    const now = dayjs.utc();
-    const sixMonthsAgo = now.subtract(6, "month");
-    const threeMonthsAgo = now.subtract(3, "month");
+  // 12. Create sessions for the past 2 months and next week for subscribed students
+  const twoMonthsAgo = now.subtract(2, "month");
+  const nextWeekStart = now.add(1, "day").startOf("week");
+  const nextWeekEnd = nextWeekStart.add(6, "day");
 
-    // For each student, create 50 past sessions and a recurring pattern for future sessions
-    for (const student of students) {
-      const tutorId = student.tutorId!;
-      const studentId = student.id;
+  const dayMapping: Record<number, number> = {
+    0: 0,
+    1: 1,
+    2: 2,
+    3: 3,
+    4: 4,
+    5: 5,
+    6: 6,
+  }; // for deterministic days
+  // For simplicity, we'll distribute sessions evenly across week: e.g., if sessionsPerWeek = 3, we'll pick Monday, Wednesday, Friday (indices 1,3,5)
+  const getSessionDays = (sessionsPerWeek: number): number[] => {
+    const indices = [1, 3, 5]; // Mon, Wed, Fri
+    return indices.slice(0, sessionsPerWeek);
+  };
 
-      // Past 50 sessions (random dates in last 6 months)
-      for (let s = 0; s < 50; s++) {
-        const startTime = randomDate(sixMonthsAgo.toDate(), now.toDate());
-        const duration = randomElement([30, 45, 60]);
-        const endTime = dayjs.utc(startTime).add(duration, "minute").toDate();
+  for (const student of subscribedStudents) {
+    const plan = plans.find((p) => p.id === student.planId)!;
+    const tutorId = student.tutorId!;
+    const sessionsPerWeek = plan.sessionsPerWeek;
+    const sessionDays = getSessionDays(sessionsPerWeek);
+    const startHour = randomInt(9, 20);
+    const duration = 60;
 
-        // Determine session status based on date
-        let sessionStatus: number;
-        let tutorAttendance: number | null = null;
-        let studentAttendance: number | null = null;
-        let attendanceReason: string | null = null;
-
-        if (startTime < now.toDate()) {
-          // Past session
-          const rand = Math.random();
-          if (rand < 0.7) {
-            sessionStatus = SessionStatusMap.COMPLETED;
-            // Attendance random
-            const attRand = Math.random();
-            if (attRand < 0.6) {
-              tutorAttendance = AttendanceStatusMap.ATTENDED;
-              studentAttendance = AttendanceStatusMap.ATTENDED;
-            } else if (attRand < 0.75) {
-              tutorAttendance = AttendanceStatusMap.ATTENDED;
-              studentAttendance = AttendanceStatusMap.LATE;
-              attendanceReason = "تأخر";
-            } else if (attRand < 0.85) {
-              tutorAttendance = AttendanceStatusMap.ATTENDED;
-              studentAttendance = AttendanceStatusMap.ABSENT_EXCUSED;
-              attendanceReason = "مرض";
-            } else if (attRand < 0.95) {
-              tutorAttendance = AttendanceStatusMap.ATTENDED;
-              studentAttendance = AttendanceStatusMap.ABSENT_UNEXCUSED;
-            } else {
-              tutorAttendance = AttendanceStatusMap.LATE;
-              studentAttendance = AttendanceStatusMap.ATTENDED;
-            }
-          } else if (rand < 0.85) {
-            sessionStatus = SessionStatusMap.CANCELLED;
-            tutorAttendance = AttendanceStatusMap.CANCELLED;
-            studentAttendance = AttendanceStatusMap.CANCELLED;
-            attendanceReason = "إلغاء من قبل المعلم";
+    // Past sessions (2 months)
+    let currentWeek = twoMonthsAgo.startOf("week");
+    while (
+      currentWeek.isBefore(now) &&
+      currentWeek.isBefore(twoMonthsAgo.add(2, "month"))
+    ) {
+      for (const dayIndex of sessionDays) {
+        const sessionDate = currentWeek.add(dayIndex, "day");
+        if (sessionDate.isBefore(now)) {
+          const startTime = sessionDate
+            .hour(startHour)
+            .minute(0)
+            .second(0)
+            .toDate();
+          const endTime = addMinutes(startTime, duration);
+          // Create session
+          const session = await db.session.create({
+            data: {
+              startTime,
+              endTime,
+              durationMinutes: duration,
+              topic: randomElement([
+                "مراجعة السور",
+                "أحكام التجويد",
+                "حفظ جديد",
+                "تفسير",
+              ]),
+              notes: Math.random() > 0.7 ? "أداء جيد" : null,
+              studentId: student.id,
+              tutorId,
+              academyId: academy.id,
+            },
+          });
+          // Attendance
+          const attRand = Math.random();
+          let studentAttendance = AttendanceStatus.ATTENDED;
+          const tutorAttendance = AttendanceStatus.ATTENDED;
+          let reason = null;
+          if (attRand < 0.7) {
+            studentAttendance = AttendanceStatus.ATTENDED;
+          } else if (attRand < 0.8) {
+            studentAttendance = AttendanceStatus.LATE;
+            reason = "تأخر 5 دقائق";
+          } else if (attRand < 0.9) {
+            studentAttendance = AttendanceStatus.ABSENT_EXCUSED;
+            reason = "مرض";
           } else {
-            sessionStatus = SessionStatusMap.RESCHEDULED;
+            studentAttendance = AttendanceStatus.ABSENT_UNEXCUSED;
           }
-        } else {
-          // Future session – only scheduled
-          sessionStatus = SessionStatusMap.SCHEDULED;
-        }
-
-        const session = await db.session.create({
-          data: {
-            startTime,
-            endTime,
-            durationMinutes: duration,
-            status: sessionStatus,
-            topic: randomElement([
-              "Surah Al-Baqarah",
-              "Tajweed Rules",
-              "Revision",
-              "New Lesson",
-              null,
-            ]),
-            notes: Math.random() < 0.2 ? "Good progress" : null,
-            isTrial: student.status === StudentStatusMap.trial,
-            studentId,
-            tutorId,
-            academyId: academy.id,
-          },
-        });
-
-        if (tutorAttendance !== null && studentAttendance !== null) {
+          // Tutor always attends (simplify)
           await db.attendance.create({
             data: {
               sessionId: session.id,
               tutorAttendanceStatus: tutorAttendance,
               studentAttendanceStatus: studentAttendance,
-              reason: attendanceReason,
+              reason,
+            },
+          });
+          // Report
+          await db.sessionReport.create({
+            data: {
+              sessionId: session.id,
+              rating: randomInt(3, 5),
+              outcomes: "تم إنجاز المطلوب",
+              strengths: "تحسن في التلاوة",
+              weaknesses: "يحتاج مراجعة",
+              nextGoals: "مراجعة المادة القادمة",
+              comments: "مستمر",
             },
           });
         }
       }
+      currentWeek = currentWeek.add(1, "week");
+    }
 
-      // Create recurring pattern for 3 future sessions (this week)
-      const startFuture = now.add(1, "day");
-      const pattern = await db.recurringPattern.create({
-        data: {
-          daysOfWeek: [startFuture.day()],
-          startTime: startFuture.hour(10).minute(0).second(0).toDate(),
-          durationMinutes: 60,
-          startDate: startFuture.toDate(),
-          endDate: now.add(1, "week").toDate(),
-          studentId,
-          tutorId,
-          academyId: academy.id,
-        },
-      });
-
-      // Generate the 3 future sessions from the pattern
-      for (let i = 0; i < 3; i++) {
-        const sessionDate = now.add(i + 1, "day");
-        const startTime = sessionDate.hour(10).minute(0).second(0).toDate();
-        const endTime = sessionDate.add(60, "minute").toDate();
+    // Future sessions (next week)
+    currentWeek = nextWeekStart.clone();
+    for (const dayIndex of sessionDays) {
+      const sessionDate = currentWeek.add(dayIndex, "day");
+      if (
+        sessionDate.isBefore(nextWeekEnd) ||
+        sessionDate.isSame(nextWeekEnd, "day")
+      ) {
+        const startTime = sessionDate
+          .hour(startHour)
+          .minute(0)
+          .second(0)
+          .toDate();
+        const endTime = addMinutes(startTime, duration);
         await db.session.create({
           data: {
             startTime,
             endTime,
-            durationMinutes: 60,
-            status: SessionStatusMap.SCHEDULED,
-            topic: "Future session",
-            isTrial: student.status === StudentStatusMap.trial,
-            studentId,
-            tutorId,
-            academyId: academy.id,
-            recurringPatternId: pattern.id,
-          },
-        });
-      }
-    }
-    console.log(`  ✅ Created sessions for all students`);
-
-    // ==================== CREATE REVENUES ====================
-    const subscribedStudents = students.filter(
-      (s) => s.status === StudentStatusMap.subscribed,
-    );
-    for (const student of subscribedStudents) {
-      const temp = await db.student.findUnique({ where: { id: student.id } });
-      const planId = temp?.planId;
-      if (!planId) continue;
-      const plan = await db.plan.findFirst({
-        where: { id: planId },
-      });
-      if (!plan) continue;
-      const numPayments = Math.floor(Math.random() * 6) + 1; // 1-6
-      for (let p = 0; p < numPayments; p++) {
-        const paymentDate = randomDate(
-          dayjs.utc().subtract(6, "month").toDate(),
-          dayjs.utc().toDate(),
-        );
-        const status =
-          Math.random() > 0.2
-            ? PaymentStatusMap.PAID
-            : PaymentStatusMap.PENDING;
-        const method = randomElement([
-          PaymentMethodMap.CASH,
-          PaymentMethodMap.CARD,
-          PaymentMethodMap.BANK_TRANSFER,
-          PaymentMethodMap.ONLINE,
-          null,
-        ]);
-        await db.revenue.create({
-          data: {
-            amount: plan.price,
-            currencyId: sar.id,
-            status,
-            method: method !== null ? method : null,
-            date: paymentDate,
-            dueDate: null,
-            academyId: academy.id,
-            description: `Subscription payment`,
-            channel: randomElement(["online", "manual", null]),
+            durationMinutes: duration,
+            topic: null,
             notes: null,
-            invoiceUrl:
-              Math.random() > 0.5
-                ? `https://invoice.example.com/${student.id}`
-                : null,
             studentId: student.id,
-            planId: plan.id,
-            recordedBy: null,
-          },
-        });
-      }
-    }
-    console.log(`  ✅ Created revenues for subscribed students`);
-
-    // ==================== CREATE EXPENSES ====================
-    // Fixed expenses for last 3 months
-    for (let monthOffset = 2; monthOffset >= 0; monthOffset--) {
-      const expenseMonth = dayjs.utc().subtract(monthOffset, "month").date(15);
-
-      // Rent
-      await db.expense.create({
-        data: {
-          date: expenseMonth.toDate(),
-          description: "إيجار المكتب",
-          costCenter: randomElement(COST_CENTERS),
-          amount: 3000,
-          currencyId: sar.id,
-          method: PaymentMethodMap.BANK_TRANSFER,
-          status: PaymentStatusMap.PAID,
-          invoiceUrl: null,
-          notes: null,
-          tutorId: null,
-          salaryMonth: null,
-          academyId: academy.id,
-          recordedBy: null,
-        },
-      });
-
-      // Marketing
-      await db.expense.create({
-        data: {
-          date: expenseMonth.toDate(),
-          description: "إعلانات فيسبوك",
-          costCenter: "تسويق",
-          amount: 800,
-          currencyId: sar.id,
-          method: PaymentMethodMap.ONLINE,
-          status:
-            Math.random() > 0.3
-              ? PaymentStatusMap.PAID
-              : PaymentStatusMap.PENDING,
-          invoiceUrl: null,
-          notes: null,
-          tutorId: null,
-          salaryMonth: null,
-          academyId: academy.id,
-          recordedBy: null,
-        },
-      });
-
-      // Software
-      await db.expense.create({
-        data: {
-          date: expenseMonth.toDate(),
-          description: "اشتراك Zoom",
-          costCenter: "أدوات وبرمجيات",
-          amount: 400,
-          currencyId: sar.id,
-          method: PaymentMethodMap.CARD,
-          status: PaymentStatusMap.PAID,
-          invoiceUrl: null,
-          notes: "اشتراك شهري",
-          tutorId: null,
-          salaryMonth: null,
-          academyId: academy.id,
-          recordedBy: null,
-        },
-      });
-    }
-
-    // Tutor salary expenses for last 2 months
-    for (const tutorId of tutorIds) {
-      const tutor = await db.tutor.findUnique({
-        where: { id: tutorId },
-        include: { user: true },
-      });
-      if (!tutor) continue;
-      for (let monthOffset = 1; monthOffset >= 0; monthOffset--) {
-        const salaryMonth = dayjs.utc().subtract(monthOffset, "month").date(28);
-        const monthStr = salaryMonth.format("YYYY-MM");
-        const start = salaryMonth.startOf("month").toDate();
-        const end = salaryMonth.endOf("month").toDate();
-        // Count sessions taught by this tutor in that month
-        const sessionsCount = await db.session.count({
-          where: {
             tutorId,
-            startTime: { gte: start, lt: end },
-            status: SessionStatusMap.COMPLETED,
+            academyId: academy.id,
           },
         });
-        if (sessionsCount > 0) {
-          const salaryAmount = sessionsCount * tutor.pricePerSession;
-          await db.expense.create({
-            data: {
-              date: salaryMonth.toDate(),
-              description: `راتب شهر ${monthStr}`,
-              costCenter: "رواتب",
-              amount: salaryAmount,
-              currencyId: sar.id,
-              method: PaymentMethodMap.BANK_TRANSFER,
-              status:
-                Math.random() > 0.3
-                  ? PaymentStatusMap.PAID
-                  : PaymentStatusMap.PENDING,
-              invoiceUrl: null,
-              notes: null,
-              tutorId: tutor.id,
-              salaryMonth: monthStr,
-              academyId: academy.id,
-              recordedBy: null,
-            },
-          });
-        }
       }
     }
-    console.log(`  ✅ Created expenses for academy`);
+  }
+  console.log(`✅ Created past and future sessions for subscribed students`);
 
-    // ==================== CREATE HISTORY RECORDS ====================
-    console.log(`  📝 Creating history records...`);
-
-    // Helper to record history
-    async function addHistory(
-      targetType: TargetType,
-      targetId: number,
-      action: HistoryActionType,
-      recordedBy: number,
-      academyId: number,
-      changes?: HistoryChange,
-      metadata?: HistoryMetadata,
-    ) {
-      await db.history.create({
+  // 13. Create expenses for last 2 months
+  const expenseCategories = [
+    {
+      description: "إيجار المكتب",
+      costCenter: "إيجار",
+      amount: 5000,
+      method: PaymentMethod.BANK_TRANSFER,
+    },
+    {
+      description: "إعلانات فيسبوك",
+      costCenter: "تسويق",
+      amount: 1500,
+      method: PaymentMethod.ONLINE,
+    },
+    {
+      description: "اشتراك Zoom",
+      costCenter: "أدوات وبرمجيات",
+      amount: 400,
+      method: PaymentMethod.CARD,
+    },
+  ];
+  for (let monthOffset = 1; monthOffset <= 2; monthOffset++) {
+    const expenseMonth = now.subtract(monthOffset, "month");
+    const monthStr = expenseMonth.format("YYYY-MM");
+    // Fixed expenses
+    for (const cat of expenseCategories) {
+      await db.expense.create({
         data: {
-          targetType,
-          targetId,
-          action,
-          changes: changes,
-          metadata: metadata,
-          recordedBy,
-          recorderType: TargetTypeMap.Admin, // assuming admin recorded, but you may differentiate
-          academyId,
+          date: expenseMonth.date(15).toDate(),
+          description: cat.description,
+          costCenter: cat.costCenter,
+          amount: cat.amount,
+          currencyId: egp.id,
+          method: cat.method,
+          status: PaymentStatus.PAID,
+          academyId: academy.id,
         },
       });
     }
-
-    // For each student, generate history events
-    for (const student of students) {
-      const studentId = student.id;
-      const studentStatus = student.status;
-      const adminId = academyAdmins[academy.id];
-      const nowUtc = dayjs.utc();
-
-      // 1. LeadToTrial – if status changed from lead to trial at some point
-      // Since we created students with fixed status, we'll simulate this by picking a random date within last 3 months
-      if (
-        studentStatus === StudentStatusMap.trial ||
-        studentStatus === StudentStatusMap.subscribed
-      ) {
-        const conversionDate = randomDate(
-          threeMonthsAgo.toDate(),
-          nowUtc.toDate(),
-        );
-        await addHistory(
-          TargetTypeMap.Student,
-          studentId,
-          HistoryActionMap.LeadToTrial,
-          adminId,
-          academy.id,
-          {
-            oldStatus: StudentStatusMap.lead,
-            newStatus: StudentStatusMap.trial,
+    // Tutor salaries
+    for (const tutor of tutors) {
+      // Count sessions taught by this tutor in this month
+      const sessionsCount = await db.session.count({
+        where: {
+          tutorId: tutor.id,
+          startTime: {
+            gte: expenseMonth.startOf("month").toDate(),
+            lt: expenseMonth.endOf("month").toDate(),
           },
-          { conversionDate: conversionDate.toISOString() },
-        );
-      }
-
-      // 2. TrialToSubscription – if student is subscribed
-      if (studentStatus === StudentStatusMap.subscribed) {
-        const conversionDate = randomDate(
-          threeMonthsAgo.toDate(),
-          nowUtc.toDate(),
-        );
-        await addHistory(
-          TargetTypeMap.Student,
-          studentId,
-          HistoryActionMap.TrialToSubscription,
-          adminId,
-          academy.id,
-          {
-            oldStatus: StudentStatusMap.trial,
-            newStatus: StudentStatusMap.subscribed,
+        },
+      });
+      if (sessionsCount > 0) {
+        const salary = sessionsCount * tutor.pricePerSession;
+        await db.expense.create({
+          data: {
+            date: expenseMonth.date(28).toDate(),
+            description: `راتب شهر ${monthStr}`,
+            costCenter: "رواتب",
+            amount: salary,
+            currencyId: egp.id,
+            method: PaymentMethod.BANK_TRANSFER,
+            status: PaymentStatus.PAID,
+            tutorId: tutor.id,
+            salaryMonth: monthStr,
+            academyId: academy.id,
           },
-          { conversionDate: conversionDate.toISOString() },
-        );
-      }
-
-      // 3. StudentTutorChange – randomly assign new tutor for some students (20% chance)
-      if (Math.random() < 0.2) {
-        const oldTutorId = student.tutorId;
-        const newTutorId = randomElement(
-          tutorIds.filter((id) => id !== oldTutorId),
-        );
-        if (newTutorId) {
-          const changeDate = randomDate(
-            threeMonthsAgo.toDate(),
-            nowUtc.toDate(),
-          );
-          await addHistory(
-            TargetTypeMap.Student,
-            studentId,
-            HistoryActionMap.StudentTutorChange,
-            adminId,
-            academy.id,
-            { oldTutorId, newTutorId },
-            { changeDate: changeDate.toISOString() },
-          );
-          // Actually update tutor for this student? We'll keep original tutor for consistency; just record history.
-        }
-      }
-
-      // 4. UrgentStudentContact – 30% chance for subscribed/trial students
-      if (
-        [StudentStatusMap.trial, StudentStatusMap.subscribed].includes(
-          studentStatus,
-        ) &&
-        Math.random() < 0.3
-      ) {
-        const contactDate = randomDate(
-          threeMonthsAgo.toDate(),
-          nowUtc.toDate(),
-        );
-        await addHistory(
-          TargetTypeMap.Student,
-          studentId,
-          HistoryActionMap.UrgentStudentContact,
-          adminId,
-          academy.id,
-          undefined,
-          { reason: "غياب متكرر", date: contactDate.toISOString() },
-        );
-      }
-
-      // 5. StudentAbscenceReminder – 40% chance
-      if (Math.random() < 0.4) {
-        const reminderDate = randomDate(
-          threeMonthsAgo.toDate(),
-          nowUtc.toDate(),
-        );
-        await addHistory(
-          TargetTypeMap.Student,
-          studentId,
-          HistoryActionMap.StudentAbscenceReminder,
-          adminId,
-          academy.id,
-          undefined,
-          { reason: "غياب 3 حصص متتالية", date: reminderDate.toISOString() },
-        );
-      }
-
-      // 6. StudentLatePaymentReminder – only for subscribed students, 30% chance
-      if (
-        studentStatus === StudentStatusMap.subscribed &&
-        Math.random() < 0.3
-      ) {
-        const reminderDate = randomDate(
-          threeMonthsAgo.toDate(),
-          nowUtc.toDate(),
-        );
-        await addHistory(
-          TargetTypeMap.Student,
-          studentId,
-          HistoryActionMap.StudentLatePaymentReminder,
-          adminId,
-          academy.id,
-          undefined,
-          {
-            amount: 150,
-            dueDate: dayjs(reminderDate).add(7, "day").toISOString(),
-            date: reminderDate.toISOString(),
-          },
-        );
-      }
-
-      // 7. StudentNearEndSubscriptionReminder – 30% chance for subscribed students
-      if (
-        studentStatus === StudentStatusMap.subscribed &&
-        Math.random() < 0.3
-      ) {
-        const reminderDate = randomDate(
-          threeMonthsAgo.toDate(),
-          nowUtc.toDate(),
-        );
-        await addHistory(
-          TargetTypeMap.Student,
-          studentId,
-          HistoryActionMap.StudentNearEndSubscriptionReminder,
-          adminId,
-          academy.id,
-          undefined,
-          {
-            endDate: dayjs(reminderDate).add(5, "day").toISOString(),
-            date: reminderDate.toISOString(),
-          },
-        );
+        });
       }
     }
-
-    // For each tutor, generate TutorReportReminder events (30% chance)
-    for (const tutorId of tutorIds) {
-      if (Math.random() < 0.3) {
-        const reminderDate = randomDate(
-          threeMonthsAgo.toDate(),
-          dayjs.utc().toDate(),
-        );
-        await addHistory(
-          TargetTypeMap.Tutor,
-          tutorId,
-          HistoryActionMap.TutorReportReminder,
-          academyAdmins[academy.id],
-          academy.id,
-          undefined,
-          { reason: "تقرير حصة مفقود", date: reminderDate.toISOString() },
-        );
-      }
-    }
-
-    console.log(`  ✅ Created history records for academy ${academy.id}`);
   }
+  console.log(`✅ Created expenses for last 2 months`);
 
   console.log("\n🌱 Seeding finished successfully!");
 }

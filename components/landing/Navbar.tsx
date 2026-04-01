@@ -2,10 +2,12 @@
 import { useState, useEffect } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, BookOpen } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
+import logo from "@/assets/logo-transparent.png";
 
 const Navbar = () => {
   const t = useTranslations();
@@ -43,9 +45,7 @@ const Navbar = () => {
         <nav className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
-              <BookOpen className="w-5 h-5 text-primary-foreground" />
-            </div>
+            <Image src={logo} width={60} height={60} alt="نظام أكاديميتي" />
             <div className="hidden sm:block">
               <span className="font-bold text-lg text-foreground">
                 {t("nav.brand")}
