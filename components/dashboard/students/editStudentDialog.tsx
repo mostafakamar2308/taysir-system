@@ -56,12 +56,6 @@ export default function EditStudentDialog({
 
   const isLead = student?.status === StudentStatus.lead;
 
-  const formatDateForInput = (date: Date | string | null) => {
-    if (!date) return "";
-    const d = typeof date === "string" ? new Date(date) : date;
-    return d.toISOString().split("T")[0];
-  };
-
   useEffect(() => {
     async function fetchStudent() {
       setStudent(await getStudent(studentId));
@@ -292,24 +286,6 @@ export default function EditStudentDialog({
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-                <div>
-                  <Label htmlFor="startDate">تاريخ البدء</Label>
-                  <Input
-                    id="startDate"
-                    name="startDate"
-                    type="date"
-                    defaultValue={formatDateForInput(student.startDate)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="renewalDate">تاريخ التجديد</Label>
-                  <Input
-                    id="renewalDate"
-                    name="renewalDate"
-                    type="date"
-                    defaultValue={formatDateForInput(student.renewalDate)}
-                  />
                 </div>
               </div>
             </div>

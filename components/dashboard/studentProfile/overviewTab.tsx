@@ -22,12 +22,7 @@ export default function OverviewTab({
   onContact,
   onViewAttendance,
 }: OverviewTabProps) {
-  const warnings = getStudentWarnings(
-    student,
-    onMarkPayment,
-    onContact,
-    onViewAttendance,
-  );
+  const warnings = getStudentWarnings(student, onMarkPayment, onContact);
 
   const upcomingSessions = student.sessions
     .filter((s) => new Date(s.startTime) > new Date() && s.status === 0)

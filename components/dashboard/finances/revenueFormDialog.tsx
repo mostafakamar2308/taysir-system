@@ -44,7 +44,7 @@ interface RevenueFormDialogProps {
     channel: string | null;
     notes: string | null;
   } | null;
-  students: { id: number; name: string }[];
+  students: { id: number; name: string | null }[];
   plans: { id: number; title: string }[];
   currencies: { id: number; code: string; name: string; symbol: string }[];
   academyId: number;

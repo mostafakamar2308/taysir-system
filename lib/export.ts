@@ -44,7 +44,6 @@ export function exportStudentsToCSV(students: DashboardStudent[]) {
     "الحالة",
     "الخطة",
     "المعلم",
-    "تاريخ التجديد",
     "البريد",
     "واتساب",
   ];
@@ -55,7 +54,6 @@ export function exportStudentsToCSV(students: DashboardStudent[]) {
     s.status,
     s.plan || "-",
     s.tutorName,
-    s.renewalDate,
     s.email,
     s.phone,
   ]);

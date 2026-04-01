@@ -159,8 +159,8 @@ export default function FinancesClient({
                 <XAxis dataKey="month" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip
-                  formatter={(value?: number) =>
-                    formatCurrency(value, currency)
+                  formatter={(value) =>
+                    typeof value === "number" ? formatCurrency(value) : ""
                   }
                 />
                 <Line

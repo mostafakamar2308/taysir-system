@@ -221,8 +221,10 @@ export default function FinancialDashboard({
                 <XAxis dataKey="month" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip
-                  formatter={(value?: number) =>
-                    formatDefaultCurrency(value || 0)
+                  formatter={(value) =>
+                    typeof value === "number"
+                      ? formatDefaultCurrency(value)
+                      : ""
                   }
                 />
                 <Line
@@ -270,8 +272,10 @@ export default function FinancialDashboard({
                   ))}
                 </Pie>
                 <Tooltip
-                  formatter={(value?: number) =>
-                    formatDefaultCurrency(value || 0)
+                  formatter={(value) =>
+                    typeof value === "number"
+                      ? formatDefaultCurrency(value)
+                      : ""
                   }
                 />
                 <Legend />

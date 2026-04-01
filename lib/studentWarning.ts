@@ -9,40 +9,11 @@ export interface Warning {
 
 export function getStudentWarnings(
   student: StudentProfile,
-  onMarkPayment?: () => void,
   onContact?: () => void,
   onViewAttendance?: () => void,
 ): Warning[] {
   const warnings: Warning[] = [];
   const now = dayjs();
-
-  // 1. Late payment
-  if (student.renewalDate) {
-    const renewal = dayjs(student.renewalDate);
-    const daysLeft = renewal.diff(now, "day");
-    if (daysLeft < 0) {
-      warnings.push({
-        type: "danger",
-        message: "انتهى الاشتراك – يرجى التجديد",
-        action: onMarkPayment
-          ? { label: "تسجيل دفعة", onClick: onMarkPayment }
-          : undefined,
-      });
-    } else if (daysLeft < 3) {
-      warnings.push({
-        type: "danger",
-        message: `يتبقى ${daysLeft} أيام على انتهاء الاشتراك`,
-        action: onMarkPayment
-          ? { label: "تجديد", onClick: onMarkPayment }
-          : undefined,
-      });
-    } else if (daysLeft < 7) {
-      warnings.push({
-        type: "warning",
-        message: `يتبقى ${daysLeft} أيام على التجديد`,
-      });
-    }
-  }
 
   // 2. Last session absent without excuse
   const lastSession = student.sessions

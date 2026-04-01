@@ -179,7 +179,9 @@ export default function AdminDashboardClient({
               <XAxis dataKey="month" tick={{ fontSize: 12 }} />
               <YAxis tick={{ fontSize: 12 }} />
               <Tooltip
-                formatter={(value?: number) => formatCurrency(value, "EGP")}
+                formatter={(value) =>
+                  typeof value === "number" ? formatCurrency(value, "EGP") : ""
+                }
               />
               <Line
                 type="monotone"
