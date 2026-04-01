@@ -135,7 +135,37 @@ async function main() {
   await db.superAdmin.create({ data: { userId: superAdminUser.id } });
   console.log("✅ Created super admin");
 
-  // 4. Create academy with default currency EGP
+  await db.saasPlan.createMany({
+    data: [
+      {
+        name: "Free",
+        dollarPrice: 0,
+        egyptianPrice: 0,
+        maxStudents: 30,
+        maxTutors: 3,
+        billingPeriod: 30,
+      },
+      {
+        name: "Basic",
+        dollarPrice: 46,
+        egyptianPrice: 2500,
+        maxStudents: 200,
+        maxTutors: 20,
+        billingPeriod: 30,
+      },
+      {
+        name: "Professional",
+        dollarPrice: 93,
+        egyptianPrice: 5000,
+        maxStudents: 500,
+        maxTutors: 50,
+        billingPeriod: 30,
+      },
+    ],
+  });
+
+  const saasPlan = await db.saasPlan.findFirst();
+
   const academy = await db.academy.create({
     data: {
       name: ACADEMY_NAME,
@@ -143,6 +173,9 @@ async function main() {
       maxStudents: 500,
       primaryColor: "#1a9a5c",
       defaultCurrencyId: egp.id,
+      saasPlanId: saasPlan!.id,
+      saasPlanStartDate: dayjs().startOf("day").toDate(),
+      saasPlanEndDate: dayjs().add(1, "month").startOf("day").toDate(),
     },
   });
   console.log(`✅ Created academy: ${academy.name}`);

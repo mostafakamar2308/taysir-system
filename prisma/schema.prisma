@@ -56,22 +56,27 @@ model Academy {
   primaryColor      String
   defaultCurrencyId Int?
   defaultCurrency   Currency? @relation(fields: [defaultCurrencyId], references: [id])
+  saasPlan          SaasPlan? @relation(fields: [saasPlanId], references: [id])
+  saasPlanId        Int?
+  saasPlanStartDate DateTime?
+  saasPlanEndDate   DateTime?
 
-  admin             Admin?
-  supervisors       Supervisor[]
-  tutors            Tutor[]
-  students          Student[]
-  sessions          Session[]
-  recurringPatterns RecurringPattern[]
-  expenses          Expense[]
-  reports           Report[]
-  plans             Plan[]
-  histories         History[]
-  revenues          Revenue[]
-
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
+  admin                Admin?
+  adminId              Int?
+  supervisors          Supervisor[]
+  tutors               Tutor[]
+  students             Student[]
+  sessions             Session[]
+  recurringPatterns    RecurringPattern[]
+  expenses             Expense[]
+  reports              Report[]
+  plans                Plan[]
+  histories            History[]
+  revenues             Revenue[]
   academyCurrencyRates AcademyCurrencyRate[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Admin {
@@ -413,7 +418,7 @@ model Speciality {
 model Currency {
   id Int @id @default(autoincrement())
 
-  code   String // ISO code: USD, SAR, EGP
+  code   String @unique // ISO code: USD, SAR, EGP 
   name   String // US Dollar, Saudi Riyal, Egyptian Pound
   symbol String // $, ﷼, £
 
@@ -493,4 +498,18 @@ model AcademyCurrencyRate {
 
   @@unique([academyId, currencyId])
   @@index([academyId])
+}
+
+model SaasPlan {
+  id            Int       @id @default(autoincrement())
+  name          String
+  dollarPrice   Float
+  egyptianPrice Float
+  maxStudents   Int
+  maxTutors     Int
+  billingPeriod Int
+  features      Json?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  academies     Academy[]
 }

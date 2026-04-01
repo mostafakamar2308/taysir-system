@@ -2,176 +2,124 @@
 
 import db from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { getTokenFromCookie, verifyToken } from "@/lib/jwt";
 import { z } from "zod";
+import bcrypt from "bcrypt";
 import { Role } from "@/types/user";
+import dayjs from "@/lib/dayjs";
 
-const academySchema = z.object({
-  name: z.string().min(1, "الاسم مطلوب"),
-  adminId: z.number().optional().nullable(),
-  maxStudents: z.number().int().positive().optional().nullable(),
-  maxTutors: z.number().int().positive().optional().nullable(),
-  primaryColor: z.string().optional().nullable(),
+const createAcademySchema = z.object({
+  name: z.string().min(1),
+  adminName: z.string().min(1),
+  adminEmail: z.string().email(),
+  adminPassword: z.string().min(6),
+  saasPlanId: z.number(),
+  isFreeTrial: z.boolean().optional(),
 });
 
-export async function createAcademy(formData: FormData) {
-  const name = formData.get("name") as string;
-  const adminId = parseInt(formData.get("adminId") as string) || null;
-  const maxStudents = formData.get("maxStudents")
-    ? parseInt(formData.get("maxStudents") as string)
-    : null;
-  const maxTutors = formData.get("maxTutors")
-    ? parseInt(formData.get("maxTutors") as string)
-    : null;
-  const primaryColor = (formData.get("primaryColor") as string) || null;
+const updateAcademySchema = z.object({
+  name: z.string().min(1).optional(),
+  adminId: z.number().nullable().optional(),
+  saasPlanId: z.number().nullable().optional(),
+});
 
-  const validated = academySchema.parse({
-    name,
-    adminId,
-    maxStudents,
-    maxTutors,
-    primaryColor,
-  });
+export async function createAcademy(data: z.infer<typeof createAcademySchema>) {
+  const token = await getTokenFromCookie();
+  if (!token) throw new Error("غير مصرح");
+  const payload = verifyToken(token);
+  if (!payload || payload.role !== Role.SuperAdmin) throw new Error("غير مصرح");
 
-  // If adminId is provided, ensure the user exists and is not already an admin
-  if (validated.adminId) {
-    const user = await db.user.findUnique({
-      where: { id: validated.adminId },
-      include: { admin: true },
-    });
-    if (!user) throw new Error("المستخدم غير موجود");
-    if (user.admin)
-      throw new Error("هذا المستخدم مشرف بالفعل على أكاديمية أخرى");
-    if (user.role !== Role.Admin) {
-      // Optionally update role to Admin
-      await db.user.update({
-        where: { id: validated.adminId },
-        data: { role: Role.Admin },
-      });
-    }
-  }
+  const validated = createAcademySchema.parse(data);
+  const hashedPassword = await bcrypt.hash(validated.adminPassword, 10);
 
-  // Create academy
-  const academy = await db.academy.create({
+  // Create the admin user
+  const adminUser = await db.user.create({
     data: {
-      name: validated.name,
-      maxStudents: validated.maxStudents || 500,
-      maxTutors: validated.maxTutors || 20,
-      primaryColor: validated.primaryColor || "#353531",
+      name: validated.adminName,
+      email: validated.adminEmail,
+      password: hashedPassword,
+      role: Role.Admin,
+      timezone: "Africa/Cairo",
     },
   });
 
-  // If adminId was provided, create the Admin link
-  if (validated.adminId) {
-    await db.admin.create({
-      data: {
-        userId: validated.adminId,
-        academyId: academy.id,
-      },
-    });
+  // Create the academy
+  let saasPlanStartDate: Date | null = null;
+  let saasPlanEndDate: Date | null = null;
+  const plan = await db.saasPlan.findUnique({
+    where: { id: validated.saasPlanId },
+  });
+  if (!plan) throw new Error("No Plan with this ID");
+  if (validated.isFreeTrial && validated.saasPlanId) {
+    saasPlanStartDate = new Date();
+    saasPlanEndDate = dayjs().add(plan.billingPeriod, "day").toDate();
   }
 
-  revalidatePath("/admin/academies");
+  const academy = await db.academy.create({
+    data: {
+      name: validated.name,
+      saasPlanId: validated.saasPlanId,
+      saasPlanStartDate,
+      saasPlanEndDate,
+      maxStudents: plan?.maxStudents,
+      maxTutors: plan?.maxTutors,
+      primaryColor: "#ff0",
+    },
+  });
+
+  // Link the admin to the academy
+  await db.admin.create({
+    data: {
+      userId: adminUser.id,
+      academyId: academy.id,
+    },
+  });
+
+  revalidatePath("/ar/dashboard/admin/academies");
   return academy;
 }
 
-export async function updateAcademy(id: number, formData: FormData) {
-  const name = formData.get("name") as string;
-  const adminId = (formData.get("adminId") as string) || null;
-  const maxStudents = formData.get("maxStudents")
-    ? parseInt(formData.get("maxStudents") as string)
-    : null;
-  const maxTutors = formData.get("maxTutors")
-    ? parseInt(formData.get("maxTutors") as string)
-    : null;
-  const primaryColor = (formData.get("primaryColor") as string) || null;
+export async function updateAcademy(
+  id: number,
+  data: z.infer<typeof updateAcademySchema>,
+) {
+  const token = await getTokenFromCookie();
+  if (!token) throw new Error("غير مصرح");
+  const payload = verifyToken(token);
+  if (!payload || payload.role !== Role.SuperAdmin) throw new Error("غير مصرح");
 
-  const validated = academySchema.parse({
-    name,
-    adminId,
-    maxStudents,
-    maxTutors,
-    primaryColor,
-  });
+  const validated = updateAcademySchema.parse(data);
 
-  // Get current academy to check admin changes
-  const currentAcademy = await db.academy.findUnique({
-    where: { id },
-    include: { admin: true },
-  });
-  if (!currentAcademy) throw new Error("الأكاديمية غير موجودة");
-
-  // Handle admin change
-  if (currentAcademy.admin?.userId !== validated.adminId) {
-    // Remove old admin if exists
-    if (currentAcademy.admin) {
-      await db.admin.delete({ where: { id: currentAcademy.admin.id } });
-    }
-    // Add new admin if provided
-    if (validated.adminId) {
-      // Check if user is already admin elsewhere
-      const existingAdmin = await db.admin.findUnique({
-        where: { userId: validated.adminId },
-      });
-      if (existingAdmin)
-        throw new Error("هذا المستخدم مشرف بالفعل على أكاديمية أخرى");
-
-      await db.admin.create({
-        data: {
-          userId: validated.adminId,
-          academyId: id,
-        },
-      });
-
-      // Ensure user role is Admin
-      await db.user.update({
-        where: { id: validated.adminId },
-        data: { role: Role.Admin },
-      });
-    }
-  }
-
-  // Update academy
   await db.academy.update({
     where: { id },
     data: {
       name: validated.name,
-      maxStudents: validated.maxStudents || 500,
-      maxTutors: validated.maxTutors || 20,
-      primaryColor: validated.primaryColor || "#353531",
+      saasPlanId: validated.saasPlanId,
     },
   });
 
-  revalidatePath("/admin/academies");
+  // If adminId is provided, we need to update the admin relationship
+  if (validated.adminId !== undefined) {
+    const existingAdmin = await db.admin.findUnique({
+      where: { academyId: id },
+    });
+    if (!existingAdmin) throw new Error("No Admin was found");
+    await db.academy.update({
+      where: { id: existingAdmin.id },
+      data: { adminId: validated.adminId },
+    });
+  }
+
+  revalidatePath("/ar/dashboard/admin/academies");
+  revalidatePath(`/ar/dashboard/admin/academies/${id}`);
 }
 
 export async function deleteAcademy(id: number) {
-  // First delete related admin link
-  await db.admin.deleteMany({ where: { academyId: id } });
-  // Then delete academy
+  const token = await getTokenFromCookie();
+  if (!token) throw new Error("غير مصرح");
+  const payload = verifyToken(token);
+  if (!payload || payload.role !== Role.SuperAdmin) throw new Error("غير مصرح");
+
   await db.academy.delete({ where: { id } });
-  revalidatePath("/admin/academies");
-}
-
-export async function getAcademies() {
-  const academies = await db.academy.findMany({
-    include: {
-      admin: { include: { user: true } },
-      students: true,
-      tutors: true,
-    },
-    orderBy: { createdAt: "desc" },
-  });
-
-  return academies.map((a) => ({
-    id: a.id,
-    name: a.name,
-    adminId: a.admin?.userId || null,
-    adminName: a.admin?.user.name || null,
-    maxStudents: a.maxStudents,
-    maxTutors: a.maxTutors,
-    primaryColor: a.primaryColor,
-    createdAt: a.createdAt,
-    studentCount: a.students.length,
-    tutorCount: a.tutors.length,
-  }));
+  revalidatePath("/ar/dashboard/admin/academies");
 }

@@ -40,6 +40,10 @@ CREATE TABLE "Academy" (
     "maxStudents" INTEGER NOT NULL,
     "primaryColor" TEXT NOT NULL,
     "defaultCurrencyId" INTEGER,
+    "saasPlanId" INTEGER,
+    "saasPlanStartDate" TIMESTAMP(3),
+    "saasPlanEndDate" TIMESTAMP(3),
+    "adminId" INTEGER,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -135,7 +139,6 @@ CREATE TABLE "Session" (
     "startTime" TIMESTAMP(3) NOT NULL,
     "endTime" TIMESTAMP(3) NOT NULL,
     "durationMinutes" INTEGER NOT NULL DEFAULT 60,
-    "status" INTEGER NOT NULL DEFAULT 0,
     "topic" TEXT,
     "notes" TEXT,
     "isTrial" BOOLEAN NOT NULL DEFAULT false,
@@ -362,6 +365,34 @@ CREATE TABLE "History" (
 );
 
 -- CreateTable
+CREATE TABLE "AcademyCurrencyRate" (
+    "id" SERIAL NOT NULL,
+    "academyId" INTEGER NOT NULL,
+    "currencyId" INTEGER NOT NULL,
+    "rate" DOUBLE PRECISION NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "AcademyCurrencyRate_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "SaasPlan" (
+    "id" SERIAL NOT NULL,
+    "name" TEXT NOT NULL,
+    "dollarPrice" DOUBLE PRECISION NOT NULL,
+    "egyptianPrice" DOUBLE PRECISION NOT NULL,
+    "maxStudents" INTEGER NOT NULL,
+    "maxTutors" INTEGER NOT NULL,
+    "billingPeriod" INTEGER NOT NULL,
+    "features" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "SaasPlan_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "_SpecialityToTutor" (
     "A" INTEGER NOT NULL,
     "B" INTEGER NOT NULL,
@@ -457,6 +488,9 @@ CREATE INDEX "Report_type_idx" ON "Report"("type");
 CREATE INDEX "Report_month_idx" ON "Report"("month");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Currency_code_key" ON "Currency"("code");
+
+-- CreateIndex
 CREATE INDEX "Currency_code_idx" ON "Currency"("code");
 
 -- CreateIndex
@@ -484,10 +518,19 @@ CREATE INDEX "History_action_idx" ON "History"("action");
 CREATE INDEX "History_academyId_idx" ON "History"("academyId");
 
 -- CreateIndex
+CREATE INDEX "AcademyCurrencyRate_academyId_idx" ON "AcademyCurrencyRate"("academyId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "AcademyCurrencyRate_academyId_currencyId_key" ON "AcademyCurrencyRate"("academyId", "currencyId");
+
+-- CreateIndex
 CREATE INDEX "_SpecialityToTutor_B_index" ON "_SpecialityToTutor"("B");
 
 -- AddForeignKey
 ALTER TABLE "Academy" ADD CONSTRAINT "Academy_defaultCurrencyId_fkey" FOREIGN KEY ("defaultCurrencyId") REFERENCES "Currency"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Academy" ADD CONSTRAINT "Academy_saasPlanId_fkey" FOREIGN KEY ("saasPlanId") REFERENCES "SaasPlan"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Admin" ADD CONSTRAINT "Admin_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -617,6 +660,12 @@ ALTER TABLE "Subscription" ADD CONSTRAINT "Subscription_planId_fkey" FOREIGN KEY
 
 -- AddForeignKey
 ALTER TABLE "History" ADD CONSTRAINT "History_academyId_fkey" FOREIGN KEY ("academyId") REFERENCES "Academy"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AcademyCurrencyRate" ADD CONSTRAINT "AcademyCurrencyRate_academyId_fkey" FOREIGN KEY ("academyId") REFERENCES "Academy"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AcademyCurrencyRate" ADD CONSTRAINT "AcademyCurrencyRate_currencyId_fkey" FOREIGN KEY ("currencyId") REFERENCES "Currency"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "_SpecialityToTutor" ADD CONSTRAINT "_SpecialityToTutor_A_fkey" FOREIGN KEY ("A") REFERENCES "Speciality"("id") ON DELETE CASCADE ON UPDATE CASCADE;

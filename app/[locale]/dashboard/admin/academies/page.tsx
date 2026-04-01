@@ -1,28 +1,52 @@
-import { getAcademies } from "@/actions/academy";
 import db from "@/lib/prisma";
+import { user } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { Role } from "@/types/user";
 import AcademiesClient from "@/components/dashboard/admin/academies/viewer";
+import { PaymentStatus } from "@/types/payment";
 
 export default async function AcademiesPage() {
-  const academies = await getAcademies();
+  const currentUser = await user();
+  if (!currentUser || currentUser.role !== Role.SuperAdmin) {
+    redirect("/login");
+  }
 
-  // Get all users with potential admin role (or all users) for admin dropdown
-  const users = await db.user.findMany({
-    where: { role: { in: [1, 3] } }, // Admin or Tutor? Actually we need potential admins: SuperAdmin (0) can't, Admin (1) already admin, others can be promoted. We'll show all non-admin users.
-    // For simplicity, get all users and filter in client, or better: get all users not already admin of another academy.
-    select: { id: true, name: true, email: true, role: true },
+  const academies = await db.academy.findMany({
+    include: {
+      admin: {
+        include: { user: true },
+      },
+      students: true,
+      tutors: true,
+      revenues: {
+        where: { status: PaymentStatus.PAID },
+      },
+      expenses: {
+        where: { status: PaymentStatus.PAID },
+      },
+      saasPlan: true,
+    },
+    orderBy: { createdAt: "desc" },
   });
 
-  // Get users who are not already admins of any academy
-  const admins = await db.admin.findMany({ select: { userId: true } });
-  const adminUserIds = new Set(admins.map((a) => a.userId));
-  const availableUsers = users.filter(
-    (u) => !adminUserIds.has(u.id) || u.role === 1,
-  ); // allow current admins to be selected
+  // Transform data for client
+  const transformed = academies.map((a) => ({
+    id: a.id,
+    name: a.name,
+    adminId: a.admin?.userId || null,
+    adminName: a.admin?.user.name || null,
+    adminEmail: a.admin?.user.email || null,
+    studentCount: a.students.length,
+    tutorCount: a.tutors.length,
+    totalRevenue: a.revenues.reduce((sum, r) => sum + r.amount, 0),
+    totalExpenses: a.expenses.reduce((sum, e) => sum + e.amount, 0),
+    saasPlanName: a.saasPlan?.name || null,
+    saasPlanDollarPrice: a.saasPlan?.dollarPrice || null,
+    saasPlanEgyptianPrice: a.saasPlan?.egyptianPrice || null,
+    createdAt: a.createdAt,
+  }));
 
-  return (
-    <AcademiesClient
-      initialAcademies={academies}
-      users={availableUsers.map((u) => ({ id: u.id, name: u.name || u.email }))}
-    />
-  );
+  const saasPlans = await db.saasPlan.findMany();
+
+  return <AcademiesClient academies={transformed} saasPlans={saasPlans} />;
 }

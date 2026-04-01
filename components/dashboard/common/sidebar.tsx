@@ -57,7 +57,7 @@ const getSidebarGroups = (role: number) => {
         items: [
           {
             title: "لوحة التحكم",
-            url: "/admin/dashboard",
+            url: "/ar/dashboard/admin/dashboard",
             icon: LayoutDashboard,
           },
         ],
@@ -65,9 +65,21 @@ const getSidebarGroups = (role: number) => {
       {
         label: "الإدارة",
         items: [
-          { title: "الأكاديميات", url: "/admin/academies", icon: Shield },
-          { title: "المستخدمين", url: "/admin/users", icon: Users },
-          { title: "إعدادات المنصة", url: "/admin/settings", icon: UserCog },
+          {
+            title: "الأكاديميات",
+            url: "/ar/dashboard/admin/academies",
+            icon: Shield,
+          },
+          {
+            title: "الاشتراكات",
+            url: "/ar/dashboard/admin/subscriptions",
+            icon: Users,
+          },
+          {
+            title: "إعدادات العملات",
+            url: "/ar/dashboard/admin/currencies",
+            icon: DollarSign,
+          },
         ],
       },
     ];
@@ -335,13 +347,7 @@ export default function Sidebar() {
             <DropdownMenuItem
               className="gap-2 cursor-pointer"
               onClick={() => {
-                if (user.role === Role.SuperAdmin) {
-                  window.location.href = "/ar/dashboard/admin/settings/profile";
-                } else if (user.role === Role.Admin) {
-                  window.location.href = "/ar/dashboard/settings/personal";
-                } else {
-                  window.location.href = "/ar/dashboard/settings/personal";
-                }
+                window.location.href = "/ar/dashboard/settings/personal";
               }}
             >
               <UserCog className="h-4 w-4" />
