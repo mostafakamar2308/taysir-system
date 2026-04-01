@@ -8,6 +8,8 @@ import { notFound } from "next/navigation";
 import { routing } from "@/i18n/routing";
 import { setRequestLocale } from "next-intl/server";
 import { getTranslations } from "next-intl/server";
+import MixpanelProvider from "@/components/providers/mixpanelProvider";
+import { GoogleTagManager } from "@next/third-parties/google";
 
 const cairo = Cairo({
   variable: "--font-cairo",
@@ -50,16 +52,20 @@ export default async function RootLayout({
   return (
     <html className="scroll-smooth" lang={locale}>
       <body
-        dir={locale === "en" ? "ltr" : "rtl"}
+        dir={locale === "ar" ? "rtl" : "ltr"}
         className={`${cairo.className} relative`}
       >
-        <NextIntlClientProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            {children}
-          </TooltipProvider>
-        </NextIntlClientProvider>
+        <MixpanelProvider>
+          <GoogleTagManager gtmId="G-JSL523EC4W" />
+
+          <NextIntlClientProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              {children}
+            </TooltipProvider>
+          </NextIntlClientProvider>
+        </MixpanelProvider>
       </body>
     </html>
   );
