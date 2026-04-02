@@ -57,7 +57,7 @@ export function SessionCard({
           )}
         </div>
       </button>
-      {session.status === 1 && !session.attendance && (
+      {session.status === SessionStatus.COMPLETED && !session.attendance && (
         <div className="absolute top-0 left-0 -mt-1 -ml-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <Button
             variant="ghost"

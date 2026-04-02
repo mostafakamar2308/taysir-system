@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
 import { routing } from "./i18n/routing";
 import { verifyToken } from "@/lib/jwt";
+import { Role } from "./types/user";
 
 // Create the next-intl proxy
 const intlMiddleware = createMiddleware(routing);
@@ -15,24 +16,27 @@ export function proxy(request: NextRequest) {
   if (pathname === "/login") {
     if (token) {
       const payload = verifyToken(token);
+      console.log(payload);
+
       if (payload) {
-        if (payload.role === 0) {
-          return NextResponse.redirect(
-            new URL("/admin/dashboard", request.url),
-          );
-        } else {
-          return NextResponse.redirect(new URL("/ar/dashboard", request.url));
+        if (payload.role === Role.Admin) {
+          return NextResponse.redirect(new URL("/ar/dashboard/", request.url));
         }
+        if (payload.role === Role.Tutor)
+          return NextResponse.redirect(
+            new URL("/ar/dashboard/tutor", request.url),
+          );
+        if (payload.role === Role.SuperAdmin)
+          return NextResponse.redirect(
+            new URL("/ar/dashboard/admin/dashboard", request.url),
+          );
       }
     }
     return intlMiddleware(request);
   }
 
   // Protected dashboard paths
-  if (
-    pathname.startsWith("/ar/dashboard") ||
-    pathname.startsWith("/admin/dashboard")
-  ) {
+  if (pathname.startsWith("/ar/dashboard")) {
     if (!token) {
       return NextResponse.redirect(new URL("/login", request.url));
     }
@@ -42,7 +46,10 @@ export function proxy(request: NextRequest) {
       return NextResponse.redirect(new URL("/login", request.url));
     }
 
-    if (pathname.startsWith("/admin/dashboard") && payload.role !== 0) {
+    if (
+      pathname.startsWith("/ar/dashboard/admin") &&
+      payload.role !== Role.SuperAdmin
+    ) {
       return NextResponse.redirect(new URL("/ar/dashboard", request.url));
     }
 

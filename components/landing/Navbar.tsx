@@ -37,9 +37,7 @@ const Navbar = () => {
       initial={{ y: -100 }}
       animate={{ y: 0 }}
       transition={{ duration: 0.5 }}
-      className={`fixed w-full z-50 transition-all duration-300 ${
-        scrolled ? "glass shadow-md" : "bg-transparent"
-      }`}
+      className={`fixed w-full z-50 ${scrolled ? "glass shadow-md" : "bg-transparent"}`}
     >
       <div className="container mx-auto px-4">
         <nav className="flex items-center justify-between h-16 md:h-20">
@@ -141,6 +139,11 @@ const Navbar = () => {
                     {link.label}
                   </a>
                 ))}
+              <Link href="/login">
+                <Button size="sm" className="w-full" variant={"outline"}>
+                  {t("nav.login")}
+                </Button>
+              </Link>
               <Link href="/register" onClick={() => setIsOpen(false)}>
                 <Button className="w-full bg-primary text-primary-foreground">
                   {t("nav.joinWaitlist")}

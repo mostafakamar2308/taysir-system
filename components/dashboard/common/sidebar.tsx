@@ -1,39 +1,7 @@
 "use client";
-import logo from "@/assets/logo-transparent.png";
-import {
-  GraduationCap,
-  BookOpen,
-  TrendingUp,
-  BarChart3,
-  Clock,
-  LayoutDashboard,
-  UserCog,
-  LogOut,
-  Users,
-  Shield,
-  Coins,
-  Calendar,
-  DollarSign,
-  User,
-} from "lucide-react";
-import { NavLink } from "@/components/NavLink";
-import {
-  Sidebar as BaseSidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarFooter,
-  SidebarHeader,
-  useSidebar,
-} from "@/components/ui/sidebar";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+
+import Image from "next/image";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,203 +9,25 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ChevronDown, ChevronsUpDown } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { ChevronsUpDown, LogOut, UserCog } from "lucide-react";
 import { useAuth } from "@/lib/contexts/auth";
 import { Role } from "@/types/user";
-import Image from "next/image";
-
-const getSidebarGroups = (role: number) => {
-  // SuperAdmin
-  if (role === Role.SuperAdmin) {
-    return [
-      {
-        label: "الرئيسية",
-        items: [
-          {
-            title: "لوحة التحكم",
-            url: "/ar/dashboard/admin/dashboard",
-            icon: LayoutDashboard,
-          },
-        ],
-      },
-      {
-        label: "الإدارة",
-        items: [
-          {
-            title: "الأكاديميات",
-            url: "/ar/dashboard/admin/academies",
-            icon: Shield,
-          },
-          {
-            title: "الاشتراكات",
-            url: "/ar/dashboard/admin/subscriptions",
-            icon: Users,
-          },
-          {
-            title: "إعدادات العملات",
-            url: "/ar/dashboard/admin/currencies",
-            icon: DollarSign,
-          },
-        ],
-      },
-    ];
-  }
-
-  // Academy Admin
-  if (role === Role.Admin) {
-    return [
-      {
-        label: "الرئيسية",
-        items: [
-          { title: "لوحة التحكم", url: "/ar/dashboard", icon: LayoutDashboard },
-        ],
-      },
-      {
-        label: "المستخدمين",
-        items: [
-          {
-            title: "الطلاب",
-            url: "/ar/dashboard/students",
-            icon: GraduationCap,
-          },
-          { title: "المعلمين", url: "/ar/dashboard/tutors", icon: BookOpen },
-        ],
-      },
-      {
-        label: "المالية",
-        items: [
-          {
-            title: "الماليات",
-            url: "/ar/dashboard/finances",
-            icon: TrendingUp,
-          },
-          { title: "الخطط", url: "/ar/dashboard/plans", icon: BookOpen },
-          {
-            title: "العملات وأسعار الصرف",
-            url: "/ar/dashboard/settings/currencies",
-            icon: Coins,
-          },
-        ],
-      },
-      {
-        label: "الحصص ومؤشرات الأداء",
-        items: [
-          { title: "الجداول", url: "/ar/dashboard/sessions", icon: Clock },
-          {
-            title: "مؤشرات الأداء",
-            url: "/ar/dashboard/analytics",
-            icon: BarChart3,
-          },
-        ],
-      },
-      {
-        label: "الإعدادات",
-        items: [
-          {
-            title: "إعدادات شخصية",
-            url: "/ar/dashboard/settings/personal",
-            icon: UserCog,
-          },
-          {
-            title: "إعدادات الأمان",
-            url: "/ar/dashboard/settings/security",
-            icon: Shield,
-          },
-          {
-            title: "إدارة المستخدمين",
-            url: "/ar/dashboard/settings/users",
-            icon: Users,
-          },
-        ],
-      },
-    ];
-  }
-
-  // Tutor
-  if (role === Role.Tutor) {
-    return [
-      {
-        label: "الرئيسية",
-        items: [
-          {
-            title: "لوحة التحكم",
-            url: "/ar/dashboard/tutor",
-            icon: LayoutDashboard,
-          },
-        ],
-      },
-      {
-        label: "الحصص",
-        items: [
-          {
-            title: "جدول الحصص",
-            url: "/ar/dashboard/tutor/sessions",
-            icon: Calendar,
-          },
-        ],
-      },
-      {
-        label: "الطلاب",
-        items: [
-          {
-            title: "طلابي",
-            url: "/ar/dashboard/tutor/students",
-            icon: GraduationCap,
-          },
-        ],
-      },
-      {
-        label: "المالية",
-        items: [
-          {
-            title: "أرباحي",
-            url: "/ar/dashboard/tutor/finances",
-            icon: DollarSign,
-          },
-        ],
-      },
-      {
-        label: "الإعدادات",
-        items: [
-          {
-            title: "ملفي الشخصي",
-            url: "/ar/dashboard/settings/personal",
-            icon: User,
-          },
-          {
-            title: "إعدادات الأمان",
-            url: "/ar/dashboard/settings/security",
-            icon: Shield,
-          },
-        ],
-      },
-    ];
-  }
-
-  return [
-    {
-      label: "الرئيسية",
-      items: [
-        { title: "لوحة التحكم", url: "/ar/dashboard", icon: LayoutDashboard },
-      ],
-    },
-  ];
-};
+import {
+  Sidebar as BaseSidebar,
+  SidebarFooter,
+  SidebarHeader,
+  useSidebar,
+} from "@/components/ui/sidebar";
+import SidebarContent from "@/components/dashboard/common/sidebarContent";
+import logo from "@/assets/logo-transparent.png";
 
 export default function Sidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const currentPath = usePathname();
   const { user, logout } = useAuth();
-
-  const isActive = (path: string) => currentPath === path;
-  const sidebarGroups = user ? getSidebarGroups(user.role) : [];
 
   if (!user) return null;
 
-  // Role-specific labels for the header
   const getRoleLabel = () => {
     if (user.role === Role.SuperAdmin) return "الإدارة العامة";
     if (user.role === Role.Admin) return "منصة المدير";
@@ -246,10 +36,14 @@ export default function Sidebar() {
   };
 
   return (
-    <BaseSidebar className="w-60 bg-white" collapsible="icon" side="right">
+    <BaseSidebar
+      className="w-60 bg-white hidden md:block"
+      collapsible="icon"
+      side="right"
+    >
       <SidebarHeader className="border-b border-sidebar-border px-4 py-5">
         <div className="flex items-center gap-3">
-          <Image src={logo} alt="logo" width={50} height={50}></Image>
+          <Image src={logo} alt="logo" width={40} height={40} />
           {!collapsed && (
             <div className="flex flex-col">
               <span className="text-base font-bold text-sidebar-foreground leading-tight">
@@ -263,49 +57,8 @@ export default function Sidebar() {
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="pt-2">
-        {sidebarGroups.map((group) => {
-          const groupActive = group.items.some((i) => isActive(i.url));
-          return (
-            <Collapsible key={group.label} defaultOpen={groupActive}>
-              <SidebarGroup>
-                <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-2.5 text-[0.7rem] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors">
-                  {!collapsed && <span>{group.label}</span>}
-                  {!collapsed && (
-                    <ChevronDown className="h-3.5 w-3.5 transition-transform duration-200 data-[state=open]:rotate-180" />
-                  )}
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <SidebarGroupContent>
-                    <SidebarMenu>
-                      {group.items.map((item) => (
-                        <SidebarMenuItem key={item.title}>
-                          <SidebarMenuButton
-                            asChild
-                            isActive={isActive(item.url)}
-                            className="h-10"
-                          >
-                            <NavLink
-                              href={item.url}
-                              className="flex items-center gap-3 rounded-lg px-4 py-2.5 text-[0.9rem] text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                              activeClassName="bg-primary/10 text-primary font-medium"
-                            >
-                              <item.icon className="h-[1.15rem] w-[1.15rem] shrink-0" />
-                              {!collapsed && <span>{item.title}</span>}
-                            </NavLink>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                      ))}
-                    </SidebarMenu>
-                  </SidebarGroupContent>
-                </CollapsibleContent>
-              </SidebarGroup>
-            </Collapsible>
-          );
-        })}
-      </SidebarContent>
+      <SidebarContent />
 
-      {/* User section at bottom */}
       <SidebarFooter className="border-t border-sidebar-border p-3">
         <DropdownMenu dir="rtl">
           <DropdownMenuTrigger asChild>
@@ -346,9 +99,9 @@ export default function Sidebar() {
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="gap-2 cursor-pointer"
-              onClick={() => {
-                window.location.href = "/ar/dashboard/settings/personal";
-              }}
+              onClick={() =>
+                (window.location.href = "/ar/dashboard/settings/personal")
+              }
             >
               <UserCog className="h-4 w-4" />
               <span>إعدادات الحساب</span>

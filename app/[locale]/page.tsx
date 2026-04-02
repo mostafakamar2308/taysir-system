@@ -13,7 +13,7 @@ import "@/i18n/request";
 
 export default function Home() {
   return (
-    <div className="min-h-screen max-w-screen">
+    <div className="min-h-screen relative max-w-screen overflow-x-hidden">
       <Navbar />
       <main>
         <HeroSection />

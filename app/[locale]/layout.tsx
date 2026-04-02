@@ -50,14 +50,13 @@ export default async function RootLayout({
   setRequestLocale(locale);
 
   return (
-    <html className="scroll-smooth" lang={locale}>
+    <html className="scroll-smooth" data-scroll-behavior="smooth" lang={locale}>
       <body
         dir={locale === "ar" ? "rtl" : "ltr"}
         className={`${cairo.className} relative`}
       >
         <MixpanelProvider>
           <GoogleTagManager gtmId="G-JSL523EC4W" />
-
           <NextIntlClientProvider>
             <TooltipProvider>
               <Toaster />

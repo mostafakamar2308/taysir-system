@@ -36,74 +36,86 @@ export function WeekView({
 
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden">
-      <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-border">
-        <div className="p-2" />
-        {weekDates.map((date, i) => {
-          const isToday = utcToLocalDate(date) === utcToLocalDate(today);
-          return (
-            <div
-              key={i}
-              className={`p-3 text-center border-r border-border ${isToday ? "bg-primary/5" : ""}`}
-            >
-              <p className="text-xs text-muted-foreground">
-                {dayNamesShort[i]}
-              </p>
-              <p
-                className={`text-lg font-bold ${isToday ? "text-primary" : "text-foreground"}`}
-              >
-                {date.getDate()}
-              </p>
-            </div>
-          );
-        })}
-      </div>
-      <div className="max-h-150 overflow-y-auto">
-        {timeSlots.map((slot) => (
-          <div
-            key={slot.hour}
-            className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-border last:border-b-0 min-h-16"
-          >
-            <div className="p-2 text-xs text-muted-foreground text-center border-l border-border flex items-start justify-center pt-1">
-              {slot.label}
-            </div>
-            {weekDates.map((date, dayIdx) => {
-              const cellSessions = sessions.filter((s) => {
-                const d = new Date(s.startTime);
-                return (
-                  d.getDate() === date.getDate() &&
-                  d.getMonth() === date.getMonth() &&
-                  d.getHours() === slot.hour
-                );
-              });
+      {/* Horizontal scroll wrapper */}
+      <div className="overflow-x-auto">
+        <div className="min-w-175">
+          {/* Day headers */}
+          <div className="grid grid-cols-[60px_repeat(7,minmax(100px,1fr))] border-b border-border">
+            <div className="p-2" />
+            {weekDates.map((date, i) => {
               const isToday = utcToLocalDate(date) === utcToLocalDate(today);
-              const isPast =
-                date < today ||
-                (utcToLocalDate(date) === utcToLocalDate(today) &&
-                  slot.hour < new Date().getHours());
-
               return (
                 <div
-                  key={dayIdx}
-                  className={`p-1 border-r border-border cursor-pointer hover:bg-accent/30 transition-colors relative ${
-                    isToday ? "bg-primary/2" : ""
-                  } ${isPast ? "opacity-80" : ""}`}
-                  onClick={() =>
-                    cellSessions.length === 0 && onSlotClick(date, slot.hour)
-                  }
+                  key={i}
+                  className={`p-3 text-center border-r border-border ${isToday ? "bg-primary/5" : ""}`}
                 >
-                  {cellSessions.map((session) => (
-                    <SessionCard
-                      key={session.id}
-                      session={session}
-                      onClick={() => onSessionClick(session)}
-                      onMarkAttendance={onMarkAttendance}
-                    />
-                  ))}
+                  <p className="text-xs text-muted-foreground">
+                    {dayNamesShort[i]}
+                  </p>
+                  <p
+                    className={`text-lg font-bold ${isToday ? "text-primary" : "text-foreground"}`}
+                  >
+                    {date.getDate()}
+                  </p>
                 </div>
               );
             })}
           </div>
-        ))}
+
+          {/* Time slots */}
+          <div>
+            {timeSlots.map((slot) => (
+              <div
+                key={slot.hour}
+                className="grid grid-cols-[60px_repeat(7,minmax(100px,1fr))] border-b border-border last:border-b-0"
+              >
+                <div className="p-2 text-xs text-muted-foreground text-center border-l border-border flex items-start justify-center pt-1">
+                  {slot.label}
+                </div>
+                {weekDates.map((date, dayIdx) => {
+                  const cellSessions = sessions.filter((s) => {
+                    const d = new Date(s.startTime);
+                    return (
+                      d.getDate() === date.getDate() &&
+                      d.getMonth() === date.getMonth() &&
+                      d.getHours() === slot.hour
+                    );
+                  });
+                  const isToday =
+                    utcToLocalDate(date) === utcToLocalDate(today);
+                  const isPast =
+                    date < today ||
+                    (utcToLocalDate(date) === utcToLocalDate(today) &&
+                      slot.hour < new Date().getHours());
+
+                  return (
+                    <div
+                      key={dayIdx}
+                      className={`p-1 border-r border-border cursor-pointer hover:bg-accent/30 transition-colors relative min-h-[4rem] min-w-0 ${
+                        isToday ? "bg-primary/2" : ""
+                      } ${isPast ? "opacity-80" : ""}`}
+                      onClick={() =>
+                        cellSessions.length === 0 &&
+                        onSlotClick(date, slot.hour)
+                      }
+                    >
+                      <div className="flex flex-col gap-0.5 h-full w-full overflow-hidden">
+                        {cellSessions.map((session) => (
+                          <SessionCard
+                            key={session.id}
+                            session={session}
+                            onClick={() => onSessionClick(session)}
+                            onMarkAttendance={onMarkAttendance}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
