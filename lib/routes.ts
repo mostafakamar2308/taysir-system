@@ -12,6 +12,7 @@ import {
   Calendar,
   DollarSign,
   User,
+  Users2,
 } from "lucide-react";
 import { Role } from "@/types/user";
 
@@ -25,6 +26,11 @@ export const getSidebarGroups = (role: number) => {
             title: "لوحة التحكم",
             url: "/ar/dashboard/admin/dashboard",
             icon: LayoutDashboard,
+          },
+          {
+            title: "قائمة الانتظار",
+            url: "/ar/dashboard/admin/wishlists",
+            icon: Users2,
           },
         ],
       },

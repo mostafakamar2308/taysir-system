@@ -18,9 +18,9 @@ const PricingSection = () => {
   const freeFeatures = Array.isArray(rawFree) ? (rawFree as string[]) : [];
   const proFeatures = Array.isArray(rawPro) ? (rawPro as string[]) : [];
 
-  const monthlyPrice = 59;
-  const yearlyPrice = Math.round(monthlyPrice * 10); // 2 months free
-  const originalMonthly = 99;
+  const monthlyPrice = 49;
+  const yearlyPrice = Math.round(monthlyPrice * 10);
+  const originalMonthly = 89;
   const originalYearly = Math.round(originalMonthly * 12);
 
   const displayPrice = isYearly ? `$${yearlyPrice}` : `$${monthlyPrice}`;
@@ -47,7 +47,7 @@ const PricingSection = () => {
           <div className="w-16 h-1 bg-primary mx-auto rounded-full mb-8" />
 
           {/* Monthly/Yearly Toggle */}
-          <div className="flex items-center justify-center gap-3">
+          <div className="flex relative w-fit mx-auto items-center justify-center gap-3">
             <span
               className={`text-sm font-medium ${!isYearly ? "text-foreground" : "text-muted-foreground"}`}
             >
@@ -63,7 +63,7 @@ const PricingSection = () => {
             <Badge
               variant="secondary"
               className={cn(
-                "text-xs",
+                "text-xs absolute -left-2/3",
                 isYearly
                   ? "bg-primary/10 text-primary"
                   : "bg-transparent text-transparent",
