@@ -1,7 +1,7 @@
 "use client";
 import { useLocale, useTranslations } from "next-intl";
 import { motion } from "framer-motion";
-import { ArrowLeft, ArrowDown, Users } from "lucide-react";
+import { ArrowLeft, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import dashboardImage from "@/assets/dashboard-hero.png";
 import Link from "next/link";
@@ -58,6 +58,11 @@ const HeroSection = () => {
                 ) : (
                   <ArrowLeft className="ms-2 w-5 h-5 rotate-180" />
                 )}
+              </Button>
+            </Link>{" "}
+            <Link target="_blank" href="https://wa.me/+201011214517">
+              <Button size="lg" variant={"secondary"}>
+                {t("hero.contact")}
               </Button>
             </Link>
           </div>

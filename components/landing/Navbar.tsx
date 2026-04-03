@@ -43,7 +43,13 @@ const Navbar = () => {
         <nav className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
-            <Image src={logo} width={60} height={60} alt="نظام أكاديميتي" />
+            <Image
+              loading="eager"
+              src={logo}
+              width={60}
+              height={60}
+              alt="نظام أكاديميتي"
+            />
             <div className="hidden sm:block">
               <span className="font-bold text-lg text-foreground">
                 {t("nav.brand")}
