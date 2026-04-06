@@ -46,11 +46,11 @@ const HeroSection = () => {
             {t("hero.mainDescription")}
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center md:items-center">
             <Link href="/register">
               <Button
                 size="lg"
-                className="bg-primary text-primary-foreground shadow-primary text-base px-8 py-6 hover:opacity-90 transition-opacity"
+                className="bg-primary w-full md:w-fit text-primary-foreground shadow-primary text-base px-8 py-6 hover:opacity-90 transition-opacity"
               >
                 {t("hero.cta")}
                 {isRTL ? (
@@ -61,7 +61,11 @@ const HeroSection = () => {
               </Button>
             </Link>{" "}
             <Link target="_blank" href="https://wa.me/+201011214517">
-              <Button size="lg" variant={"secondary"}>
+              <Button
+                size="lg"
+                className="w-full md:w-fit"
+                variant={"secondary"}
+              >
                 {t("hero.contact")}
               </Button>
             </Link>

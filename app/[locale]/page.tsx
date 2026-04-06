@@ -5,11 +5,11 @@ import ProblemsSection from "@/components/landing/ProblemsSection";
 import StoryJourneySection from "@/components/landing/StoryJourneySection";
 import FeaturesSection from "@/components/landing/FeaturesSection";
 // import TimeCalculatorSection from "@/components/landing/TimeCalculatorSection";
-import PricingSection from "@/components/landing/PricingSection";
 import HowItWorksSection from "@/components/landing/HowItWorksSection";
 import FinalCTASection from "@/components/landing/FinalCTASection";
 import Footer from "@/components/landing/Footer";
 import "@/i18n/request";
+import PricingSectionWrapper from "@/components/landing/pricingWrapper";
 
 export default function Home() {
   return (
@@ -22,7 +22,7 @@ export default function Home() {
         <FeaturesSection />
         <StoryJourneySection />
         {/* <TimeCalculatorSection /> */}
-        <PricingSection />
+        <PricingSectionWrapper />
         <HowItWorksSection />
         <FinalCTASection />
       </main>

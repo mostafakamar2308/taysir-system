@@ -8,6 +8,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import logo from "@/assets/logo-transparent.png";
+import { cn } from "@/lib/utils";
 
 const Navbar = () => {
   const t = useTranslations();
@@ -37,7 +38,7 @@ const Navbar = () => {
       initial={{ y: -100 }}
       animate={{ y: 0 }}
       transition={{ duration: 0.5 }}
-      className={`fixed w-full z-50 ${scrolled ? "glass shadow-md" : "bg-transparent"}`}
+      className={`fixed w-full z-50 ${scrolled ? "glass md:shadow-md" : isOpen ? "glass" : "bg-transparent"}`}
     >
       <div className="container mx-auto px-4">
         <nav className="flex items-center justify-between h-16 md:h-20">
@@ -74,27 +75,12 @@ const Navbar = () => {
 
           {/* Actions */}
           <div className="flex items-center gap-3">
-            {/* {locale === "en" ? (
-              <Link
-                href="/ar"
-                locale="ar"
-                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-accent"
-              >
-                <Globe className="w-4 h-4" />
-                <span>{"عربي"}</span>
-              </Link>
-            ) : (
-              <Link
-                href="/en"
-                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-accent"
-              >
-                <Globe className="w-4 h-4" />
-                <span>{"English"}</span>
-              </Link>
-            )} */}
-
             <Link href="/login" className="hidden sm:block">
-              <Button size="sm" variant={"outline"}>
+              <Button
+                size="sm"
+                variant={"outline"}
+                className="hover:opacity-90 shadow-primary"
+              >
                 {t("nav.login")}
               </Button>
             </Link>
@@ -131,30 +117,34 @@ const Navbar = () => {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="md:hidden glass border-t border-border"
+            className={cn("md:hidden border-t border-border")}
           >
-            <div className="container mx-auto px-4 py-4 flex flex-col gap-3">
-              {isHome &&
-                navLinks.map((link) => (
-                  <a
-                    key={link.href}
-                    href={link.href}
-                    className="text-sm font-medium text-muted-foreground hover:text-primary py-2"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    {link.label}
-                  </a>
-                ))}
-              <Link href="/login">
-                <Button size="sm" className="w-full" variant={"outline"}>
-                  {t("nav.login")}
-                </Button>
-              </Link>
-              <Link href="/register" onClick={() => setIsOpen(false)}>
-                <Button className="w-full bg-primary text-primary-foreground">
-                  {t("nav.joinWaitlist")}
-                </Button>
-              </Link>
+            <div className="container h-[93vh] mx-auto px-4 py-4 flex flex-col justify-between gap-3">
+              <div className="flex flex-col gap-3">
+                {isHome &&
+                  navLinks.map((link) => (
+                    <a
+                      key={link.href}
+                      href={link.href}
+                      className="text-sm font-medium text-muted-foreground hover:text-primary py-2"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      {link.label}
+                    </a>
+                  ))}
+              </div>
+              <div className="flex flex-col gap-3">
+                <Link href="/login">
+                  <Button size="sm" className="w-full" variant={"outline"}>
+                    {t("nav.login")}
+                  </Button>
+                </Link>
+                <Link href="/register" onClick={() => setIsOpen(false)}>
+                  <Button className="w-full bg-primary text-primary-foreground">
+                    {t("nav.joinWaitlist")}
+                  </Button>
+                </Link>
+              </div>
             </div>
           </motion.div>
         )}
