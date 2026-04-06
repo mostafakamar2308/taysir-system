@@ -26,10 +26,15 @@ import { StudentStatus } from "@/types/student";
 interface ChangeStatusDialogProps {
   studentId: number;
   studentName: string;
+  currentTutorId?: number;
   currentStatus: number;
   plans: { id: number; title: string }[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  tutors?: {
+    id: number;
+    name: string;
+  }[];
 }
 
 const statusLabels: Record<number, string> = {
@@ -45,6 +50,8 @@ export default function ChangeStatusDialog({
   studentName,
   currentStatus,
   plans,
+  tutors,
+  currentTutorId,
   open,
   onOpenChange,
 }: ChangeStatusDialogProps) {
@@ -53,11 +60,13 @@ export default function ChangeStatusDialog({
   const [loading, setLoading] = useState(false);
   const [showSubscriptionFields, setShowSubscriptionFields] = useState(false);
   const [planId, setPlanId] = useState<string>("");
+  const [tutorId, setTutorId] = useState<string | undefined>(
+    currentTutorId?.toString(),
+  );
   const [startDate, setStartDate] = useState(
     () => new Date().toISOString().split("T")[0],
   );
-  const [endDate, setEndDate] = useState<string>(""); // optional
-  const [autoRenew, setAutoRenew] = useState(true);
+  const [paid, setPaid] = useState(true);
   const { toast } = useToast();
 
   // When status changes to subscribed, show subscription fields
@@ -85,8 +94,8 @@ export default function ChangeStatusDialog({
         const subscriptionData = {
           planId: parseInt(planId),
           startDate: new Date(startDate),
-          endDate: endDate ? new Date(endDate) : null, // <-- include endDate
-          autoRenew,
+          paid,
+          tutorId: Number(tutorId),
         };
         await changeStudentStatusWithSubscription(
           studentId,
@@ -105,7 +114,7 @@ export default function ChangeStatusDialog({
 
       toast({ title: "تم تغيير الحالة" });
       onOpenChange(false);
-    } catch (error) {
+    } catch {
       toast({ title: "حدث خطأ", variant: "destructive" });
     } finally {
       setLoading(false);
@@ -163,24 +172,30 @@ export default function ChangeStatusDialog({
                   required
                 />
               </div>
-              <div className="space-y-2">
-                <Label>تاريخ الانتهاء (اختياري)</Label>
-                <Input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">
-                  إذا ترك فارغاً، يعتبر الاشتراك مفتوحاً (بدون تاريخ انتهاء).
-                </p>
-              </div>
+              {!currentTutorId && tutors ? (
+                <div className="space-y-2">
+                  <Label>المعلم</Label>
+                  <Select
+                    value={tutorId?.toString()}
+                    onValueChange={setTutorId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="اختر المعلم" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">بدون معلم</SelectItem>
+                      {tutors.map((t) => (
+                        <SelectItem key={t.id} value={String(t.id)}>
+                          {t.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : null}
               <div className="flex items-center gap-2">
-                <Switch
-                  id="auto-renew"
-                  checked={autoRenew}
-                  onCheckedChange={setAutoRenew}
-                />
-                <Label htmlFor="auto-renew">تجديد تلقائي</Label>
+                <Switch id="paid" checked={paid} onCheckedChange={setPaid} />
+                <Label htmlFor="paid">دفع الاشتراك</Label>
               </div>
             </div>
           )}

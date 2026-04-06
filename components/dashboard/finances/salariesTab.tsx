@@ -74,7 +74,7 @@ export default function SalariesTab({ academyId }: SalariesTabProps) {
   const fetchSalaries = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await calculateSalaries(month);
+      const data = await calculateSalaries(month, academyId);
       setSalaries(data);
     } catch (error) {
       if (error instanceof Error)
@@ -82,7 +82,7 @@ export default function SalariesTab({ academyId }: SalariesTabProps) {
     } finally {
       setLoading(false);
     }
-  }, [month]);
+  }, [month, academyId]);
 
   useEffect(() => {
     fetchSalaries();

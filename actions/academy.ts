@@ -55,6 +55,9 @@ export async function createAcademy(data: z.infer<typeof createAcademySchema>) {
     saasPlanEndDate = dayjs().add(plan.billingPeriod, "day").toDate();
   }
 
+  const currency = await db.currency.findFirst({});
+  if (!currency) throw new Error("No currency");
+
   const academy = await db.academy.create({
     data: {
       name: validated.name,
@@ -63,6 +66,7 @@ export async function createAcademy(data: z.infer<typeof createAcademySchema>) {
       saasPlanEndDate,
       maxStudents: plan?.maxStudents,
       maxTutors: plan?.maxTutors,
+      defaultCurrencyId: currency.id,
       primaryColor: "#ff0",
     },
   });

@@ -114,8 +114,10 @@ export function QuickActionsMenu({
       <ChangeStatusDialog
         studentId={student.id}
         studentName={student.name}
+        currentTutorId={student.tutorId}
         plans={plans}
         currentStatus={student.status}
+        tutors={tutors}
         open={changeStatusOpen}
         onOpenChange={setChangeStatusOpen}
       />

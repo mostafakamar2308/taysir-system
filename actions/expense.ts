@@ -85,7 +85,7 @@ export async function updateExpenseStatus(id: number, status: PaymentStatus) {
   revalidatePath("/ar/dashboard/finances");
 }
 
-export async function calculateSalaries(month: string) {
+export async function calculateSalaries(month: string, academyId: number) {
   const startDate = new Date(month + "-01");
   const endDate = new Date(startDate);
   endDate.setMonth(endDate.getMonth() + 1);
@@ -93,6 +93,7 @@ export async function calculateSalaries(month: string) {
   const sessions = await db.session.findMany({
     where: {
       startTime: { gte: startDate, lt: endDate },
+      academyId,
     },
     include: { tutor: { include: { user: true } } },
   });
@@ -191,7 +192,7 @@ export async function generateSalaryExpenses(
   notes: string | null,
   academyId: number,
 ) {
-  const salaries = await calculateSalaries(month);
+  const salaries = await calculateSalaries(month, academyId);
   const selected = salaries.filter((s) => tutorIds.includes(s.tutorId));
 
   const expensesToCreate = selected.map((s) => ({

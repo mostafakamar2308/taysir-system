@@ -26,9 +26,11 @@ export default async function SessionsPage({
 
   // Fetch all students and tutors for dropdowns
   const students = await db.student.findMany({
+    where: { academyId },
     select: { id: true, name: true, tutorId: true },
   });
   const tutors = await db.tutor.findMany({
+    where: { academyId },
     include: { user: { select: { name: true } } },
   });
   const tutorOptions = tutors.map((t) => ({ id: t.id, name: t.user.name }));

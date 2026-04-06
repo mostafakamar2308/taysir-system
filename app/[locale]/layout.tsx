@@ -51,6 +51,9 @@ export default async function RootLayout({
 
   return (
     <html className="scroll-smooth" data-scroll-behavior="smooth" lang={locale}>
+      <head>
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+      </head>
       <body
         dir={locale === "ar" ? "rtl" : "ltr"}
         className={`${cairo.className} relative`}

@@ -9,7 +9,7 @@ import {
 import { getTokenFromCookie, verifyToken } from "@/lib/jwt";
 import db from "@/lib/prisma";
 import { HistoryActionType, TargetType } from "@/types/history";
-import { PaymentStatus } from "@/types/payment";
+import { PaymentMethod, PaymentStatus } from "@/types/payment";
 import { StudentStatus } from "@/types/student";
 import { SubscriptionStatus } from "@/types/subscription";
 import { Role } from "@/types/user";
@@ -201,8 +201,8 @@ export async function changeStudentStatusWithSubscription(
   subscriptionData?: {
     planId: number;
     startDate: Date;
-    endDate?: Date | null;
-    autoRenew: boolean;
+    paid: boolean;
+    tutorId?: number;
   },
   note?: string,
 ) {
@@ -234,6 +234,12 @@ export async function changeStudentStatusWithSubscription(
 
   // If status is subscribed and subscription data provided, create a subscription
   if (status === StudentStatus.subscribed && subscriptionData) {
+    const plan = await db.plan.findUnique({
+      where: {
+        id: subscriptionData.planId,
+      },
+    });
+    if (!plan) throw new Error("No plan with this id");
     await db.subscription.updateMany({
       where: {
         studentId,
@@ -247,16 +253,36 @@ export async function changeStudentStatusWithSubscription(
         studentId,
         planId: subscriptionData.planId,
         startDate: subscriptionData.startDate,
-        endDate: subscriptionData.endDate || null,
+        endDate: dayjs(subscriptionData.startDate).add(1, "month").toDate(),
         status: dayjs(subscriptionData.startDate).isAfter(dayjs())
           ? SubscriptionStatus.pending
           : SubscriptionStatus.active,
       },
     });
 
+    await db.revenue.create({
+      data: {
+        studentId,
+        academyId: student.academyId,
+        amount: plan.price,
+        currencyId: plan.currencyId,
+        status: subscriptionData.paid
+          ? PaymentStatus.PAID
+          : PaymentStatus.PENDING,
+        method: PaymentMethod.ONLINE,
+        planId: plan.id,
+        recordedBy: payload.id,
+        subscriptionId: subscription.id,
+      },
+    });
+
     await db.student.update({
       where: { id: studentId },
-      data: { currentSubscriptionId: subscription.id },
+      data: {
+        currentSubscriptionId: subscription.id,
+        planId: plan.id,
+        tutorId: subscriptionData.tutorId,
+      },
     });
   }
 

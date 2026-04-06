@@ -1,14 +1,17 @@
 import db from "@/lib/prisma";
 import { AttendanceStatus } from "@/types/session";
 import AnalyticsClient from "@/components/dashboard/analytics/viewer";
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 import { PaymentStatus } from "@/types/payment";
 import dayjs from "@/lib/dayjs";
+import { user } from "@/lib/auth";
+import { Role } from "@/types/user";
 
 export default async function AnalyticsPage() {
-  const academy = await db.academy.findFirst();
-  if (!academy) notFound();
-  const academyId = academy.id;
+  const currentUser = await user();
+  if (!currentUser || currentUser.role !== Role.Admin || !currentUser.academyId)
+    redirect("/login");
+  const { academyId } = currentUser;
 
   const now = dayjs();
 
@@ -48,6 +51,7 @@ export default async function AnalyticsPage() {
       const [revenueResult, expenseResult] = await Promise.all([
         db.revenue.aggregate({
           where: {
+            academyId,
             student: { academyId },
             date: { gte: start, lt: end },
             status: 1, // PAID
