@@ -94,6 +94,7 @@ async function main() {
     db.user.deleteMany(),
     db.superAdmin.deleteMany(),
   ]);
+  console.log("🌱 Cleanup Finished...");
 
   // 1. Create currencies
   const currencies = await Promise.all([

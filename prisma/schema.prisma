@@ -61,6 +61,13 @@ model Academy {
   saasPlanStartDate DateTime?
   saasPlanEndDate   DateTime?
 
+  whatsappInstanceName     String?   @unique
+  whatsappInstanceToken    String?
+  whatsappConnectionStatus String?   @default("disconnected")
+  whatsappConnectedAt      DateTime?
+  whatsappDisconnectedAt   DateTime?
+  whatsappWebhookUrl       String?
+
   admin                Admin?
   adminId              Int?
   supervisors          Supervisor[]
@@ -74,6 +81,7 @@ model Academy {
   histories            History[]
   revenues             Revenue[]
   academyCurrencyRates AcademyCurrencyRate[]
+  whatsAppMessages     WhatsAppMessage[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -512,4 +520,21 @@ model SaasPlan {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   academies     Academy[]
+}
+
+model WhatsAppMessage {
+  id           String    @id @default(cuid())
+  academyId    Int
+  academy      Academy   @relation(fields: [academyId], references: [id])
+  messageId    String?
+  remoteJid    String
+  type         String // "text", "image", etc.
+  content      String?
+  status       String // "pending", "sent", "delivered", "read", "failed"
+  sentAt       DateTime  @default(now())
+  deliveredAt  DateTime?
+  readAt       DateTime?
+  errorMessage String?
+
+  @@index([academyId])
 }

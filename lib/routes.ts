@@ -13,6 +13,7 @@ import {
   DollarSign,
   User,
   Users2,
+  Phone,
 } from "lucide-react";
 import { Role } from "@/types/user";
 
@@ -110,6 +111,11 @@ export const getSidebarGroups = (role: number) => {
             title: "إعدادات شخصية",
             url: "/ar/dashboard/settings/personal",
             icon: UserCog,
+          },
+          {
+            title: "إعدادات الواتس اب",
+            url: "/ar/dashboard/settings/whatsapp",
+            icon: Phone,
           },
           {
             title: "إعدادات الأمان",
