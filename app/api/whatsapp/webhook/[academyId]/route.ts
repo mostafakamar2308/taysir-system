@@ -29,6 +29,22 @@ export async function POST(
         console.log(`QR code updated for academy ${academyId}`);
         break;
 
+      case "MESSAGES_UPDATE":
+        const messageId = body.data.key.id;
+        const updateData: Record<string, Date | string> = {};
+        if (body.data.status === "DELIVERY_ACK")
+          updateData.deliveredAt = new Date();
+        if (body.data.status === "READ") updateData.readAt = new Date();
+        if (body.data.status === "ERROR") {
+          updateData.status = "failed";
+          updateData.errorMessage = "Delivery failed";
+        }
+
+        await db.whatsAppMessage.updateMany({
+          where: { messageId, academyId },
+          data: updateData,
+        });
+
       case "CONNECTION_UPDATE":
         const state = body.data?.state;
         let status = "disconnected";

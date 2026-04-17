@@ -179,6 +179,7 @@ export default async function TutorProfilePage({
     name: s.name,
     age: s.age,
     status: s.status,
+    phone: s.phone,
     planTitle: s.plan?.title ?? null,
     nextSessionDate: s.sessions[0]?.startTime.toISOString() ?? null,
   }));

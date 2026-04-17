@@ -1,5 +1,6 @@
 // lib/encryption.ts
 import crypto from "crypto";
+import "dotenv/config";
 
 const ALGORITHM = "aes-256-gcm";
 const SECRET_KEY = process.env.ENCRYPTION_KEY!;

@@ -82,6 +82,7 @@ export interface AssignedStudent {
   name: string;
   age: number;
   status: StudentStatus;
+  phone: string | null;
   planTitle: string | null;
   nextSessionDate: string | null;
 }

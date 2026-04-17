@@ -1,3 +1,5 @@
+import dotenv from "dotenv";
+dotenv.config();
 const EVO_API_URL = process.env.EVOLUTION_API_URL!;
 const EVO_GLOBAL_KEY = process.env.EVOLUTION_GLOBAL_API_KEY!;
 
@@ -35,6 +37,31 @@ export async function createEvolutionInstance(params: CreateInstanceParams) {
   }
 
   return response.json();
+}
+
+const FETCH_TIMEOUT = 15000;
+
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit,
+  timeout = FETCH_TIMEOUT,
+): Promise<Response> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    clearTimeout(id);
+    return response;
+  } catch (error) {
+    clearTimeout(id);
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(`Request timeout after ${timeout}ms`);
+    }
+    throw error;
+  }
 }
 
 export async function fetchInstanceQR(
@@ -87,9 +114,11 @@ export async function sendTextMessage(
   instanceToken: string,
   number: string,
   text: string,
-  options?: { delay?: number },
+  options?: { delay?: number; linkPreview?: boolean },
 ) {
-  const response = await fetch(
+  console.log(`${EVO_API_URL}/message/sendText/${instanceName}`);
+
+  const response = await fetchWithTimeout(
     `${EVO_API_URL}/message/sendText/${instanceName}`,
     {
       method: "POST",

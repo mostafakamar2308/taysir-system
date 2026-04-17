@@ -3,10 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev && pnpm run worker",
     "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
+    "start": "next start && pnpm run worker",
+    "lint": "eslint",
+    "worker": "tsx worker/whatsapp.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -42,6 +43,7 @@
     "@radix-ui/react-tooltip": "^1.2.7",
     "ar": "link:dayjs/locale/ar",
     "bcrypt": "^6.0.0",
+    "bullmq": "^5.74.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -52,6 +54,7 @@
     "framer-motion": "^12.34.3",
     "i18next": "^25.8.13",
     "input-otp": "^1.4.2",
+    "ioredis": "^5.10.1",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.575.0",
     "mixpanel-browser": "^2.77.0",

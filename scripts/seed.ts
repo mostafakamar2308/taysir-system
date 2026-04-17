@@ -311,7 +311,11 @@ async function main() {
         name,
         email,
         age: randomInt(8, 25),
-        phone: `+20${Math.floor(Math.random() * 100000000)}`,
+        phone: randomElement([
+          `+201018303125`,
+          "+201206721705",
+          "+201011214517",
+        ]),
         country: randomElement(COUNTRIES),
         timezone: randomElement(TIMEZONES),
         status,
