@@ -25,7 +25,7 @@ export async function POST(
 
     switch (event) {
       case "QRCODE_UPDATED":
-        // You could implement WebSockets here to push the new QR code to the frontend
+        // TODO: Push the new QR
         console.log(`QR code updated for academy ${academyId}`);
         break;
 

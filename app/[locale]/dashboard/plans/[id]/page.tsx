@@ -30,8 +30,6 @@ export default async function PlanDetailPage({
     },
   });
 
-  console.log({ plan });
-
   if (!plan) notFound();
 
   const activeStudents = plan.subscriptions.map((sub) => ({

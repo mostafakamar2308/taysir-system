@@ -5,7 +5,6 @@ import { connection } from "@/lib/redis";
 import { sendTextMessage } from "@/lib/evolution-api";
 import { decrypt } from "@/lib/encryption";
 import { WhatsAppJobData } from "@/lib/queue/whatsappQueue";
-console.log("DATABASE_URL:", process.env.DATABASE_URL);
 
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
@@ -55,7 +54,6 @@ const worker = new Worker<WhatsAppJobData>(
       let token: string;
       try {
         token = decrypt(academy.whatsappInstanceToken);
-        console.log({ token });
       } catch (err) {
         console.error(`❌ Failed to decrypt token:`, err);
         throw err;

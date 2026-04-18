@@ -57,8 +57,6 @@ export async function createPayment(formData: FormData) {
     academyId: parseInt(formData.get("academyId") as string),
   };
 
-  console.log({ rawData });
-
   const validated = paymentSchema.parse(rawData);
 
   await db.revenue.create({ data: validated });

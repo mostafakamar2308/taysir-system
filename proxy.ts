@@ -16,7 +16,6 @@ export function proxy(request: NextRequest) {
   if (pathname === "/login") {
     if (token) {
       const payload = verifyToken(token);
-      console.log(payload);
 
       if (payload) {
         if (payload.role === Role.Admin) {

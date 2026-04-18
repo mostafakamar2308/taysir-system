@@ -122,8 +122,6 @@ export async function updateStudent(id: number, formData: FormData) {
       : null,
     imageUrl: formData.get("imageUrl") || null,
   };
-  console.log({ rawData });
-  console.log(formData.get("currencyId") as string);
 
   const validated = createStudentSchema
     .omit({ academyId: true })

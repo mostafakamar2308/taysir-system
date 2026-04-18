@@ -15,6 +15,8 @@ import AddTutorDialog from "@/components/dashboard/dialogs/addTutorDialog";
 import AddSessionDialog from "@/components/dashboard/dialogs/addSessionDialog";
 import { AddRevenueDialog } from "../dialogs/addRevenueDialog";
 import { AddExpenseDialog } from "../dialogs/addExpenseDialog";
+import { useState } from "react";
+import SendBulkMessagesDialog from "../common/SendBulkMessagesDialog";
 
 interface StatItem {
   value: number;
@@ -127,6 +129,10 @@ export default function DashboardClient(props: DashboardClientProps) {
     const url = `https://wa.me/${phone.replace(/\D/g, "")}${text ? `?text=${encodeURIComponent(text)}` : ""}`;
     window.open(url, "_blank");
   };
+
+  const [sendBulkMessages, setSendBulkMessages] = useState<
+    "at-risk" | "late-payment" | "near-end" | null
+  >(null);
 
   return (
     <div className="space-y-6" dir="rtl">
@@ -321,11 +327,14 @@ export default function DashboardClient(props: DashboardClientProps) {
       {/* Danger Signs */}
       {props.atRiskStudents.length > 0 && (
         <Card className="border-amber-300 bg-amber-50/50">
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-600" /> طلاب معرضون
-              للخطر
+              <AlertTriangle className="h-4 w-4 text-amber-600" /> طلاب غابوا
+              بدون عذر
             </CardTitle>
+            <Button onClick={() => setSendBulkMessages("at-risk")}>
+              إرسال رسالة جماعية
+            </Button>
           </CardHeader>
           <CardContent>
             <ul className="space-y-2">
@@ -418,10 +427,13 @@ export default function DashboardClient(props: DashboardClientProps) {
         <TabsContent value="reconciliation">
           <div className="space-y-6">
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-base text-destructive">
                   مدفوعات متأخرة
                 </CardTitle>
+                <Button onClick={() => setSendBulkMessages("late-payment")}>
+                  إرسال رسالة جماعية
+                </Button>
               </CardHeader>
               <CardContent>
                 {props.latePayments.length === 0 ? (
@@ -463,10 +475,13 @@ export default function DashboardClient(props: DashboardClientProps) {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-base text-amber-600">
                   اشتراكات قاربت على الانتهاء
                 </CardTitle>
+                <Button onClick={() => setSendBulkMessages("near-end")}>
+                  إرسال رسالة جماعية
+                </Button>
               </CardHeader>
               <CardContent>
                 {props.nearEndSubscriptions.length === 0 ? (
@@ -557,6 +572,24 @@ export default function DashboardClient(props: DashboardClientProps) {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <SendBulkMessagesDialog
+        open={!!sendBulkMessages}
+        setOpen={() => setSendBulkMessages(null)}
+        users={
+          sendBulkMessages === "at-risk"
+            ? (props.atRiskStudents.filter((s) => s.phone) as {
+                phone: string;
+              }[])
+            : sendBulkMessages === "late-payment"
+              ? (props.latePayments.filter((s) => s.phone) as {
+                  phone: string;
+                }[])
+              : (props.nearEndSubscriptions.filter((s) => s.phone) as {
+                  phone: string;
+                }[])
+        }
+      />
     </div>
   );
 }

@@ -344,7 +344,6 @@ export async function updateStudentSessionAttendance(
     include: { attendance: true },
   });
   if (!session) throw new Error("الحصة غير موجودة");
-  console.log(getSessionStatus(session) === SessionStatus.COMPLETED);
 
   if (getSessionStatus(session) !== SessionStatus.COMPLETED) {
     throw new Error("لا يمكن تسجيل الحضور إلا للحصص المكتملة");

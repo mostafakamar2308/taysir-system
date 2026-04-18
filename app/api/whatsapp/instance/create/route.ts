@@ -29,7 +29,6 @@ export async function POST() {
 
   const instanceName = `academy_${academy.id}_${Date.now()}`;
   const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/whatsapp/webhook/${academy.id}`;
-  console.log({ webhookUrl, instanceName });
 
   try {
     const result = await createEvolutionInstance({
@@ -41,8 +40,6 @@ export async function POST() {
         events: ["QRCODE_UPDATED", "CONNECTION_UPDATE", "MESSAGES_UPSERT"],
       },
     });
-
-    console.log(result);
 
     const instanceToken = result.instance.token || result.hash;
 

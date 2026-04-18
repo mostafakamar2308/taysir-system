@@ -173,7 +173,5 @@ export async function addTutorNote(tutorId: number, content: string) {
     },
   });
 
-  console.log(await db.note.findMany({ where: { tutorId } }));
-
   revalidatePath(`/ar/dashboard/tutors/${tutorId}`);
 }

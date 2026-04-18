@@ -311,10 +311,6 @@ export default async function DashboardPage() {
         orderBy: { startTime: "desc" },
         take: 1,
       },
-      subscriptions: {
-        where: { status: SubscriptionStatus.active },
-        include: { plan: true },
-      },
     },
   });
 
@@ -324,25 +320,14 @@ export default async function DashboardPage() {
       const lastSessionAbsentUnexcused =
         lastSession?.attendance?.studentAttendanceStatus ===
         AttendanceStatus.ABSENT_UNEXCUSED;
-      const hasActiveSubscription = student.subscriptions.length > 0;
-      const subscription = student.subscriptions[0];
-      const daysUntilRenewal = subscription?.endDate
-        ? dayjs(subscription.endDate).diff(now, "day")
-        : 30;
-      const latePayment = hasActiveSubscription && daysUntilRenewal < 0;
-      const nearRenewal =
-        hasActiveSubscription && daysUntilRenewal >= 0 && daysUntilRenewal <= 7;
-      return lastSessionAbsentUnexcused || latePayment || nearRenewal;
+
+      return lastSessionAbsentUnexcused;
     })
     .map((s) => ({
       id: s.id,
       name: s.name,
       phone: s.phone,
-      reason: s.subscriptions[0]?.endDate
-        ? dayjs(s.subscriptions[0].endDate).isBefore(now)
-          ? "منتهي الاشتراك"
-          : "اقتراب نهاية الاشتراك"
-        : "غياب بدون عذر",
+      reason: "غياب بدون عذر",
     }));
 
   // ---------- Attendance Sheet ----------
