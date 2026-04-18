@@ -58,7 +58,7 @@ export async function POST(req: Request) {
   for (const item of messages) {
     const recipientJid = item.phoneNumber.includes("@")
       ? item.phoneNumber
-      : `${item.phoneNumber.replace(/\D/g, "")}@s.whatsapp.net`;
+      : `2${item.phoneNumber.replace(/\D/g, "")}@s.whatsapp.net`;
 
     // Create log entry matching your schema
     const log = await db.whatsAppMessage.create({
