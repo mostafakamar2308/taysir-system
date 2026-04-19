@@ -25,7 +25,7 @@ interface StudentsClientProps {
   plans: Plan[];
   currencies: Currency[];
   tutors: { id: number; name: string }[];
-  academyId?: number;
+  academyId: number;
 }
 
 const StudentsViewer = ({
@@ -265,6 +265,11 @@ const StudentsViewer = ({
 
       {filteredStudents.length === 0 ? (
         <EmptyState
+          tutors={tutors}
+          plans={plans}
+          currencies={currencies}
+          academyId={academyId}
+          type={"students"}
           hasFilters={activeFilterCount > 0 || !!search}
           onClear={clearFilters}
         />

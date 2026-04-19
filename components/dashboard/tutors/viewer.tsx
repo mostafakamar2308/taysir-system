@@ -242,6 +242,10 @@ export default function TutorsViewer({
       {/* Main Content */}
       {filteredTutors.length === 0 ? (
         <EmptyState
+          currencies={currencies}
+          specialities={specialities}
+          academyId={academyId}
+          type={"tutors"}
           hasFilters={activeFilterCount > 0 || !!search}
           onClear={clearFilters}
         />
@@ -251,7 +255,6 @@ export default function TutorsViewer({
             <p className="text-sm text-muted-foreground">
               {filteredTutors.length} نتيجة
             </p>
-            {/* Add SortDropdown if desired, similar to students page */}
             <AddTutorDialog
               currencies={currencies}
               specialities={specialities}

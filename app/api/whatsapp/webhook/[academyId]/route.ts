@@ -3,9 +3,9 @@ import db from "@/lib/prisma";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { academyId: string } },
+  { params }: { params: Promise<{ academyId: string }> },
 ) {
-  const academyId = parseInt(params.academyId);
+  const academyId = parseInt((await params).academyId);
 
   try {
     const body = await req.json();

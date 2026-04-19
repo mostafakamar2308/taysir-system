@@ -89,6 +89,7 @@ export default function AddTutorDialog({
             <div>
               <Label htmlFor="phone">رقم الهاتف *</Label>
               <Input id="phone" name="phone" required />
+              <span className="text-xs text-slate-600">برجاء كتابة الرقم بالصيغة الدولية</span>
             </div>
             <div>
               <Label htmlFor="timezone">المنطقة الزمنية *</Label>

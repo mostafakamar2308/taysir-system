@@ -129,6 +129,7 @@ export async function sendTextMessage(
       body: JSON.stringify({ number, text, ...options }),
     },
   );
+console.log(response);
 
   if (!response.ok) {
     const error = await response.text();

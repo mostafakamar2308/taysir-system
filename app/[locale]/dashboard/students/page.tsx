@@ -10,7 +10,7 @@ export default async function StudentsPage({
   searchParams: Promise<{ name?: string }>;
 }) {
   const currentUser = await user();
-  if (!currentUser) redirect("/login");
+  if (!currentUser || !currentUser.academyId) redirect("/login");
   const { name } = await searchParams;
 
   const students = await db.student.findMany({
