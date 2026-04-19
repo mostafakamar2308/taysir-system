@@ -58,7 +58,7 @@ export default function LoginPage() {
           <div className="inline-flex h-14 w-14 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold text-2xl mx-auto">
             ت
           </div>
-          <h1 className="text-2xl font-bold text-foreground">نظام التيسير</h1>
+          <h1 className="text-2xl font-bold text-foreground">نظام أكاديميتي</h1>
           <p className="text-muted-foreground text-sm">
             تسجيل الدخول إلى لوحة التحكم
           </p>

@@ -32,7 +32,7 @@ export default function Sidebar() {
     if (user.role === Role.SuperAdmin) return "الإدارة العامة";
     if (user.role === Role.Admin) return "منصة المدير";
     if (user.role === Role.Tutor) return "منصة المعلمين";
-    return "نظام التيسير";
+    return "نظام أكاديميتي";
   };
 
   return (

@@ -102,6 +102,7 @@ export default function AddStudentDialog({
               <div>
                 <Label htmlFor="phone">رقم الهاتف</Label>
                 <Input id="phone" name="phone" />
+                <span className="text-xs text-slate-600">برجاء كتابة الرقم بالصيغة الدولية</span>
               </div>
               <div>
                 <Label htmlFor="country">الدولة</Label>

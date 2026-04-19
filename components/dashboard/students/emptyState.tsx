@@ -3,13 +3,27 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Search, UserPlus, X } from "lucide-react";
+import AddTutorDialog from "../dialogs/addTutorDialog";
+import AddStudentDialog from "../dialogs/addStudentDialog";
 
 interface EmptyStateProps {
   hasFilters: boolean;
+  type: "students" | "tutors"
+  currencies?: { id: number; name: string }[];
+  tutors?: { id: number; name: string | null }[];
+  specialities?: {
+    id: number;
+    title: string;
+  }[];
+  plans?: {
+    id: number;
+    title: string;
+  }[];
+  academyId: number;
   onClear: () => void;
 }
 
-export function EmptyState({ hasFilters, onClear }: EmptyStateProps) {
+export function EmptyState({ hasFilters, academyId, plans, specialities, currencies, tutors, type, onClear }: EmptyStateProps) {
   return (
     <Card className="border-dashed border-2 shadow-none">
       <CardContent className="py-16 flex flex-col items-center justify-center text-center space-y-4">
@@ -41,18 +55,25 @@ export function EmptyState({ hasFilters, onClear }: EmptyStateProps) {
             </div>
             <div>
               <h3 className="font-semibold text-foreground">
-                لا يوجد طلاب بعد
+                لا يوجد {type === "tutors" ? "معلمين" : "طلاب"} بعد
               </h3>
               <p className="text-sm text-muted-foreground mt-1">
-                ابدأ بإضافة أول طالب للنظام
+                ابدأ بإضافة أول {type === "tutors" ? "معلم" : "طالب"} للنظام
               </p>
             </div>
-            <Button size="sm" className="gap-1.5">
-              <UserPlus className="h-4 w-4" />
-              إضافة طالب
-            </Button>
           </>
         )}
+        {currencies && specialities ? <AddTutorDialog
+          currencies={currencies}
+          specialities={specialities}
+          academyId={academyId}
+        /> : null}
+        {tutors && plans && currencies ? <AddStudentDialog
+          tutors={tutors}
+          plans={plans}
+          currencies={currencies}
+          academyId={academyId}
+        /> : null}
       </CardContent>
     </Card>
   );
