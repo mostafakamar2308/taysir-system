@@ -184,7 +184,7 @@ export default function SalariesTab({ academyId }: SalariesTabProps) {
               <TableHeader>
                 <TableRow>
                   <TableHead>اسم المعلم</TableHead>
-                  <TableHead>عدد الحصص</TableHead>
+                  <TableHead>عدد الحصص المكتملة</TableHead>
                   <TableHead>سعر الحصة</TableHead>
                   <TableHead>الإجمالي</TableHead>
                   <TableHead>المدفوع</TableHead>

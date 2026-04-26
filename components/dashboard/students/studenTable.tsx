@@ -136,7 +136,7 @@ export function StudentTable({
               <TableCell className="font-medium">
                 <Link
                   href={`/ar/dashboard/students/${s.id}`}
-                  className="hover:underline hover:bg-primary"
+                  className="hover:underline hover:text-primary"
                 >
                   {s.name}
                 </Link>

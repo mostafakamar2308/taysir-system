@@ -6,6 +6,7 @@ import dayjs from "@/lib/dayjs";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getTokenFromCookie, verifyToken } from "@/lib/jwt";
+import { AttendanceStatus } from "@/types/session";
 
 const expenseSchema = z.object({
   date: z.date(),
@@ -94,6 +95,11 @@ export async function calculateSalaries(month: string, academyId: number) {
     where: {
       startTime: { gte: startDate, lt: endDate },
       academyId,
+      attendance: {
+        tutorAttendanceStatus: {
+          in: [AttendanceStatus.ATTENDED, AttendanceStatus.LATE],
+        },
+      },
     },
     include: { tutor: { include: { user: true } } },
   });

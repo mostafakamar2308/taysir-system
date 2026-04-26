@@ -11,6 +11,7 @@ import type {
 } from "@/types/tutor";
 import { getSessionStatus } from "@/lib/session";
 import dayjs from "@/lib/dayjs";
+import { AttendanceStatus } from "@/types/session";
 
 export default async function TutorProfilePage({
   params,
@@ -85,8 +86,9 @@ export default async function TutorProfilePage({
   // Compute monthly payment stats
   const attendedSessions = tutor.sessions.filter(
     (s) =>
-      s.attendance?.studentAttendanceStatus === 0 || // ATTENDED
-      s.attendance?.studentAttendanceStatus === 3, // LATE (adjust based on your enum)
+      s.attendance?.tutorAttendanceStatus === AttendanceStatus.ATTENDED ||
+      s.attendance?.tutorAttendanceStatus
+      === AttendanceStatus.LATE,
   ).length;
   const totalMonthlyEarnings = attendedSessions * tutor.pricePerSession;
   const paidThisMonth = tutor.expenses.reduce((sum, e) => sum + e.amount, 0);
@@ -195,22 +197,22 @@ export default async function TutorProfilePage({
     studentName: s.student.name,
     attendance: s.attendance
       ? {
-          id: s.attendance.id,
-          tutorAttendance: s.attendance.tutorAttendanceStatus,
-          studentAttendance: s.attendance.studentAttendanceStatus,
-          reason: s.attendance.reason,
-        }
+        id: s.attendance.id,
+        tutorAttendance: s.attendance.tutorAttendanceStatus,
+        studentAttendance: s.attendance.studentAttendanceStatus,
+        reason: s.attendance.reason,
+      }
       : undefined,
     report: s.sessionReport
       ? {
-          id: s.sessionReport.id,
-          outcomes: s.sessionReport.outcomes,
-          strengths: s.sessionReport.strengths,
-          weaknesses: s.sessionReport.weaknesses,
-          nextGoals: s.sessionReport.nextGoals,
-          comments: s.sessionReport.comments,
-          rating: s.sessionReport.rating,
-        }
+        id: s.sessionReport.id,
+        outcomes: s.sessionReport.outcomes,
+        strengths: s.sessionReport.strengths,
+        weaknesses: s.sessionReport.weaknesses,
+        nextGoals: s.sessionReport.nextGoals,
+        comments: s.sessionReport.comments,
+        rating: s.sessionReport.rating,
+      }
       : undefined,
   }));
 

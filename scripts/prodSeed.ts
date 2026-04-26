@@ -12,6 +12,32 @@ const SPECIALITIES = [
 ];
 
 async function main() {
+  await db.$transaction([
+    db.attendance.deleteMany(),
+    db.sessionReport.deleteMany(),
+    db.session.deleteMany(),
+    db.recurringPattern.deleteMany(),
+    db.studentAvailability.deleteMany(),
+    db.tutorAvailability.deleteMany(),
+    db.revenue.deleteMany(),
+    db.expense.deleteMany(),
+    db.whatsAppMessage.deleteMany(),
+    db.note.deleteMany(),
+    db.history.deleteMany(),
+    db.subscription.deleteMany(),
+    db.student.deleteMany(),
+    db.tutor.deleteMany(),
+    db.supervisor.deleteMany(),
+    db.admin.deleteMany(),
+    db.plan.deleteMany(),
+    db.academyCurrencyRate.deleteMany(),
+    db.academy.deleteMany(),
+    db.currency.deleteMany(),
+    db.speciality.deleteMany(),
+    db.user.deleteMany(),
+    db.superAdmin.deleteMany(),
+  ]);
+  console.log("🌱 Cleanup Finished...");
   console.log("🌱 Seeding started...");
 
   const currencies = await Promise.all([

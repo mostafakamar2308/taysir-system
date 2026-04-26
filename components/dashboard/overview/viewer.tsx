@@ -325,7 +325,7 @@ export default function DashboardClient(props: DashboardClientProps) {
       </div>
 
       {/* Danger Signs */}
-      {props.atRiskStudents.length > 0 && (
+      {props.atRiskStudents.length > 0 ? (
         <Card className="border-amber-300 bg-amber-50/50">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
@@ -365,7 +365,16 @@ export default function DashboardClient(props: DashboardClientProps) {
             </ul>
           </CardContent>
         </Card>
-      )}
+      ) : <Card className="border-green-300 bg-green-50/50">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-base flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-600" /> طلاب معرضون للخطر
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center text-primary">لا يوجد طلاب، الوضع اّمن</div>
+        </CardContent>
+      </Card>}
 
       {/* Tabbed Sheets */}
       <Tabs defaultValue="attendance">
@@ -579,15 +588,15 @@ export default function DashboardClient(props: DashboardClientProps) {
         users={
           sendBulkMessages === "at-risk"
             ? (props.atRiskStudents.filter((s) => s.phone) as {
-                phone: string;
-              }[])
+              phone: string;
+            }[])
             : sendBulkMessages === "late-payment"
               ? (props.latePayments.filter((s) => s.phone) as {
-                  phone: string;
-                }[])
+                phone: string;
+              }[])
               : (props.nearEndSubscriptions.filter((s) => s.phone) as {
-                  phone: string;
-                }[])
+                phone: string;
+              }[])
         }
       />
     </div>

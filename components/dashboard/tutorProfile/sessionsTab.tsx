@@ -158,13 +158,13 @@ export default function SessionsTab({
                           <Badge
                             className={
                               attendanceStatusColors[
-                                s.attendance.tutorAttendance
+                              s.attendance.tutorAttendance
                               ]
                             }
                           >
                             {
                               attendanceStatusLabels[
-                                s.attendance.tutorAttendance
+                              s.attendance.tutorAttendance
                               ]
                             }
                           </Badge>
