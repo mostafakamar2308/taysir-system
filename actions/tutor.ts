@@ -17,6 +17,7 @@ const createTutorSchema = z.object({
   active: z.boolean().default(true),
   bio: z.string().optional().nullable(),
   qualifications: z.string().optional().nullable(),
+  zoomUrl: z.string().optional().nullable(),
   zoomAuthenticated: z.boolean().default(false),
   currencyId: z.number(),
   academyId: z.number(),
@@ -28,7 +29,6 @@ export async function createTutor(formData: FormData) {
   const payload = verifyToken(token);
   if (!payload) throw new Error("غير مصرح");
 
-  // Parse specialities from multiselect (sent as comma-separated values)
   const specialitiesStr = formData.get("specialities") as string;
   const specialities = specialitiesStr
     ? specialitiesStr.split(",").map(Number)
@@ -48,6 +48,7 @@ export async function createTutor(formData: FormData) {
     qualifications: formData.get("qualifications") || null,
     currencyId: parseInt(formData.get("currencyId") as string),
     zoomAuthenticated: formData.get("zoomAuthenticated") === "on",
+    zoomUrl: formData.get("zoomUrl"),
     academyId: parseInt(formData.get("academyId") as string),
   };
 
@@ -81,6 +82,7 @@ export async function createTutor(formData: FormData) {
       bio: validated.bio,
       qualifications: validated.qualifications,
       zoomAuthenticated: validated.zoomAuthenticated,
+      zoomUrl: validated.zoomUrl,
       currencyId: validated.currencyId,
       specialities: {
         connect: validated.specialities?.map((id) => ({ id })),

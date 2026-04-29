@@ -271,6 +271,8 @@ export default async function TutorProfilePage({
     bio: tutor.bio,
     qualifications: tutor.qualifications,
     imageUrl: tutor.imageUrl,
+    zoomUrl: tutor.zoomUrl,
+    zoomAuthenticated: tutor.zoomAuthenticated,
     availabilities: transformedAvailabilities,
     students: transformedStudents,
     sessions: transformedSessions,

@@ -106,6 +106,8 @@ export interface TutorProfile {
   phone: string | null;
   currency: string;
   timezone: string;
+  zoomUrl: string | null;
+  zoomAuthenticated: boolean;
   academyName: string;
   pricePerSession: number;
   specialities: string[];

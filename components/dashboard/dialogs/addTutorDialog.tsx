@@ -159,6 +159,22 @@ export default function AddTutorDialog({
             <Switch id="active" name="active" defaultChecked />
             <Label htmlFor="active">نشط</Label>
           </div>
+          <div className="flex items-center gap-2">
+            <Switch
+              id="zoom"
+              name="zoomAuthenticated"
+            />
+            <Label htmlFor="zoom">مفعل على Zoom</Label>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="zoomUrl">رابط Zoom الشخصي</Label>
+            <Input
+              id="zoomUrl"
+              name="zoomUrl"
+              placeholder="https://zoom.us/j/..."
+            />
+          </div>
+
 
           <div className="flex justify-end gap-2 pt-4">
             <Button

@@ -182,16 +182,14 @@ export default function EditTutorDialog({
             />
             <Label htmlFor="zoom">مفعل على Zoom</Label>
           </div>
-          {formData.zoomAuthenticated && (
-            <div className="space-y-2">
-              <Label>رابط Zoom الشخصي</Label>
-              <Input
-                value={formData.zoomUrl}
-                onChange={(e) => handleChange("zoomUrl", e.target.value)}
-                placeholder="https://zoom.us/j/..."
-              />
-            </div>
-          )}
+          <div className="space-y-2">
+            <Label>رابط Zoom الشخصي</Label>
+            <Input
+              value={formData.zoomUrl}
+              onChange={(e) => handleChange("zoomUrl", e.target.value)}
+              placeholder="https://zoom.us/j/..."
+            />
+          </div>
           <DialogFooter>
             <Button
               type="button"

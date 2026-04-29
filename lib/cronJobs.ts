@@ -38,7 +38,12 @@ async function sendSessionReminders() {
       },
       include: {
         student: { select: { name: true, phone: true } },
-        tutor: { select: { user: { select: { name: true, phone: true } } } },
+        tutor: {
+          select: {
+            user: { select: { name: true, phone: true } },
+            zoomUrl: true,
+          },
+        },
       },
     });
 
@@ -56,7 +61,9 @@ async function sendSessionReminders() {
 
       // Student message
       if (session.student?.phone) {
-        const studentMsg = `تذكير: لديك حصة "${session.topic || "حصتك"}" مع ${session.tutor?.user.name || "المعلم"} بعد ${timeText} (الساعة ${startTimeStr}).`;
+        const studentMsg = `تذكير: لديك حصة "${session.topic || "حصتك"}" مع ${session.tutor?.user.name || "المعلم"} بعد ${timeText} (الساعة ${startTimeStr}). 
+        ${session.tutor.zoomUrl ? `لينك الحصة: ${session.tutor.zoomUrl}` : ""}
+        `;
         await whatsappQueue.add("session-reminder", {
           academyId: academy.id,
           instanceName,
@@ -67,7 +74,9 @@ async function sendSessionReminders() {
 
       // Tutor message
       if (session.tutor?.user.phone) {
-        const tutorMsg = `تذكير: لديك حصة "${session.topic || "حصتك"}" مع الطالب ${session.student?.name || "طالب"} بعد ${timeText} (الساعة ${startTimeStr}).`;
+        const tutorMsg = `تذكير: لديك حصة "${session.topic || "حصتك"}" مع الطالب ${session.student?.name || "طالب"} بعد ${timeText} (الساعة ${startTimeStr}).
+        ${session.tutor.zoomUrl ? `لينك الحصة: ${session.tutor.zoomUrl}` : ""}
+        `;
         await whatsappQueue.add("session-reminder", {
           academyId: academy.id,
           instanceName,
