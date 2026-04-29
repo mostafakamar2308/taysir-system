@@ -15,23 +15,18 @@ export default async function TutorSessionsPage({
     week?: string;
     filter?: string;
     sessionId?: string;
+    studentId?: string;
+    status?: string;
   }>;
 }) {
   const currentUser = await user();
-  if (!currentUser || currentUser.role !== Role.Tutor || !currentUser.tutorId) {
+  if (!currentUser || !currentUser.academyId || currentUser.role !== Role.Tutor || !currentUser.tutorId) {
     redirect("/login");
   }
   const tutorId = currentUser.tutorId;
+  const academyId = currentUser.academyId;
 
-  const { view = "calendar", week, filter, sessionId } = await searchParams;
-
-  let startDate: Date;
-  if (week) {
-    startDate = dayjs(week).startOf("week").toDate();
-  } else {
-    startDate = dayjs().startOf("week").toDate();
-  }
-  const endDate = dayjs(startDate).endOf("week").toDate();
+  const { view = "calendar", week, filter, sessionId, studentId, status } = await searchParams;
 
   const where: {
     tutorId: number;
@@ -39,9 +34,21 @@ export default async function TutorSessionsPage({
     status?: SessionStatus;
     attendance?: null;
     sessionReport?: null;
+    studentId?: number;
   } = { tutorId };
-  if (view === "calendar") {
+
+  if (week) {
+    const startDate = dayjs(week).startOf("week").toDate();
+    const endDate = dayjs(startDate).endOf("week").toDate();
     where.startTime = { gte: startDate, lt: endDate };
+  }
+
+  if (studentId) {
+    where.studentId = parseInt(studentId);
+  }
+
+  if (status) {
+    where.status = parseInt(status) as SessionStatus;
   }
 
   if (filter === "pending_attendance") {
@@ -60,6 +67,12 @@ export default async function TutorSessionsPage({
     orderBy: { startTime: "asc" },
   });
 
+  const students = await db.student.findMany({
+    where: { tutorId },
+  });
+
+  const tutorStudents = students.map((s) => ({ id: s.id, name: s.name }));
+
   const transformedSessions: DashboardSession[] = sessions.map((s) => ({
     id: s.id,
     startTime: s.startTime.toISOString(),
@@ -77,32 +90,35 @@ export default async function TutorSessionsPage({
     studentPhone: s.student.phone,
     attendance: s.attendance
       ? {
-          id: s.attendance.id,
-          tutorAttendance: s.attendance.tutorAttendanceStatus,
-          studentAttendance: s.attendance.studentAttendanceStatus,
-          reason: s.attendance.reason,
-        }
+        id: s.attendance.id,
+        tutorAttendance: s.attendance.tutorAttendanceStatus,
+        studentAttendance: s.attendance.studentAttendanceStatus,
+        reason: s.attendance.reason,
+      }
       : undefined,
     report: s.sessionReport
       ? {
-          id: s.sessionReport.id,
-          rating: s.sessionReport.rating,
-          outcomes: s.sessionReport.outcomes,
-          strengths: s.sessionReport.strengths,
-          weaknesses: s.sessionReport.weaknesses,
-          nextGoals: s.sessionReport.nextGoals,
-          comments: s.sessionReport.comments,
-        }
+        id: s.sessionReport.id,
+        rating: s.sessionReport.rating,
+        outcomes: s.sessionReport.outcomes,
+        strengths: s.sessionReport.strengths,
+        weaknesses: s.sessionReport.weaknesses,
+        nextGoals: s.sessionReport.nextGoals,
+        comments: s.sessionReport.comments,
+      }
       : undefined,
   }));
 
   return (
     <SessionsClient
       sessions={transformedSessions}
+      students={tutorStudents}
       view={view}
-      currentWeekStart={startDate.toISOString()}
+      currentWeekStart={week ? dayjs(week).startOf("week").toISOString() : dayjs().startOf("week").toISOString()}
       filter={filter}
       sessionIdParam={sessionId ? parseInt(sessionId) : null}
+      tutorId={tutorId}
+      academyId={academyId}
     />
   );
 }

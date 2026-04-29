@@ -93,6 +93,7 @@ export async function createSession(input: CreateSessionInput) {
       },
     });
     revalidatePath("/ar/dashboard/sessions");
+    revalidatePath("/ar/dashboard/tutor/sessions");
     return session;
   } else {
     // Recurring pattern
