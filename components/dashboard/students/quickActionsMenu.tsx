@@ -28,14 +28,12 @@ import AddNoteDialog from "@/components/dashboard/students/addNoteDialog";
 
 export function QuickActionsMenu({
   student,
-  currencies,
   plans,
   tutors,
 }: {
   student: DashboardStudent;
   tutors: { id: number; name: string }[];
   plans: { id: number; title: string }[];
-  currencies: { id: number; name: string }[];
 }) {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [changeStatusOpen, setChangeStatusOpen] = useState(false);
@@ -105,8 +103,6 @@ export function QuickActionsMenu({
       <EditStudentDialog
         studentId={student.id}
         tutors={tutors}
-        plans={plans}
-        currencies={currencies}
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
       />

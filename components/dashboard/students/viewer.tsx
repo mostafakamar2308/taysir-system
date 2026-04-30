@@ -293,7 +293,6 @@ const StudentsViewer = ({
                 student={student}
                 tutors={tutors}
                 plans={plans}
-                currencies={currencies}
                 academyId={academyId}
               />
             ))}
@@ -310,7 +309,6 @@ const StudentsViewer = ({
           onSort={toggleSort}
           tutors={tutors}
           plans={plans}
-          currencies={currencies}
         />
       )}
     </div>

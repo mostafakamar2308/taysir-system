@@ -58,8 +58,19 @@ interface DashboardClientProps {
     studentId: number;
     studentName: string;
     studentPhone: string | null;
+    tutorName: string | null;
+    tutorPhone: string | null;
     startTime: string;
   }>;
+  absentSessions: {
+    sessionId: number;
+    studentId: number;
+    studentName: string;
+    studentPhone: string | null;
+    tutorName: string;
+    tutorPhone: string | null;
+    startTime: string;
+  }[];
   latePayments: Array<{
     id: number;
     studentName: string;
@@ -121,6 +132,16 @@ function StatCard({
   );
 }
 
+type BulkGroup =
+  | "at-risk"
+  | "late-payment"
+  | "near-end"
+  | "attendance-missing"
+  | "attendance-absent"
+  | "reports-missing"
+  | "reports-absent"
+  | null;
+
 export default function DashboardClient(props: DashboardClientProps) {
   const formatTime = (iso: string) => dayjs(iso).format("h:mm A");
 
@@ -130,9 +151,42 @@ export default function DashboardClient(props: DashboardClientProps) {
     window.open(url, "_blank");
   };
 
-  const [sendBulkMessages, setSendBulkMessages] = useState<
-    "at-risk" | "late-payment" | "near-end" | null
-  >(null);
+  const [sendBulkMessages, setSendBulkMessages] = useState<BulkGroup>(null);
+
+  const getBulkUsers = (): { phone: string }[] => {
+    switch (sendBulkMessages) {
+      case "at-risk":
+        return props.atRiskStudents
+          .filter((s) => s.phone)
+          .map((s) => ({ phone: s.phone! }));
+      case "late-payment":
+        return props.latePayments
+          .filter((p) => p.phone)
+          .map((p) => ({ phone: p.phone! }));
+      case "near-end":
+        return props.nearEndSubscriptions
+          .filter((s) => s.phone)
+          .map((s) => ({ phone: s.phone! }));
+      case "attendance-missing":
+        return props.attendanceSheet
+          .filter((s) => s.tutorPhone)
+          .map((s) => ({ phone: s.tutorPhone! }));
+      case "attendance-absent":
+        return props.absentSessions
+          .filter((s) => s.studentPhone)
+          .map((s) => ({ phone: s.studentPhone! }));
+      case "reports-missing":
+        return props.reportsSheet
+          .filter((s) => s.tutorPhone)
+          .map((s) => ({ phone: s.tutorPhone! }));
+      case "reports-absent":
+        return props.absentSessions
+          .filter((s) => s.studentPhone)
+          .map((s) => ({ phone: s.studentPhone! }));
+      default:
+        return [];
+    }
+  };
 
   return (
     <div className="space-y-6" dir="rtl">
@@ -365,16 +419,21 @@ export default function DashboardClient(props: DashboardClientProps) {
             </ul>
           </CardContent>
         </Card>
-      ) : <Card className="border-green-300 bg-green-50/50">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-base flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-amber-600" /> طلاب معرضون للخطر
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center text-primary">لا يوجد طلاب، الوضع اّمن</div>
-        </CardContent>
-      </Card>}
+      ) : (
+        <Card className="border-green-300 bg-green-50/50">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-600" /> طلاب معرضون
+              للخطر
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center text-primary">
+              لا يوجد طلاب، الوضع اّمن
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Tabbed Sheets */}
       <Tabs defaultValue="attendance">
@@ -386,50 +445,121 @@ export default function DashboardClient(props: DashboardClientProps) {
 
         {/* Attendance Sheet */}
         <TabsContent value="attendance">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
-                حصص اليوم بدون تسجيل حضور
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {props.attendanceSheet.length === 0 ? (
-                <p className="text-muted-foreground">
-                  لا توجد حصص بدون حضور اليوم
-                </p>
-              ) : (
-                <ul className="space-y-2">
-                  {props.attendanceSheet.map((item) => (
-                    <li
-                      key={item.sessionId}
-                      className="flex items-center justify-between p-2 border rounded"
-                    >
-                      <div>
-                        <span className="font-medium">{item.studentName}</span>
-                        <span className="text-sm text-muted-foreground mr-2">
-                          {formatTime(item.startTime)}
-                        </span>
-                      </div>
-                      {item.studentPhone && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() =>
-                            handleWhatsApp(
-                              item.studentPhone,
-                              `مرحباً، نذكرك بحصة اليوم في ${formatTime(item.startTime)}.`,
-                            )
-                          }
-                        >
-                          <MessageSquare className="h-4 w-4 ml-2" /> تذكير
-                        </Button>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
+          <div className="space-y-6">
+            {/* 1. حصص بدون حضور */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-base">حصص بدون تسجيل حضور</CardTitle>
+                {props.attendanceSheet.length > 0 && (
+                  <Button
+                    onClick={() => setSendBulkMessages("attendance-missing")}
+                  >
+                    إرسال رسالة جماعية
+                  </Button>
+                )}
+              </CardHeader>
+              <CardContent>
+                {props.attendanceSheet.length === 0 ? (
+                  <p className="text-muted-foreground">
+                    لا توجد حصص بدون حضور اليوم
+                  </p>
+                ) : (
+                  <ul className="space-y-2">
+                    {props.attendanceSheet.map((item) => (
+                      <li
+                        key={item.sessionId}
+                        className="flex items-center justify-between p-2 border rounded"
+                      >
+                        <div>
+                          <span className="font-medium">
+                            حصة المعلم{" "}
+                            <span className="text-primary">
+                              {item.tutorName}
+                            </span>{" "}
+                            مع الطالب{" "}
+                            <span className="text-primary">
+                              {item.studentName}
+                            </span>
+                          </span>
+                          <span className="text-sm text-muted-foreground mr-2">
+                            {formatTime(item.startTime)}
+                          </span>
+                        </div>
+                        {item.tutorPhone && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              handleWhatsApp(
+                                item.tutorPhone,
+                                `مرحباً، برجاء تسجيل حضور حصة اليوم مع الطالب ${item.studentName} الساعة ${formatTime(item.startTime)}.`,
+                              )
+                            }
+                          >
+                            <MessageSquare className="h-4 w-4 ml-2" /> تذكير
+                          </Button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* 2. طلاب غائبون اليوم */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-base text-destructive">
+                  حصص اليوم التي غابها الطلاب
+                </CardTitle>
+                {props.absentSessions.length > 0 && (
+                  <Button
+                    onClick={() => setSendBulkMessages("attendance-absent")}
+                  >
+                    إرسال رسالة جماعية
+                  </Button>
+                )}
+              </CardHeader>
+              <CardContent>
+                {props.absentSessions.length === 0 ? (
+                  <p className="text-muted-foreground">لا يوجد غياب اليوم</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {props.absentSessions.map((item) => (
+                      <li
+                        key={item.sessionId}
+                        className="flex items-center justify-between p-2 border rounded"
+                      >
+                        <div>
+                          <span className="font-medium">
+                            {item.studentName}
+                          </span>
+                          <span className="text-sm text-muted-foreground mr-2">
+                            غائب – حصة مع {item.tutorName} (
+                            {formatTime(item.startTime)})
+                          </span>
+                        </div>
+                        {item.studentPhone && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              handleWhatsApp(
+                                item.studentPhone,
+                                `مرحباً ${item.studentName}، نود التواصل معك بخصوص غيابك اليوم.`,
+                              )
+                            }
+                          >
+                            <MessageSquare className="h-4 w-4 ml-2" /> تواصل
+                          </Button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         {/* Reconciliation Sheet */}
@@ -536,68 +666,120 @@ export default function DashboardClient(props: DashboardClientProps) {
 
         {/* Reports Sheet */}
         <TabsContent value="reports">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">حصص اليوم بدون تقارير</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {props.reportsSheet.length === 0 ? (
-                <p className="text-muted-foreground">
-                  جميع الحصص اليوم تحتوي على تقارير
-                </p>
-              ) : (
-                <ul className="space-y-2">
-                  {props.reportsSheet.map((item) => (
-                    <li
-                      key={item.sessionId}
-                      className="flex items-center justify-between p-2 border rounded"
-                    >
-                      <div>
-                        <span className="font-medium">{item.tutorName}</span>
-                        <span className="text-sm text-muted-foreground mr-2">
-                          مع {item.studentName} الساعة{" "}
-                          {formatTime(item.startTime)}
-                        </span>
-                      </div>
-                      {item.tutorPhone && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() =>
-                            handleWhatsApp(
-                              item.tutorPhone,
-                              `مرحباً، نود تذكيرك بكتابة تقرير حصة ${item.studentName} اليوم.`,
-                            )
-                          }
-                        >
-                          <MessageSquare className="h-4 w-4 ml-2" /> تذكير
-                        </Button>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
+          <div className="space-y-6">
+            {/* 1. حصص بدون تقارير */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-base">
+                  حصص اليوم بدون تقارير
+                </CardTitle>
+                {props.reportsSheet.length > 0 && (
+                  <Button
+                    onClick={() => setSendBulkMessages("reports-missing")}
+                  >
+                    إرسال رسالة جماعية
+                  </Button>
+                )}
+              </CardHeader>
+              <CardContent>
+                {props.reportsSheet.length === 0 ? (
+                  <p className="text-muted-foreground">
+                    جميع الحصص اليوم تحتوي على تقارير
+                  </p>
+                ) : (
+                  <ul className="space-y-2">
+                    {props.reportsSheet.map((item) => (
+                      <li
+                        key={item.sessionId}
+                        className="flex items-center justify-between p-2 border rounded"
+                      >
+                        <div>
+                          <span className="font-medium">{item.tutorName}</span>{" "}
+                          <span className="text-sm text-muted-foreground mr-2">
+                            مع {item.studentName} الساعة{" "}
+                            {formatTime(item.startTime)}
+                          </span>
+                        </div>
+                        {item.tutorPhone && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              handleWhatsApp(
+                                item.tutorPhone,
+                                `مرحباً، نود تذكيرك بكتابة تقرير حصة ${item.studentName} اليوم.`,
+                              )
+                            }
+                          >
+                            <MessageSquare className="h-4 w-4 ml-2" /> تذكير
+                          </Button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* 2. طلاب غائبون (لا يحتاجون تقرير) */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-base">
+                  حصص اليوم التي غابها الطلاب
+                </CardTitle>
+                {props.absentSessions.length > 0 && (
+                  <Button onClick={() => setSendBulkMessages("reports-absent")}>
+                    إرسال رسالة جماعية
+                  </Button>
+                )}
+              </CardHeader>
+              <CardContent>
+                {props.absentSessions.length === 0 ? (
+                  <p className="text-muted-foreground">لا يوجد غياب اليوم</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {props.absentSessions.map((item) => (
+                      <li
+                        key={item.sessionId}
+                        className="flex items-center justify-between p-2 border rounded"
+                      >
+                        <div>
+                          <span className="font-medium">
+                            {item.studentName}
+                          </span>
+                          <span className="text-sm text-muted-foreground mr-2">
+                            غائب – حصة مع {item.tutorName} (
+                            {formatTime(item.startTime)})
+                          </span>
+                        </div>
+                        {item.studentPhone && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              handleWhatsApp(
+                                item.studentPhone,
+                                `مرحباً ${item.studentName}، نود التواصل معك بخصوص غيابك اليوم.`,
+                              )
+                            }
+                          >
+                            <MessageSquare className="h-4 w-4 ml-2" /> تواصل
+                          </Button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
 
       <SendBulkMessagesDialog
         open={!!sendBulkMessages}
         setOpen={() => setSendBulkMessages(null)}
-        users={
-          sendBulkMessages === "at-risk"
-            ? (props.atRiskStudents.filter((s) => s.phone) as {
-              phone: string;
-            }[])
-            : sendBulkMessages === "late-payment"
-              ? (props.latePayments.filter((s) => s.phone) as {
-                phone: string;
-              }[])
-              : (props.nearEndSubscriptions.filter((s) => s.phone) as {
-                phone: string;
-              }[])
-        }
+        users={getBulkUsers()}
       />
     </div>
   );

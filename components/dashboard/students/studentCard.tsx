@@ -4,14 +4,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { DashboardStudent, StudentStatus } from "@/types/student";
 import { Phone, Mail, Clock, BookOpen, Book, AppWindow } from "lucide-react";
 import { QuickActionsMenu } from "./quickActionsMenu";
-import { Currency } from "@/generated/prisma/client";
 import Link from "next/link";
 
 type StudentCardProps = {
   student: DashboardStudent;
   tutors: { id: number; name: string }[];
   plans: { id: number; title: string }[];
-  currencies: Currency[];
   academyId?: number;
 };
 
@@ -31,12 +29,7 @@ const statusColors: Record<StudentStatus, string> = {
   [StudentStatus.paused]: "bg-gray-100 text-gray-700",
 };
 
-const StudentCard = ({
-  student,
-  currencies,
-  plans,
-  tutors,
-}: StudentCardProps) => {
+const StudentCard = ({ student, plans, tutors }: StudentCardProps) => {
   return (
     <Card className="border-none shadow-sm hover:shadow-md transition-shadow">
       <CardContent className="p-5 space-y-4">
@@ -63,12 +56,7 @@ const StudentCard = ({
             >
               {statusLabels[student.status]}
             </span>
-            <QuickActionsMenu
-              tutors={tutors}
-              plans={plans}
-              currencies={currencies}
-              student={student}
-            />
+            <QuickActionsMenu tutors={tutors} plans={plans} student={student} />
           </div>
         </div>
 

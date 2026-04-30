@@ -9,6 +9,7 @@ import { getTokenFromCookie, verifyToken } from "@/lib/jwt";
 import { getSessionStatus } from "@/lib/session";
 import { StudentStatus } from "@/types/student";
 import { recordStudentStatusChangeHistory } from "@/lib/history";
+import type { DashboardSession } from "@/types/session";
 
 type CreateSessionInput = {
   studentId: number;
@@ -366,4 +367,55 @@ export async function updateStudentSessionAttendance(
 
   revalidatePath(`/ar/dashboard/students/${session.studentId}`);
   revalidatePath("/ar/dashboard/sessions");
+}
+
+export async function getSessionDetails(
+  sessionId: number,
+): Promise<DashboardSession | null> {
+  const session = await db.session.findUnique({
+    where: { id: sessionId },
+    include: {
+      student: { select: { name: true, phone: true } },
+      tutor: { include: { user: { select: { name: true, phone: true } } } },
+      attendance: true,
+      sessionReport: true,
+    },
+  });
+
+  if (!session) return null;
+
+  return {
+    id: session.id,
+    startTime: session.startTime.toISOString(),
+    endTime: session.endTime.toISOString(),
+    durationMinutes: session.durationMinutes,
+    status: getSessionStatus(session),
+    topic: session.topic,
+    notes: session.notes,
+    studentId: session.studentId,
+    studentName: session.student.name,
+    tutorId: session.tutorId,
+    isTrial: session.isTrial,
+    tutorName: session.tutor.user.name ?? "",
+    recurringPatternId: session.recurringPatternId,
+    attendance: session.attendance
+      ? {
+          id: session.attendance.id,
+          tutorAttendance: session.attendance.tutorAttendanceStatus,
+          studentAttendance: session.attendance.studentAttendanceStatus,
+          reason: session.attendance.reason,
+        }
+      : undefined,
+    report: session.sessionReport
+      ? {
+          id: session.sessionReport.id,
+          rating: session.sessionReport.rating,
+          outcomes: session.sessionReport.outcomes,
+          strengths: session.sessionReport.strengths,
+          weaknesses: session.sessionReport.weaknesses,
+          nextGoals: session.sessionReport.nextGoals,
+          comments: session.sessionReport.comments,
+        }
+      : undefined,
+  };
 }

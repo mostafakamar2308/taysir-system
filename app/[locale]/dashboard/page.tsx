@@ -339,6 +339,14 @@ export default async function DashboardPage() {
     },
     include: {
       student: { select: { id: true, name: true, phone: true } },
+      tutor: {
+        select: {
+          id: true,
+          user: {
+            select: { name: true, phone: true },
+          },
+        },
+      },
     },
   });
 
@@ -390,6 +398,26 @@ export default async function DashboardPage() {
         "day",
       ),
     }));
+
+  const todayEnd = today.add(1, "day").toDate();
+  const absentSessions = await db.session.findMany({
+    where: {
+      academyId,
+      startTime: { gte: today.toDate(), lt: todayEnd },
+      attendance: {
+        studentAttendanceStatus: {
+          in: [
+            AttendanceStatus.ABSENT_EXCUSED,
+            AttendanceStatus.ABSENT_UNEXCUSED,
+          ],
+        },
+      },
+    },
+    include: {
+      student: { select: { id: true, name: true, phone: true } },
+      tutor: { include: { user: { select: { name: true, phone: true } } } },
+    },
+  });
 
   // ---------- Reports Sheet ----------
   const sessionsWithoutReport = await db.session.findMany({
@@ -479,6 +507,17 @@ export default async function DashboardPage() {
         studentId: s.student.id,
         studentName: s.student.name,
         studentPhone: s.student.phone,
+        tutorName: s.tutor.user.name,
+        tutorPhone: s.tutor.user.phone,
+        startTime: s.startTime.toISOString(),
+      }))}
+      absentSessions={absentSessions.map((s) => ({
+        sessionId: s.id,
+        studentId: s.student.id,
+        studentName: s.student.name,
+        studentPhone: s.student.phone,
+        tutorName: s.tutor.user.name || "",
+        tutorPhone: s.tutor.user.phone,
         startTime: s.startTime.toISOString(),
       }))}
       latePayments={latePayments}

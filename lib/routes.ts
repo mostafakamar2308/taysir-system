@@ -96,6 +96,11 @@ export const getSidebarGroups = (role: number) => {
       {
         label: "الحصص ومؤشرات الأداء",
         items: [
+          {
+            title: "إدارة الحصص",
+            url: "/ar/dashboard/session-management",
+            icon: Clock,
+          },
           { title: "الجداول", url: "/ar/dashboard/sessions", icon: Clock },
           {
             title: "مؤشرات الأداء",

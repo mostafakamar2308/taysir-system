@@ -25,7 +25,6 @@ interface StudentTableProps {
   onSort: (field: SortField) => void;
   tutors: { id: number; name: string }[];
   plans: { id: number; title: string }[];
-  currencies: { id: number; name: string }[];
   academyId?: number;
 }
 const statusLabels: Record<StudentStatus, string> = {
@@ -76,7 +75,6 @@ export function StudentTable({
   sortField,
   sortDir,
   onSort,
-  currencies,
   plans,
   tutors,
 }: StudentTableProps) {
@@ -154,12 +152,7 @@ export function StudentTable({
               <TableCell>{s.plan}</TableCell>
               <TableCell>{s.tutorName}</TableCell>
               <TableCell>
-                <QuickActionsMenu
-                  tutors={tutors}
-                  plans={plans}
-                  currencies={currencies}
-                  student={s}
-                />
+                <QuickActionsMenu tutors={tutors} plans={plans} student={s} />
               </TableCell>
             </TableRow>
           ))}
