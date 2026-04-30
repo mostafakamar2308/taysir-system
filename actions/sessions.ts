@@ -37,9 +37,9 @@ export async function createSession(input: CreateSessionInput) {
   const payload = verifyToken(token);
   if (!payload || !payload.academyId) throw new Error("غير مصرح");
 
-  const start = dayjs(`${input.date}T${input.startTime}`);
+  const start = dayjs.utc(input.startTime);
   const startDate = start.toDate();
-  const endDate = dayjs(start).add(input.duration, "minute").toDate();
+  const endDate = dayjs.utc(start).add(input.duration, "minute").toDate();
 
   if (start.isBefore(dayjs()))
     throw new Error("لا يمكن أن تكون الحصة في الماضى");
@@ -172,10 +172,10 @@ export async function updateSession(input: UpdateSessionInput) {
 
   // Single session update
   const newStart = input.startTime
-    ? dayjs(input.startTime).toDate()
+    ? dayjs.utc(input.startTime).toDate()
     : existing.startTime;
   const newEnd = input.duration
-    ? dayjs(newStart).add(input.duration, "minute").toDate()
+    ? dayjs.utc(newStart).add(input.duration, "minute").toDate()
     : existing.endTime;
 
   const updated = await db.session.update({

@@ -26,6 +26,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { createSession } from "@/actions/sessions";
 import { Plus } from "lucide-react";
+import dayjs from "@/lib/dayjs";
 
 interface AddSessionDialogProps {
   tutorId: number;
@@ -94,7 +95,10 @@ export default function AddSessionDialog({
         recurDays: isRecurring ? recurDays : undefined,
         recurEndDate: isRecurring ? recurEndDate : undefined,
       };
-      await createSession(input);
+      await createSession({
+        ...input,
+        startTime: dayjs(`${input.date}T${input.startTime}`).toISOString(),
+      });
       toast({ title: "تمت إضافة الحصة" });
       router.refresh();
     } catch (error) {
@@ -108,6 +112,7 @@ export default function AddSessionDialog({
         });
     } finally {
       setLoading(false);
+      setOpen(false);
     }
   };
 

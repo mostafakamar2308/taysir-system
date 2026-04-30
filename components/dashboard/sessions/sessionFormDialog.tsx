@@ -172,7 +172,10 @@ export function SessionFormDialog({
         });
         toast({ title: "تم تعديل الحصة بنجاح" });
       } else {
-        await createSession(input);
+        await createSession({
+          ...input,
+          startTime: dayjs(`${input.date}T${input.startTime}`).toISOString(),
+        });
         toast({ title: "تم إضافة الحصة بنجاح" });
       }
 
