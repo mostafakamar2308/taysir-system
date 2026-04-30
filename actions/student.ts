@@ -8,9 +8,11 @@ import {
 } from "@/lib/history";
 import { getTokenFromCookie, verifyToken } from "@/lib/jwt";
 import db from "@/lib/prisma";
+import { getSessionStatus } from "@/lib/session";
 import { HistoryActionType, TargetType } from "@/types/history";
 import { PaymentMethod, PaymentStatus } from "@/types/payment";
 import { StudentStatus } from "@/types/student";
+import { SessionRecord } from "@/types/studentProfile";
 import { SubscriptionStatus } from "@/types/subscription";
 import { Role } from "@/types/user";
 import dayjs from "dayjs";
@@ -598,4 +600,58 @@ export async function resolvePayment(
 
   revalidatePath(`/dashboard/students/${payment.student.id}`);
   revalidatePath("/dashboard/finances");
+}
+
+export async function getStudentSessionsForMonth(
+  studentId: number,
+  monthStart: string,
+): Promise<SessionRecord[]> {
+  const start = dayjs.utc(monthStart).startOf("month").toDate();
+  const end = dayjs.utc(monthStart).endOf("month").toDate();
+
+  const sessions = await db.session.findMany({
+    where: {
+      studentId,
+      startTime: { gte: start, lte: end },
+    },
+    include: {
+      tutor: { include: { user: true } },
+      attendance: true,
+      sessionReport: true,
+    },
+    orderBy: { startTime: "desc" },
+  });
+
+  return sessions.map((s) => ({
+    id: s.id,
+    startTime: s.startTime.toISOString(),
+    endTime: s.endTime.toISOString(),
+    durationMinutes: s.durationMinutes,
+    status: getSessionStatus(s),
+    topic: s.topic,
+    notes: s.notes,
+    studentId: s.studentId,
+    studentName: "", // لا نحتاج اسم الطالب هنا لأنه ثابت
+    tutorId: s.tutorId,
+    tutorName: s.tutor.user.name ?? "",
+    attendance: s.attendance
+      ? {
+          id: s.attendance.id,
+          status: s.attendance.studentAttendanceStatus,
+          reason: s.attendance.reason,
+        }
+      : undefined,
+    report: s.sessionReport
+      ? {
+          id: s.sessionReport.id,
+          rating: s.sessionReport.rating,
+          outcomes: s.sessionReport.outcomes,
+          strengths: s.sessionReport.strengths,
+          weaknesses: s.sessionReport.weaknesses,
+          nextGoals: s.sessionReport.nextGoals,
+          comments: s.sessionReport.comments,
+        }
+      : null,
+    recurringPatternId: s.recurringPatternId,
+  }));
 }

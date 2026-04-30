@@ -27,7 +27,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Plus, Eye } from "lucide-react";
+import {
+  MoreHorizontal,
+  Plus,
+  Eye,
+  ChevronRight,
+  ChevronLeft,
+} from "lucide-react";
 import { StudentProfile, SessionRecord } from "@/types/studentProfile";
 import { SessionStatus, AttendanceStatus } from "@/types/session";
 import {
@@ -42,6 +48,8 @@ import EditSessionDialog from "@/components/dashboard/studentProfile/dialogs/edi
 import DeleteSessionDialog from "@/components/dashboard/studentProfile/dialogs/deleteSessionDialog";
 import ViewReportDialog from "@/components/dashboard/studentProfile/dialogs/viewReportDialog";
 import AddSessionDialog from "@/components/dashboard/studentProfile/dialogs/addSessionDialog";
+import { getStudentSessionsForMonth } from "@/actions/student"; // المسار الصحيح
+import dayjs from "@/lib/dayjs";
 
 interface SessionsTabProps {
   student: StudentProfile;
@@ -51,6 +59,13 @@ interface SessionsTabProps {
 export default function SessionsTab({ student, tutors }: SessionsTabProps) {
   const router = useRouter();
   const { toast } = useToast();
+
+  const [sessions, setSessions] = useState<SessionRecord[]>(student.sessions);
+  const [monthStart, setMonthStart] = useState(
+    dayjs.utc().startOf("month").toISOString(),
+  );
+  const [loading, setLoading] = useState(false);
+
   const [sessionFilter, setSessionFilter] = useState<string>("all");
   const [sessionSearch, setSessionSearch] = useState("");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -74,8 +89,36 @@ export default function SessionsTab({ student, tutors }: SessionsTabProps) {
     sessionDate: string;
   }>({ open: false, report: null!, sessionDate: "" });
 
+  // دالة تغيير الشهر
+  const fetchMonth = async (newMonthStart: string) => {
+    setLoading(true);
+    try {
+      const data = await getStudentSessionsForMonth(student.id, newMonthStart);
+      setSessions(data);
+      setMonthStart(newMonthStart);
+    } catch (error) {
+      console.error("فشل جلب حصص الشهر", error);
+      toast({ title: "حدث خطأ أثناء جلب الحصص", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const navigateMonth = (direction: "prev" | "next") => {
+    const newMonth = dayjs(monthStart)
+      .utc()
+      .add(direction === "next" ? 1 : -1, "month")
+      .startOf("month")
+      .toISOString();
+    console.log({ monthStart, newMonth });
+
+    fetchMonth(newMonth);
+  };
+
+  const formattedMonth = dayjs(monthStart).format("MMMM YYYY");
+
   const filteredSessions = useMemo(() => {
-    let s = [...student.sessions];
+    let s = [...sessions];
     if (sessionFilter !== "all")
       s = s.filter((x) => x.status === parseInt(sessionFilter));
     if (sessionSearch) {
@@ -90,7 +133,7 @@ export default function SessionsTab({ student, tutors }: SessionsTabProps) {
       (a, b) =>
         new Date(b.startTime).getTime() - new Date(a.startTime).getTime(),
     );
-  }, [student.sessions, sessionFilter, sessionSearch]);
+  }, [sessions, sessionFilter, sessionSearch]);
 
   const formatDate = (d: string) =>
     new Date(d).toLocaleDateString("ar-EG", {
@@ -135,8 +178,9 @@ export default function SessionsTab({ student, tutors }: SessionsTabProps) {
 
   return (
     <div className="space-y-4 mt-4">
+      {/* السطر العلوي: بحث، فلتر، تنقل شهري، زر إضافة */}
       <div className="flex flex-wrap gap-3 items-center justify-between">
-        <div className="flex gap-3 flex-wrap">
+        <div className="flex gap-3 flex-wrap items-center">
           <Input
             placeholder="بحث بالموضوع أو المعلم..."
             value={sessionSearch}
@@ -154,13 +198,44 @@ export default function SessionsTab({ student, tutors }: SessionsTabProps) {
               <SelectItem value="2">ملغاة</SelectItem>
             </SelectContent>
           </Select>
+
+          {/* أزرار التنقل بين الأشهر */}
+          <div className="flex items-center gap-2 mr-4">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => navigateMonth("next")}
+              disabled={loading}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-sm font-medium min-w-30 text-center">
+              {formattedMonth}
+            </span>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => navigateMonth("prev")}
+              disabled={loading}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
+
         <Button onClick={() => setAddDialogOpen(true)}>
           <Plus className="h-4 w-4 ml-2" /> إضافة حصة
         </Button>
       </div>
 
-      {filteredSessions.length === 0 ? (
+      {/* عرض الجدول مع مؤشر التحميل */}
+      {loading ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="text-muted-foreground">جاري تحميل الحصص...</p>
+          </CardContent>
+        </Card>
+      ) : filteredSessions.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <p className="text-muted-foreground">لا توجد حصص تطابق البحث</p>
@@ -310,7 +385,6 @@ export default function SessionsTab({ student, tutors }: SessionsTabProps) {
           </div>
         </Card>
       )}
-
       <AddSessionDialog
         open={addDialogOpen}
         onOpenChange={setAddDialogOpen}

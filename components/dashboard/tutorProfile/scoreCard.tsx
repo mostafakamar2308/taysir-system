@@ -41,7 +41,7 @@ export default function ScoreCard({
     <Card>
       <CardHeader>
         <CardTitle className="text-lg flex items-center justify-between">
-          <span>بطاقة أداء المعلم</span>
+          <span>بطاقة أداء المعلم لهذا الشهر</span>
           <span
             className={`text-2xl font-bold ${performanceMetrics.scoreColor}`}
           >

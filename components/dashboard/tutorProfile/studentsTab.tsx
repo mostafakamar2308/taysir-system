@@ -48,20 +48,19 @@ export default function StudentsTab({ tutor }: StudentsTabProps) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-3 items-center justify-between">
+        <Button
+          onClick={() => setMessageDialogOpen(true)}
+          disabled={filteredStudents.length === 0}
+        >
+          رسالة للجميع
+          <MessageSquare className="h-4 w-4 ml-2" />
+        </Button>
         <Input
           placeholder="بحث عن طالب..."
           value={studentSearch}
           onChange={(e) => setStudentSearch(e.target.value)}
           className="w-60"
         />
-        <Button
-          variant="outline"
-          onClick={() => setMessageDialogOpen(true)}
-          disabled={filteredStudents.length === 0}
-        >
-          <MessageSquare className="h-4 w-4 ml-2" />
-          رسالة للجميع
-        </Button>
       </div>
 
       <SendBulkMessagesDialog

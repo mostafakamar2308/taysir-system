@@ -20,17 +20,26 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 import {
   attendanceStatusColors,
   attendanceStatusLabels,
   sessionStatusColors,
   sessionStatusLabels,
 } from "@/const/sessions";
-import type { TutorProfile, TutorSession } from "@/types/tutor";
+import type { TutorSession } from "@/types/tutor";
 import AddSessionDialog from "../dialogs/addSessionToTutorDialog";
+import { ChevronRight, ChevronLeft } from "lucide-react";
+import dayjs from "@/lib/dayjs";
+import { getTutorSessionsForMonth } from "@/actions/tutor";
 
 interface SessionsTabProps {
-  tutor: TutorProfile;
+  tutor: {
+    id: number;
+    academyId: number;
+    sessions: TutorSession[];
+    students: { id: number; name: string }[];
+  };
   onSessionClick: (session: TutorSession) => void;
 }
 
@@ -38,11 +47,41 @@ export default function SessionsTab({
   tutor,
   onSessionClick,
 }: SessionsTabProps) {
+  const [sessions, setSessions] = useState<TutorSession[]>(tutor.sessions);
+  const [monthStart, setMonthStart] = useState(
+    dayjs().utc().startOf("month").toISOString(),
+  );
+  const [loading, setLoading] = useState(false);
   const [sessionFilter, setSessionFilter] = useState("all");
   const [sessionSearch, setSessionSearch] = useState("");
 
+  // دالة تحديث الجلسات عند تغيير الشهر
+  const fetchMonth = async (newMonthStart: string) => {
+    setLoading(true);
+    try {
+      const data = await getTutorSessionsForMonth(tutor.id, newMonthStart);
+      setSessions(data);
+      setMonthStart(newMonthStart);
+    } catch (error) {
+      console.error("فشل جلب حصص الشهر", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const navigateMonth = (direction: "prev" | "next") => {
+    const newMonth = dayjs(monthStart)
+      .utc()
+      .add(direction === "next" ? 1 : -1, "month")
+      .startOf("month")
+      .toISOString();
+    fetchMonth(newMonth);
+  };
+
+  const formattedMonth = dayjs(monthStart).format("MMMM YYYY");
+
   const filteredSessions = useMemo(() => {
-    let s = [...tutor.sessions];
+    let s = [...sessions];
     if (sessionFilter !== "all") {
       s = s.filter((x) => x.status === parseInt(sessionFilter));
     }
@@ -58,7 +97,7 @@ export default function SessionsTab({
       (a, b) =>
         new Date(b.startTime).getTime() - new Date(a.startTime).getTime(),
     );
-  }, [tutor.sessions, sessionFilter, sessionSearch]);
+  }, [sessions, sessionFilter, sessionSearch]);
 
   const formatDate = (d: string) =>
     new Date(d).toLocaleDateString("ar-EG", {
@@ -74,8 +113,9 @@ export default function SessionsTab({
 
   return (
     <div className="space-y-4 mt-4">
+      {/* صف الفلاتر والتنقل الشهري */}
       <div className="flex flex-wrap gap-3 items-center justify-between">
-        <div className="flex gap-3 flex-wrap">
+        <div className="flex gap-3 flex-wrap items-center">
           <Input
             placeholder="بحث بالموضوع أو الطالب..."
             value={sessionSearch}
@@ -94,6 +134,31 @@ export default function SessionsTab({
             </SelectContent>
           </Select>
         </div>
+
+        {/* التنقل بين الأشهر */}
+        <div className="flex items-center gap-2">
+          {" "}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => navigateMonth("next")}
+            disabled={loading}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="text-sm font-medium min-w-40 text-center">
+            {formattedMonth}
+          </span>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => navigateMonth("prev")}
+            disabled={loading}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+
         <AddSessionDialog
           tutorId={tutor.id}
           academyId={tutor.academyId}
@@ -104,7 +169,13 @@ export default function SessionsTab({
         />
       </div>
 
-      {filteredSessions.length === 0 ? (
+      {loading ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="text-muted-foreground">جاري تحميل الحصص...</p>
+          </CardContent>
+        </Card>
+      ) : filteredSessions.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <p className="text-muted-foreground">لا توجد حصص</p>
@@ -158,13 +229,13 @@ export default function SessionsTab({
                           <Badge
                             className={
                               attendanceStatusColors[
-                              s.attendance.tutorAttendance
+                                s.attendance.tutorAttendance
                               ]
                             }
                           >
                             {
                               attendanceStatusLabels[
-                              s.attendance.tutorAttendance
+                                s.attendance.tutorAttendance
                               ]
                             }
                           </Badge>

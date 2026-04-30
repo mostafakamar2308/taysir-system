@@ -2,7 +2,6 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -11,8 +10,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Download } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
 import { TutorProfile } from "@/types/tutor";
 import { paymentStatusColors, paymentStatusLabels } from "@/lib/enums";
 import PayTutorDialog from "@/components/dashboard/dialogs/payTutorDialog";
@@ -23,7 +20,6 @@ interface PaymentsTabProps {
 }
 
 export default function PaymentsTab({ tutor, currencies }: PaymentsTabProps) {
-  const { toast } = useToast();
   const { totalEarnings, paid, pending } = tutor.monthlyStats;
 
   const formatDate = (d: string) =>
@@ -66,15 +62,8 @@ export default function PaymentsTab({ tutor, currencies }: PaymentsTabProps) {
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-lg">سجل المدفوعات (هذا الشهر)</CardTitle>
+          <CardTitle className="text-lg">سجل المدفوعات</CardTitle>
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => toast({ title: "تصدير التقرير" })}
-            >
-              <Download className="h-4 w-4 ml-2" /> تصدير
-            </Button>
             <PayTutorDialog
               academyId={tutor.academyId}
               tutorId={tutor.id}

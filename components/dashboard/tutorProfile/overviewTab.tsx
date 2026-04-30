@@ -60,7 +60,7 @@ export default function OverviewTab({ tutor }: OverviewTabProps) {
       color: "text-primary",
     },
     {
-      label: "إجمالي الحصص",
+      label: "إجمالي الحصص الشهر",
       value: tutor.sessions.length,
       icon: BookOpen,
       color: "text-muted-foreground",

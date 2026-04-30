@@ -72,10 +72,7 @@ export default async function TutorProfilePage({
       },
       tutorAvailabilities: true,
       expenses: {
-        where: {
-          tutorId: id,
-          salaryMonth: dayjs().format("YYYY-MM"),
-        },
+        orderBy: { createdAt: "desc" },
         include: { currency: true },
       },
     },
@@ -87,8 +84,7 @@ export default async function TutorProfilePage({
   const attendedSessions = tutor.sessions.filter(
     (s) =>
       s.attendance?.tutorAttendanceStatus === AttendanceStatus.ATTENDED ||
-      s.attendance?.tutorAttendanceStatus
-      === AttendanceStatus.LATE,
+      s.attendance?.tutorAttendanceStatus === AttendanceStatus.LATE,
   ).length;
   const totalMonthlyEarnings = attendedSessions * tutor.pricePerSession;
   const paidThisMonth = tutor.expenses.reduce((sum, e) => sum + e.amount, 0);
@@ -197,22 +193,22 @@ export default async function TutorProfilePage({
     studentName: s.student.name,
     attendance: s.attendance
       ? {
-        id: s.attendance.id,
-        tutorAttendance: s.attendance.tutorAttendanceStatus,
-        studentAttendance: s.attendance.studentAttendanceStatus,
-        reason: s.attendance.reason,
-      }
+          id: s.attendance.id,
+          tutorAttendance: s.attendance.tutorAttendanceStatus,
+          studentAttendance: s.attendance.studentAttendanceStatus,
+          reason: s.attendance.reason,
+        }
       : undefined,
     report: s.sessionReport
       ? {
-        id: s.sessionReport.id,
-        outcomes: s.sessionReport.outcomes,
-        strengths: s.sessionReport.strengths,
-        weaknesses: s.sessionReport.weaknesses,
-        nextGoals: s.sessionReport.nextGoals,
-        comments: s.sessionReport.comments,
-        rating: s.sessionReport.rating,
-      }
+          id: s.sessionReport.id,
+          outcomes: s.sessionReport.outcomes,
+          strengths: s.sessionReport.strengths,
+          weaknesses: s.sessionReport.weaknesses,
+          nextGoals: s.sessionReport.nextGoals,
+          comments: s.sessionReport.comments,
+          rating: s.sessionReport.rating,
+        }
       : undefined,
   }));
 

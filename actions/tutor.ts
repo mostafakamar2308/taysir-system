@@ -6,6 +6,9 @@ import { z } from "zod";
 import bcrypt from "bcrypt";
 import { Role } from "@/types/user";
 import { getTokenFromCookie, verifyToken } from "@/lib/jwt";
+import { getSessionStatus } from "@/lib/session";
+import dayjs from "@/lib/dayjs";
+import { TutorSession } from "@/types/tutor";
 
 const createTutorSchema = z.object({
   name: z.string().min(1, "الاسم مطلوب"),
@@ -176,4 +179,55 @@ export async function addTutorNote(tutorId: number, content: string) {
   });
 
   revalidatePath(`/ar/dashboard/tutors/${tutorId}`);
+}
+
+export async function getTutorSessionsForMonth(
+  tutorId: number,
+  monthStart: string,
+): Promise<TutorSession[]> {
+  const start = dayjs.utc(monthStart).startOf("month").toDate();
+  const end = dayjs.utc(monthStart).endOf("month").toDate();
+
+  const sessions = await db.session.findMany({
+    where: {
+      tutorId,
+      startTime: { gte: start, lte: end },
+    },
+    include: {
+      student: true,
+      attendance: true,
+      sessionReport: true,
+    },
+    orderBy: { startTime: "desc" },
+  });
+
+  return sessions.map((s) => ({
+    id: s.id,
+    startTime: s.startTime.toISOString(),
+    endTime: s.endTime.toISOString(),
+    durationMinutes: s.durationMinutes,
+    status: getSessionStatus(s),
+    topic: s.topic,
+    studentId: s.studentId,
+    studentName: s.student.name,
+    attendance: s.attendance
+      ? {
+          id: s.attendance.id,
+          tutorAttendance: s.attendance.tutorAttendanceStatus,
+          studentAttendance: s.attendance.studentAttendanceStatus,
+          reason: s.attendance.reason,
+        }
+      : undefined,
+    report: s.sessionReport
+      ? {
+          id: s.sessionReport.id,
+          outcomes: s.sessionReport.outcomes,
+          strengths: s.sessionReport.strengths,
+          weaknesses: s.sessionReport.weaknesses,
+          nextGoals: s.sessionReport.nextGoals,
+          comments: s.sessionReport.comments,
+          rating: s.sessionReport.rating,
+        }
+      : undefined,
+  }));
 }
