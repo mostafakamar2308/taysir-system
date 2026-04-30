@@ -55,7 +55,10 @@ export async function createStudent(formData: FormData) {
     phone: formData.get("phone") || null,
     country: formData.get("country") || null,
     timezone: formData.get("timezone"),
-    currencyId: parseInt(formData.get("currencyId") as string),
+    currencyId:
+      formData.get("currencyId") && formData.get("currencyId") !== "none"
+        ? parseInt(formData.get("currencyId") as string)
+        : null,
     status: formData.get("status")
       ? parseInt(formData.get("status") as string)
       : 0,
@@ -64,12 +67,14 @@ export async function createStudent(formData: FormData) {
     emergencyContactPhone: formData.get("emergencyContactPhone") || null,
     currentProgram: formData.get("currentProgram") || null,
     preferredLanguage: formData.get("preferredLanguage") || null,
-    tutorId: formData.get("tutorId")
-      ? parseInt(formData.get("tutorId") as string)
-      : null,
-    planId: formData.get("planId")
-      ? parseInt(formData.get("planId") as string)
-      : null,
+    tutorId:
+      formData.get("tutorId") && formData.get("tutorId") !== "none"
+        ? parseInt(formData.get("tutorId") as string)
+        : null,
+    planId:
+      formData.get("planId") && formData.get("planId") !== "none"
+        ? parseInt(formData.get("planId") as string)
+        : null,
     academyId: parseInt(formData.get("academyId") as string),
   };
 

@@ -102,7 +102,9 @@ export default function AddStudentDialog({
               <div>
                 <Label htmlFor="phone">رقم الهاتف</Label>
                 <Input id="phone" name="phone" />
-                <span className="text-xs text-slate-600">برجاء كتابة الرقم بالصيغة الدولية</span>
+                <span className="text-xs text-slate-600">
+                  برجاء كتابة الرقم بالصيغة الدولية
+                </span>
               </div>
               <div>
                 <Label htmlFor="country">الدولة</Label>
@@ -216,14 +218,6 @@ export default function AddStudentDialog({
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-                <div>
-                  <Label htmlFor="startDate">تاريخ البدء</Label>
-                  <Input id="startDate" name="startDate" type="date" />
-                </div>
-                <div>
-                  <Label htmlFor="renewalDate">تاريخ التجديد</Label>
-                  <Input id="renewalDate" name="renewalDate" type="date" />
                 </div>
               </div>
             </div>

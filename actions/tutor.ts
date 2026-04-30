@@ -70,6 +70,7 @@ export async function createTutor(formData: FormData) {
     data: {
       email: validated.email,
       password: hashedPassword,
+      phone: validated.phone,
       name: validated.name,
       role: Role.Tutor,
       timezone: validated.timezone,

@@ -246,7 +246,7 @@ export default function DashboardClient({
                       </span>
                     </div>
                     <Button size="sm" variant="link" asChild>
-                      <Link href="/tutor/sessions?filter=pending_attendance">
+                      <Link href="/ar/dashboard/tutor/sessions?filter=pending_attendance">
                         تسجيل
                       </Link>
                     </Button>
@@ -259,7 +259,7 @@ export default function DashboardClient({
                       <span>{pendingReports.length} حصة بحاجة لتقرير</span>
                     </div>
                     <Button size="sm" variant="link" asChild>
-                      <Link href="/tutor/sessions?filter=pending_reports">
+                      <Link href="/ar/dashboard/tutor/sessions?filter=pending_reports">
                         كتابة
                       </Link>
                     </Button>

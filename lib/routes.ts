@@ -160,16 +160,6 @@ export const getSidebarGroups = (role: number) => {
         ],
       },
       {
-        label: "الطلاب",
-        items: [
-          {
-            title: "طلابي",
-            url: "/ar/dashboard/tutor/students",
-            icon: GraduationCap,
-          },
-        ],
-      },
-      {
         label: "المالية",
         items: [
           {
