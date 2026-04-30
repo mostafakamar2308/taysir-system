@@ -3,6 +3,8 @@
 import db from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getTokenFromCookie, verifyToken } from "@/lib/jwt";
+import dayjs from "@/lib/dayjs";
+import { sendSingleMessage } from "./sendMessage";
 
 export async function upsertSessionReport(
   sessionId: number,
@@ -22,7 +24,11 @@ export async function upsertSessionReport(
 
   const session = await db.session.findUnique({
     where: { id: sessionId },
-    select: { tutorId: true },
+    include: {
+      student: {
+        select: { name: true, phone: true },
+      },
+    },
   });
   if (!session) throw new Error("الحصة غير موجودة");
   if (session.tutorId !== payload.tutorId) throw new Error("غير مصرح");
@@ -33,5 +39,20 @@ export async function upsertSessionReport(
     create: { sessionId, ...data },
   });
 
-  revalidatePath("/tutor/sessions");
+  if (session.student.phone) {
+    const message = {
+      phoneNumber: session.student.phone,
+      content: `السلام عليكم، ${session.student.name ? `والد الطالب ${session.student.name}` : ""}
+هذا تقرير حصة يوم ${dayjs(session.startTime).format("dddd")}:
+${data.rating ? `تقييم الحصة: ${data.rating}` : ""}
+${data.outcomes ? `نتائج الحصة: ${data.outcomes}` : ""}
+${data.strengths ? `نقاط القوة: ${data.strengths}` : ""}
+${data.weaknesses ? `نقاط الضعف: ${data.weaknesses}` : ""}
+${data.nextGoals ? `أهداف الحصة القادمة: ${data.nextGoals}` : ""}
+      `,
+    };
+
+    await sendSingleMessage(message.phoneNumber, message.content);
+  }
+  revalidatePath("/ar/dashboard/tutor/sessions");
 }
