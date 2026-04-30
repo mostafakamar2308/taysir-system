@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev && pnpm run worker",
+    "dev": "next dev",
     "build": "next build",
-    "start": "next start && pnpm run worker",
+    "start": "next start",
     "lint": "eslint",
     "worker": "tsx worker/whatsapp.ts"
   },

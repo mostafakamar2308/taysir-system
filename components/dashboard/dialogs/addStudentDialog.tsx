@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { createStudent } from "@/actions/student";
-import { Plus, User, CreditCard, MoreHorizontal } from "lucide-react";
+import { Plus, User, CreditCard } from "lucide-react";
 import { StudentStatus } from "@/types/student";
 
 interface AddStudentDialogProps {
@@ -281,27 +281,6 @@ export default function AddStudentDialog({
               </div>
             </div>
           )}
-
-          {/* Group 3: Other Information (if any) */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold flex items-center gap-2 text-muted-foreground border-b pb-2">
-              <MoreHorizontal className="h-4 w-4" /> أخرى
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="imageUrl">صورة الملف</Label>
-                <Input
-                  id="imageUrl"
-                  name="imageUrl"
-                  placeholder="رابط الصورة"
-                />
-              </div>
-              <div>
-                <Label htmlFor="notes">ملاحظات</Label>
-                <Input id="notes" name="notes" placeholder="ملاحظات إضافية" />
-              </div>
-            </div>
-          </div>
 
           <DialogTrigger asChild>
             <div className="flex justify-end gap-2 pt-4">

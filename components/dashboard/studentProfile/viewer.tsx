@@ -20,21 +20,18 @@ import {
 import { StudentStatus } from "@/types/student";
 import { statusColors, statusLabels } from "@/lib/enums";
 import EditStudentDialog from "../students/editStudentDialog";
-import { Currency } from "@/generated/prisma/browser";
 import { Plan, StudentProfile } from "@/types/studentProfile";
-
 import OverviewTab from "@/components/dashboard/studentProfile/overviewTab";
 import SessionsTab from "@/components/dashboard/studentProfile/sessionsTab";
 import AttendanceProgressTab from "@/components/dashboard/studentProfile/attendanceProgressTab";
 import BillingTab from "@/components/dashboard/studentProfile/billingTab";
 import RecordPaymentDialog from "./dialogs/recordPaymentDialog";
 import { SubscriptionStatus } from "@/types/subscription";
-import dayjs from "dayjs";
+import dayjs from "@/lib/dayjs";
 
 interface StudentProfileClientProps {
   student: StudentProfile;
   plans: Plan[];
-  currencies: Currency[];
   tutors: { id: number; name: string | null }[];
   academyId: number;
   defaultCurrency: {
@@ -48,7 +45,6 @@ interface StudentProfileClientProps {
 export default function StudentProfileClient({
   student,
   plans,
-  currencies,
   defaultCurrency,
   tutors,
   currencyRates,
@@ -183,8 +179,6 @@ export default function StudentProfileClient({
                 </Button>
                 <EditStudentDialog
                   studentId={student.id}
-                  currencies={currencies}
-                  plans={plans}
                   tutors={tutors}
                   open={editDialogOpen}
                   onOpenChange={() => setEditDialogOpen(false)}

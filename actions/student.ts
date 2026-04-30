@@ -104,24 +104,20 @@ export async function updateStudent(id: number, formData: FormData) {
     status: formData.get("status")
       ? parseInt(formData.get("status") as string)
       : 0,
-    startDate: formData.get("startDate")
-      ? new Date(formData.get("startDate") as string)
-      : new Date(),
-    renewalDate: formData.get("renewalDate")
-      ? new Date(formData.get("renewalDate") as string)
-      : null,
     source: formData.get("source") || null,
     emergencyContactName: formData.get("emergencyContactName") || null,
     emergencyContactPhone: formData.get("emergencyContactPhone") || null,
     preferredLanguage: formData.get("preferredLanguage") || null,
-    tutorId: formData.get("tutorId")
-      ? parseInt(formData.get("tutorId") as string)
-      : null,
+    tutorId:
+      formData.get("tutorId") && formData.get("tutorId") !== "none"
+        ? parseInt(formData.get("tutorId") as string)
+        : null,
     planId: formData.get("planId")
       ? parseInt(formData.get("planId") as string)
       : null,
     imageUrl: formData.get("imageUrl") || null,
   };
+  console.log({ rawData }, formData.get("tutorId"));
 
   const validated = createStudentSchema
     .omit({ academyId: true })

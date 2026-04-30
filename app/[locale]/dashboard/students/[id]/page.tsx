@@ -197,7 +197,6 @@ export default async function StudentProfilePage({
       user: true,
     },
   });
-  const currencies = await db.currency.findMany({});
 
   const currencyRates = await db.academyCurrencyRate.findMany({
     where: {
@@ -215,7 +214,6 @@ export default async function StudentProfilePage({
   return (
     <StudentProfileClient
       tutors={tutors.map((t) => ({ id: t.id, name: t.user.name }))}
-      currencies={currencies}
       plans={plans}
       defaultCurrency={academy.defaultCurrency!}
       student={transformed}
