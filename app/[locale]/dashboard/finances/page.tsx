@@ -47,7 +47,7 @@ export default async function FinancesPage() {
   const payments = await db.revenue.findMany({
     where: { academyId },
     include: { student: { select: { name: true } }, currency: true },
-    orderBy: { date: "desc" },
+    orderBy: { dueDate: "desc" },
   });
 
   // Fetch all expenses for this academy
@@ -66,7 +66,7 @@ export default async function FinancesPage() {
     currencyCode: p.currency.code,
     status: p.status,
     method: p.method,
-    date: p.date.toISOString().split("T")[0],
+    date: p.dueDate.toISOString().split("T")[0],
     dueDate: p.dueDate?.toISOString().split("T")[0] || null,
     description: p.description,
     studentId: p.studentId,

@@ -25,28 +25,54 @@ model Waitlist {
   @@index([id])
 }
 
-model User {
-  id                Int     @id @default(autoincrement())
-  email             String  @unique
-  password          String
-  name              String?
-  role              Int
-  timezone          String  @default("Africa/Cairo")
-  phone             String?
-  preferredLanguage String  @default("ar")
+// ===================General Data=================
 
-  superAdmin SuperAdmin?
-  admin      Admin?
-  supervisor Supervisor?
-  tutor      Tutor?
-  notes      Note[]
-  revenues   Revenue[]
-  reports    Report[]
+model Speciality {
+  id    Int    @id @default(autoincrement())
+  title String
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  expenses  Expense[]
+  tutor Tutor[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
+
+model Currency {
+  id Int @id @default(autoincrement())
+
+  code   String @unique // ISO code: USD, SAR, EGP 
+  name   String // US Dollar, Saudi Riyal, Egyptian Pound
+  symbol String // $, ﷼, £
+
+  students  Student[]
+  tutors    Tutor[]
+  payments  Revenue[]
+  expenses  Expense[]
+  academies Academy[]
+
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  plans                Plan[]
+  academyCurrencyRates AcademyCurrencyRate[]
+
+  @@index([code])
+}
+
+model SaasPlan {
+  id            Int       @id @default(autoincrement())
+  name          String
+  dollarPrice   Float
+  egyptianPrice Float
+  maxStudents   Int
+  maxTutors     Int
+  billingPeriod Int
+  features      Json?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  academies     Academy[]
+}
+
+// ===================Academy Data=================
 
 model Academy {
   id                Int       @id @default(autoincrement())
@@ -74,9 +100,7 @@ model Academy {
   tutors               Tutor[]
   students             Student[]
   sessions             Session[]
-  recurringPatterns    RecurringPattern[]
   expenses             Expense[]
-  reports              Report[]
   plans                Plan[]
   histories            History[]
   revenues             Revenue[]
@@ -85,6 +109,86 @@ model Academy {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model AcademyCurrencyRate {
+  id         Int      @id @default(autoincrement())
+  academyId  Int
+  academy    Academy  @relation(fields: [academyId], references: [id], onDelete: Cascade)
+  currencyId Int
+  currency   Currency @relation(fields: [currencyId], references: [id])
+  rate       Float // conversion rate to academy's default currency (1 unit of this currency = rate units of default currency)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([academyId, currencyId])
+  @@index([academyId])
+}
+
+model Student {
+  id                    Int      @id @default(autoincrement())
+  name                  String
+  email                 String?
+  age                   Int      @default(12)
+  phone                 String?
+  country               String?
+  timezone              String
+  status                Int      @default(0)
+  currency              Currency @relation(fields: [currencyId], references: [id])
+  currencyId            Int
+  sessionsBalance       Int      @default(0)
+  currentSubscriptionId Int?
+
+  source                String?
+  currentProgram        String?
+  emergencyContactName  String?
+  emergencyContactPhone String?
+  preferredLanguage     String?
+  imageUrl              String?
+
+  tutorId Int?
+  tutor   Tutor? @relation(fields: [tutorId], references: [id])
+
+  academyId Int
+  academy   Academy @relation(fields: [academyId], references: [id])
+
+  planId Int?
+  plan   Plan? @relation(fields: [planId], references: [id])
+
+  sessions              Session[]
+  studentAvailabilities StudentAvailability[]
+  notes                 Note[]
+  payments              Revenue[]
+  subscriptions         Subscription[]        @relation("StudentSubscriptions")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tutorId])
+  @@index([status])
+}
+
+// ===================USERS=================
+model User {
+  id                Int     @id @default(autoincrement())
+  email             String  @unique
+  password          String
+  name              String?
+  role              Int
+  timezone          String  @default("Africa/Cairo")
+  phone             String?
+  preferredLanguage String  @default("ar")
+
+  superAdmin SuperAdmin?
+  admin      Admin?
+  supervisor Supervisor?
+  tutor      Tutor?
+  notes      Note[]
+  revenues   Revenue[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  expenses  Expense[]
 }
 
 model Admin {
@@ -99,49 +203,6 @@ model Admin {
   updatedAt DateTime @updatedAt
 
   @@index([userId])
-}
-
-model Student {
-  id         Int      @id @default(autoincrement())
-  name       String
-  email      String?
-  age        Int      @default(12)
-  phone      String?
-  country    String?
-  timezone   String
-  status     Int      @default(0)
-  currency   Currency @relation(fields: [currencyId], references: [id])
-  currencyId Int
-
-  source                String?
-  currentProgram        String?
-  emergencyContactName  String?
-  emergencyContactPhone String?
-  preferredLanguage     String?
-  imageUrl              String?
-  currentSubscriptionId Int?
-
-  tutorId Int?
-  tutor   Tutor? @relation(fields: [tutorId], references: [id])
-
-  academyId Int
-  academy   Academy @relation(fields: [academyId], references: [id])
-
-  planId Int?
-  plan   Plan? @relation(fields: [planId], references: [id])
-
-  sessions              Session[]
-  recurringPatterns     RecurringPattern[]
-  studentAvailabilities StudentAvailability[]
-  notes                 Note[]
-  payments              Revenue[]
-  subscriptions         Subscription[]        @relation("StudentSubscriptions")
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([tutorId])
-  @@index([status])
 }
 
 model Supervisor {
@@ -179,7 +240,6 @@ model Tutor {
   specialities        Speciality[]
   students            Student[]
   sessions            Session[]
-  recurringPatterns   RecurringPattern[]
   tutorAvailabilities TutorAvailability[]
   notes               Note[]
   expenses            Expense[]
@@ -189,6 +249,19 @@ model Tutor {
 
   @@index([userId])
 }
+
+model SuperAdmin {
+  id     Int  @id @default(autoincrement())
+  userId Int  @unique
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// ===================Plan and Subscriptions=================
 
 model Plan {
   id              Int    @id @default(autoincrement())
@@ -209,6 +282,27 @@ model Plan {
   subscriptions Subscription[]
 }
 
+model Subscription {
+  id        Int       @id @default(autoincrement())
+  studentId Int
+  student   Student   @relation("StudentSubscriptions", fields: [studentId], references: [id])
+  planId    Int
+  plan      Plan      @relation(fields: [planId], references: [id])
+  startDate DateTime
+  endDate   DateTime?
+  status    Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  payments Revenue[]
+
+  @@index([studentId])
+  @@index([planId])
+  @@index([status])
+}
+
+// ===================Session and Attendance=================
+
 model Session {
   id              Int      @id @default(autoincrement())
   startTime       DateTime
@@ -219,14 +313,12 @@ model Session {
   isTrial         Boolean  @default(false)
   cancelledBy     Int?
 
-  studentId          Int
-  student            Student           @relation(fields: [studentId], references: [id])
-  tutorId            Int
-  tutor              Tutor             @relation(fields: [tutorId], references: [id])
-  academyId          Int
-  academy            Academy           @relation(fields: [academyId], references: [id])
-  recurringPatternId Int?
-  recurringPattern   RecurringPattern? @relation(fields: [recurringPatternId], references: [id])
+  studentId Int
+  student   Student @relation(fields: [studentId], references: [id])
+  tutorId   Int
+  tutor     Tutor   @relation(fields: [tutorId], references: [id])
+  academyId Int
+  academy   Academy @relation(fields: [academyId], references: [id])
 
   attendance    Attendance?
   sessionReport SessionReport?
@@ -237,27 +329,6 @@ model Session {
   @@index([studentId])
   @@index([tutorId])
   @@index([isTrial])
-}
-
-model RecurringPattern {
-  id              Int       @id @default(autoincrement())
-  daysOfWeek      Int[]
-  startTime       DateTime
-  durationMinutes Int
-  startDate       DateTime
-  endDate         DateTime?
-
-  studentId Int
-  student   Student @relation(fields: [studentId], references: [id])
-  tutorId   Int
-  tutor     Tutor   @relation(fields: [tutorId], references: [id])
-  academyId Int
-  academy   Academy @relation(fields: [academyId], references: [id])
-
-  sessions Session[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 }
 
 model Attendance {
@@ -313,34 +384,55 @@ model Note {
   @@index([authorId])
 }
 
+model SessionReport {
+  id        Int     @id @default(autoincrement())
+  sessionId Int     @unique
+  session   Session @relation(fields: [sessionId], references: [id])
+  rating    Int? // 1-5
+
+  outcomes   String?
+  strengths  String?
+  weaknesses String?
+  nextGoals  String?
+  comments   String?
+  // Optional JSON for extra fields
+  details    Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sessionId])
+}
+
+// ===================Finances=================
+
 model Revenue {
-  id          Int       @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   amount      Float
   currencyId  Int
-  currency    Currency  @relation(fields: [currencyId], references: [id])
-  status      Int       @default(0)
+  currency    Currency @relation(fields: [currencyId], references: [id])
+  status      Int      @default(0)
   method      Int?
-  date        DateTime  @default(now())
-  dueDate     DateTime?
-  description String? // e.g., "Monthly subscription March 2026"
+  // Time to pay usually today.
+  dueDate     DateTime @default(now())
+  description String?
   channel     String?
   notes       String?
   invoiceUrl  String?
 
-  academyId Int
-  academy   Academy @relation(fields: [academyId], references: [id])
-
-  studentId  Int
-  student    Student @relation(fields: [studentId], references: [id])
-  planId     Int?
-  plan       Plan?   @relation(fields: [planId], references: [id])
-  recordedBy Int?
-  recorder   User?   @relation(fields: [recordedBy], references: [id])
-
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  academyId      Int
+  academy        Academy       @relation(fields: [academyId], references: [id])
+  studentId      Int
+  student        Student       @relation(fields: [studentId], references: [id])
+  planId         Int?
+  plan           Plan?         @relation(fields: [planId], references: [id])
+  recordedBy     Int?
+  recorder       User?         @relation(fields: [recordedBy], references: [id])
   subscriptionId Int?
   subscription   Subscription? @relation(fields: [subscriptionId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([studentId])
   @@index([status])
@@ -376,103 +468,7 @@ model Expense {
   @@index([date])
 }
 
-model SessionReport {
-  id        Int     @id @default(autoincrement())
-  sessionId Int     @unique
-  session   Session @relation(fields: [sessionId], references: [id])
-  rating    Int? // 1-5
-
-  outcomes   String?
-  strengths  String?
-  weaknesses String?
-  nextGoals  String?
-  comments   String?
-  // Optional JSON for extra fields
-  details    Json?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([sessionId])
-}
-
-model Report {
-  id          Int      @id @default(autoincrement())
-  title       String
-  type        String // "student_progress", "tutor_performance", "financial"
-  month       String // YYYY-MM
-  generatedAt DateTime @default(now())
-  fileUrl     String? // URL to the generated file (PDF, CSV)
-  createdBy   Int? // User.id
-  user        User?    @relation(fields: [createdBy], references: [id])
-  academyId   Int
-  academy     Academy  @relation(fields: [academyId], references: [id])
-
-  @@index([academyId])
-  @@index([type])
-  @@index([month])
-}
-
-model Speciality {
-  id    Int    @id @default(autoincrement())
-  title String
-
-  tutor Tutor[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model Currency {
-  id Int @id @default(autoincrement())
-
-  code   String @unique // ISO code: USD, SAR, EGP 
-  name   String // US Dollar, Saudi Riyal, Egyptian Pound
-  symbol String // $, ﷼, £
-
-  students  Student[]
-  tutors    Tutor[]
-  payments  Revenue[]
-  expenses  Expense[]
-  academies Academy[]
-
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
-  plans                Plan[]
-  academyCurrencyRates AcademyCurrencyRate[]
-
-  @@index([code])
-}
-
-model SuperAdmin {
-  id     Int  @id @default(autoincrement())
-  userId Int  @unique
-  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId])
-}
-
-model Subscription {
-  id        Int       @id @default(autoincrement())
-  studentId Int
-  student   Student   @relation("StudentSubscriptions", fields: [studentId], references: [id])
-  planId    Int
-  plan      Plan      @relation(fields: [planId], references: [id])
-  startDate DateTime
-  endDate   DateTime?
-  status    Int       @default(0)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-
-  payments Revenue[]
-
-  @@index([studentId])
-  @@index([planId])
-  @@index([status])
-}
+// ===================Meta Data=================
 
 model History {
   id           Int     @id @default(autoincrement())
@@ -492,34 +488,6 @@ model History {
   @@index([targetType, targetId])
   @@index([action])
   @@index([academyId])
-}
-
-model AcademyCurrencyRate {
-  id         Int      @id @default(autoincrement())
-  academyId  Int
-  academy    Academy  @relation(fields: [academyId], references: [id], onDelete: Cascade)
-  currencyId Int
-  currency   Currency @relation(fields: [currencyId], references: [id])
-  rate       Float // conversion rate to academy's default currency (1 unit of this currency = rate units of default currency)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@unique([academyId, currencyId])
-  @@index([academyId])
-}
-
-model SaasPlan {
-  id            Int       @id @default(autoincrement())
-  name          String
-  dollarPrice   Float
-  egyptianPrice Float
-  maxStudents   Int
-  maxTutors     Int
-  billingPeriod Int
-  features      Json?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  academies     Academy[]
 }
 
 model WhatsAppMessage {

@@ -36,12 +36,14 @@ interface RecordPaymentDialogProps {
   studentId: number;
   subscriptions: SubscriptionOption[];
   activeSubscriptionId?: number;
+  activeSubscriptionPricePerSession?: number;
 }
 
 export default function RecordPaymentDialog({
   open,
   onOpenChange,
   studentId,
+  activeSubscriptionPricePerSession,
   subscriptions,
   activeSubscriptionId,
 }: RecordPaymentDialogProps) {
@@ -59,6 +61,11 @@ export default function RecordPaymentDialog({
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<string>("");
   const [description, setDescription] = useState("");
+
+  const sessionsToAdd =
+    activeSubscriptionPricePerSession && amount
+      ? Math.floor(parseFloat(amount) / activeSubscriptionPricePerSession)
+      : 0;
 
   const handleSubmit = async () => {
     if (!subscriptionId || !amount || !method) {
@@ -124,6 +131,11 @@ export default function RecordPaymentDialog({
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0"
             />
+            {activeSubscriptionPricePerSession && amount && (
+              <p className="text-sm text-muted-foreground mt-1">
+                سيضيف {sessionsToAdd} حصة للرصيد
+              </p>
+            )}
           </div>
           <div>
             <Label>طريقة الدفع</Label>

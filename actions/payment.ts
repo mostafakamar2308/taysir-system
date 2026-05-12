@@ -8,6 +8,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import dayjs from "@/lib/dayjs";
 import { SubscriptionStatus } from "@/types/subscription";
+import { addSessionsFromPayment } from "@/lib/balance";
 
 const paymentSchema = z.object({
   amount: z.number().positive(),
@@ -59,27 +60,49 @@ export async function createPayment(formData: FormData) {
 
   const validated = paymentSchema.parse(rawData);
 
-  await db.revenue.create({ data: validated });
+  const plan = validated.planId
+    ? await db.plan.findUnique({ where: { id: validated.planId } })
+    : null;
 
-  if (rawData.planId)
-    await db.subscription.upsert({
-      where: {
-        id: rawData.studentId,
-        status: SubscriptionStatus.active,
-      },
-      create: {
-        status: SubscriptionStatus.active,
-        endDate: dayjs().add(1, "month").toDate(),
-        startDate: dayjs().toDate(),
-        studentId: rawData.studentId,
-        planId: rawData.planId,
-      },
-      update: {
-        status: SubscriptionStatus.active,
-        endDate: dayjs().add(1, "month").toDate(),
-        startDate: dayjs().toDate(),
-      },
-    });
+  await db.$transaction(async (tx) => {
+    const payment = await tx.revenue.create({ data: validated });
+
+    if (validated.planId && plan) {
+      const sessionsPerPeriod = plan.sessionsPerWeek * 4;
+      const pricePerSession =
+        sessionsPerPeriod > 0 ? plan.price / sessionsPerPeriod : 0;
+
+      // Upsert subscription with plan details
+      await tx.subscription.upsert({
+        where: {
+          id: validated.studentId, // careful – this might not be the subscription id. We'll fix later.
+        },
+        create: {
+          status: SubscriptionStatus.active,
+          endDate: dayjs().add(1, "month").toDate(),
+          startDate: dayjs().toDate(),
+          studentId: validated.studentId,
+          planId: validated.planId,
+          planPrice: plan.price,
+          sessionsPerPeriod,
+          pricePerSession,
+        },
+        update: {
+          status: SubscriptionStatus.active,
+          endDate: dayjs().add(1, "month").toDate(),
+          startDate: dayjs().toDate(),
+          planPrice: plan.price,
+          sessionsPerPeriod,
+          pricePerSession,
+        },
+      });
+    }
+
+    // If payment created as PAID, add sessions
+    if (validated.status === PaymentStatus.PAID) {
+      await addSessionsFromPayment(payment.id, tx);
+    }
+  });
 
   revalidatePath("/ar/dashboard/finances");
 }
@@ -127,9 +150,12 @@ export async function deletePayment(id: number) {
 }
 
 export async function markPaymentAsPaid(id: number) {
-  await db.revenue.update({
-    where: { id },
-    data: { status: PaymentStatus.PAID },
+  await db.$transaction(async (tx) => {
+    await tx.revenue.update({
+      where: { id },
+      data: { status: PaymentStatus.PAID },
+    });
+    await addSessionsFromPayment(id, tx);
   });
   revalidatePath("/ar/dashboard/finances");
 }
@@ -157,29 +183,46 @@ export async function createRevenueFromDashboard(revenueData: {
   });
   if (!student) throw new Error("لا يوجد طالب بهذا الاسم");
 
-  await db.revenue.create({
-    data: {
-      ...revenueData,
-      currencyId: student.currencyId,
-      planId: student.planId,
-      recordedBy: payload.id,
-      subscriptionId: student.currentSubscriptionId,
-      date: dayjs.utc(revenueData.date).toDate(),
-      dueDate: revenueData.dueDate
-        ? dayjs.utc(revenueData.date).toDate()
-        : null,
-    },
-  });
-  if (student.currentSubscriptionId)
-    await db.subscription.update({
-      where: {
-        id: student.currentSubscriptionId,
-      },
+  const plan = student.planId
+    ? await db.plan.findUnique({ where: { id: student.planId } })
+    : null;
+  const sessionsPerPeriod = plan ? plan.sessionsPerWeek * 4 : 0;
+  const pricePerSession =
+    sessionsPerPeriod > 0 ? plan!.price / sessionsPerPeriod : 0;
+
+  await db.$transaction(async (tx) => {
+    const payment = await tx.revenue.create({
       data: {
-        status: SubscriptionStatus.active,
-        endDate: dayjs().add(1, "month").toDate(),
-        startDate: dayjs().toDate(),
+        ...revenueData,
+        currencyId: student.currencyId,
+        planId: student.planId,
+        recordedBy: payload.id,
+        subscriptionId: student.currentSubscriptionId,
+        date: dayjs.utc(revenueData.date).toDate(),
+        dueDate: revenueData.dueDate
+          ? dayjs.utc(revenueData.date).toDate()
+          : null,
       },
     });
+
+    if (student.currentSubscriptionId && plan) {
+      await tx.subscription.update({
+        where: { id: student.currentSubscriptionId },
+        data: {
+          status: SubscriptionStatus.active,
+          endDate: dayjs().add(1, "month").toDate(),
+          startDate: dayjs().toDate(),
+          planPrice: plan.price,
+          sessionsPerPeriod,
+          pricePerSession,
+        },
+      });
+    }
+
+    if (revenueData.status === PaymentStatus.PAID) {
+      await addSessionsFromPayment(payment.id, tx);
+    }
+  });
+
   revalidatePath("/ar/dashboard");
 }

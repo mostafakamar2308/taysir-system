@@ -1,7 +1,6 @@
 import db from "@/lib/prisma";
 import PricingSection from "@/components/landing/PricingSection";
 
-// Fallback plans if database is empty (matching your description)
 const defaultPlans = [
   {
     id: 1,

@@ -48,7 +48,7 @@ import EditSessionDialog from "@/components/dashboard/studentProfile/dialogs/edi
 import DeleteSessionDialog from "@/components/dashboard/studentProfile/dialogs/deleteSessionDialog";
 import ViewReportDialog from "@/components/dashboard/studentProfile/dialogs/viewReportDialog";
 import AddSessionDialog from "@/components/dashboard/studentProfile/dialogs/addSessionDialog";
-import { getStudentSessionsForMonth } from "@/actions/student"; // المسار الصحيح
+import { getStudentSessionsForMonth } from "@/actions/student";
 import dayjs from "@/lib/dayjs";
 
 interface SessionsTabProps {

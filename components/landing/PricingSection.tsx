@@ -36,7 +36,7 @@ interface PricingSectionProps {
 const PricingSection = ({ plans }: PricingSectionProps) => {
   const t = useTranslations();
   const [isYearly, setIsYearly] = useState(false);
-  const [currency, setCurrency] = useState<"USD" | "EGP">("USD");
+  const [currency, setCurrency] = useState<"USD" | "EGP">("EGP");
 
   const first20Remaining = 20;
   const isFirst20 = true;
@@ -123,34 +123,6 @@ const PricingSection = ({ plans }: PricingSectionProps) => {
               >
                 {t("pricing.yearly")}
               </span>
-            </div>
-
-            {/* Currency toggle */}
-            {/* Currency Dropdown */}
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-muted-foreground">
-                العملة
-              </span>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="gap-2 px-3">
-                    {currency === "USD" ? "USD $" : "EGP ج.م"}
-                    <ChevronDown className="h-4 w-4 opacity-50" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => setCurrency("USD")}>
-                    <span className={currency === "USD" ? "font-bold" : ""}>
-                      USD $
-                    </span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setCurrency("EGP")}>
-                    <span className={currency === "EGP" ? "font-bold" : ""}>
-                      EGP ج.م
-                    </span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
             </div>
           </div>
         </motion.div>

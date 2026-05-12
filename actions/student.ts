@@ -1,5 +1,6 @@
 "use server";
 
+import { user } from "@/lib/auth";
 import {
   recordLeadCreatedHistory,
   recordStudentPlanChangeHistory,
@@ -549,7 +550,7 @@ export async function recordPayment(
       currencyId: subscription.plan.currencyId,
       status: 1,
       method,
-      date: new Date(),
+      dueDate: new Date(),
       description: description || `دفعة اشتراك ${subscription.plan.title}`,
       studentId,
       subscriptionId,
@@ -657,6 +658,95 @@ export async function getStudentSessionsForMonth(
           comments: s.sessionReport.comments,
         }
       : null,
-    recurringPatternId: s.recurringPatternId,
   }));
+}
+
+export async function renewSubscription(studentId: number, paid?: boolean) {
+  const currentUser = await user();
+  if (!currentUser || currentUser.role !== Role.Admin)
+    throw new Error("غير مصرح");
+
+  const student = await db.student.findUnique({
+    where: {
+      id: studentId,
+    },
+    include: {
+      subscriptions: true,
+      plan: true,
+    },
+  });
+
+  if (
+    !student ||
+    student.status !== StudentStatus.subscribed ||
+    !student.planId
+  )
+    throw new Error("هذا الطالب غير مشترك أصلا");
+
+  const activeSubs = await db.subscription.findMany({
+    where: {
+      studentId,
+      status: SubscriptionStatus.active,
+    },
+  });
+
+  const plan = await db.plan.findUnique({ where: { id: student.planId } });
+  if (!plan) throw new Error("الباقة غير موجودة");
+
+  await db.$transaction(async (tx) => {
+    // revoke active subscription
+    await tx.subscription.updateMany({
+      where: {
+        id: {
+          in: activeSubs.map((s) => s.id),
+        },
+      },
+      data: {
+        status: SubscriptionStatus.expired,
+      },
+    });
+
+    // create new subscription
+    const sub = await tx.subscription.create({
+      data: {
+        studentId: student.id,
+        planId: student.planId!,
+        startDate: dayjs.utc().startOf("day").toDate(),
+        endDate: dayjs.utc().endOf("day").add(1, "month").toDate(),
+        status: SubscriptionStatus.active,
+      },
+    });
+
+    await tx.revenue.create({
+      data: {
+        amount: plan.price,
+        currencyId: plan.currencyId,
+        academyId: student.academyId,
+        studentId: student.id,
+        description: `تجديد إشتراك شهر ${dayjs().format("MMMM YYYY")} `,
+        subscriptionId: sub.id,
+        planId: plan.id,
+        recordedBy: currentUser.id,
+        dueDate: paid
+          ? dayjs.utc().toDate()
+          : dayjs.utc().startOf("day").add(1, "month").toDate(),
+        status: paid ? PaymentStatus.PAID : PaymentStatus.PENDING,
+      },
+    });
+
+    await tx.student.update({
+      where: {
+        id: student.id,
+      },
+      data: {
+        sessionsBalance: {
+          increment: plan.sessionsPerWeek * 4,
+        },
+        currentSubscriptionId: sub.id,
+        status: StudentStatus.subscribed,
+      },
+    });
+  });
+
+  revalidatePath(`/ar/dashboard/students/${studentId}`);
 }

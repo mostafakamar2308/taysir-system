@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -22,10 +21,11 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { createExpense, updateExpense } from "@/actions/expense";
+import { createExpense, updateExpense } from "@/actions/finances";
 import { PaymentMethod, PaymentStatus } from "@/types/payment";
 import { paymentMethodLabels } from "@/lib/finances";
 import dayjs from "@/lib/dayjs";
+import { useRouter } from "next/navigation";
 
 interface ExpenseFormDialogProps {
   open: boolean;
@@ -121,31 +121,27 @@ export default function ExpenseFormDialog({
     }
     setLoading(true);
     try {
-      const form = new FormData();
-      form.append("date", formData.date);
-      form.append("description", formData.description);
-      if (formData.costCenter) form.append("costCenter", formData.costCenter);
-      form.append("amount", formData.amount);
-      form.append("currencyId", formData.currencyId);
-      if (formData.method) form.append("method", formData.method);
-      form.append(
-        "status",
-        (formData.paid ? PaymentStatus.PAID : PaymentStatus.PENDING).toString(),
-      );
-      if (formData.invoiceUrl) form.append("invoiceUrl", formData.invoiceUrl);
-      if (formData.notes) form.append("notes", formData.notes);
-      if (isSalary && formData.tutorId)
-        form.append("tutorId", formData.tutorId);
-      if (isSalary && formData.salaryMonth)
-        form.append("salaryMonth", formData.salaryMonth);
-      form.append("academyId", academyId.toString());
+      const payload = {
+        date: formData.date,
+        description: formData.description,
+        amount: parseFloat(formData.amount),
+        currencyId: parseInt(formData.currencyId),
+        status: formData.paid ? PaymentStatus.PAID : PaymentStatus.PENDING,
+        method: formData.method ? parseInt(formData.method) : undefined,
+        costCenter: formData.costCenter || undefined,
+        invoiceUrl: formData.invoiceUrl || undefined,
+        notes: formData.notes || undefined,
+        tutorId:
+          isSalary && formData.tutorId ? parseInt(formData.tutorId) : undefined,
+        salaryMonth:
+          isSalary && formData.salaryMonth ? formData.salaryMonth : undefined,
+        academyId,
+      };
 
       if (editingExpense) {
-        await updateExpense(editingExpense.id, form);
-        toast({ title: "تم تحديث المصروف" });
+        await updateExpense(editingExpense.id, payload);
       } else {
-        await createExpense(form);
-        toast({ title: "تم إضافة المصروف" });
+        await createExpense(payload);
       }
       onOpenChange(false);
       router.refresh();

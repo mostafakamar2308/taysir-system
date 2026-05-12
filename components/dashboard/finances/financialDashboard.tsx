@@ -1,338 +1,443 @@
 "use client";
 
-import { useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { useCallback, useEffect, useState } from "react";
 import {
-  TrendingUp,
+  getDashboardAlerts,
+  getDashboardKPIs,
+  getRevenueExpensesOverTime,
+  getSubscriptionRetention,
+  getPlanEfficiency,
+  DashboardAlerts,
+  DashboardKPIs,
+  TimeSeriesItem,
+  PlanEfficiency,
+  RetentionData,
+} from "@/actions/finances";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
   TrendingDown,
-  DollarSign,
   Clock,
-  AlertCircle,
-  Users,
+  RefreshCw,
+  AlertTriangle,
+  PlusCircle,
 } from "lucide-react";
 import {
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
 } from "recharts";
-import {
-  formatCurrency,
-  formatDate,
-  paymentStatusColors,
-  paymentStatusLabels,
-} from "@/lib/finances";
-import { PaymentStatus } from "@/types/payment";
-import { ExpenseRecord, PaymentRecord } from "@/types/finances";
+import { Button } from "@/components/ui/button";
+import { formatCurrency } from "@/lib/finances";
 
 interface FinancialDashboardProps {
-  payments: PaymentRecord[];
-  expenses: ExpenseRecord[];
-  defaultCurrency: { code: string; symbol: string; name: string };
+  academyId: number;
+  defaultCurrency: { code: string; symbol: string };
+  period: "all" | "year" | "month";
+  year: number;
+  month: number;
+  onAddRevenue: () => void;
+  onAddExpense: () => void;
 }
 
+// ---------- Sub-components ----------
+function KpiCard({
+  title,
+  value,
+  variant,
+  symbol,
+  isCurrency = true,
+}: {
+  title: string;
+  value: number | string;
+  variant?: "success" | "danger" | "warning" | "info";
+  symbol?: string;
+  isCurrency?: boolean;
+}) {
+  const colorMap = {
+    success: "text-green-600",
+    danger: "text-red-600",
+    warning: "text-yellow-600",
+    info: "text-blue-600",
+  };
+  const displayValue =
+    isCurrency && typeof value === "number"
+      ? formatCurrency(value, symbol)
+      : typeof value === "number"
+        ? value.toLocaleString()
+        : value;
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium text-muted-foreground">
+          {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div
+          className={`text-2xl font-bold ${variant ? colorMap[variant] : ""}`}
+        >
+          {displayValue}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function RetentionMatrix({ data }: { data: RetentionData }) {
+  const { matrix, cohortSizes } = data;
+  const cohorts = Object.keys(matrix).sort();
+  if (cohorts.length === 0) {
+    return (
+      <div className="text-muted-foreground text-sm">
+        لا توجد بيانات كافية لعرض مصفوفة الاحتفاظ
+      </div>
+    );
+  }
+
+  const maxMonths = Math.max(...cohorts.map((c) => matrix[c].length)) || 0;
+
+  // Color scale: 100% -> green, 70% -> yellow, <40% -> red
+  const getCellColor = (val: number) => {
+    if (val >= 80) return "bg-green-100 text-green-800";
+    if (val >= 60) return "bg-yellow-100 text-yellow-800";
+    if (val >= 40) return "bg-orange-100 text-orange-800";
+    return "bg-red-100 text-red-800";
+  };
+
+  return (
+    <div className="overflow-x-auto">
+      <div className="mb-3 text-sm text-muted-foreground">
+        النسبة المئوية للطلاب الذين ما زالوا مشتركين بعد عدد معين من الأشهر منذ
+        أول اشتراك لهم.
+      </div>
+      <table className="min-w-full text-sm border border-border rounded-lg">
+        <thead>
+          <tr className="bg-muted/50">
+            <th className="text-right p-2 font-medium">الشهر (حجم العينة)</th>
+            <th className="text-right p-2 font-medium">بداية</th>
+            {Array.from({ length: maxMonths - 1 }, (_, i) => (
+              <th key={i} className="text-right p-2 font-medium">
+                شهر {i + 1}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {cohorts.map((cohort) => {
+            const size = cohortSizes[cohort] || 0;
+            const values = matrix[cohort];
+            return (
+              <tr
+                key={cohort}
+                className="border-t border-border hover:bg-muted/20"
+              >
+                <td className="p-2 font-medium whitespace-nowrap">
+                  {cohort}
+                  <span className="text-xs text-muted-foreground ml-1">
+                    ({size})
+                  </span>
+                </td>
+                {Array.from({ length: maxMonths }, (_, i) => {
+                  const val = values[i] ?? null;
+                  return (
+                    <td
+                      key={i}
+                      className={`p-2 text-center ${val !== null ? getCellColor(val) : "bg-muted/20 text-muted-foreground"}`}
+                      title={
+                        val !== null
+                          ? `من ${size} طالب، بقي ${Math.round((val / 100) * size)} مشتركاً (${val}%)`
+                          : "لا بيانات"
+                      }
+                    >
+                      {val !== null ? `${val}%` : "-"}
+                    </td>
+                  );
+                })}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function PlanEfficiencyTable({ data }: { data: PlanEfficiency[] }) {
+  if (data.length === 0)
+    return <p className="text-muted-foreground text-sm">لا توجد خطط</p>;
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-full text-sm">
+        <thead>
+          <tr className="border-b">
+            <th className="text-right p-2">الخطة</th>
+            <th className="text-right p-2">الإيرادات</th>
+            <th className="text-right p-2">الطلاب النشطون</th>
+            <th className="text-right p-2">متوسط العائد لكل طالب</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((plan) => (
+            <tr key={plan.planId} className="border-b">
+              <td className="p-2">{plan.planName}</td>
+              <td className="p-2">{formatCurrency(plan.totalRevenue)}</td>
+              <td className="p-2">{plan.activeStudents}</td>
+              <td className="p-2">{formatCurrency(plan.arps || 0)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ---------- Main Dashboard Component ----------
 export default function FinancialDashboard({
-  payments,
-  expenses,
+  academyId,
   defaultCurrency,
+  period,
+  year,
+  month,
+  onAddRevenue,
+  onAddExpense,
 }: FinancialDashboardProps) {
-  // Totals from the filtered data using converted amounts
-  const totalRevenue = payments
-    .filter((p) => p.status === PaymentStatus.PAID)
-    .reduce((sum, p) => sum + p.amountInDefault, 0);
-  const totalExpenses = expenses
-    .filter((e) => e.paid)
-    .reduce((sum, e) => sum + e.amountInDefault, 0);
-  const netProfit = totalRevenue - totalExpenses;
-  const pendingRevenue = payments
-    .filter((p) => p.status === PaymentStatus.PENDING)
-    .reduce((sum, p) => sum + p.amountInDefault, 0);
-  const unpaidExpenses = expenses
-    .filter((e) => !e.paid)
-    .reduce((sum, e) => sum + e.amountInDefault, 0);
-  const estimatedSalaries = expenses
-    .filter((e) => e.costCenter === "رواتب")
-    .reduce((sum, e) => sum + e.amountInDefault, 0);
+  const [alerts, setAlerts] = useState<DashboardAlerts | null>(null);
+  const [kpis, setKpis] = useState<DashboardKPIs | null>(null);
+  const [chartData, setChartData] = useState<TimeSeriesItem[]>([]);
+  const [retention, setRetention] = useState<RetentionData>({
+    matrix: {},
+    cohortSizes: {},
+  });
+  const [planEff, setPlanEff] = useState<PlanEfficiency[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Monthly chart data (last 6 months from the filtered data)
-  const monthlyData = useMemo(() => {
-    const allMonths = new Set<string>();
-    payments.forEach((p) => allMonths.add(p.date.slice(0, 7)));
-    expenses.forEach((e) => allMonths.add(e.date.slice(0, 7)));
-    const sortedMonths = Array.from(allMonths).sort().slice(-6);
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [alertsData, kpisData, timeData, retentionData, planData] =
+        await Promise.all([
+          getDashboardAlerts(academyId, period, year, month),
+          getDashboardKPIs(academyId, period, year, month),
+          getRevenueExpensesOverTime(academyId, period, year, month),
+          getSubscriptionRetention(academyId),
+          getPlanEfficiency(academyId, period, year, month),
+        ]);
+      setAlerts(alertsData);
+      setKpis(kpisData);
+      setChartData(timeData);
+      setRetention(retentionData);
+      setPlanEff(planData);
+    } catch (error) {
+      console.error("Dashboard data error:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [academyId, month, period, year]);
 
-    const monthsData: Record<string, { revenue: number; expenses: number }> =
-      {};
-    sortedMonths.forEach((m) => {
-      monthsData[m] = { revenue: 0, expenses: 0 };
-    });
-
-    payments.forEach((p) => {
-      const m = p.date.slice(0, 7);
-      if (monthsData[m] && p.status === PaymentStatus.PAID) {
-        monthsData[m].revenue += p.amountInDefault;
-      }
-    });
-    expenses.forEach((e) => {
-      const m = e.date.slice(0, 7);
-      if (monthsData[m] && e.paid) {
-        monthsData[m].expenses += e.amountInDefault;
-      }
-    });
-
-    return sortedMonths.map((month) => ({
-      month: new Date(month + "-01").toLocaleDateString("ar-EG", {
-        month: "short",
-      }),
-      revenue: monthsData[month].revenue,
-      expenses: monthsData[month].expenses,
-    }));
-  }, [payments, expenses]);
-
-  // Expenses by category (using converted amounts)
-  const byCategory = useMemo(() => {
-    const map = new Map<string, number>();
-    expenses.forEach((e) => {
-      if (e.paid) {
-        const cat = e.costCenter || "أخرى";
-        map.set(cat, (map.get(cat) || 0) + e.amountInDefault);
-      }
-    });
-    const colors = [
-      "hsl(152, 69%, 33%)",
-      "hsl(43, 74%, 52%)",
-      "hsl(220, 70%, 55%)",
-      "hsl(280, 60%, 55%)",
-      "hsl(0, 70%, 55%)",
-    ];
-    return Array.from(map.entries()).map(([name, value], i) => ({
-      name,
-      value,
-      fill: colors[i % colors.length],
-    }));
-  }, [expenses]);
-
-  // Recent transactions (using converted amounts)
-  const recent = [
-    ...payments.map((p) => ({
-      date: p.date,
-      desc: `${p.studentName} - ${p.description || ""}`,
-      amount: p.amountInDefault,
-      type: "إيراد" as const,
-      statusLabel: paymentStatusLabels[p.status],
-      statusColor: paymentStatusColors[p.status],
-    })),
-    ...expenses.map((e) => ({
-      date: e.date,
-      desc: e.description,
-      amount: e.amountInDefault,
-      type: "مصروف" as const,
-      statusLabel: e.paid ? "مدفوع" : "غير مدفوع",
-      statusColor: e.paid
-        ? "bg-primary/10 text-primary"
-        : "bg-amber-100 text-amber-700",
-    })),
-  ]
-    .sort((a, b) => b.date.localeCompare(a.date))
-    .slice(0, 8);
-
-  const formatDefaultCurrency = (amount: number) =>
-    formatCurrency(amount, defaultCurrency.code);
-
-  const summaryCards = [
-    {
-      title: "إجمالي الإيرادات",
-      value: formatDefaultCurrency(totalRevenue),
-      icon: TrendingUp,
-      color: "text-primary",
-    },
-    {
-      title: "إجمالي المصروفات",
-      value: formatDefaultCurrency(totalExpenses),
-      icon: TrendingDown,
-      color: "text-destructive",
-    },
-    {
-      title: "صافي الربح",
-      value: formatDefaultCurrency(netProfit),
-      icon: DollarSign,
-      color: netProfit >= 0 ? "text-primary" : "text-destructive",
-    },
-    {
-      title: "إيرادات معلقة",
-      value: formatDefaultCurrency(pendingRevenue),
-      icon: Clock,
-      color: "text-amber-600",
-    },
-    {
-      title: "مصروفات غير مدفوعة",
-      value: formatDefaultCurrency(unpaidExpenses),
-      icon: AlertCircle,
-      color: "text-destructive",
-    },
-    {
-      title: "رواتب الشهر المقدرة",
-      value: formatDefaultCurrency(estimatedSalaries),
-      icon: Users,
-      color: "text-muted-foreground",
-    },
-  ];
+  useEffect(() => {
+    fetchData();
+  }, [academyId, period, fetchData, year, month]);
 
   return (
     <div className="space-y-6">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        {summaryCards.map((card) => (
-          <Card key={card.title}>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-2">
-                <card.icon className={`h-5 w-5 ${card.color}`} />
-              </div>
-              <p className="text-xs text-muted-foreground">{card.title}</p>
-              <p className={`text-lg font-bold ${card.color}`}>{card.value}</p>
-            </CardContent>
-          </Card>
-        ))}
+      {/* Alerts */}
+      {loading ? (
+        <Skeleton className="h-28 w-full rounded-xl" />
+      ) : alerts ? (
+        <div className="grid gap-4">
+          {alerts.negativeProfit && (
+            <Alert variant="destructive">
+              <TrendingDown className="h-4 w-4" />
+              <AlertTitle>خسارة صافية</AlertTitle>
+              <AlertDescription>
+                الربح الصافي سلبي في هذه الفترة
+              </AlertDescription>
+            </Alert>
+          )}
+          {alerts.overdueRevenueCount > 0 && (
+            <Alert>
+              <Clock className="h-4 w-4" />
+              <AlertTitle>إيرادات متأخرة</AlertTitle>
+              <AlertDescription>
+                {alerts.overdueRevenueCount} دفعة غير مدفوعة
+              </AlertDescription>
+            </Alert>
+          )}
+          {alerts.upcomingRenewals > 0 && (
+            <Alert>
+              <RefreshCw className="h-4 w-4" />
+              <AlertTitle>تجديدات قادمة</AlertTitle>
+              <AlertDescription>
+                {alerts.upcomingRenewals} اشتراك سينتهي قريباً
+              </AlertDescription>
+            </Alert>
+          )}
+          {alerts.overdueRenewals > 0 && (
+            <Alert variant="warning">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>تجديدات فائتة</AlertTitle>
+              <AlertDescription>
+                {alerts.overdueRenewals} اشتراك منتهي
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
+      ) : null}
+
+      {/* Quick Actions */}
+      <Card className="flex gap-3">
+        <CardContent className="p-2 flex gap-2">
+          <Button onClick={onAddRevenue} variant="default" size="sm">
+            <PlusCircle className="ml-2 h-4 w-4" /> إضافة إيراد
+          </Button>
+          <Button onClick={onAddExpense} variant="outline" size="sm">
+            <PlusCircle className="ml-2 h-4 w-4" /> إضافة مصروف
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Main KPIs */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {loading
+          ? Array.from({ length: 7 }).map((_, i) => (
+              <Card key={i}>
+                <CardHeader className="pb-2">
+                  <Skeleton className="h-4 w-24" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-8 w-20" />
+                </CardContent>
+              </Card>
+            ))
+          : kpis && (
+              <>
+                <KpiCard
+                  title="إجمالي الإيرادات"
+                  value={kpis.totalRevenue}
+                  variant="success"
+                  symbol={defaultCurrency.symbol}
+                />
+                <KpiCard
+                  title="إجمالي المصروفات"
+                  value={kpis.totalExpenses}
+                  variant="danger"
+                  symbol={defaultCurrency.symbol}
+                />
+                <KpiCard
+                  title="الربح الصافي"
+                  value={kpis.netProfit}
+                  variant={kpis.netProfit >= 0 ? "success" : "danger"}
+                  symbol={defaultCurrency.symbol}
+                />
+                <KpiCard
+                  title="الإيرادات المعلقة"
+                  value={kpis.outstandingRevenue}
+                  variant="warning"
+                  symbol={defaultCurrency.symbol}
+                />
+                <KpiCard
+                  title="الاشتراكات النشطة"
+                  value={kpis.activeSubscriptionCount}
+                  isCurrency={false}
+                />
+                <KpiCard
+                  title="القيمة الدائمة (LTV)"
+                  value={kpis.ltv}
+                  symbol={defaultCurrency.symbol}
+                />
+                <KpiCard
+                  title="متوسط العائد لكل طالب مشترك"
+                  value={kpis.arps}
+                  symbol={defaultCurrency.symbol}
+                />
+              </>
+            )}
       </div>
 
-      {/* Charts */}
-      <div className="grid md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">
-              الإيرادات مقابل المصروفات
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={280}>
-              <LineChart data={monthlyData}>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="hsl(var(--border))"
-                />
-                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip
-                  formatter={(value) =>
-                    typeof value === "number"
-                      ? formatDefaultCurrency(value)
-                      : ""
-                  }
-                />
-                <Line
-                  type="monotone"
-                  dataKey="revenue"
-                  stroke="hsl(152, 69%, 33%)"
-                  strokeWidth={2}
-                  name="الإيرادات"
-                  dot={{ r: 4 }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="expenses"
-                  stroke="hsl(0, 84%, 60%)"
-                  strokeWidth={2}
-                  name="المصروفات"
-                  dot={{ r: 4 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">المصروفات حسب الفئة</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={280}>
-              <PieChart>
-                <Pie
-                  data={byCategory}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={90}
-                  label={({ name, percent }) =>
-                    `${name} ${percent ? (percent * 100).toFixed(0) : ""}%`
-                  }
-                  labelLine={false}
-                >
-                  {byCategory.map((entry, index) => (
-                    <Cell key={index} fill={entry.fill} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  formatter={(value) =>
-                    typeof value === "number"
-                      ? formatDefaultCurrency(value)
-                      : ""
-                  }
-                />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Recent Transactions */}
+      {/* Revenue & Expenses Over Time Chart */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">آخر المعاملات</CardTitle>
+          <CardTitle>الإيرادات والمصروفات عبر الزمن</CardTitle>
+        </CardHeader>
+        <CardContent className="h-80">
+          {loading ? (
+            <Skeleton className="h-full w-full" />
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData}>
+                <defs>
+                  <linearGradient id="revenue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.8} />
+                    <stop offset="95%" stopColor="#4f46e5" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="expenses" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8} />
+                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="date" className="text-xs" />
+                <YAxis className="text-xs" />
+                <Tooltip
+                  formatter={(value) =>
+                    typeof value === "number"
+                      ? formatCurrency(value, defaultCurrency.symbol)
+                      : ""
+                  }
+                />
+                <Area
+                  type="monotone"
+                  dataKey="revenue"
+                  stroke="#4f46e5"
+                  fillOpacity={1}
+                  fill="url(#revenue)"
+                  name="الإيرادات"
+                />
+                <Area
+                  type="monotone"
+                  dataKey="expenses"
+                  stroke="#ef4444"
+                  fillOpacity={1}
+                  fill="url(#expenses)"
+                  name="المصروفات"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Retention Matrix */}
+      <Card>
+        <CardHeader>
+          <CardTitle>مصفوفة الاحتفاظ بالاشتراكات</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-muted-foreground">
-                  <th className="text-right py-2 px-3 font-medium">التاريخ</th>
-                  <th className="text-right py-2 px-3 font-medium">الوصف</th>
-                  <th className="text-right py-2 px-3 font-medium">المبلغ</th>
-                  <th className="text-right py-2 px-3 font-medium">النوع</th>
-                  <th className="text-right py-2 px-3 font-medium">الحالة</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recent.map((t, i) => (
-                  <tr
-                    key={i}
-                    className="border-b last:border-0 hover:bg-muted/50"
-                  >
-                    <td className="py-2.5 px-3">{formatDate(t.date)}</td>
-                    <td className="py-2.5 px-3">{t.desc}</td>
-                    <td className="py-2.5 px-3 font-medium">
-                      {formatDefaultCurrency(t.amount)}
-                    </td>
-                    <td className="py-2.5 px-3">
-                      <Badge
-                        variant="outline"
-                        className={
-                          t.type === "إيراد"
-                            ? "border-primary/30 text-primary"
-                            : "border-destructive/30 text-destructive"
-                        }
-                      >
-                        {t.type}
-                      </Badge>
-                    </td>
-                    <td className="py-2.5 px-3">
-                      <Badge className={t.statusColor}>{t.statusLabel}</Badge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          {loading ? (
+            <Skeleton className="h-40 w-full" />
+          ) : (
+            <RetentionMatrix data={retention} />
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Plan Efficiency Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>كفاءة الخطط</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <Skeleton className="h-40 w-full" />
+          ) : (
+            <PlanEfficiencyTable data={planEff} />
+          )}
         </CardContent>
       </Card>
     </div>

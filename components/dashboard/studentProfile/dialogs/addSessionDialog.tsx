@@ -20,8 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
+
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { createSession } from "@/actions/sessions";
@@ -57,26 +56,7 @@ export default function AddSessionDialog({
   const [duration, setDuration] = useState("60");
   const [topic, setTopic] = useState("");
   const [notes, setNotes] = useState("");
-  const [isRecurring, setIsRecurring] = useState(false);
-  const [recurDays, setRecurDays] = useState<number[]>([]);
-  const [recurEndDate, setRecurEndDate] = useState("");
   const [isTrial, setIsTrial] = useState(false);
-
-  const dayOptions = [
-    { value: 0, label: "الأحد" },
-    { value: 1, label: "الاثنين" },
-    { value: 2, label: "الثلاثاء" },
-    { value: 3, label: "الأربعاء" },
-    { value: 4, label: "الخميس" },
-    { value: 5, label: "الجمعة" },
-    { value: 6, label: "السبت" },
-  ];
-
-  const toggleRecurDay = (day: number) => {
-    setRecurDays((prev) =>
-      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day],
-    );
-  };
 
   const hasCurrentTutor = !!currentTutorId;
   const selectedTutorName = tutors.find((t) => t.id === currentTutorId)?.name;
@@ -101,13 +81,10 @@ export default function AddSessionDialog({
         tutorId: parseInt(tutorId),
         academyId,
         date,
-        startTime,
+        startTime: dayjs(`${date}T${startTime}`).toISOString(),
         duration: parseInt(duration),
         topic: topic || undefined,
         notes: notes || undefined,
-        isRecurring,
-        recurDays: isRecurring ? recurDays : undefined,
-        recurEndDate: isRecurring ? recurEndDate : undefined,
         isTrial,
       };
       await createSession(input);
@@ -237,47 +214,6 @@ export default function AddSessionDialog({
             >
               حصة تجريبية
             </Label>
-          </div>
-
-          {/* Recurring */}
-          <div className="space-y-3 rounded-lg border border-border p-4">
-            <div className="flex items-center justify-between">
-              <Label className="flex items-center gap-2">حصة متكررة</Label>
-              <Switch checked={isRecurring} onCheckedChange={setIsRecurring} />
-            </div>
-            {isRecurring && (
-              <div className="space-y-3 pt-2">
-                <div>
-                  <Label className="text-xs text-muted-foreground">
-                    أيام التكرار
-                  </Label>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {dayOptions.map((d) => (
-                      <Badge
-                        key={d.value}
-                        variant={
-                          recurDays.includes(d.value) ? "default" : "outline"
-                        }
-                        className="cursor-pointer"
-                        onClick={() => toggleRecurDay(d.value)}
-                      >
-                        {d.label}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">
-                    تاريخ الانتهاء (اختياري)
-                  </Label>
-                  <Input
-                    type="date"
-                    value={recurEndDate}
-                    onChange={(e) => setRecurEndDate(e.target.value)}
-                  />
-                </div>
-              </div>
-            )}
           </div>
 
           <DialogFooter>

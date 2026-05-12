@@ -25,7 +25,6 @@ export type DashboardSession = {
   tutorId: number;
   isTrial: boolean;
   tutorName: string | null;
-  recurringPatternId: number | null;
   attendance:
     | {
         id: number;
