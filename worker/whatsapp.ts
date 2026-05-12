@@ -1,11 +1,11 @@
 import dotenv from "dotenv";
 dotenv.config();
 import { Worker, Job } from "bullmq";
-import { connection } from "@/lib/redis";
+import { connection, redis } from "@/lib/redis";
 import { sendTextMessage } from "@/lib/evolution-api";
 import { decrypt } from "@/lib/encryption";
 import { WhatsAppJobData } from "@/lib/queue/whatsappQueue";
-
+import { throttleAcademy } from "@/lib/whatsappRateLimiter";
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 const globalForPrisma = global as unknown as {
@@ -51,6 +51,8 @@ const worker = new Worker<WhatsAppJobData>(
         throw new Error(`Academy ${academyId} WhatsApp is not connected`);
       }
 
+      const postSend = await throttleAcademy(academyId);
+
       let token: string;
       try {
         token = decrypt(academy.whatsappInstanceToken);
@@ -83,9 +85,13 @@ const worker = new Worker<WhatsAppJobData>(
           });
           console.log(`  - Database updated for logId ${messageLogId}`);
         }
+        await postSend();
 
         return result;
       } catch (error) {
+        const lockKey = `whatsapp:academy:${academyId}:lock`;
+        await redis.del(lockKey);
+
         if (messageLogId && error instanceof Error) {
           await db.whatsAppMessage.update({
             where: { id: messageLogId },
