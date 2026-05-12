@@ -23,7 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 import { PaymentMethod, PaymentStatus } from "@/types/payment";
 import { paymentMethodLabels, paymentStatusLabels } from "@/lib/finances";
 import dayjs from "@/lib/dayjs";
-import { createRevenue, updateRevenue } from "@/actions/finances";
+import { createRevenueFromDashboard, updateRevenue } from "@/actions/finances";
 import { useRouter } from "next/navigation";
 
 interface RevenueFormDialogProps {
@@ -128,12 +128,16 @@ export default function RevenueFormDialog({
         amount: parseFloat(formData.amount),
         currencyId: parseInt(formData.currencyId),
         status: parseInt(formData.status),
-        method: formData.method ? parseInt(formData.method) : undefined,
+        method: formData.method
+          ? (parseInt(formData.method) as PaymentMethod)
+          : PaymentMethod.ONLINE,
         dueDate: formData.dueDate,
+        date: formData.dueDate,
         description: formData.description || undefined,
         studentId: parseInt(formData.studentId),
         planId: formData.planId ? parseInt(formData.planId) : undefined,
         academyId,
+        recordedBy: null,
         invoiceUrl: formData.invoiceUrl || undefined,
         channel: formData.channel || undefined,
         notes: formData.notes || undefined,
@@ -143,7 +147,7 @@ export default function RevenueFormDialog({
         await updateRevenue(editingPayment.id, payload);
         toast({ title: "تم تحديث الإيراد" });
       } else {
-        await createRevenue(payload);
+        await createRevenueFromDashboard(payload);
         toast({ title: "تم إضافة الإيراد" });
       }
       onOpenChange(false);

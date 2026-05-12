@@ -2,11 +2,14 @@
 
 import db from "@/lib/prisma";
 import dayjs from "@/lib/dayjs";
-import { PaymentStatus } from "@/types/payment";
+import { PaymentMethod, PaymentStatus } from "@/types/payment";
 import { SubscriptionStatus } from "@/types/subscription";
 import { StudentStatus } from "@/types/student";
-import { getSessionStatus } from "@/lib/session";
 import { AttendanceStatus } from "@/types/session";
+import { addSessionsFromPayment } from "@/lib/balance";
+import { revalidatePath } from "next/cache";
+import { getTokenFromCookie, verifyToken } from "@/lib/jwt";
+import { Role } from "@/types/user";
 
 // ---------- Helpers ----------
 async function getConversionMap(academyId: number) {
@@ -34,12 +37,13 @@ function convert(
   const rate = rateMap.get(currencyId);
   return rate ? amount * rate : amount;
 }
+type DateRange = { start: Date; end: Date };
 
 function getDateRange(
   period: "all" | "year" | "month",
   year: number,
   month: number,
-): { start: Date; end: Date } | null {
+): DateRange | null {
   if (period === "all") return null;
   const start = dayjs()
     .year(year)
@@ -71,8 +75,17 @@ export async function getDashboardAlerts(
   const now = dayjs().toDate();
   const upcomingDays = 7;
 
-  const revWhere = { academyId, status: PaymentStatus.PAID };
-  const expWhere = { academyId, status: PaymentStatus.PAID };
+  const revWhere: {
+    academyId: number;
+    status: PaymentStatus;
+    dueDate?: { gte: Date; lt: Date };
+  } = { academyId, status: PaymentStatus.PAID };
+
+  const expWhere: {
+    academyId: number;
+    status: PaymentStatus;
+    date?: { gte: Date; lt: Date };
+  } = { academyId, status: PaymentStatus.PAID };
   if (dateRange) {
     revWhere.dueDate = { gte: dateRange.start, lt: dateRange.end };
     expWhere.date = { gte: dateRange.start, lt: dateRange.end };
@@ -166,9 +179,24 @@ export async function getDashboardKPIs(
   const dateRange = getDateRange(period, year, month);
   const { defaultCurrencyId, rateMap } = await getConversionMap(academyId);
 
-  const revWhere = { academyId, status: PaymentStatus.PAID };
-  const expWhere = { academyId, status: PaymentStatus.PAID };
-  const revPendingWhere = { academyId, status: PaymentStatus.PENDING };
+  const revWhere: {
+    academyId: number;
+    status: PaymentStatus;
+    dueDate?: { gte: Date; lt: Date };
+  } = { academyId, status: PaymentStatus.PAID };
+
+  const expWhere: {
+    academyId: number;
+    status: PaymentStatus;
+    date?: { gte: Date; lt: Date };
+  } = { academyId, status: PaymentStatus.PAID };
+
+  const revPendingWhere: {
+    academyId: number;
+    status: PaymentStatus;
+    dueDate?: { gte: Date; lt: Date };
+  } = { academyId, status: PaymentStatus.PENDING };
+
   if (dateRange) {
     revWhere.dueDate = { gte: dateRange.start, lt: dateRange.end };
     expWhere.date = { gte: dateRange.start, lt: dateRange.end };
@@ -259,8 +287,18 @@ export async function getRevenueExpensesOverTime(
   const { defaultCurrencyId, rateMap } = await getConversionMap(academyId);
   const granularity = period === "month" ? "day" : "month";
 
-  const revWhere = { academyId, status: PaymentStatus.PAID };
-  const expWhere = { academyId, status: PaymentStatus.PAID };
+  const revWhere: {
+    academyId: number;
+    status: PaymentStatus;
+    dueDate?: { gte: Date; lt: Date };
+  } = { academyId, status: PaymentStatus.PAID };
+
+  const expWhere: {
+    academyId: number;
+    status: PaymentStatus;
+    date?: { gte: Date; lt: Date };
+  } = { academyId, status: PaymentStatus.PAID };
+
   if (dateRange) {
     revWhere.dueDate = { gte: dateRange.start, lt: dateRange.end };
     expWhere.date = { gte: dateRange.start, lt: dateRange.end };
@@ -378,7 +416,7 @@ export async function getSubscriptionRetention(
       const hasActive = await db.subscription.findFirst({
         where: {
           studentId,
-          status: SubscriptionStatus.ACTIVE,
+          status: SubscriptionStatus.active,
           startDate: { lte: monthEnd.toDate() },
           endDate: { gte: monthStart.toDate() },
         },
@@ -414,11 +452,17 @@ export async function getPlanEfficiency(
   const dateRange = getDateRange(period, year, month);
   const { defaultCurrencyId, rateMap } = await getConversionMap(academyId);
 
-  const revWhere = {
+  const revWhere: {
+    academyId: number;
+    status: PaymentStatus;
+    planId: { not: null };
+    dueDate?: { gte: Date; lt: Date };
+  } = {
     academyId,
     status: PaymentStatus.PAID,
     planId: { not: null },
   };
+
   if (dateRange) {
     revWhere.dueDate = { gte: dateRange.start, lt: dateRange.end };
   }
@@ -512,7 +556,14 @@ export async function getRevenueKPIs(
   const dateRange = getDateRange(period, year, month);
   const { defaultCurrencyId, rateMap } = await getConversion(academyId);
 
-  const revWhere: any = { academyId, status: PaymentStatus.PAID };
+  const revWhere: {
+    academyId: number;
+    status: PaymentStatus;
+    dueDate?: { gte: Date; lt: Date };
+    studentId?: number;
+    method?: number;
+  } = { academyId, status: PaymentStatus.PAID };
+
   if (dateRange) revWhere.dueDate = { gte: dateRange.start, lt: dateRange.end };
   if (filters?.studentId) revWhere.studentId = filters.studentId;
   if (filters?.method !== undefined) revWhere.method = filters.method;
@@ -626,13 +677,17 @@ export async function getOverdueRevenue(
   const { defaultCurrencyId, rateMap } = await getConversion(academyId);
 
   const now = dayjs().toDate();
-  const where: any = {
+  const where: {
+    academyId: number;
+    status: PaymentStatus;
+    dueDate?: { gte?: Date; lt: Date };
+  } = {
     academyId,
     status: PaymentStatus.PENDING,
     dueDate: { lt: now },
   };
   if (dateRange) {
-    where.dueDate = { gte: dateRange.start, lt: now }; // overdue within period start .. now
+    where.dueDate = { gte: dateRange.start, lt: now };
   }
 
   const revenues = await db.revenue.findMany({
@@ -752,7 +807,14 @@ export async function getRevenueHistory(
   const dateRange = getDateRange(period, year, month);
   const { defaultCurrencyId, rateMap } = await getConversion(academyId);
 
-  const where: any = { academyId };
+  const where: {
+    academyId: number;
+    studentId?: number;
+    method?: number;
+    dueDate?: { gte: Date; lt: Date };
+  } = {
+    academyId,
+  };
   if (dateRange) {
     where.dueDate = { gte: dateRange.start, lt: dateRange.end };
   }
@@ -801,7 +863,14 @@ export async function createRevenueForSubscription(subscriptionId: number) {
       startDate: true,
       endDate: true,
       status: true,
-      plan: { select: { price: true, currencyId: true, billingPeriod: true } },
+      plan: {
+        select: {
+          price: true,
+          sessionsPerWeek: true,
+          currencyId: true,
+          billingPeriod: true,
+        },
+      },
       student: { select: { currencyId: true, academyId: true } },
     },
   });
@@ -826,6 +895,16 @@ export async function createRevenueForSubscription(subscriptionId: number) {
         startDate: new Date(),
         endDate: dayjs().add(billingDays, "day").toDate(),
         status: SubscriptionStatus.active,
+      },
+    });
+    await tx.student.update({
+      where: {
+        id: sub.studentId,
+      },
+      data: {
+        sessionsBalance: {
+          increment: sub.plan.sessionsPerWeek * 4,
+        },
       },
     });
     await tx.revenue.create({
@@ -938,7 +1017,11 @@ export async function getExpensesKPIs(
   const dateRange = getDateRange(period, year, month);
   const { defaultCurrencyId, rateMap } = await getConversion(academyId);
 
-  const expWhere: any = { academyId, status: PaymentStatus.PAID };
+  const expWhere: {
+    academyId: number;
+    status: PaymentStatus;
+    date?: { gte: Date; lt: Date };
+  } = { academyId, status: PaymentStatus.PAID };
   if (dateRange) {
     expWhere.date = { gte: dateRange.start, lt: dateRange.end };
   }
@@ -974,8 +1057,11 @@ export async function getExpensesKPIs(
     date: dayjs(e.date).format("YYYY-MM-DD"),
   }));
 
-  // Cost per session = total paid expenses / completed sessions in period
-  const sessionWhere: any = { academyId, cancelledBy: null }; // assuming SessionStatus.COMPLETED = 1, adjust to your enum
+  const sessionWhere: {
+    academyId: number;
+    cancelledBy: null;
+    startTime?: { gte: Date; lt: Date };
+  } = { academyId, cancelledBy: null };
   if (dateRange) {
     sessionWhere.startTime = { gte: dateRange.start, lt: dateRange.end };
   }
@@ -1025,7 +1111,15 @@ export async function getPendingExpenses(
   const dateRange = getDateRange(period, year, month);
   const { defaultCurrencyId, rateMap } = await getConversion(academyId);
 
-  const where: any = { academyId, status: PaymentStatus.PENDING };
+  const where: {
+    academyId: number;
+    status: PaymentStatus;
+    date?: {
+      gte: Date;
+      lt: Date;
+    };
+    costCenter?: string;
+  } = { academyId, status: PaymentStatus.PENDING };
   if (dateRange) {
     where.date = { gte: dateRange.start, lt: dateRange.end };
   }
@@ -1080,7 +1174,14 @@ export async function getExpensesHistory(
   const dateRange = getDateRange(period, year, month);
   const { defaultCurrencyId, rateMap } = await getConversion(academyId);
 
-  const where: any = { academyId };
+  const where: {
+    academyId: number;
+    date?: {
+      gte: Date;
+      lt: Date;
+    };
+    costCenter?: string;
+  } = { academyId };
   if (dateRange) {
     where.date = { gte: dateRange.start, lt: dateRange.end };
   }
@@ -1351,28 +1452,6 @@ export async function getDefaultCurrencyId(academyId: number) {
   return academy?.defaultCurrencyId || null;
 }
 
-export async function createRevenue(data: {
-  amount: number;
-  currencyId: number;
-  status: number;
-  method?: number;
-  dueDate?: string;
-  description?: string;
-  studentId: number;
-  planId?: number;
-  academyId: number;
-  invoiceUrl?: string;
-  channel?: string;
-  notes?: string;
-}) {
-  await db.revenue.create({
-    data: {
-      ...data,
-      dueDate: data.dueDate ? dayjs(data.dueDate).toDate() : undefined,
-    },
-  });
-}
-
 export async function createExpense(data: {
   date: string;
   description: string;
@@ -1390,4 +1469,64 @@ export async function createExpense(data: {
   await db.expense.create({
     data: { ...data, date: dayjs(data.date).toDate() },
   });
+}
+
+export async function createRevenueFromDashboard(revenueData: {
+  amount: number;
+  method: PaymentMethod;
+  status: PaymentStatus;
+  studentId: number;
+  dueDate: string | null;
+  recordedBy: null;
+  academyId: number;
+  date: string;
+  description?: string;
+  invoiceUrl?: string;
+  notes?: string;
+}) {
+  const token = await getTokenFromCookie();
+  if (!token) throw new Error("غير مصرح");
+  const payload = verifyToken(token);
+  if (!payload || payload.role !== Role.Admin) throw new Error("غير مصرح");
+
+  const student = await db.student.findUnique({
+    where: { id: revenueData.studentId },
+  });
+  if (!student) throw new Error("لا يوجد طالب بهذا الاسم");
+
+  const plan = student.planId
+    ? await db.plan.findUnique({ where: { id: student.planId } })
+    : null;
+
+  await db.$transaction(async (tx) => {
+    const payment = await tx.revenue.create({
+      data: {
+        ...revenueData,
+        currencyId: student.currencyId,
+        planId: student.planId,
+        recordedBy: payload.id,
+        subscriptionId: student.currentSubscriptionId,
+        dueDate: revenueData.dueDate
+          ? dayjs.utc(revenueData.date).toDate()
+          : undefined,
+      },
+    });
+
+    if (student.currentSubscriptionId && plan) {
+      await tx.subscription.update({
+        where: { id: student.currentSubscriptionId },
+        data: {
+          status: SubscriptionStatus.active,
+          endDate: dayjs().add(1, "month").toDate(),
+          startDate: dayjs().toDate(),
+        },
+      });
+    }
+
+    if (revenueData.status === PaymentStatus.PAID) {
+      await addSessionsFromPayment(payment.id, tx);
+    }
+  });
+
+  revalidatePath("/ar/dashboard");
 }

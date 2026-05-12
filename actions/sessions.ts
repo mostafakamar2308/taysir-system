@@ -26,7 +26,6 @@ type CreateSessionInput = {
 
 type UpdateSessionInput = Partial<CreateSessionInput> & {
   id: number;
-  scope?: "this" | "future" | "all";
 };
 
 export async function createSession(input: CreateSessionInput) {

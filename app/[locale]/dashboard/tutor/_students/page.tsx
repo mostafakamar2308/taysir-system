@@ -58,7 +58,6 @@ export default async function TutorStudentsPage() {
       isTrial: s.isTrial,
       tutorId: s.tutorId,
       tutorName: currentUser.name,
-      recurringPatternId: s.recurringPatternId,
       attendance: s.attendance
         ? {
             id: s.attendance.id,

@@ -53,7 +53,7 @@ export default async function AnalyticsPage() {
           where: {
             academyId,
             student: { academyId },
-            date: { gte: start, lt: end },
+            dueDate: { gte: start, lt: end },
             status: 1, // PAID
           },
           _sum: { amount: true },

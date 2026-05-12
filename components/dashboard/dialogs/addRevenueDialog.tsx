@@ -24,7 +24,7 @@ import { toast } from "@/hooks/use-toast";
 import { paymentMethodLabels } from "@/lib/finances";
 import { StudentOption } from "@/types/finances";
 import { PaymentMethod, PaymentStatus } from "@/types/payment";
-import { createRevenueFromDashboard } from "@/actions/payment";
+import { createRevenueFromDashboard } from "@/actions/finances";
 
 interface AddRevenueDialogProps {
   children: React.ReactNode;

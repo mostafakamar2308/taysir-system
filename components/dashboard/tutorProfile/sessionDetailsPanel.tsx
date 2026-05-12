@@ -82,8 +82,6 @@ export default function SessionDetailPanel({
         startTime: formData.startTime,
         duration: formData.duration,
         topic: formData.topic,
-        scope: "this",
-        // notes: formData.notes,
       });
       toast({ title: "تم تحديث الحصة" });
       setEditMode(false);
@@ -100,7 +98,7 @@ export default function SessionDetailPanel({
   const handleDelete = async () => {
     setLoading(true);
     try {
-      await deleteSession(session.id, "this");
+      await deleteSession(session.id);
       toast({ title: "تم حذف الحصة" });
       onOpenChange(false);
       onDeleted?.();

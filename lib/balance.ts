@@ -12,20 +12,14 @@ export async function addSessionsFromPayment(
   const payment = await tx.revenue.findUnique({
     where: { id: paymentId },
     include: {
-      subscription: {
-        select: { planPrice: true, sessionsPerPeriod: true },
-      },
+      plan: true,
     },
   });
 
   if (!payment || payment.status !== 1) return; // only PAID
-  if (!payment.subscription) return; // safety
+  if (!payment.plan) return; // safety
 
-  const { planPrice, sessionsPerPeriod } = payment.subscription;
-  if (sessionsPerPeriod <= 0 || planPrice <= 0) return;
-
-  const pricePerSession = planPrice / sessionsPerPeriod;
-  const sessionsToAdd = Math.floor(payment.amount / pricePerSession);
+  const sessionsToAdd = payment.plan.sessionsPerWeek * 4;
 
   if (sessionsToAdd > 0) {
     await tx.student.update({
