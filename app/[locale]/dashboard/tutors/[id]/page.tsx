@@ -85,8 +85,10 @@ export default async function TutorProfilePage({
     (s) =>
       s.attendance?.tutorAttendanceStatus === AttendanceStatus.ATTENDED ||
       s.attendance?.tutorAttendanceStatus === AttendanceStatus.LATE,
-  ).length;
-  const totalMonthlyEarnings = attendedSessions * tutor.pricePerSession;
+  );
+  const totalMonthlyEarnings =
+    attendedSessions.reduce((prev, curr) => prev + curr.durationMinutes, 0) *
+    tutor.pricePerHour;
   const paidThisMonth = tutor.expenses.reduce((sum, e) => sum + e.amount, 0);
   const pendingThisMonth = totalMonthlyEarnings - paidThisMonth;
 
@@ -261,7 +263,7 @@ export default async function TutorProfilePage({
           select: { name: true },
         })
       )?.name ?? "",
-    pricePerSession: tutor.pricePerSession,
+    pricePerHour: tutor.pricePerHour,
     specialities: tutor.specialities.map((s) => s.title),
     active: tutor.active ?? false,
     bio: tutor.bio,
@@ -276,7 +278,7 @@ export default async function TutorProfilePage({
     payments: transformedPayments,
     monthlyStats: {
       totalSessions: tutor.sessions.length,
-      attendedSessions,
+      attendedSessions: attendedSessions.length,
       attendanceRate,
       totalEarnings: totalMonthlyEarnings,
       paid: paidThisMonth,

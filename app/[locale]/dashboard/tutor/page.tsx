@@ -73,9 +73,11 @@ export default async function TutorDashboardPage() {
     (s) => s.startTime >= startOfMonth && s.startTime <= endOfMonth,
   );
 
-  const totalSessionsThisMonth = monthSessions.length;
-  const expectedEarnings =
-    totalSessionsThisMonth * (tutor?.pricePerSession || 0);
+  const totalMinutes = monthSessions.reduce(
+    (prev, curr) => prev + curr.durationMinutes,
+    0,
+  );
+  const expectedEarnings = totalMinutes * (tutor?.pricePerHour || 0);
 
   // Get already paid expenses for this tutor this month
   const paidExpenses = await db.expense.findMany({
@@ -108,7 +110,7 @@ export default async function TutorDashboardPage() {
       pendingAttendance={pendingAttendance.map(formatSession)}
       pendingReports={pendingReports.map(formatSession)}
       financialSummary={{
-        totalSessions: totalSessionsThisMonth,
+        totalSessions: monthSessions.length,
         expectedEarnings,
         paidThisMonth,
         remainingEarnings,

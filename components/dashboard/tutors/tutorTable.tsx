@@ -98,8 +98,8 @@ export default function TutorTable({
             <TableHead className="text-right">الحالة</TableHead>
             <TableHead className="text-right">التخصصات</TableHead>
             <SortableHead
-              field="pricePerSession"
-              label="سعر الحصة"
+              field="pricePerHour"
+              label="سعر الساعة"
               current={sortField}
               dir={sortDir}
               onSort={onSort}
@@ -155,7 +155,7 @@ export default function TutorTable({
                   </span>
                 </TableCell>
                 <TableCell>
-                  {tutor.pricePerSession} {tutor.currency}
+                  {tutor.pricePerHour} {tutor.currency}
                 </TableCell>
                 <TableCell className="text-muted-foreground text-xs">
                   {tutor.timezone}

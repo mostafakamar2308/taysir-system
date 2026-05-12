@@ -51,11 +51,8 @@ export default function ProfileSettingsTab({ tutor }: ProfileSettingsTabProps) {
         <CardContent className="space-y-4">
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
-              <Label>سعر الحصة ({tutor.currency})</Label>
-              <Input
-                defaultValue={String(tutor.pricePerSession)}
-                type="number"
-              />
+              <Label>سعر الساعة ({tutor.currency})</Label>
+              <Input defaultValue={String(tutor.pricePerHour)} type="number" />
             </div>
           </div>
           <div>

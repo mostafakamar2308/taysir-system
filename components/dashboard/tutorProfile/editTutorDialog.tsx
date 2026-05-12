@@ -31,7 +31,7 @@ interface EditTutorDialogProps {
     email: string;
     phone: string | null;
     timezone: string;
-    pricePerSession: number;
+    pricePerHour: number;
     currency: string;
     bio?: string | null;
     qualifications?: string | null;
@@ -56,7 +56,7 @@ export default function EditTutorDialog({
     email: tutor.email,
     phone: tutor.phone || "",
     timezone: tutor.timezone,
-    pricePerSession: String(tutor.pricePerSession),
+    pricePerHour: String(tutor.pricePerHour),
     bio: tutor.bio || "",
     qualifications: tutor.qualifications || "",
     active: tutor.active,
@@ -142,11 +142,11 @@ export default function EditTutorDialog({
             </div>
           </div>
           <div className="space-y-2">
-            <Label>سعر الحصة ({tutor.currency})</Label>
+            <Label>سعر الساعة ({tutor.currency})</Label>
             <Input
               type="number"
-              value={formData.pricePerSession}
-              onChange={(e) => handleChange("pricePerSession", e.target.value)}
+              value={formData.pricePerHour}
+              onChange={(e) => handleChange("pricePerHour", e.target.value)}
               required
             />
           </div>

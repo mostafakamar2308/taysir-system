@@ -89,7 +89,9 @@ export default function AddTutorDialog({
             <div>
               <Label htmlFor="phone">رقم الهاتف *</Label>
               <Input id="phone" name="phone" required />
-              <span className="text-xs text-slate-600">برجاء كتابة الرقم بالصيغة الدولية</span>
+              <span className="text-xs text-slate-600">
+                برجاء كتابة الرقم بالصيغة الدولية
+              </span>
             </div>
             <div>
               <Label htmlFor="timezone">المنطقة الزمنية *</Label>
@@ -105,10 +107,10 @@ export default function AddTutorDialog({
               </Select>
             </div>
             <div>
-              <Label htmlFor="pricePerSession">سعر الحصة</Label>
+              <Label htmlFor="pricePerHour">سعر الساعة</Label>
               <Input
-                id="pricePerSession"
-                name="pricePerSession"
+                id="pricePerHour"
+                name="pricePerHour"
                 type="number"
                 step="0.01"
                 required
@@ -160,10 +162,7 @@ export default function AddTutorDialog({
             <Label htmlFor="active">نشط</Label>
           </div>
           <div className="flex items-center gap-2">
-            <Switch
-              id="zoom"
-              name="zoomAuthenticated"
-            />
+            <Switch id="zoom" name="zoomAuthenticated" />
             <Label htmlFor="zoom">مفعل على Zoom</Label>
           </div>
           <div className="space-y-2">
@@ -174,7 +173,6 @@ export default function AddTutorDialog({
               placeholder="https://zoom.us/j/..."
             />
           </div>
-
 
           <div className="flex justify-end gap-2 pt-4">
             <Button

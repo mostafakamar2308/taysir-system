@@ -4,7 +4,7 @@ export type SortField =
   | "status"
   | "renewalDate"
   | "studentCount"
-  | "pricePerSession"
+  | "pricePerHour"
   | "startDate"
   | "createdAt";
 export type SortDir = "asc" | "desc";

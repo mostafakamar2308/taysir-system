@@ -230,7 +230,7 @@ model Tutor {
   currency   Currency @relation(fields: [currencyId], references: [id])
   currencyId Int
 
-  pricePerSession   Float
+  pricePerHour      Float
   active            Boolean?
   bio               String?
   qualifications    String?

@@ -104,9 +104,9 @@ export default function TutorProfileClient({
               </div>
               <div className="flex flex-wrap gap-4 text-sm">
                 <div>
-                  <span className="text-muted-foreground">سعر الحصة: </span>
+                  <span className="text-muted-foreground">سعر الساعة: </span>
                   <span className="font-bold">
-                    {tutor.pricePerSession} {tutor.currency}
+                    {tutor.pricePerHour} {tutor.currency}
                   </span>
                 </div>
                 <div>

@@ -15,7 +15,7 @@ const createTutorSchema = z.object({
   email: z.string().email("بريد إلكتروني غير صالح"),
   phone: z.string().min(1, "رقم الهاتف مطلوب"),
   timezone: z.string().min(1, "المنطقة الزمنية مطلوبة"),
-  pricePerSession: z.number().min(0, "السعر يجب أن يكون 0 أو أكثر"),
+  pricePerHour: z.number().min(0, "السعر يجب أن يكون 0 أو أكثر"),
   specialities: z.array(z.number()).optional(),
   active: z.boolean().default(true),
   bio: z.string().optional().nullable(),
@@ -42,8 +42,8 @@ export async function createTutor(formData: FormData) {
     email: formData.get("email"),
     phone: formData.get("phone"),
     timezone: formData.get("timezone"),
-    pricePerSession: formData.get("pricePerSession")
-      ? parseFloat(formData.get("pricePerSession") as string)
+    pricePerHour: formData.get("pricePerHour")
+      ? parseFloat(formData.get("pricePerHour") as string)
       : undefined,
     specialities,
     active: formData.get("active") === "on",
@@ -81,7 +81,7 @@ export async function createTutor(formData: FormData) {
     data: {
       userId: user.id,
       academyId: validated.academyId,
-      pricePerSession: validated.pricePerSession,
+      pricePerHour: validated.pricePerHour,
       active: validated.active,
       bio: validated.bio,
       qualifications: validated.qualifications,
@@ -102,7 +102,7 @@ const updateTutorSchema = z.object({
   email: z.string().email("بريد إلكتروني غير صالح"),
   phone: z.string().optional().nullable(),
   timezone: z.string().min(1, "المنطقة الزمنية مطلوبة"),
-  pricePerSession: z.number().positive("سعر الحصة يجب أن يكون أكبر من 0"),
+  pricePerHour: z.number().positive("سعر الحصة يجب أن يكون أكبر من 0"),
   bio: z.string().optional().nullable(),
   qualifications: z.string().optional().nullable(),
   active: z.boolean(),
@@ -121,7 +121,7 @@ export async function updateTutor(id: number, formData: FormData) {
     email: formData.get("email"),
     phone: formData.get("phone") || null,
     timezone: formData.get("timezone"),
-    pricePerSession: parseFloat(formData.get("pricePerSession") as string),
+    pricePerHour: parseFloat(formData.get("pricePerHour") as string),
     bio: formData.get("bio") || null,
     qualifications: formData.get("qualifications") || null,
     active: formData.get("active") === "true",
@@ -149,7 +149,7 @@ export async function updateTutor(id: number, formData: FormData) {
     db.tutor.update({
       where: { id },
       data: {
-        pricePerSession: validated.pricePerSession,
+        pricePerHour: validated.pricePerHour,
         bio: validated.bio,
         qualifications: validated.qualifications,
         active: validated.active,

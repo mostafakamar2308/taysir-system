@@ -250,7 +250,7 @@ async function main() {
       data: {
         userId: tutorUser.id,
         academyId: academy.id,
-        pricePerSession: randomElement(TUTOR_PRICES),
+        pricePerHour: randomElement(TUTOR_PRICES),
         active: true,
         currencyId: egp.id,
         bio: "معلم معتمد في القرآن وعلومه",
@@ -762,7 +762,7 @@ async function main() {
         },
       });
       if (sessionsCount > 0) {
-        const salary = sessionsCount * tutor.pricePerSession;
+        const salary = sessionsCount * tutor.pricePerHour;
         await db.expense.create({
           data: {
             date: expenseMonth.date(28).toDate(),

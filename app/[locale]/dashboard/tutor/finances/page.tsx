@@ -19,7 +19,7 @@ export default async function TutorFinancesPage() {
     include: { currency: true },
   });
   if (!tutor) redirect("/login");
-  const pricePerSession = tutor.pricePerSession;
+  const pricePerHour = tutor.pricePerHour;
   const currency = tutor.currency.code;
 
   const now = dayjs.utc();
@@ -40,7 +40,11 @@ export default async function TutorFinancesPage() {
     },
   });
   const sessionCount = monthSessions.length;
-  const expectedEarnings = sessionCount * pricePerSession;
+  const monthlyMinutes = monthSessions.reduce(
+    (prev, curr) => prev + curr.durationMinutes,
+    0,
+  );
+  const expectedEarnings = monthlyMinutes * pricePerHour;
 
   // Fetch payments (expenses) for this tutor
   const payments = await db.expense.findMany({
@@ -89,7 +93,7 @@ export default async function TutorFinancesPage() {
       },
     });
     const count = sessionsForMonth.length;
-    const earnings = count * pricePerSession;
+    const earnings = count * pricePerHour;
     monthlyEarnings.push({
       month: monthDate.format("MMM YYYY"),
       earnings,

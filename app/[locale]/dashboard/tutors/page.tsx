@@ -34,7 +34,7 @@ const TutorsPage = async () => {
     phone: t.user.phone ?? "",
     status: t.active ?? false,
     specialities: t.specialities.map((s) => s.title),
-    pricePerSession: t.pricePerSession,
+    pricePerHour: t.pricePerHour,
     timezone: t.user.timezone,
     createdAt: t.createdAt,
     currency: t.currency.name,

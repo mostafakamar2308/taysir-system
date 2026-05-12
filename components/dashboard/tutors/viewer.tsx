@@ -98,8 +98,8 @@ export default function TutorsViewer({
         case "name":
           cmp = a.name.localeCompare(b.name, "ar");
           break;
-        case "pricePerSession":
-          cmp = a.pricePerSession - b.pricePerSession;
+        case "pricePerHour":
+          cmp = a.pricePerHour - b.pricePerHour;
           break;
         case "studentCount":
           cmp = a.studentCount - b.studentCount;

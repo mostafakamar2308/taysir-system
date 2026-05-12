@@ -9,7 +9,7 @@ export interface DashboardTutor {
   phone: string;
   status: boolean; // active
   specialities: string[];
-  pricePerSession: number;
+  pricePerHour: number;
   timezone: string;
   createdAt: Date;
   studentCount: number;
@@ -109,7 +109,7 @@ export interface TutorProfile {
   zoomUrl: string | null;
   zoomAuthenticated: boolean;
   academyName: string;
-  pricePerSession: number;
+  pricePerHour: number;
   specialities: string[];
   active: boolean;
   bio: string | null;

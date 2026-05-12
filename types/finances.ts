@@ -24,7 +24,7 @@ export interface SalaryCalculation {
   tutorId: number;
   tutorName: string;
   sessionsCount: number;
-  pricePerSession: number;
+  pricePerHour: number;
   total: number;
   paid: number;
   remaining: number;
@@ -69,7 +69,7 @@ export interface SalaryCalculation {
   tutorId: number;
   tutorName: string;
   sessionsCount: number;
-  pricePerSession: number;
+  pricePerHour: number;
   total: number;
   existingExpense: ExpenseRecord | null;
 }

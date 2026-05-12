@@ -316,7 +316,7 @@ export default function SalariesTab({
                 <TableHeader>
                   <TableRow>
                     <TableHead>المعلم</TableHead>
-                    <TableHead>سعر الجلسة</TableHead>
+                    <TableHead>سعر الساعة</TableHead>
                     <TableHead>الجلسات المكتملة</TableHead>
                     <TableHead>الراتب المتوقع</TableHead>
                     <TableHead>المدفوع</TableHead>
@@ -330,7 +330,7 @@ export default function SalariesTab({
                       <TableCell>{tutor.tutorName}</TableCell>
                       <TableCell>
                         {formatCurrency(
-                          tutor.pricePerSession,
+                          tutor.pricePerHour,
                           defaultCurrency.symbol,
                         )}
                       </TableCell>
