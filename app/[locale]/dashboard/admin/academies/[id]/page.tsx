@@ -38,7 +38,7 @@ export default async function AcademyProfilePage({
   const totalExpenses = academy.expenses.reduce((sum, e) => sum + e.amount, 0);
   const currentMonth = dayjs().format("YYYY-MM");
   const monthlyRevenue = academy.revenues
-    .filter((r) => r.date.toISOString().slice(0, 7) === currentMonth)
+    .filter((r) => r.dueDate.toISOString().slice(0, 7) === currentMonth)
     .reduce((sum, r) => sum + r.amount, 0);
   const monthlyExpenses = academy.expenses
     .filter((e) => e.date.toISOString().slice(0, 7) === currentMonth)

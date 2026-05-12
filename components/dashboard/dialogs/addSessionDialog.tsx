@@ -27,6 +27,7 @@ import { useToast } from "@/hooks/use-toast";
 import { createSession } from "@/actions/sessions";
 import { Plus } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import dayjs from "@/lib/dayjs";
 
 interface AddSessionDialogProps {
   tutors: { id: number; name: string | null }[];
@@ -89,7 +90,7 @@ export default function AddSessionDialog({
         tutorId,
         academyId,
         date,
-        startTime,
+        startTime: dayjs(`${date}T${startTime}`).toISOString(),
         duration: parseInt(duration),
         topic: topic || undefined,
         notes: notes || undefined,

@@ -10,6 +10,7 @@ import { getSessionStatus } from "@/lib/session";
 import { StudentStatus } from "@/types/student";
 import { recordStudentStatusChangeHistory } from "@/lib/history";
 import type { DashboardSession } from "@/types/session";
+import { decrementBalance, incrementBalance } from "@/lib/balance";
 
 type CreateSessionInput = {
   studentId: number;
@@ -20,15 +21,11 @@ type CreateSessionInput = {
   duration: number;
   topic?: string;
   notes?: string;
-  isRecurring: boolean;
-  recurDays?: number[];
-  recurEndDate?: string;
   isTrial?: boolean;
 };
 
 type UpdateSessionInput = Partial<CreateSessionInput> & {
   id: number;
-  scope?: "this" | "future" | "all";
 };
 
 export async function createSession(input: CreateSessionInput) {
@@ -55,14 +52,19 @@ export async function createSession(input: CreateSessionInput) {
   });
 
   if (conflicts.length > 0) {
-    throw new Error("Conflict detected");
+    throw new Error("هناك حصة للمعلم في هذا الوقت");
   }
   const student = await db.student.findUnique({
     where: { id: input.studentId },
   });
   if (!student) throw new Error("هذا الطالب غير موجود");
 
-  if (input.isTrial && student.status !== StudentStatus.trial) {
+  if (student.sessionsBalance < 1 && !input.isTrial)
+    throw new Error(
+      "هذا الطالب استهلك كل حصص الشهر، برجاء تجديد الاشتراك أولا",
+    );
+
+  if (input.isTrial && student.status === StudentStatus.lead) {
     await db.student.update({
       where: {
         id: input.studentId,
@@ -80,97 +82,34 @@ export async function createSession(input: CreateSessionInput) {
     );
   }
 
-  if (!input.isRecurring) {
-    const session = await db.session.create({
+  const session = await db.$transaction(async (tx) => {
+    if (!input.isTrial) {
+      await decrementBalance(input.studentId, tx);
+    }
+    return await tx.session.create({
       data: {
         startTime: startDate,
         endTime: endDate,
         durationMinutes: input.duration,
         studentId: input.studentId,
         tutorId: input.tutorId,
-        academyId: payload.academyId,
+        academyId: payload.academyId!,
         topic: input.topic,
         notes: input.notes,
+        isTrial: input.isTrial ?? false,
       },
     });
-    revalidatePath("/ar/dashboard/sessions");
-    revalidatePath("/ar/dashboard/tutor/sessions");
-    return session;
-  } else {
-    // Recurring pattern
-    const pattern = await db.recurringPattern.create({
-      data: {
-        daysOfWeek: input.recurDays!,
-        startTime: startDate,
-        durationMinutes: input.duration,
-        startDate: dayjs.utc(start).startOf("day").toDate(),
-        endDate: input.recurEndDate
-          ? dayjs.utc(input.recurEndDate).endOf("day").toDate()
-          : null,
-        studentId: input.studentId,
-        tutorId: input.tutorId,
-        academyId: input.academyId,
-      },
-    });
-
-    const recurEndDate = input.recurEndDate
-      ? dayjs.utc(input.recurEndDate).endOf("day")
-      : start.add(6, "month");
-
-    let current = start;
-    const sessionsToCreate = [];
-
-    while (
-      current.isBefore(recurEndDate) ||
-      current.isSame(recurEndDate, "day")
-    ) {
-      if (input.recurDays!.includes(current.day())) {
-        const sessionStart = current.toDate();
-        const sessionEnd = dayjs
-          .utc(sessionStart)
-          .add(input.duration, "minute")
-          .toDate();
-        sessionsToCreate.push({
-          startTime: sessionStart,
-          endTime: sessionEnd,
-          durationMinutes: input.duration,
-          studentId: input.studentId,
-          tutorId: input.tutorId,
-          academyId: input.academyId,
-          topic: input.topic,
-          notes: input.notes,
-          status: SessionStatus.SCHEDULED,
-          recurringPatternId: pattern.id,
-        });
-      }
-      current = current.add(1, "day");
-    }
-
-    await db.session.createMany({ data: sessionsToCreate });
-    revalidatePath("/ar/dashboard/sessions");
-    return pattern;
-  }
+  });
+  revalidatePath("/ar/dashboard/sessions");
+  revalidatePath("/ar/dashboard/tutor/sessions");
+  return session;
 }
 
 export async function updateSession(input: UpdateSessionInput) {
   const existing = await db.session.findUnique({
     where: { id: input.id },
-    include: { recurringPattern: true },
   });
   if (!existing) throw new Error("Session not found");
-
-  // If it's a recurring session and scope is not 'this', we need to handle pattern updates
-  if (existing.recurringPatternId && input.scope !== "this") {
-    // For simplicity, we'll handle 'future' by deleting future instances and recreating
-    // For 'all', we update the pattern and all instances
-    // This is complex; we'll implement a basic version
-    // For now, we'll only allow editing single instances
-    throw new Error(
-      "Editing recurring sessions with scope is not yet implemented",
-    );
-  }
-
-  // Single session update
   const newStart = input.startTime
     ? dayjs.utc(input.startTime).toDate()
     : existing.startTime;
@@ -193,70 +132,19 @@ export async function updateSession(input: UpdateSessionInput) {
   return updated;
 }
 
-export async function deleteSession(
-  id: number,
-  scope: "this" | "future" | "series",
-) {
+export async function deleteSession(id: number) {
   const session = await db.session.findUnique({
     where: { id },
-    include: { recurringPattern: true },
   });
   if (!session) throw new Error("Session not found");
 
-  if (session.recurringPatternId && scope !== "this") {
-    if (scope === "series") {
-      // Delete all sessions in the pattern (and their attendances)
-      const sessionsToDelete = await db.session.findMany({
-        where: { recurringPatternId: session.recurringPatternId },
-        select: { id: true },
-      });
-      // Delete attendances first
-      for (const s of sessionsToDelete) {
-        await db.attendance.deleteMany({ where: { sessionId: s.id } });
-      }
-      // Delete all sessions
-      await db.session.deleteMany({
-        where: { recurringPatternId: session.recurringPatternId },
-      });
-      // Delete the pattern
-      await db.recurringPattern.delete({
-        where: { id: session.recurringPatternId },
-      });
-    } else if (scope === "future") {
-      // Delete this and all future sessions of the same pattern
-      const futureSessions = await db.session.findMany({
-        where: {
-          recurringPatternId: session.recurringPatternId,
-          startTime: { gte: session.startTime },
-        },
-        select: { id: true },
-      });
-      // Delete attendances
-      for (const s of futureSessions) {
-        await db.attendance.deleteMany({ where: { sessionId: s.id } });
-      }
-      // Delete future sessions
-      await db.session.deleteMany({
-        where: {
-          recurringPatternId: session.recurringPatternId,
-          startTime: { gte: session.startTime },
-        },
-      });
-      // If no sessions left, delete the pattern
-      const remaining = await db.session.count({
-        where: { recurringPatternId: session.recurringPatternId },
-      });
-      if (remaining === 0) {
-        await db.recurringPattern.delete({
-          where: { id: session.recurringPatternId },
-        });
-      }
+  await db.$transaction(async (tx) => {
+    if (!session.cancelledBy && !session.isTrial) {
+      await incrementBalance(session.studentId, tx);
     }
-  } else {
-    // Single session: delete attendance then session
-    await db.attendance.deleteMany({ where: { sessionId: id } });
-    await db.session.delete({ where: { id } });
-  }
+    await tx.attendance.deleteMany({ where: { sessionId: id } });
+    await tx.session.delete({ where: { id } });
+  });
 
   revalidatePath("/ar/dashboard/sessions");
 }
@@ -319,7 +207,6 @@ export async function getSessionsForWeek(startDate: Date, endDate: Date) {
     studentName: s.student.name,
     tutorId: s.tutorId,
     tutorName: s.tutor.user.name,
-    recurringPatternId: s.recurringPatternId,
     attendance: s.attendance
       ? {
           id: s.attendance.id,
@@ -397,7 +284,6 @@ export async function getSessionDetails(
     tutorId: session.tutorId,
     isTrial: session.isTrial,
     tutorName: session.tutor.user.name ?? "",
-    recurringPatternId: session.recurringPatternId,
     attendance: session.attendance
       ? {
           id: session.attendance.id,
@@ -418,4 +304,28 @@ export async function getSessionDetails(
         }
       : undefined,
   };
+}
+
+export async function cancelSession(sessionId: number, cancelledBy: number) {
+  const token = await getTokenFromCookie();
+  if (!token) throw new Error("غير مصرح");
+  const payload = verifyToken(token);
+  if (!payload || !payload.academyId) throw new Error("غير مصرح");
+
+  const session = await db.session.findUnique({ where: { id: sessionId } });
+  if (!session || session.cancelledBy !== null)
+    throw new Error("لا يمكن إلغاء هذه الحصة");
+
+  await db.$transaction(async (tx) => {
+    await tx.session.update({
+      where: { id: sessionId },
+      data: { cancelledBy },
+    });
+    if (!session.isTrial) {
+      await incrementBalance(session.studentId, tx);
+    }
+  });
+
+  revalidatePath("/ar/dashboard/sessions");
+  revalidatePath(`/ar/dashboard/students/${session.studentId}`);
 }

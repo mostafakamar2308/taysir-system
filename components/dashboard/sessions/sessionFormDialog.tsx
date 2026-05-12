@@ -76,7 +76,6 @@ export function SessionFormDialog({
   const [recurDays, setRecurDays] = useState<number[]>([]);
   const [recurEndDate, setRecurEndDate] = useState("");
   const [isTrial, setIsTrial] = useState(false);
-  const [editScope, setEditScope] = useState<"this" | "future" | "all">("this");
   const [conflicts, setConflicts] = useState<string[]>([]);
   const [overrideConflicts, setOverrideConflicts] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -98,7 +97,6 @@ export function SessionFormDialog({
       setDuration(session.durationMinutes.toString());
       setTopic(session.topic || "");
       setNotes(session.notes || "");
-      setIsRecurring(!!session.recurringPatternId);
       setIsTrial(session.isTrial ?? false);
     } else if (prefillSlot) {
       const d = prefillSlot.date;
@@ -127,7 +125,6 @@ export function SessionFormDialog({
     setRecurEndDate("");
     setConflicts([]);
     setOverrideConflicts(false);
-    setEditScope("this");
   }, [session, prefillSlot, open]);
 
   // Conflict detection (simplified – in real app you'd fetch from server)
@@ -167,7 +164,6 @@ export function SessionFormDialog({
         await updateSession({
           id: session.id,
           ...input,
-          scope: editScope,
           startTime: dayjs(`${input.date}T${input.startTime}`).toISOString(),
         });
         toast({ title: "تم تعديل الحصة بنجاح" });
@@ -208,33 +204,6 @@ export function SessionFormDialog({
             {isEdit ? "تعديل الحصة" : "إضافة حصة جديدة"}
           </DialogTitle>
         </DialogHeader>
-
-        {isEdit && session?.recurringPatternId && (
-          <div className="flex gap-2 p-3 rounded-lg bg-accent/50 border border-border">
-            <RefreshCw className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
-            <div className="space-y-2 flex-1">
-              <p className="text-sm text-muted-foreground">
-                هذه حصة متكررة. اختر نطاق التعديل:
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {(["this", "future", "all"] as const).map((scope) => (
-                  <Badge
-                    key={scope}
-                    variant={editScope === scope ? "default" : "outline"}
-                    className="cursor-pointer"
-                    onClick={() => setEditScope(scope)}
-                  >
-                    {scope === "this"
-                      ? "هذه فقط"
-                      : scope === "future"
-                        ? "هذه والمستقبلية"
-                        : "جميع الحصص"}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
 
         <div className="space-y-4">
           {/* Student and Tutor selection */}

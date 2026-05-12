@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -21,10 +20,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { createPayment, updatePayment } from "@/actions/payment";
 import { PaymentMethod, PaymentStatus } from "@/types/payment";
 import { paymentMethodLabels, paymentStatusLabels } from "@/lib/finances";
 import dayjs from "@/lib/dayjs";
+import { createRevenueFromDashboard, updateRevenue } from "@/actions/finances";
+import { useRouter } from "next/navigation";
 
 interface RevenueFormDialogProps {
   open: boolean;
@@ -49,7 +49,6 @@ interface RevenueFormDialogProps {
   currencies: { id: number; code: string; name: string; symbol: string }[];
   academyId: number;
 }
-
 export default function RevenueFormDialog({
   open,
   onOpenChange,
@@ -59,15 +58,15 @@ export default function RevenueFormDialog({
   currencies,
   academyId,
 }: RevenueFormDialogProps) {
-  const router = useRouter();
   const { toast } = useToast();
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     studentId: "",
     planId: "",
     amount: "",
     currencyId: "",
-    status: "",
+    status: PaymentStatus.PENDING.toString(),
     method: "",
     date: dayjs().format("YYYY-MM-DD"),
     dueDate: "",
@@ -77,6 +76,7 @@ export default function RevenueFormDialog({
     invoiceUrl: "",
   });
 
+  // Fill form on edit
   useEffect(() => {
     if (editingPayment) {
       setFormData({
@@ -94,6 +94,7 @@ export default function RevenueFormDialog({
         invoiceUrl: editingPayment.invoiceUrl || "",
       });
     } else {
+      // Reset
       setFormData({
         studentId: "",
         planId: "",
@@ -123,41 +124,40 @@ export default function RevenueFormDialog({
     }
     setLoading(true);
     try {
-      const form = new FormData();
-      form.append("amount", formData.amount);
-      form.append("currencyId", formData.currencyId);
-      form.append("status", formData.status);
-      if (formData.method) form.append("method", formData.method);
-      form.append("date", formData.date);
-      if (formData.dueDate) form.append("dueDate", formData.dueDate);
-      if (formData.description)
-        form.append("description", formData.description);
-      form.append("studentId", formData.studentId);
-      if (formData.planId) form.append("planId", formData.planId);
-      if (formData.invoiceUrl) form.append("invoiceUrl", formData.invoiceUrl);
-      if (formData.channel) form.append("channel", formData.channel);
-      if (formData.notes) form.append("notes", formData.notes);
-      console.log(formData.currencyId);
-
-      if (formData.currencyId) form.append("currencyId", formData.currencyId);
-      form.append("academyId", academyId.toString());
+      const payload = {
+        amount: parseFloat(formData.amount),
+        currencyId: parseInt(formData.currencyId),
+        status: parseInt(formData.status),
+        method: formData.method
+          ? (parseInt(formData.method) as PaymentMethod)
+          : PaymentMethod.ONLINE,
+        dueDate: formData.dueDate,
+        date: formData.dueDate,
+        description: formData.description || undefined,
+        studentId: parseInt(formData.studentId),
+        planId: formData.planId ? parseInt(formData.planId) : undefined,
+        academyId,
+        recordedBy: null,
+        invoiceUrl: formData.invoiceUrl || undefined,
+        channel: formData.channel || undefined,
+        notes: formData.notes || undefined,
+      };
 
       if (editingPayment) {
-        await updatePayment(editingPayment.id, form);
+        await updateRevenue(editingPayment.id, payload);
         toast({ title: "تم تحديث الإيراد" });
       } else {
-        await createPayment(form);
+        await createRevenueFromDashboard(payload);
         toast({ title: "تم إضافة الإيراد" });
       }
       onOpenChange(false);
       router.refresh();
     } catch (error) {
-      if (error instanceof Error)
-        toast({
-          title: "خطأ",
-          description: error.message,
-          variant: "destructive",
-        });
+      toast({
+        title: "خطأ",
+        description: error instanceof Error ? error.message : "حدث خطأ",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }

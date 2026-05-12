@@ -27,7 +27,6 @@ import {
   GraduationCap,
   Clock,
   BookOpen,
-  RefreshCw,
   Edit,
   Trash2,
   CheckCircle2,
@@ -115,12 +114,6 @@ export function SessionDetailPanel({
             >
               {sessionStatusLabels[session.status as SessionStatus]}
             </Badge>
-            {session.recurringPatternId && (
-              <Badge variant="outline" className="gap-1">
-                <RefreshCw className="h-3 w-3" />
-                متكررة
-              </Badge>
-            )}
           </div>
 
           {/* Info grid */}

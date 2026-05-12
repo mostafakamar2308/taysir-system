@@ -6,18 +6,18 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
+// import { Badge } from "@/components/ui/badge";
 import { LogIn, AlertCircle } from "lucide-react";
 import { login } from "@/actions/auth";
 
-const demoCredentials = [
-  {
-    email: "admin@gmail.com",
-    password: "admin123",
-    role: "مدير أكاديمية",
-  },
-  { email: "tutor1@academiyati.com", password: "tutor123", role: "معلم" },
-];
+// const demoCredentials = [
+//   {
+//     email: "admin@gmail.com",
+//     password: "admin123",
+//     role: "مدير أكاديمية",
+//   },
+//   { email: "tutor1@academiyati.com", password: "tutor123", role: "معلم" },
+// ];
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -130,7 +130,7 @@ export default function LoginPage() {
         </Card>
 
         {/* Demo credentials */}
-        <Card className="bg-muted/50">
+        {/* <Card className="bg-muted/50">
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground mb-2 font-medium">
               بيانات تجريبية:
@@ -155,7 +155,7 @@ export default function LoginPage() {
               ))}
             </div>
           </CardContent>
-        </Card>
+        </Card> */}
       </div>
     </div>
   );

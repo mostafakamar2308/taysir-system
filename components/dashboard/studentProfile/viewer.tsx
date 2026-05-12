@@ -233,7 +233,6 @@ export default function StudentProfileClient({
 
         <TabsContent value="billing">
           <BillingTab
-            subscriptions={student.subscriptions}
             student={student}
             defaultCurrency={defaultCurrency}
             plans={plans}
@@ -250,6 +249,7 @@ export default function StudentProfileClient({
         }
         onOpenChange={setRecordPayment}
         studentId={student.id}
+        activeSubscriptionPricePerSession={activeSubscription?.pricePerSession}
         subscriptions={student.subscriptions}
       />
     </div>

@@ -20,6 +20,7 @@ import {
   TrendingDown,
   Calendar,
   CurrencyIcon,
+  DollarSign,
 } from "lucide-react";
 import { StudentProfile } from "@/types/studentProfile";
 import { PaymentMethod, PaymentStatus } from "@/types/payment";
@@ -33,18 +34,16 @@ import ChangePlanDialog from "@/components/dashboard/studentProfile/changePlanDi
 import RecordPaymentDialog from "@/components/dashboard/studentProfile/dialogs/recordPaymentDialog";
 import { SubscriptionStatus } from "@/types/subscription";
 import ResolvePaymentDialog from "./dialogs/resolvePaymentDialog";
+import RenewSubscriptionDialog from "./dialogs/renewSubscriptionDialog";
 
-interface SubscriptionDisplay {
-  id: number;
-  planId: number;
-  planTitle: string;
-  planSessionsPerWeek: number;
-  planPrice: number;
-  planCurrency: string;
-  startDate: string;
-  endDate: string | null;
-  status: number;
-  payments: { id: number; amount: number; date: string; status: number }[];
+/**
+ * Helper to calculate price per session from plan data.
+ */
+export function getPricePerSession(
+  planPrice: number,
+  sessionsPerPeriod: number,
+) {
+  return sessionsPerPeriod > 0 ? planPrice / sessionsPerPeriod : 0;
 }
 
 interface BillingTabProps {
@@ -56,7 +55,6 @@ interface BillingTabProps {
     sessionsPerWeek: number;
     billingPeriod: number;
   }[];
-  subscriptions: SubscriptionDisplay[];
   defaultCurrency: { code: string; symbol: string; name: string };
   currencyRates: Record<string, number>;
 }
@@ -78,12 +76,12 @@ const subscriptionStatusColors: Record<number, string> = {
 export default function BillingTab({
   student,
   plans,
-  subscriptions,
   defaultCurrency,
   currencyRates,
 }: BillingTabProps) {
   const [changePlanOpen, setChangePlanOpen] = useState(false);
   const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
+  const [renewSubscriptionOpen, setRenewSubscriptionOpen] = useState(false);
   const [resolveDialog, setResolveDialog] = useState<{
     open: boolean;
     payment: {
@@ -94,8 +92,8 @@ export default function BillingTab({
     } | null;
   }>({ open: false, payment: null });
   const [useDefaultCurrency, setUseDefaultCurrency] = useState(false); // toggle
-
-  const activeSubscription = subscriptions.find(
+  const subscriptions = student.subscriptions;
+  const activeSubscription = student.subscriptions.find(
     (s) => s.status === SubscriptionStatus.active,
   );
 
@@ -218,6 +216,7 @@ export default function BillingTab({
                 </p>
               </div>
             </div>
+
             <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
               <div className="h-10 w-10 rounded-lg bg-green-100 flex items-center justify-center">
                 <TrendingDown className="h-5 w-5 text-green-600" />
@@ -231,6 +230,33 @@ export default function BillingTab({
                 </p>
               </div>
             </div>
+            <div className="flex flex-col justify-center items-center gap-3 p-3 rounded-lg bg-muted/50">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                  <DollarSign className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    {student.sessionsBalance >= 0 ? "حصص متبقية" : "حصص مستحقة"}
+                  </p>
+                  <p className="text-2xl font-bold">
+                    {student.sessionsBalance < 1
+                      ? `${student.sessionsBalance}`
+                      : `+${student.sessionsBalance}`}
+                  </p>
+                </div>
+              </div>
+              {student.sessionsBalance < 0 && student.plan && (
+                <Badge variant="destructive" className="text-sm">
+                  {Math.abs(student.sessionsBalance) *
+                    getPricePerSession(
+                      student.plan.price,
+                      student.plan.sessionsPerWeek * 4,
+                    )}{" "}
+                  {student.plan.currency} مطلوب
+                </Badge>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -239,13 +265,20 @@ export default function BillingTab({
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg">الاشتراك الحالي</CardTitle>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setChangePlanOpen(true)}
-          >
-            تغيير الخطة
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setChangePlanOpen(true)}
+            >
+              تغيير الخطة
+            </Button>{" "}
+            {dayjs().isAfter(activeSubscription?.endDate, "day") ? (
+              <Button size="sm" onClick={() => setRenewSubscriptionOpen(true)}>
+                تجديد الإشتراك
+              </Button>
+            ) : null}
+          </div>
         </CardHeader>
         <CardContent>
           {activeSubscription ? (
@@ -541,6 +574,14 @@ export default function BillingTab({
         open={resolveDialog.open}
         onOpenChange={(open) => setResolveDialog({ ...resolveDialog, open })}
         payment={resolveDialog.payment}
+      />
+      <RenewSubscriptionDialog
+        onOpenChange={setRenewSubscriptionOpen}
+        open={renewSubscriptionOpen}
+        sessionsPerWeek={student.plan?.sessionsPerWeek || 1}
+        studentId={student.id}
+        studentName={student.name}
+        planTitle={student.plan?.title}
       />
     </div>
   );

@@ -88,6 +88,7 @@ export default async function StudentProfilePage({
     tutorId: student.tutorId,
     tutorName: student.tutor?.user.name ?? null,
     planId: student.planId,
+    sessionsBalance: student.sessionsBalance,
     plan: student.plan
       ? {
           id: student.plan.id,
@@ -126,9 +127,10 @@ export default async function StudentProfilePage({
       payments: sub.payments.map((p) => ({
         id: p.id,
         amount: p.amount,
-        date: p.date.toISOString(),
+        date: p.dueDate.toISOString(),
         status: p.status,
       })),
+      pricePerSession: sub.plan.price / (sub.plan.sessionsPerWeek * 4),
     })),
     notes: student.notes.map((n) => ({
       id: n.id,
@@ -142,7 +144,7 @@ export default async function StudentProfilePage({
       currency: p.currency.code,
       status: p.status,
       method: p.method,
-      date: p.date.toISOString(),
+      date: p.dueDate.toISOString(),
       dueDate: p.dueDate?.toISOString() ?? null,
       description: p.description,
       studentId: p.studentId,
@@ -179,13 +181,17 @@ export default async function StudentProfilePage({
             comments: s.sessionReport.comments,
           }
         : null,
-      recurringPatternId: s.recurringPatternId,
     })),
   };
 
   const plans = await db.plan.findMany({
     where: {
       academyId: currentUser.academyId,
+    },
+    include: {
+      currency: {
+        select: { code: true },
+      },
     },
   });
 
@@ -214,7 +220,7 @@ export default async function StudentProfilePage({
   return (
     <StudentProfileClient
       tutors={tutors.map((t) => ({ id: t.id, name: t.user.name }))}
-      plans={plans}
+      plans={plans.map((p) => ({ ...p, currency: p.currency.code }))}
       defaultCurrency={academy.defaultCurrency!}
       student={transformed}
       currencyRates={rateMap}

@@ -30,7 +30,12 @@ export default async function DashboardPage() {
     where: { id: academyId },
     include: { defaultCurrency: true },
   });
-  if (!academy || !academy.defaultCurrency) {
+
+  if (!academy) {
+    redirect("/login");
+  }
+
+  if (!academy.defaultCurrency) {
     throw new Error("Academy default currency not set");
   }
   const defaultCurrencyId = academy.defaultCurrencyId!;
@@ -160,7 +165,7 @@ export default async function DashboardPage() {
   const revenuesThisMonth = await db.revenue.findMany({
     where: {
       student: { academyId },
-      date: { gte: startOfMonth.toDate(), lte: endOfMonth.toDate() },
+      createdAt: { gte: startOfMonth.toDate(), lte: endOfMonth.toDate() },
       status: PaymentStatus.PAID,
     },
     select: { amount: true, currencyId: true },
@@ -173,7 +178,10 @@ export default async function DashboardPage() {
   const revenuesPrevMonth = await db.revenue.findMany({
     where: {
       student: { academyId },
-      date: { gte: startOfLastMonth.toDate(), lte: endOfLastMonth.toDate() },
+      createdAt: {
+        gte: startOfLastMonth.toDate(),
+        lte: endOfLastMonth.toDate(),
+      },
       status: PaymentStatus.PAID,
     },
     select: { amount: true, currencyId: true },

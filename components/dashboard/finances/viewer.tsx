@@ -28,6 +28,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import ExpenseFormDialog from "./expenseFormDialog";
+import RevenueFormDialog from "./revenueFormDialog";
 
 interface FinancesClientProps {
   initialPayments: PaymentRecord[];
@@ -48,17 +50,15 @@ interface FinancesClientProps {
 type PeriodType = "all" | "year" | "month";
 
 export default function FinancesClient({
-  initialPayments,
-  initialExpenses,
   academyId,
-  students,
-  tutors,
+  defaultCurrency,
   plans,
   currencies,
-  defaultCurrency,
+  students,
+  tutors,
 }: FinancesClientProps) {
-  const [payments, setPayments] = useState(initialPayments);
-  const [expenses, setExpenses] = useState(initialExpenses);
+  const [showAddRevenue, setShowAddRevenue] = useState(false);
+  const [showAddExpense, setShowAddExpense] = useState(false);
 
   // Period filter state
   const [periodType, setPeriodType] = useState<PeriodType>("all");
@@ -69,22 +69,6 @@ export default function FinancesClient({
     new Date().getMonth() + 1,
   );
 
-  // Helper: check if a date string (YYYY-MM-DD) falls within the selected period
-  const isInPeriod = (dateStr: string): boolean => {
-    const year = parseInt(dateStr.slice(0, 4));
-    const month = parseInt(dateStr.slice(5, 7));
-    if (periodType === "all") return true;
-    if (periodType === "year") return year === selectedYear;
-    if (periodType === "month")
-      return year === selectedYear && month === selectedMonth;
-    return false;
-  };
-
-  const filteredPayments = payments.filter((p) => isInPeriod(p.date));
-
-  const filteredExpenses = expenses.filter((e) => isInPeriod(e.date));
-
-  // Year options (last 5 years + current + next)
   const yearOptions = useMemo(() => {
     const currentYear = new Date().getFullYear();
     return Array.from({ length: 7 }, (_, i) => currentYear - 3 + i);
@@ -114,7 +98,6 @@ export default function FinancesClient({
         </p>
       </div>
 
-      {/* Period Filter */}
       <div className="flex flex-wrap items-center gap-4 p-4 rounded-xl border border-border bg-card">
         <div className="flex items-center gap-2">
           <Calendar className="h-5 w-5 text-muted-foreground" />
@@ -198,8 +181,8 @@ export default function FinancesClient({
         )}
       </div>
 
-      <Tabs defaultValue="dashboard" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4 max-w-xl">
+      <Tabs defaultValue="dashboard" dir="rtl" className="space-y-4">
+        <TabsList className="grid grid-cols-4 w-full max-w-xl">
           <TabsTrigger value="dashboard" className="gap-2 text-xs sm:text-sm">
             <LayoutDashboard className="h-4 w-4 hidden sm:block" /> لوحة التحكم
           </TabsTrigger>
@@ -216,39 +199,69 @@ export default function FinancesClient({
 
         <TabsContent value="dashboard">
           <FinancialDashboard
+            academyId={academyId}
             defaultCurrency={defaultCurrency}
-            payments={filteredPayments}
-            expenses={filteredExpenses}
+            period={periodType}
+            year={selectedYear}
+            month={selectedMonth}
+            onAddRevenue={() => setShowAddRevenue(true)}
+            onAddExpense={() => setShowAddExpense(true)}
           />
         </TabsContent>
 
         <TabsContent value="revenues">
           <RevenuesTab
-            defaultCurrency={defaultCurrency}
-            payments={filteredPayments}
-            setPayments={setPayments}
-            students={students}
-            plans={plans}
             academyId={academyId}
-            currencies={currencies}
+            defaultCurrency={defaultCurrency}
+            period={periodType}
+            year={selectedYear}
+            month={selectedMonth}
+            students={students}
           />
         </TabsContent>
 
         <TabsContent value="expenses">
           <ExpensesTab
-            defaultCurrency={defaultCurrency}
-            expenses={filteredExpenses}
-            setExpenses={setExpenses}
-            tutors={tutors}
             academyId={academyId}
-            currencies={currencies}
+            defaultCurrency={defaultCurrency}
+            period={periodType}
+            year={selectedYear}
+            month={selectedMonth}
+            tutors={tutors}
           />
         </TabsContent>
 
         <TabsContent value="salaries">
-          <SalariesTab academyId={academyId} />
+          <SalariesTab
+            defaultCurrency={defaultCurrency}
+            tutors={tutors}
+            academyId={academyId}
+          />
         </TabsContent>
       </Tabs>
+      {showAddRevenue && (
+        <RevenueFormDialog
+          open={showAddRevenue}
+          onOpenChange={setShowAddRevenue}
+          editingPayment={null}
+          students={students}
+          plans={plans}
+          currencies={currencies}
+          academyId={academyId}
+        />
+      )}
+
+      {/* Add Expense Dialog */}
+      {showAddExpense && (
+        <ExpenseFormDialog
+          open={showAddExpense}
+          onOpenChange={setShowAddExpense}
+          editingExpense={null}
+          tutors={tutors}
+          currencies={currencies}
+          academyId={academyId}
+        />
+      )}
     </div>
   );
 }

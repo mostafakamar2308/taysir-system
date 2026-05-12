@@ -1,6 +1,6 @@
 import { utcToLocalTime } from "@/lib/dates";
 import { sessionStatusColors } from "@/const/sessions";
-import { RefreshCw, CheckCircle2, StickyNote } from "lucide-react";
+import { CheckCircle2, StickyNote } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -40,9 +40,7 @@ export function SessionCard({
           {utcToLocalTime(new Date(session.startTime))}
           {" – "}
           {utcToLocalTime(new Date(session.endTime))}
-          {session.recurringPatternId && (
-            <RefreshCw className="h-2.5 w-2.5 inline-block" />
-          )}
+
           {hasNotes && (
             <TooltipProvider>
               <Tooltip>

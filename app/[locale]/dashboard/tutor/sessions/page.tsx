@@ -20,13 +20,25 @@ export default async function TutorSessionsPage({
   }>;
 }) {
   const currentUser = await user();
-  if (!currentUser || !currentUser.academyId || currentUser.role !== Role.Tutor || !currentUser.tutorId) {
+  if (
+    !currentUser ||
+    !currentUser.academyId ||
+    currentUser.role !== Role.Tutor ||
+    !currentUser.tutorId
+  ) {
     redirect("/login");
   }
   const tutorId = currentUser.tutorId;
   const academyId = currentUser.academyId;
 
-  const { view = "calendar", week, filter, sessionId, studentId, status } = await searchParams;
+  const {
+    view = "calendar",
+    week,
+    filter,
+    sessionId,
+    studentId,
+    status,
+  } = await searchParams;
 
   const where: {
     tutorId: number;
@@ -84,28 +96,27 @@ export default async function TutorSessionsPage({
     tutorId: s.tutorId,
     tutorName: currentUser.name,
     isTrial: s.isTrial,
-    recurringPatternId: s.recurringPatternId,
     studentId: s.studentId,
     studentName: s.student.name,
     studentPhone: s.student.phone,
     attendance: s.attendance
       ? {
-        id: s.attendance.id,
-        tutorAttendance: s.attendance.tutorAttendanceStatus,
-        studentAttendance: s.attendance.studentAttendanceStatus,
-        reason: s.attendance.reason,
-      }
+          id: s.attendance.id,
+          tutorAttendance: s.attendance.tutorAttendanceStatus,
+          studentAttendance: s.attendance.studentAttendanceStatus,
+          reason: s.attendance.reason,
+        }
       : undefined,
     report: s.sessionReport
       ? {
-        id: s.sessionReport.id,
-        rating: s.sessionReport.rating,
-        outcomes: s.sessionReport.outcomes,
-        strengths: s.sessionReport.strengths,
-        weaknesses: s.sessionReport.weaknesses,
-        nextGoals: s.sessionReport.nextGoals,
-        comments: s.sessionReport.comments,
-      }
+          id: s.sessionReport.id,
+          rating: s.sessionReport.rating,
+          outcomes: s.sessionReport.outcomes,
+          strengths: s.sessionReport.strengths,
+          weaknesses: s.sessionReport.weaknesses,
+          nextGoals: s.sessionReport.nextGoals,
+          comments: s.sessionReport.comments,
+        }
       : undefined,
   }));
 
@@ -114,7 +125,11 @@ export default async function TutorSessionsPage({
       sessions={transformedSessions}
       students={tutorStudents}
       view={view}
-      currentWeekStart={week ? dayjs(week).startOf("week").toISOString() : dayjs().startOf("week").toISOString()}
+      currentWeekStart={
+        week
+          ? dayjs(week).startOf("week").toISOString()
+          : dayjs().startOf("week").toISOString()
+      }
       filter={filter}
       sessionIdParam={sessionId ? parseInt(sessionId) : null}
       tutorId={tutorId}

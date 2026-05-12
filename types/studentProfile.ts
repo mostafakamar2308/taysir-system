@@ -6,7 +6,7 @@ export interface Plan {
   sessionsPerWeek: number;
   price: number;
   billingPeriod: number;
-  currency?: string;
+  currency: string;
 }
 
 export interface Availability {
@@ -40,7 +40,6 @@ export interface SessionRecord {
     status: number; // AttendanceStatus enum int
     reason: string | null;
   };
-  recurringPatternId: number | null;
   report: Report;
 }
 
@@ -67,6 +66,7 @@ export interface StudentProfile {
   country: string | null;
   timezone: string;
   status: StudentStatus;
+  sessionsBalance: number;
   source: string | null;
   currentProgram: string | null;
   emergencyContactName: string | null;
@@ -105,6 +105,7 @@ export type Subscription = {
   startDate: string;
   endDate: string | null;
   status: number;
+  pricePerSession: number;
   payments: {
     id: number;
     amount: number;
