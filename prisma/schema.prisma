@@ -106,6 +106,7 @@ model Academy {
   revenues             Revenue[]
   academyCurrencyRates AcademyCurrencyRate[]
   whatsAppMessages     WhatsAppMessage[]
+  subscriptions        Subscription[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -284,6 +285,8 @@ model Plan {
 
 model Subscription {
   id        Int       @id @default(autoincrement())
+  academyId Int
+  academy   Academy   @relation(fields: [academyId], references: [id])
   studentId Int
   student   Student   @relation("StudentSubscriptions", fields: [studentId], references: [id])
   planId    Int

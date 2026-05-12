@@ -126,6 +126,9 @@ export async function getDashboardAlerts(
   const latestSubs = await db.subscription.groupBy({
     by: ["studentId"],
     _max: { startDate: true },
+    where: {
+      academyId,
+    },
   });
   const studentIds = latestSubs.map((s) => s.studentId);
   let upcoming = 0;
@@ -137,6 +140,7 @@ export async function getDashboardAlerts(
         studentId: { in: studentIds },
         status: SubscriptionStatus.active,
         startDate: { in: maxStarts },
+        academyId,
       },
       select: { endDate: true },
     });
@@ -232,7 +236,7 @@ export async function getDashboardKPIs(
   );
 
   const activeSubscriptions = await db.subscription.count({
-    where: { status: SubscriptionStatus.active },
+    where: { status: SubscriptionStatus.active, academyId },
   });
 
   // LTV – all time average per student with any PAID revenue
@@ -371,9 +375,7 @@ export async function getSubscriptionRetention(
 ): Promise<RetentionData> {
   const firstSubs = await db.subscription.findMany({
     where: {
-      student: {
-        academyId,
-      },
+      academyId,
     },
     select: { studentId: true, startDate: true, status: true },
     orderBy: { startDate: "asc" },
@@ -892,6 +894,7 @@ export async function createRevenueForSubscription(subscriptionId: number) {
       data: {
         studentId: sub.studentId,
         planId: sub.planId,
+        academyId: sub.student.academyId,
         startDate: new Date(),
         endDate: dayjs().add(billingDays, "day").toDate(),
         status: SubscriptionStatus.active,
@@ -961,6 +964,7 @@ export async function updateRevenue(
         id: true,
         status: true,
         studentId: true,
+        academyId: true,
         planId: true,
         plan: {
           select: {
@@ -982,6 +986,7 @@ export async function updateRevenue(
         db.subscription.create({
           data: {
             studentId: sub.studentId,
+            academyId: sub.academyId,
             planId: sub.planId,
             startDate: new Date(),
             endDate: dayjs().add(billingDays, "day").toDate(),

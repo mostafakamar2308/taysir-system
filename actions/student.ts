@@ -254,6 +254,7 @@ export async function changeStudentStatusWithSubscription(
       data: {
         studentId,
         planId: subscriptionData.planId,
+        academyId: student.academyId,
         startDate: subscriptionData.startDate,
         endDate: dayjs(subscriptionData.startDate).add(1, "month").toDate(),
         status: dayjs(subscriptionData.startDate).isAfter(dayjs())
@@ -470,6 +471,7 @@ export async function changePlan(studentId: number, newPlanId: number) {
   const newSubscription = await db.subscription.create({
     data: {
       studentId,
+      academyId: student.academyId,
       planId: newPlanId,
       startDate: new Date(),
       endDate: dayjs().add(1, "month").toDate(),
@@ -710,6 +712,7 @@ export async function renewSubscription(studentId: number, paid?: boolean) {
     const sub = await tx.subscription.create({
       data: {
         studentId: student.id,
+        academyId: student.academyId,
         planId: student.planId!,
         startDate: dayjs.utc().startOf("day").toDate(),
         endDate: dayjs.utc().endOf("day").add(1, "month").toDate(),
