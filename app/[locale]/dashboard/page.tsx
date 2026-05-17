@@ -60,6 +60,7 @@ export default async function DashboardPage() {
     return amount * rate;
   };
 
+  const costCenters = await db.costCenter.findMany();
   const [
     totalStudents,
     totalStudentsPrev,
@@ -508,6 +509,7 @@ export default async function DashboardPage() {
 
   return (
     <DashboardClient
+      costCenters={costCenters}
       stats={stats}
       atRiskStudents={atRiskStudents}
       attendanceSheet={todaySessions.map((s) => ({

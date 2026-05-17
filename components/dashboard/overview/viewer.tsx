@@ -27,6 +27,7 @@ interface DashboardClientProps {
   students: { id: number; name: string | null }[];
   tutors: { id: number; name: string | null }[];
   plans: { id: number; title: string }[];
+  costCenters: { id: number; title: string }[];
   currencies: { id: number; name: string }[];
   specialities: { id: number; title: string }[];
   defaultCurrency: {
@@ -231,6 +232,7 @@ export default function DashboardClient(props: DashboardClientProps) {
           </AddSessionDialog>
           <AddExpenseDialog
             academyId={props.academyId}
+            costCenters={props.costCenters}
             currencies={props.currencies}
             tutors={props.tutors}
           >
@@ -317,7 +319,7 @@ export default function DashboardClient(props: DashboardClientProps) {
           <Card>
             <CardHeader>
               <CardTitle className="text-sm">
-                تحويل Lead → Trial (آخر 30 يوم)
+                تحويل العملاء المحتملين إلي حصص تجريبية (آخر 30 يوم)
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -346,7 +348,7 @@ export default function DashboardClient(props: DashboardClientProps) {
           <Card>
             <CardHeader>
               <CardTitle className="text-sm">
-                تحويل Trial → مشترك (آخر 30 يوم)
+                تحويل الحصص التجريبية إلي اشتراكات (آخر 30 يوم)
               </CardTitle>
             </CardHeader>
             <CardContent>

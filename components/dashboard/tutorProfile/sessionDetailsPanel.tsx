@@ -35,6 +35,7 @@ import {
 } from "@/const/sessions";
 import { TutorSession } from "@/types/tutor";
 import { Role } from "@/types/user";
+import dayjs from "dayjs";
 
 interface SessionDetailPanelProps {
   session: TutorSession;
@@ -79,7 +80,9 @@ export default function SessionDetailPanel({
       await updateSession({
         id: session.id,
         date: formData.date,
-        startTime: formData.startTime,
+        startTime: dayjs(
+          `${formData.date}T${formData.startTime}`,
+        ).toISOString(),
         duration: formData.duration,
         topic: formData.topic,
       });

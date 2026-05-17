@@ -52,7 +52,8 @@ interface ExpensesTabProps {
   period: "all" | "year" | "month";
   year: number;
   month: number;
-  tutors: { id: number; name: string }[]; // not strictly needed for expenses but might be used later
+  costCenters: { id: number; title: string }[];
+  tutors: { id: number; name: string }[];
 }
 
 // Edit Expense Dialog
@@ -60,12 +61,14 @@ function EditExpenseDialog({
   open,
   onOpenChange,
   expense,
+  costCenters,
   onSuccess,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   expense: ExpenseHistoryItem;
   onSuccess: () => void;
+  costCenters: { id: number; title: string }[];
 }) {
   const [amount, setAmount] = useState(expense.amount.toString());
   const [status, setStatus] = useState(expense.status.toString());
@@ -97,7 +100,8 @@ function EditExpenseDialog({
         method: parseInt(method),
         date,
         description,
-        costCenter: costCenter || undefined,
+        costCenterId:
+          costCenters.find((c) => c.title === costCenter)?.id || undefined,
         notes: notes || undefined,
       });
       toast.success("تم تحديث المصروف بنجاح");
@@ -208,9 +212,12 @@ export default function ExpensesTab({
   period,
   year,
   month,
+  costCenters,
 }: ExpensesTabProps) {
   // Optional cost center filter
-  const [costCenterFilter, setCostCenterFilter] = useState<string>("all");
+  const [costCenterFilter, setCostCenterFilter] = useState<"all" | number>(
+    "all",
+  );
 
   const [kpis, setKpis] = useState<ExpensesKPIs | null>(null);
   const [pendingExpenses, setPendingExpenses] = useState<PendingExpense[]>([]);
@@ -261,31 +268,36 @@ export default function ExpensesTab({
     fetchData();
   };
 
-  // Unique cost centers from KPIs for filter dropdown
-  const costCenters =
-    kpis?.expensesPerCostCenter.map((cc) => cc.costCenter) || [];
-
   return (
     <div className="space-y-6">
       {/* Cost Center Filter */}
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap gap-4 items-end">
         <div className="space-y-1">
           <label className="text-sm font-medium">مركز التكلفة</label>
-          <Select value={costCenterFilter} onValueChange={setCostCenterFilter}>
+          <Select
+            value={costCenterFilter.toString()}
+            onValueChange={(val) =>
+              setCostCenterFilter(val === "all" ? val : Number(val))
+            }
+          >
             <SelectTrigger className="w-48">
               <SelectValue placeholder="كل المراكز" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">كل المراكز</SelectItem>
               {costCenters.map((cc) => (
-                <SelectItem key={cc} value={cc}>
-                  {cc}
+                <SelectItem key={cc.id} value={cc.id.toString()}>
+                  {cc.title}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
-        <Button variant="outline" onClick={() => setCostCenterFilter("all")}>
+        <Button
+          variant="outline"
+          className="block"
+          onClick={() => setCostCenterFilter("all")}
+        >
           إعادة تعيين
         </Button>
       </div>
@@ -507,6 +519,7 @@ export default function ExpensesTab({
           onOpenChange={(open) => {
             if (!open) setEditExpense(null);
           }}
+          costCenters={costCenters}
           expense={editExpense}
           onSuccess={handleEditSuccess}
         />

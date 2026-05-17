@@ -36,6 +36,7 @@ export async function createTutor(formData: FormData) {
   const specialities = specialitiesStr
     ? specialitiesStr.split(",").map(Number)
     : [];
+  console.log({ specialities });
 
   const rawData = {
     name: formData.get("name"),

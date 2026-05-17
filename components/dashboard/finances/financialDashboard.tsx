@@ -12,6 +12,8 @@ import {
   TimeSeriesItem,
   PlanEfficiency,
   RetentionData,
+  getQuarterlyKPIs,
+  QuarterlyKPIs,
 } from "@/actions/finances";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -34,6 +36,7 @@ import {
 } from "recharts";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/finances";
+import dayjs from "dayjs";
 
 interface FinancialDashboardProps {
   academyId: number;
@@ -51,12 +54,14 @@ function KpiCard({
   value,
   variant,
   symbol,
+  subtitle,
   isCurrency = true,
 }: {
   title: string;
   value: number | string;
   variant?: "success" | "danger" | "warning" | "info";
   symbol?: string;
+  subtitle?: string;
   isCurrency?: boolean;
 }) {
   const colorMap = {
@@ -79,11 +84,10 @@ function KpiCard({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div
-          className={`text-2xl font-bold ${variant ? colorMap[variant] : ""}`}
-        >
+        <p className={`text-2xl font-bold ${variant ? colorMap[variant] : ""}`}>
           {displayValue}
-        </div>
+          <span className="text-[10px]">{subtitle}</span>
+        </p>
       </CardContent>
     </Card>
   );
@@ -197,6 +201,13 @@ function PlanEfficiencyTable({ data }: { data: PlanEfficiency[] }) {
   );
 }
 
+function getCurrentQuarter(): { year: number; quarter: 1 | 2 | 3 | 4 } {
+  const now = dayjs();
+  const year = now.year();
+  const quarter = Math.ceil((now.month() + 1) / 3) as 1 | 2 | 3 | 4;
+  return { year, quarter };
+}
+
 // ---------- Main Dashboard Component ----------
 export default function FinancialDashboard({
   academyId,
@@ -214,22 +225,38 @@ export default function FinancialDashboard({
     matrix: {},
     cohortSizes: {},
   });
+  const [quarterKpiData, setQuarterKpiData] = useState<QuarterlyKPIs | null>(
+    null,
+  );
   const [planEff, setPlanEff] = useState<PlanEfficiency[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const currentQuarter = getCurrentQuarter();
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [alertsData, kpisData, timeData, retentionData, planData] =
-        await Promise.all([
-          getDashboardAlerts(academyId, period, year, month),
-          getDashboardKPIs(academyId, period, year, month),
-          getRevenueExpensesOverTime(academyId, period, year, month),
-          getSubscriptionRetention(academyId),
-          getPlanEfficiency(academyId, period, year, month),
-        ]);
+      const [
+        alertsData,
+        kpisData,
+        quarterlyKpiData,
+        timeData,
+        retentionData,
+        planData,
+      ] = await Promise.all([
+        getDashboardAlerts(academyId, period, year, month),
+        getDashboardKPIs(academyId, period, year, month),
+        getQuarterlyKPIs(
+          academyId,
+          currentQuarter.year,
+          currentQuarter.quarter,
+        ),
+        getRevenueExpensesOverTime(academyId, period, year, month),
+        getSubscriptionRetention(academyId),
+        getPlanEfficiency(academyId, period, year, month),
+      ]);
       setAlerts(alertsData);
       setKpis(kpisData);
+      setQuarterKpiData(quarterlyKpiData);
       setChartData(timeData);
       setRetention(retentionData);
       setPlanEff(planData);
@@ -238,7 +265,14 @@ export default function FinancialDashboard({
     } finally {
       setLoading(false);
     }
-  }, [academyId, month, period, year]);
+  }, [
+    academyId,
+    month,
+    period,
+    currentQuarter.year,
+    currentQuarter.quarter,
+    year,
+  ]);
 
   useEffect(() => {
     fetchData();
@@ -290,20 +324,18 @@ export default function FinancialDashboard({
         </div>
       ) : null}
 
-      {/* Quick Actions */}
-      <Card className="flex gap-3">
-        <CardContent className="p-2 flex gap-2">
-          <Button onClick={onAddRevenue} variant="default" size="sm">
-            <PlusCircle className="ml-2 h-4 w-4" /> إضافة إيراد
-          </Button>
-          <Button onClick={onAddExpense} variant="outline" size="sm">
-            <PlusCircle className="ml-2 h-4 w-4" /> إضافة مصروف
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Main KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="space-y-4">
+        <div className="flex justify-between flex-wrap">
+          <h2 className="text-2xl font-semibold">المؤشرات المالية</h2>
+          <div className="space-x-2">
+            <Button onClick={onAddRevenue} variant="default" size="sm">
+              <PlusCircle className="ml-2 h-4 w-4" /> إضافة إيراد
+            </Button>
+            <Button onClick={onAddExpense} variant="destructive" size="sm">
+              <PlusCircle className="ml-2 h-4 w-4" /> إضافة مصروف
+            </Button>
+          </div>
+        </div>
         {loading
           ? Array.from({ length: 7 }).map((_, i) => (
               <Card key={i}>
@@ -316,7 +348,7 @@ export default function FinancialDashboard({
               </Card>
             ))
           : kpis && (
-              <>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 <KpiCard
                   title="إجمالي الإيرادات"
                   value={kpis.totalRevenue}
@@ -346,19 +378,17 @@ export default function FinancialDashboard({
                   value={kpis.activeSubscriptionCount}
                   isCurrency={false}
                 />
-                <KpiCard
-                  title="القيمة الدائمة (LTV)"
-                  value={kpis.ltv}
-                  symbol={defaultCurrency.symbol}
-                />
-                <KpiCard
-                  title="متوسط العائد لكل طالب مشترك"
-                  value={kpis.arps}
-                  symbol={defaultCurrency.symbol}
-                />
-              </>
+              </div>
             )}
       </div>
+
+      <QuarterlyKPIsSection
+        loading={loading}
+        quarterlyKPIs={quarterKpiData}
+        defaultCurrency={defaultCurrency}
+        year={year}
+        quarter={currentQuarter.quarter}
+      />
 
       {/* Revenue & Expenses Over Time Chart */}
       <Card>
@@ -440,6 +470,84 @@ export default function FinancialDashboard({
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+interface QuarterlyKPIsProps {
+  loading: boolean;
+  quarterlyKPIs: {
+    ltgp: number;
+    arppu: number;
+    cac: number;
+    churnRate: number;
+  } | null;
+  defaultCurrency: { symbol: string };
+  year: number;
+  quarter: 1 | 2 | 3 | 4;
+}
+
+export function QuarterlyKPIsSection({
+  loading,
+  quarterlyKPIs,
+  defaultCurrency,
+  year,
+  quarter,
+}: QuarterlyKPIsProps) {
+  const quarterTitle = `الربع ${quarter} من سنة ${year}`;
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-xl font-semibold">
+        المؤشرات الربع سنوية - {quarterTitle}
+      </h2>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {loading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i}>
+              <CardHeader className="pb-2">
+                <Skeleton className="h-4 w-24" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-8 w-20" />
+              </CardContent>
+            </Card>
+          ))
+        ) : quarterlyKPIs ? (
+          <>
+            <KpiCard
+              title="LTGP (إجمالي الربح مدى الحياة)"
+              value={quarterlyKPIs.ltgp}
+              variant="success"
+              symbol={defaultCurrency.symbol}
+            />
+            <KpiCard
+              title="ARPPU (متوسط الإيراد لكل مستخدم دافع)"
+              value={quarterlyKPIs.arppu}
+              variant="info"
+              symbol={defaultCurrency.symbol}
+              subtitle="شهرياً"
+            />
+            <KpiCard
+              title="CAC (تكلفة اكتساب العميل)"
+              value={quarterlyKPIs.cac}
+              variant="warning"
+              symbol={defaultCurrency.symbol}
+              subtitle="إجمالي الربع"
+            />
+            <KpiCard
+              title="معدل التراجع الشهري"
+              value={quarterlyKPIs.churnRate}
+              isCurrency={false}
+              variant="danger"
+            />
+          </>
+        ) : (
+          <div className="col-span-4 text-center text-muted-foreground">
+            لا توجد بيانات للربع المحدد
+          </div>
+        )}
+      </div>
     </div>
   );
 }

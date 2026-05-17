@@ -45,6 +45,7 @@ interface FinancesClientProps {
     symbol: string;
   }[];
   defaultCurrency: { code: string; symbol: string; name: string };
+  costCenters: { id: number; title: string }[];
 }
 
 type PeriodType = "all" | "year" | "month";
@@ -55,6 +56,7 @@ export default function FinancesClient({
   plans,
   currencies,
   students,
+  costCenters,
   tutors,
 }: FinancesClientProps) {
   const [showAddRevenue, setShowAddRevenue] = useState(false);
@@ -223,6 +225,7 @@ export default function FinancesClient({
         <TabsContent value="expenses">
           <ExpensesTab
             academyId={academyId}
+            costCenters={costCenters}
             defaultCurrency={defaultCurrency}
             period={periodType}
             year={selectedYear}
@@ -256,6 +259,7 @@ export default function FinancesClient({
         <ExpenseFormDialog
           open={showAddExpense}
           onOpenChange={setShowAddExpense}
+          costCenters={costCenters}
           editingExpense={null}
           tutors={tutors}
           currencies={currencies}

@@ -53,7 +53,11 @@ export default async function FinancesPage() {
   // Fetch all expenses for this academy
   const expenses = await db.expense.findMany({
     where: { academyId },
-    include: { tutor: { include: { user: true } }, currency: true },
+    include: {
+      tutor: { include: { user: true } },
+      currency: true,
+      costCenter: true,
+    },
     orderBy: { date: "desc" },
   });
 
@@ -83,7 +87,7 @@ export default async function FinancesPage() {
     id: e.id,
     date: e.date.toISOString().split("T")[0],
     description: e.description,
-    costCenter: e.costCenter,
+    costCenter: e.costCenter?.title || "غير محدد",
     amount: e.amount,
     amountInDefault: convertToDefault(e.amount, e.currencyId),
     currency: e.currency.name,
@@ -119,6 +123,8 @@ export default async function FinancesPage() {
     name: t.user.name ?? "",
   }));
 
+  const costCenters = await db.costCenter.findMany();
+
   return (
     <FinancesClient
       initialPayments={transformedPayments}
@@ -128,6 +134,7 @@ export default async function FinancesPage() {
       tutors={tutorOptions}
       plans={plans}
       currencies={currencies}
+      costCenters={costCenters}
       defaultCurrency={{
         code: defaultCurrency.code,
         symbol: defaultCurrency.symbol,

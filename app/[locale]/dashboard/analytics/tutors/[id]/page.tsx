@@ -54,7 +54,7 @@ export default async function TutorAnalyticsPage({
 
   // Total salary expenses for this tutor (from Expense model)
   const salaryTotal = await db.expense.aggregate({
-    where: { tutorId, costCenter: "رواتب" },
+    where: { tutorId },
     _sum: { amount: true },
   });
 

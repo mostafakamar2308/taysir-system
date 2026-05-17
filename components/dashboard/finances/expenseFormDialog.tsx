@@ -34,7 +34,7 @@ interface ExpenseFormDialogProps {
     id: number;
     date: string;
     description: string;
-    costCenter: string | null;
+    costCenterId: number | null;
     amount: number;
     currencyId: number;
     method: PaymentMethod | null;
@@ -46,6 +46,7 @@ interface ExpenseFormDialogProps {
   } | null;
   tutors: { id: number; name: string }[];
   currencies: { id: number; code: string; name: string; symbol: string }[];
+  costCenters: { id: number; title: string }[];
   academyId: number;
 }
 
@@ -55,6 +56,7 @@ export default function ExpenseFormDialog({
   editingExpense,
   tutors,
   currencies,
+  costCenters,
   academyId,
 }: ExpenseFormDialogProps) {
   const router = useRouter();
@@ -63,7 +65,7 @@ export default function ExpenseFormDialog({
   const [formData, setFormData] = useState({
     date: dayjs().format("YYYY-MM-DD"),
     description: "",
-    costCenter: "",
+    costCenterId: null as number | null,
     amount: "",
     currencyId: currencies[0]?.id.toString() || "",
     method: "",
@@ -80,7 +82,7 @@ export default function ExpenseFormDialog({
       setFormData({
         date: editingExpense.date,
         description: editingExpense.description,
-        costCenter: editingExpense.costCenter || "",
+        costCenterId: editingExpense.costCenterId || null,
         amount: editingExpense.amount.toString(),
         currencyId: editingExpense.currencyId.toString(),
         method: editingExpense.method?.toString() || "",
@@ -95,7 +97,7 @@ export default function ExpenseFormDialog({
       setFormData({
         date: dayjs().format("YYYY-MM-DD"),
         description: "",
-        costCenter: "",
+        costCenterId: null,
         amount: "",
         currencyId: currencies[0]?.id.toString() || "",
         method: "",
@@ -128,7 +130,7 @@ export default function ExpenseFormDialog({
         currencyId: parseInt(formData.currencyId),
         status: formData.paid ? PaymentStatus.PAID : PaymentStatus.PENDING,
         method: formData.method ? parseInt(formData.method) : undefined,
-        costCenter: formData.costCenter || undefined,
+        costCenterId: formData.costCenterId || undefined,
         invoiceUrl: formData.invoiceUrl || undefined,
         notes: formData.notes || undefined,
         tutorId:
@@ -190,12 +192,22 @@ export default function ExpenseFormDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>مركز التكلفة</Label>
-              <Input
-                value={formData.costCenter}
-                onChange={(e) => handleChange("costCenter", e.target.value)}
-                placeholder="مثال: رواتب, إيجار, تسويق"
-              />
+              <Label>نوع المصروف</Label>
+              <Select
+                name="costCenterId"
+                defaultValue={costCenters[0].id.toString()}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="اختر" />
+                </SelectTrigger>
+                <SelectContent>
+                  {costCenters.map((c) => (
+                    <SelectItem key={c.id} value={c.id.toString()}>
+                      {c.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>العملة *</Label>

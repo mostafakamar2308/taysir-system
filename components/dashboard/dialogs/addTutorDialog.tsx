@@ -24,6 +24,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { createTutor } from "@/actions/tutor";
 import { Plus } from "lucide-react";
+import { MultiSelect } from "@/components/ui/multi-select";
 
 interface AddTutorDialogProps {
   specialities: { id: number; title: string }[];
@@ -40,6 +41,7 @@ export default function AddTutorDialog({
 }: AddTutorDialogProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [specialitiesSelected, setSpecilitiesSelected] = useState<string[]>([]);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -47,6 +49,7 @@ export default function AddTutorDialog({
     setLoading(true);
     try {
       formData.append("academyId", academyId.toString());
+      formData.append("specialities", specialitiesSelected.join(","));
       await createTutor(formData);
       toast({ title: "تم إضافة المعلم بنجاح" });
       setOpen(false);
@@ -134,18 +137,16 @@ export default function AddTutorDialog({
 
             <div className="col-span-2">
               <Label htmlFor="specialities">التخصصات</Label>
-              <Select name="specialities">
-                <SelectTrigger>
-                  <SelectValue placeholder="اختر التخصصات" />
-                </SelectTrigger>
-                <SelectContent>
-                  {specialities.map((s) => (
-                    <SelectItem key={s.id} value={s.id.toString()}>
-                      {s.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <MultiSelect
+                options={specialities.map((s) => ({
+                  value: s.id.toString(),
+                  label: s.title,
+                }))}
+                selected={specialitiesSelected}
+                onChange={setSpecilitiesSelected}
+                placeholder="اختر تخصصات المعلم"
+                searchPlaceholder="ابحث عن تخصص"
+              />
             </div>
             <div>
               <Label htmlFor="bio">النبذة التعريفية</Label>

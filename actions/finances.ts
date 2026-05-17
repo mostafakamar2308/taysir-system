@@ -274,6 +274,188 @@ export async function getDashboardKPIs(
   };
 }
 
+export interface QuarterlyKPIs {
+  ltgp: number; // Lifetime Gross Profit
+  arppu: number; // Average Revenue Per Paying User (per month)
+  cac: number; // Total marketing expenses for the quarter
+  churnRate: number; // Average monthly churn rate (0-1)
+}
+
+export async function getQuarterlyKPIs(
+  academyId: number,
+  year: number,
+  quarter: 1 | 2 | 3 | 4,
+): Promise<QuarterlyKPIs> {
+  // 1. Define quarter boundaries
+  const startMonth = (quarter - 1) * 3 + 1; // 1,4,7,10
+  const startDate = dayjs.utc(`${year}-${startMonth}-01`).startOf("month");
+  const endDate = startDate.add(3, "months").subtract(1, "day").endOf("day");
+
+  const monthsInQuarter = [
+    startDate.clone(),
+    startDate.clone().add(1, "month"),
+    startDate.clone().add(2, "month"),
+  ];
+
+  // 2. Get currency conversion map
+  const { defaultCurrencyId, rateMap } = await getConversionMap(academyId);
+
+  // 3. Fetch all paid revenues in quarter
+  const revenues = await db.revenue.findMany({
+    where: {
+      academyId,
+      status: PaymentStatus.PAID,
+      dueDate: { gte: startDate.toDate(), lt: endDate.toDate() },
+    },
+    select: { amount: true, currencyId: true, studentId: true, dueDate: true },
+  });
+
+  // 4. Fetch all paid expenses in quarter (with costCenter)
+  const expenses = await db.expense.findMany({
+    where: {
+      academyId,
+      status: PaymentStatus.PAID,
+      date: { gte: startDate.toDate(), lt: endDate.toDate() },
+    },
+    select: {
+      amount: true,
+      currencyId: true,
+      costCenter: { select: { title: true } },
+    },
+  });
+
+  // 5. Fetch subscriptions for active student calculation (entire quarter range + margin)
+  const subscriptions = await db.subscription.findMany({
+    where: {
+      academyId,
+      startDate: { lte: endDate.toDate() },
+      OR: [{ endDate: null }, { endDate: { gte: startDate.toDate() } }],
+    },
+    select: { studentId: true, startDate: true, endDate: true },
+  });
+
+  // 6. Compute paying student-months and total revenue
+  let totalPayingStudentMonths = 0;
+  let totalRevenue = 0;
+
+  for (const rev of revenues) {
+    totalRevenue += convert(
+      rev.amount,
+      rev.currencyId,
+      defaultCurrencyId,
+      rateMap,
+    );
+  }
+
+  for (const monthStart of monthsInQuarter) {
+    const monthEnd = monthStart.endOf("month");
+    const payingStudents = new Set(
+      revenues
+        .filter((r) => {
+          const due = dayjs(r.dueDate);
+          return due.isAfter(monthStart) && due.isBefore(monthEnd);
+        })
+        .map((r) => r.studentId),
+    );
+    totalPayingStudentMonths += payingStudents.size;
+  }
+
+  // 7. Compute direct expenses (مرتبات الموظفين + اشتراكات برامج)
+  const directCostTitles = ["مرتبات الموظفين (غير المعلمين)", "إشتراكات برامج"];
+  let totalDirectExpenses = 0;
+  for (const exp of expenses) {
+    const title = exp.costCenter?.title;
+    if (title && directCostTitles.includes(title)) {
+      totalDirectExpenses += convert(
+        exp.amount,
+        exp.currencyId,
+        defaultCurrencyId,
+        rateMap,
+      );
+    }
+  }
+
+  // 8. ARPPU and direct cost per user per month
+  let arppu = 0;
+  let directCostPerUser = 0;
+  if (totalPayingStudentMonths > 0) {
+    arppu = totalRevenue / totalPayingStudentMonths;
+    directCostPerUser = totalDirectExpenses / totalPayingStudentMonths;
+  }
+  const grossProfitPerUser = arppu - directCostPerUser;
+
+  // 9. Compute monthly churn rates (average over quarter)
+  let totalMonthlyChurn = 0;
+  let validMonths = 0;
+
+  for (const monthStart of monthsInQuarter) {
+    const monthEnd = monthStart.endOf("month");
+    const startDay = monthStart.toDate();
+    const endDay = monthEnd.toDate();
+
+    // Active students at start of month
+    const activeAtStart = new Set(
+      subscriptions
+        .filter((sub) => {
+          const subStart = sub.startDate;
+          const subEnd = sub.endDate;
+          return subStart <= startDay && (subEnd === null || subEnd > startDay);
+        })
+        .map((sub) => sub.studentId),
+    );
+
+    // Active students at end of month
+    const activeAtEnd = new Set(
+      subscriptions
+        .filter((sub) => {
+          const subStart = sub.startDate;
+          const subEnd = sub.endDate;
+          return subStart <= endDay && (subEnd === null || subEnd > endDay);
+        })
+        .map((sub) => sub.studentId),
+    );
+
+    const startCount = activeAtStart.size;
+    if (startCount === 0) continue;
+
+    let churned = 0;
+    for (const student of activeAtStart) {
+      if (!activeAtEnd.has(student)) churned++;
+    }
+    totalMonthlyChurn += churned / startCount;
+    validMonths++;
+  }
+
+  const avgMonthlyChurn = validMonths > 0 ? totalMonthlyChurn / validMonths : 0;
+
+  // 10. LTGP
+  let ltgp = 0;
+  if (avgMonthlyChurn > 0 && grossProfitPerUser > 0) {
+    ltgp = (1 / avgMonthlyChurn) * grossProfitPerUser;
+  }
+
+  // 11. CAC (total marketing expenses)
+  const marketingTitles = ["الإعلانات", "تصوير المحتوى"];
+  let totalMarketing = 0;
+  for (const exp of expenses) {
+    const title = exp.costCenter?.title;
+    if (title && marketingTitles.includes(title)) {
+      totalMarketing += convert(
+        exp.amount,
+        exp.currencyId,
+        defaultCurrencyId,
+        rateMap,
+      );
+    }
+  }
+
+  return {
+    ltgp: Math.round(ltgp * 100) / 100,
+    arppu: Math.round(arppu * 100) / 100,
+    cac: Math.round(totalMarketing * 100) / 100,
+    churnRate: Math.round(avgMonthlyChurn * 10000) / 10000, // 4 decimal places
+  };
+}
 // ---------- Revenue & Expenses Over Time ----------
 export interface TimeSeriesItem {
   date: string;
@@ -1049,7 +1231,7 @@ export async function getExpensesKPIs(
   expenses.forEach((e) => {
     const conv = convert(e.amount, e.currencyId, defaultCurrencyId, rateMap);
     total += conv;
-    const cc = e.costCenter || "غير محدد";
+    const cc = e.costCenter?.title || "غير محدد";
     costCenterMap.set(cc, (costCenterMap.get(cc) || 0) + conv);
   });
 
@@ -1058,7 +1240,7 @@ export async function getExpensesKPIs(
     id: e.id,
     description: e.description,
     amount: convert(e.amount, e.currencyId, defaultCurrencyId, rateMap),
-    costCenter: e.costCenter,
+    costCenter: e.costCenter?.title || "غير محدد",
     date: dayjs(e.date).format("YYYY-MM-DD"),
   }));
 
@@ -1111,7 +1293,7 @@ export async function getPendingExpenses(
   period: "all" | "year" | "month",
   year: number,
   month: number,
-  costCenterFilter?: string,
+  costCenterFilter?: number,
 ): Promise<PendingExpense[]> {
   const dateRange = getDateRange(period, year, month);
   const { defaultCurrencyId, rateMap } = await getConversion(academyId);
@@ -1123,17 +1305,18 @@ export async function getPendingExpenses(
       gte: Date;
       lt: Date;
     };
-    costCenter?: string;
+    costCenterId?: number;
   } = { academyId, status: PaymentStatus.PENDING };
   if (dateRange) {
     where.date = { gte: dateRange.start, lt: dateRange.end };
   }
-  if (costCenterFilter) where.costCenter = costCenterFilter;
+  if (costCenterFilter) where.costCenterId = costCenterFilter;
 
   const expenses = await db.expense.findMany({
     where,
     include: {
       tutor: { include: { user: { select: { name: true, phone: true } } } },
+      costCenter: true,
     },
     orderBy: { date: "asc" },
   });
@@ -1144,7 +1327,7 @@ export async function getPendingExpenses(
     amount: e.amount,
     defaultAmount: convert(e.amount, e.currencyId, defaultCurrencyId, rateMap),
     date: dayjs(e.date).format("YYYY-MM-DD"),
-    costCenter: e.costCenter,
+    costCenter: e.costCenter?.title || "غير محدد",
     tutorName: e.tutor?.user.name ?? undefined,
     tutorPhone: e.tutor?.user.phone ?? undefined,
     method: e.method,
@@ -1174,7 +1357,7 @@ export async function getExpensesHistory(
   period: "all" | "year" | "month",
   year: number,
   month: number,
-  costCenterFilter?: string,
+  costCenterFilter?: number,
 ): Promise<ExpenseHistoryItem[]> {
   const dateRange = getDateRange(period, year, month);
   const { defaultCurrencyId, rateMap } = await getConversion(academyId);
@@ -1185,18 +1368,19 @@ export async function getExpensesHistory(
       gte: Date;
       lt: Date;
     };
-    costCenter?: string;
+    costCenterId?: number;
   } = { academyId };
   if (dateRange) {
     where.date = { gte: dateRange.start, lt: dateRange.end };
   }
-  if (costCenterFilter) where.costCenter = costCenterFilter;
+  if (costCenterFilter) where.costCenterId = costCenterFilter;
 
   const expenses = await db.expense.findMany({
     where,
     include: {
       currency: { select: { code: true } },
       tutor: { include: { user: { select: { name: true } } } },
+      costCenter: true,
     },
     orderBy: { date: "desc" },
   });
@@ -1211,7 +1395,7 @@ export async function getExpensesHistory(
     method: e.method,
     date: dayjs(e.date).format("YYYY-MM-DD"),
     description: e.description,
-    costCenter: e.costCenter,
+    costCenter: e.costCenter?.title || "غير محدد",
     tutorName: e.tutor?.user.name ?? undefined,
     tutorId: e.tutorId ?? undefined,
     notes: e.notes,
@@ -1234,7 +1418,7 @@ export async function updateExpense(
     method?: number;
     date?: string;
     description?: string;
-    costCenter?: string;
+    costCenterId?: number | null;
     notes?: string;
   },
 ) {
@@ -1447,6 +1631,11 @@ export async function payTutor(
   salaryMonth: string,
   currencyId: number,
 ) {
+  const costCenter = await db.costCenter.findFirst({
+    where: {
+      title: "مرتبات",
+    },
+  });
   await db.expense.create({
     data: {
       academyId,
@@ -1457,7 +1646,7 @@ export async function payTutor(
       method: 0,
       date: new Date(),
       description: `راتب شهر ${salaryMonth}`,
-      costCenter: "رواتب المعلمين",
+      costCenterId: costCenter?.id || null,
       salaryMonth,
     },
   });
@@ -1479,7 +1668,7 @@ export async function createExpense(data: {
   currencyId: number;
   status: number;
   method?: number;
-  costCenter?: string;
+  costCenterId?: number;
   invoiceUrl?: string;
   notes?: string;
   tutorId?: number;

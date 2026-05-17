@@ -9,7 +9,7 @@ import { z } from "zod";
 const expenseSchema = z.object({
   date: z.date(),
   description: z.string(),
-  costCenter: z.string().nullable().optional(),
+  costCenterId: z.number().nullable(),
   amount: z.number().positive(),
   currencyId: z.number(),
   method: z.number().nullable().optional(),
@@ -25,7 +25,7 @@ export async function createExpense(formData: FormData) {
   const rawData = {
     date: dayjs.utc(formData.get("date") as string).toDate(),
     description: formData.get("description") as string,
-    costCenter: (formData.get("costCenter") as string) || null,
+    costCenterId: parseInt(formData.get("costCenterId") as string) || null,
     amount: parseFloat(formData.get("amount") as string),
     currencyId: parseInt(formData.get("currencyId") as string),
     method: formData.get("method")

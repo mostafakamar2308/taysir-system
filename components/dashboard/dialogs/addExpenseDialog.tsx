@@ -31,6 +31,7 @@ interface AddExpenseDialogProps {
   academyId: number;
   tutors: { id: number; name: string | null }[];
   currencies: { id: number; name: string }[];
+  costCenters: { id: number; title: string }[];
 }
 
 export function AddExpenseDialog({
@@ -38,6 +39,7 @@ export function AddExpenseDialog({
   academyId,
   tutors,
   currencies,
+  costCenters,
 }: AddExpenseDialogProps) {
   const [open, setOpen] = useState(false);
   const [salary, setSalary] = useState(false);
@@ -151,9 +153,29 @@ export function AddExpenseDialog({
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>الوصف</Label>
-              <Input name="description" />
+            <div>
+              <div className="space-y-2">
+                <Label>الوصف</Label>
+                <Input name="description" />
+              </div>
+              <div className="space-y-2">
+                <Label>نوع المصروف</Label>
+                <Select
+                  name="costCenterId"
+                  defaultValue={costCenters[0].id.toString()}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="اختر" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {costCenters.map((c) => (
+                      <SelectItem key={c.id} value={c.id.toString()}>
+                        {c.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="space-x-2 items-center flex">
@@ -193,10 +215,6 @@ export function AddExpenseDialog({
               <div className="space-y-2">
                 <Label>رابط الفاتورة</Label>
                 <Input name="invoiceUrl" placeholder="https://..." />
-              </div>
-              <div className="space-y-2">
-                <Label>مركز المصروفات</Label>
-                <Input name="costCenter" placeholder="المرتبات" />
               </div>
             </div>
 

@@ -445,7 +445,6 @@ model Expense {
   id          Int      @id @default(autoincrement())
   date        DateTime
   description String
-  costCenter  String?
   amount      Float
   currencyId  Int
   currency    Currency @relation(fields: [currencyId], references: [id])
@@ -458,10 +457,12 @@ model Expense {
   tutor       Tutor?  @relation(fields: [tutorId], references: [id])
   salaryMonth String?
 
-  academyId  Int
-  academy    Academy @relation(fields: [academyId], references: [id])
-  recordedBy Int?
-  user       User?   @relation(fields: [recordedBy], references: [id])
+  academyId    Int
+  academy      Academy     @relation(fields: [academyId], references: [id])
+  recordedBy   Int?
+  user         User?       @relation(fields: [recordedBy], references: [id])
+  costCenterId Int?
+  costCenter   CostCenter? @relation(fields: [costCenterId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -508,4 +509,13 @@ model WhatsAppMessage {
   errorMessage String?
 
   @@index([academyId])
+}
+
+model CostCenter {
+  id    Int    @id @default(autoincrement())
+  title String
+
+  expenses Expense[]
+
+  createdAt DateTime @default(now())
 }
