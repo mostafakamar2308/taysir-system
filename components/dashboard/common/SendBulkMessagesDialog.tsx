@@ -3,15 +3,24 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, MessageSquare, AlertTriangle, ExternalLink } from "lucide-react";
+import {
+  Loader2,
+  MessageSquare,
+  AlertTriangle,
+  ExternalLink,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter,
-  DialogHeader, DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useWhatsApp } from "@/lib/contexts/whatsapp"; // استيراد الخطاف
+import { useWhatsApp } from "@/lib/contexts/whatsapp";
 
 interface SendBulkMessagesDialogProps {
   open: boolean;
@@ -20,7 +29,9 @@ interface SendBulkMessagesDialogProps {
 }
 
 const SendBulkMessagesDialog: React.FC<SendBulkMessagesDialogProps> = ({
-  open, users, setOpen,
+  open,
+  users,
+  setOpen,
 }) => {
   const [bulkMessage, setBulkMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
@@ -100,7 +111,10 @@ const SendBulkMessagesDialog: React.FC<SendBulkMessagesDialogProps> = ({
 
         {/* تنبيه إذا لم يكن واتساب متصلاً */}
         {!isConnected && (
-          <Alert variant="destructive" className="border-amber-500 bg-amber-50 text-amber-800">
+          <Alert
+            variant="destructive"
+            className="border-amber-500 bg-amber-50 text-amber-800"
+          >
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription className="flex flex-col gap-2">
               <span>يجب ربط واتساب أولاً قبل إرسال الرسائل.</span>
@@ -134,10 +148,17 @@ const SendBulkMessagesDialog: React.FC<SendBulkMessagesDialogProps> = ({
         </div>
 
         <DialogFooter className="sm:justify-between">
-          <Button variant="outline" onClick={() => setOpen(false)} disabled={isSending}>
+          <Button
+            variant="outline"
+            onClick={() => setOpen(false)}
+            disabled={isSending}
+          >
             إلغاء
           </Button>
-          <Button onClick={handleSendBulkMessage} disabled={isSending || !isConnected}>
+          <Button
+            onClick={handleSendBulkMessage}
+            disabled={isSending || !isConnected}
+          >
             {isSending ? (
               <>
                 <Loader2 className="h-4 w-4 ml-2 animate-spin" />

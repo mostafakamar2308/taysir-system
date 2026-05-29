@@ -23,20 +23,18 @@ const createTutorSchema = z.object({
   zoomUrl: z.string().optional().nullable(),
   zoomAuthenticated: z.boolean().default(false),
   currencyId: z.number(),
-  academyId: z.number(),
 });
 
 export async function createTutor(formData: FormData) {
   const token = await getTokenFromCookie();
   if (!token) throw new Error("غير مصرح");
   const payload = verifyToken(token);
-  if (!payload) throw new Error("غير مصرح");
+  if (!payload || !payload.academyId) throw new Error("غير مصرح");
 
   const specialitiesStr = formData.get("specialities") as string;
   const specialities = specialitiesStr
     ? specialitiesStr.split(",").map(Number)
     : [];
-  console.log({ specialities });
 
   const rawData = {
     name: formData.get("name"),
@@ -53,46 +51,46 @@ export async function createTutor(formData: FormData) {
     currencyId: parseInt(formData.get("currencyId") as string),
     zoomAuthenticated: formData.get("zoomAuthenticated") === "on",
     zoomUrl: formData.get("zoomUrl"),
-    academyId: parseInt(formData.get("academyId") as string),
   };
 
   const validated = createTutorSchema.parse(rawData);
 
   const academy = await db.academy.findUnique({
-    where: { id: validated.academyId },
+    where: { id: payload.academyId },
   });
-  if (!academy) {
+  if (!academy || academy.id !== payload.academyId) {
     throw new Error("Academy not found");
   }
 
   // Create user first
   const hashedPassword = await bcrypt.hash("default123", 10);
-  const user = await db.user.create({
-    data: {
-      email: validated.email,
-      password: hashedPassword,
-      phone: validated.phone,
-      name: validated.name,
-      role: Role.Tutor,
-      timezone: validated.timezone,
-    },
-  });
-
-  await db.tutor.create({
-    data: {
-      userId: user.id,
-      academyId: validated.academyId,
-      pricePerHour: validated.pricePerHour,
-      active: validated.active,
-      bio: validated.bio,
-      qualifications: validated.qualifications,
-      zoomAuthenticated: validated.zoomAuthenticated,
-      zoomUrl: validated.zoomUrl,
-      currencyId: validated.currencyId,
-      specialities: {
-        connect: validated.specialities?.map((id) => ({ id })),
+  await db.$transaction(async (tx) => {
+    const user = await tx.user.create({
+      data: {
+        email: validated.email,
+        password: hashedPassword,
+        phone: validated.phone,
+        name: validated.name,
+        role: Role.Tutor,
+        timezone: validated.timezone,
       },
-    },
+    });
+    await tx.tutor.create({
+      data: {
+        userId: user.id,
+        academyId: payload.academyId!,
+        pricePerHour: validated.pricePerHour,
+        active: validated.active,
+        bio: validated.bio,
+        qualifications: validated.qualifications,
+        zoomAuthenticated: validated.zoomAuthenticated,
+        zoomUrl: validated.zoomUrl,
+        currencyId: validated.currencyId,
+        specialities: {
+          connect: validated.specialities?.map((id) => ({ id })),
+        },
+      },
+    });
   });
 
   revalidatePath("/ar/dashboard/tutors");

@@ -5,6 +5,7 @@ import { PaymentStatus } from "@/types/payment";
 import dayjs from "@/lib/dayjs";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { user } from "@/lib/auth";
 
 const expenseSchema = z.object({
   date: z.date(),
@@ -18,10 +19,12 @@ const expenseSchema = z.object({
   notes: z.string().nullable().optional(),
   tutorId: z.number().nullable().optional(),
   salaryMonth: z.string().nullable().optional(),
-  academyId: z.number(),
 });
 
 export async function createExpense(formData: FormData) {
+  const currentUser = await user();
+  if (!currentUser) throw new Error("غير مصرح");
+
   const rawData = {
     date: dayjs.utc(formData.get("date") as string).toDate(),
     description: formData.get("description") as string,
@@ -38,12 +41,13 @@ export async function createExpense(formData: FormData) {
       ? parseInt(formData.get("tutorId") as string)
       : null,
     salaryMonth: (formData.get("salaryMonth") as string) || null,
-    academyId: parseInt(formData.get("academyId") as string),
   };
 
   const validated = expenseSchema.parse(rawData);
 
-  await db.expense.create({ data: validated });
+  await db.expense.create({
+    data: { ...validated, academyId: currentUser.academyId! },
+  });
 
   revalidatePath("/ar/dashboard/finances");
 }

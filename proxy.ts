@@ -1,64 +1,84 @@
 import createMiddleware from "next-intl/middleware";
 import { NextResponse } from "next/server";
 import { NextRequest } from "next/server";
-import { routing } from "./i18n/routing";
+import { routing } from "@/i18n/routing";
 import { verifyToken } from "@/lib/jwt";
-import { Role } from "./types/user";
+import { Role } from "@/types/user";
 
-// Create the next-intl proxy
 const intlMiddleware = createMiddleware(routing);
+
+function getPathWithoutLocale(pathname: string): string {
+  for (const locale of routing.locales) {
+    if (pathname.startsWith(`/${locale}/`)) {
+      return pathname.slice(locale.length + 1);
+    }
+    if (pathname === `/${locale}`) {
+      return "/";
+    }
+  }
+  return pathname;
+}
+
+function getLocaleFromPathname(pathname: string) {
+  for (const locale of routing.locales) {
+    if (pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`) {
+      return locale;
+    } else return routing.defaultLocale;
+  }
+}
 
 export function proxy(request: NextRequest) {
   const token = request.cookies.get("token")?.value;
   const { pathname } = request.nextUrl;
+  const locale = getLocaleFromPathname(pathname);
+  const pathWithoutLocale = getPathWithoutLocale(pathname);
 
-  // Public paths
-  if (pathname === "/login") {
+  if (pathWithoutLocale === "login") {
     if (token) {
       const payload = verifyToken(token);
-
       if (payload) {
+        let dashboardPath = "";
         if (payload.role === Role.Admin) {
-          return NextResponse.redirect(new URL("/ar/dashboard/", request.url));
+          dashboardPath = `/dashboard/`;
+        } else if (payload.role === Role.Tutor) {
+          dashboardPath = `/dashboard/tutor`;
+        } else if (payload.role === Role.SuperAdmin) {
+          dashboardPath = `/dashboard/admin/dashboard`;
         }
-        if (payload.role === Role.Tutor)
+        if (dashboardPath) {
           return NextResponse.redirect(
-            new URL("/ar/dashboard/tutor", request.url),
+            new URL(`/${locale}${dashboardPath}`, request.url),
           );
-        if (payload.role === Role.SuperAdmin)
-          return NextResponse.redirect(
-            new URL("/ar/dashboard/admin/dashboard", request.url),
-          );
+        }
       }
     }
     return intlMiddleware(request);
   }
 
-  // Protected dashboard paths
-  if (pathname.startsWith("/ar/dashboard")) {
+  if (pathWithoutLocale.startsWith("dashboard")) {
     if (!token) {
-      return NextResponse.redirect(new URL("/login", request.url));
+      return NextResponse.redirect(new URL(`/${locale}/login`, request.url));
     }
 
     const payload = verifyToken(token);
     if (!payload) {
-      return NextResponse.redirect(new URL("/login", request.url));
+      return NextResponse.redirect(new URL(`/${locale}/login`, request.url));
     }
 
     if (
-      pathname.startsWith("/ar/dashboard/admin") &&
+      pathWithoutLocale.startsWith("dashboard/admin") &&
       payload.role !== Role.SuperAdmin
     ) {
-      return NextResponse.redirect(new URL("/ar/dashboard", request.url));
+      return NextResponse.redirect(
+        new URL(`/${locale}/dashboard`, request.url),
+      );
     }
 
-    // Add user info to headers for server components
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set("x-user-id", payload.id.toString());
     requestHeaders.set("x-user-role", String(payload.role));
     requestHeaders.set("x-user-academy-id", String(payload.academyId || ""));
 
-    // Continue with intl routing
     return intlMiddleware(
       new NextRequest(request, {
         headers: requestHeaders,
@@ -66,7 +86,6 @@ export function proxy(request: NextRequest) {
     );
   }
 
-  // For all other routes, use intl middleware
   return intlMiddleware(request);
 }
 

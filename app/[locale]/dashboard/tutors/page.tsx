@@ -14,7 +14,9 @@ const TutorsPage = async () => {
       academyId: currentUser.academyId,
     },
     include: {
-      user: true,
+      user: {
+        select: { name: true, email: true, phone: true, timezone: true },
+      },
       specialities: true,
       students: { select: { id: true } },
       tutorAvailabilities: true,

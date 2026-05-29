@@ -38,7 +38,6 @@ const createStudentSchema = z.object({
   tutorId: z.number().optional().nullable(),
   currencyId: z.number(),
   planId: z.number().optional().nullable(),
-  academyId: z.number(),
 });
 
 export async function createStudent(formData: FormData) {
@@ -76,26 +75,23 @@ export async function createStudent(formData: FormData) {
       formData.get("planId") && formData.get("planId") !== "none"
         ? parseInt(formData.get("planId") as string)
         : null,
-    academyId: parseInt(formData.get("academyId") as string),
   };
 
   const validated = createStudentSchema.parse(rawData);
 
   const student = await db.student.create({
-    data: validated,
+    data: { ...validated, academyId: payload.academyId },
   });
   if (validated.status === StudentStatus.lead) {
-    await recordLeadCreatedHistory(student.id, payload.id, validated.academyId);
+    await recordLeadCreatedHistory(student.id, payload.id, payload.academyId);
   }
 
   revalidatePath("/ar/dashboard/students");
 }
 
 export async function updateStudent(id: number, formData: FormData) {
-  const token = await getTokenFromCookie();
-  if (!token) throw new Error("غير مصرح");
-  const payload = verifyToken(token);
-  if (!payload || !payload.academyId) throw new Error("غير مصرح");
+  const currentUser = await user();
+  if (!currentUser || !currentUser.academyId) throw new Error("غير مصرح");
 
   const rawData = {
     name: formData.get("name"),
@@ -128,7 +124,6 @@ export async function updateStudent(id: number, formData: FormData) {
   console.log({ rawData }, formData.get("tutorId"));
 
   const validated = createStudentSchema
-    .omit({ academyId: true })
     .extend({
       imageUrl: z.string().nullable().optional(),
       currencyId: z.number().optional(),
@@ -146,8 +141,8 @@ export async function updateStudent(id: number, formData: FormData) {
         targetType: TargetType.Student,
         targetId: id,
         action: HistoryActionType.LeadCreated,
-        recordedBy: payload.id,
-        academyId: payload.academyId,
+        recordedBy: currentUser.id,
+        academyId: currentUser.academyId,
         recorderType: Role.Admin,
       },
     });

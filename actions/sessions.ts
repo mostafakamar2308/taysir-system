@@ -12,11 +12,11 @@ import { recordStudentStatusChangeHistory } from "@/lib/history";
 import type { DashboardSession } from "@/types/session";
 import { decrementBalance, incrementBalance } from "@/lib/balance";
 import { createZoomMeeting } from "@/lib/zoom";
+import { user } from "@/lib/auth";
 
 type CreateSessionInput = {
   studentId: number;
   tutorId: number;
-  academyId: number;
   date: string;
   startTime: string;
   duration: number;
@@ -30,10 +30,18 @@ type UpdateSessionInput = Partial<CreateSessionInput> & {
 };
 
 export async function createSession(input: CreateSessionInput) {
-  const token = await getTokenFromCookie();
-  if (!token) throw new Error("غير مصرح");
-  const payload = verifyToken(token);
-  if (!payload || !payload.academyId) throw new Error("غير مصرح");
+  const currentUser = await user();
+  if (!currentUser || !currentUser.academyId) throw new Error("غير مصرح");
+
+  if (currentUser.role === Role.Tutor) {
+    const tutor = await db.tutor.findUnique({
+      where: { userId: currentUser.id },
+      select: { id: true },
+    });
+    if (input.tutorId !== tutor?.id) {
+      throw new Error("غير مصرح: يمكنك فقط إضافة حصص لنفسك");
+    }
+  }
 
   const start = dayjs.utc(input.startTime);
   const startDate = start.toDate();
@@ -78,8 +86,8 @@ export async function createSession(input: CreateSessionInput) {
       input.studentId,
       student.status,
       StudentStatus.trial,
-      payload.id,
-      payload.academyId,
+      currentUser.id,
+      currentUser.academyId,
     );
   }
 
@@ -92,7 +100,7 @@ export async function createSession(input: CreateSessionInput) {
         durationMinutes: input.duration,
         studentId: input.studentId,
         tutorId: input.tutorId,
-        academyId: payload.academyId!,
+        academyId: currentUser.academyId!,
         topic: input.topic,
         notes: input.notes,
         isTrial: input.isTrial ?? false,

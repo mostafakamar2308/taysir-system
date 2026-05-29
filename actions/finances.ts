@@ -8,8 +8,8 @@ import { StudentStatus } from "@/types/student";
 import { AttendanceStatus } from "@/types/session";
 import { addSessionsFromPayment } from "@/lib/balance";
 import { revalidatePath } from "next/cache";
-import { getTokenFromCookie, verifyToken } from "@/lib/jwt";
 import { Role } from "@/types/user";
+import { user } from "@/lib/auth";
 
 // ---------- Helpers ----------
 async function getConversionMap(academyId: number) {
@@ -1687,16 +1687,14 @@ export async function createRevenueFromDashboard(revenueData: {
   studentId: number;
   dueDate: string | null;
   recordedBy: null;
-  academyId: number;
   date: string;
   description?: string;
   invoiceUrl?: string;
   notes?: string;
 }) {
-  const token = await getTokenFromCookie();
-  if (!token) throw new Error("غير مصرح");
-  const payload = verifyToken(token);
-  if (!payload || payload.role !== Role.Admin) throw new Error("غير مصرح");
+  const currentUser = await user();
+  if (!currentUser || !currentUser.academyId || currentUser.role !== Role.Admin)
+    throw new Error("غير مصرح");
 
   const student = await db.student.findUnique({
     where: { id: revenueData.studentId },
@@ -1713,7 +1711,8 @@ export async function createRevenueFromDashboard(revenueData: {
         ...revenueData,
         currencyId: student.currencyId,
         planId: student.planId,
-        recordedBy: payload.id,
+        recordedBy: currentUser.id,
+        academyId: currentUser.academyId!,
         subscriptionId: student.currentSubscriptionId,
         dueDate: revenueData.dueDate
           ? dayjs.utc(revenueData.date).toDate()

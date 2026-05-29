@@ -6,8 +6,9 @@ import { StudentStatus } from "@/types/student";
 import { AttendanceStatus } from "@/types/session";
 import { PaymentStatus } from "@/types/payment";
 import { SubscriptionStatus } from "@/types/subscription";
-import { HistoryActionType, TargetType } from "@/types/history";
+import { HistoryActionType } from "@/types/history";
 import DashboardClient from "@/components/dashboard/overview/viewer";
+import { countActiveInPeriod } from "@/lib/history";
 
 export default async function DashboardPage() {
   const currentUser = await user();
@@ -139,30 +140,6 @@ export default async function DashboardPage() {
   const thirtyDaysAgo = now.subtract(30, "day");
   const sixtyDaysAgo = now.subtract(60, "day");
 
-  // Helper to run raw SQL for lead denominator
-  async function countLeadsActiveInPeriod(
-    start: Date,
-    end: Date,
-  ): Promise<number> {
-    const result = await db.$queryRaw<{ count: number }[]>`
-    SELECT COUNT(DISTINCT "targetId") as count
-    FROM "History" h
-    WHERE h."academyId" = ${academyId}
-      AND h."targetType" = ${TargetType.Student}
-      AND h."action" = ${HistoryActionType.LeadCreated}
-      AND h."createdAt" < ${end}
-      AND NOT EXISTS (
-        SELECT 1 FROM "History" conv
-        WHERE conv."targetId" = h."targetId"
-          AND conv."targetType" = ${TargetType.Student}
-          AND conv."academyId" = ${academyId}
-          AND conv."action" IN (${HistoryActionType.LeadToTrial}, ${HistoryActionType.LeadToSubscription})
-          AND conv."createdAt" < ${start}
-      )
-  `;
-    return Number(result[0]?.count ?? 0);
-  }
-
   const revenuesThisMonth = await db.revenue.findMany({
     where: {
       student: { academyId },
@@ -219,30 +196,6 @@ export default async function DashboardPage() {
     0,
   );
 
-  // Helper to count trials active in period
-  async function countTrialsActiveInPeriod(
-    start: Date,
-    end: Date,
-  ): Promise<number> {
-    const result = await db.$queryRaw<{ count: number }[]>`
-    SELECT COUNT(DISTINCT h."targetId") as count
-    FROM "History" h
-    WHERE h."academyId" = ${academyId}
-      AND h."targetType" = ${TargetType.Student}
-      AND h."action" = ${HistoryActionType.LeadToTrial}
-      AND h."createdAt" < ${end}
-      AND NOT EXISTS (
-        SELECT 1 FROM "History" conv
-        WHERE conv."targetId" = h."targetId"
-          AND conv."targetType" = ${TargetType.Student}
-          AND conv."academyId" = ${academyId}
-          AND conv."action" = ${HistoryActionType.TrialToSubscription}
-          AND conv."createdAt" < ${start}
-      )
-  `;
-    return Number(result[0]?.count ?? 0);
-  }
-
   // Get numerators (same as before)
   const [leadToTrialCount, leadToTrialCountPrev] = await Promise.all([
     db.history.count({
@@ -280,21 +233,34 @@ export default async function DashboardPage() {
     ]);
 
   // Get denominators
-  const totalLeadsLast30 = await countLeadsActiveInPeriod(
+  const totalLeadsLast30 = await countActiveInPeriod(
+    academyId,
     thirtyDaysAgo.toDate(),
     now.toDate(),
+    HistoryActionType.LeadCreated,
+    [HistoryActionType.LeadToTrial, HistoryActionType.LeadToSubscription],
   );
-  const totalLeadsPrev30 = await countLeadsActiveInPeriod(
+
+  const totalLeadsPrev30 = await countActiveInPeriod(
+    academyId,
     sixtyDaysAgo.toDate(),
     thirtyDaysAgo.toDate(),
+    HistoryActionType.LeadCreated,
+    [HistoryActionType.LeadToTrial, HistoryActionType.LeadToSubscription],
   );
-  const totalTrialsLast30 = await countTrialsActiveInPeriod(
+  const totalTrialsLast30 = await countActiveInPeriod(
+    academyId,
     thirtyDaysAgo.toDate(),
     now.toDate(),
+    HistoryActionType.LeadToTrial,
+    [HistoryActionType.TrialToSubscription],
   );
-  const totalTrialsPrev30 = await countTrialsActiveInPeriod(
+  const totalTrialsPrev30 = await countActiveInPeriod(
+    academyId,
     sixtyDaysAgo.toDate(),
     thirtyDaysAgo.toDate(),
+    HistoryActionType.LeadToTrial,
+    [HistoryActionType.TrialToSubscription],
   );
 
   // Calculate rates
@@ -311,33 +277,27 @@ export default async function DashboardPage() {
       ? (trialToSubscribedCountPrev / totalTrialsPrev30) * 100
       : 0;
 
-  const students = await db.student.findMany({
-    where: { academyId, status: StudentStatus.subscribed },
-    include: {
-      sessions: {
-        where: { startTime: { lte: dayjs().toDate() } },
-        include: { attendance: true },
-        orderBy: { startTime: "desc" },
-        take: 1,
-      },
-    },
-  });
-
-  const atRiskStudents = students
-    .filter((student) => {
-      const lastSession = student.sessions[0];
-      const lastSessionAbsentUnexcused =
-        lastSession?.attendance?.studentAttendanceStatus ===
-        AttendanceStatus.ABSENT_UNEXCUSED;
-
-      return lastSessionAbsentUnexcused;
-    })
-    .map((s) => ({
-      id: s.id,
-      name: s.name,
-      phone: s.phone,
-      reason: "غياب بدون عذر",
-    }));
+  const atRiskStudents = await db.$queryRaw<
+    {
+      id: number;
+      name: string;
+      phone: string | null;
+      reason: string;
+    }[]
+  >`
+  SELECT s.id, s.name, s.phone, 'غياب بدون عذر' as reason
+  FROM "Student" s
+  JOIN "Session" sess ON sess."studentId" = s.id
+  JOIN "Attendance" a ON a."sessionId" = sess.id
+  WHERE s."academyId" = ${academyId}
+    AND s.status = ${StudentStatus.subscribed}
+    AND a."studentAttendanceStatus" = ${AttendanceStatus.ABSENT_UNEXCUSED}
+    AND sess."startTime" = (
+      SELECT MAX("startTime") FROM "Session" 
+      WHERE "studentId" = s.id AND "startTime" <= NOW()
+    )
+  LIMIT 100;  -- add pagination later
+`;
 
   // ---------- Attendance Sheet ----------
   const todaySessions = await db.session.findMany({
