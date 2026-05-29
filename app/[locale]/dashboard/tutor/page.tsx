@@ -101,6 +101,7 @@ export default async function TutorDashboardPage() {
     status: getSessionStatus(s),
     hasAttendance: !!s.attendance,
     hasReport: !!s.sessionReport,
+    meetingLink: s.zoomStartUrl || null,
   });
 
   return (
@@ -116,6 +117,7 @@ export default async function TutorDashboardPage() {
         remainingEarnings,
         currency: tutor?.currency?.code || "SAR",
       }}
+      zoomEnabled={!!tutor.zoomAuthenticated}
     />
   );
 }

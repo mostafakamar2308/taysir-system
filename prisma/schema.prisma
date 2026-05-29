@@ -235,8 +235,12 @@ model Tutor {
   bio               String?
   qualifications    String?
   imageUrl          String?
-  zoomAuthenticated Boolean  @default(false)
+  zoomAuthenticated Boolean   @default(false)
   zoomUrl           String?
+  zoomAccessToken   String?
+  zoomRefreshToken  String?
+  zoomTokenExpiry   DateTime?
+  zoomUserId        String?
 
   specialities        Speciality[]
   students            Student[]
@@ -315,6 +319,11 @@ model Session {
   notes           String?
   isTrial         Boolean  @default(false)
   cancelledBy     Int?
+
+  zoomMeetingId   String?
+  zoomJoinUrl     String?
+  zoomStartUrl    String?
+  zoomMeetingUuid String?
 
   studentId Int
   student   Student @relation(fields: [studentId], references: [id])

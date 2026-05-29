@@ -30,6 +30,7 @@ interface SessionData {
   status: number;
   hasAttendance: boolean;
   hasReport: boolean;
+  meetingLink?: string | null;
 }
 
 interface DashboardClientProps {
@@ -44,6 +45,7 @@ interface DashboardClientProps {
     remainingEarnings: number;
     currency: string;
   };
+  zoomEnabled: boolean;
 }
 
 export default function DashboardClient({
@@ -52,10 +54,12 @@ export default function DashboardClient({
   pendingAttendance,
   pendingReports,
   financialSummary,
+  zoomEnabled,
 }: DashboardClientProps) {
   const [activeTab, setActiveTab] = useState("overview");
 
   const totalPending = pendingAttendance.length + pendingReports.length;
+  console.log({ todaySessions });
 
   return (
     <div className="p-4 md:p-6 space-y-6" dir="rtl">
@@ -65,8 +69,27 @@ export default function DashboardClient({
           مرحباً بك في لوحة تحكم المعلم
         </p>
       </div>
-
-      {/* Pending Actions Alert */}
+      {/* Pending Actions Alert */}{" "}
+      {!zoomEnabled && (
+        <Card className="border-red-300 bg-amber-50/50 dark:bg-amber-900/10">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="h-5 w-5 text-red-600" />
+              <div>
+                <p className="font-medium text-red-800 dark:text-red-300">
+                  اربط برنامج الزوم الخاص بك
+                </p>
+                <p className="text-sm text-red-700 dark:text-red-400">
+                  يرجى الذهاب إلى إعدادات الحساب لربط حساب الزوم الخاص بك.
+                </p>
+              </div>
+            </div>
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/ar/dashboard/tutor/zoom">ربط حساب الزوم</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
       {totalPending > 0 && (
         <Card className="border-amber-300 bg-amber-50/50 dark:bg-amber-900/10">
           <CardContent className="p-4 flex items-center justify-between">
@@ -90,7 +113,6 @@ export default function DashboardClient({
           </CardContent>
         </Card>
       )}
-
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
@@ -147,7 +169,6 @@ export default function DashboardClient({
           </CardContent>
         </Card>
       </div>
-
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-3">
@@ -349,11 +370,18 @@ function SessionItem({ session }: { session: SessionData }) {
             بدون تقرير
           </Badge>
         )}
-        <Button variant="ghost" size="sm" asChild>
+        <Button variant="secondary" size="sm" asChild>
           <Link href={`/ar/dashboard/tutor/sessions?sessionId=${session.id}`}>
             عرض
           </Link>
-        </Button>
+        </Button>{" "}
+        {session.meetingLink ? (
+          <Button variant="default" size="sm" asChild>
+            <Link target="_blank" href={session.meetingLink}>
+              بدأ الحصة
+            </Link>
+          </Button>
+        ) : null}
       </div>
     </div>
   );

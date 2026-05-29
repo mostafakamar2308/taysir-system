@@ -25,6 +25,9 @@ export type DashboardSession = {
   tutorId: number;
   isTrial: boolean;
   tutorName: string | null;
+  zoomMeetingId?: string | null;
+  zoomJoinUrl?: string | null;
+  zoomStartUrl?: string | null;
   attendance:
     | {
         id: number;

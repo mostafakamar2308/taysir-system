@@ -7,9 +7,10 @@ import { Role } from "@/types/user";
 
 export async function GET() {
   const currentUser = await user();
+  console.log({ currentUser });
 
   if (!currentUser || currentUser.role !== Role.Admin || !currentUser.academyId)
-    throw new Error("BRUH you are not a user");
+    throw NextResponse.json({ error: "Not a valid user" });
 
   const admin = await db.admin.findUnique({
     where: { userId: currentUser.id },

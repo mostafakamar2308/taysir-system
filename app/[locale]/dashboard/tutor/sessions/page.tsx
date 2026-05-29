@@ -99,6 +99,9 @@ export default async function TutorSessionsPage({
     studentId: s.studentId,
     studentName: s.student.name,
     studentPhone: s.student.phone,
+    zoomMeetingId: s.zoomMeetingId,
+    zoomJoinUrl: s.zoomJoinUrl,
+    zoomStartUrl: s.zoomStartUrl,
     attendance: s.attendance
       ? {
           id: s.attendance.id,

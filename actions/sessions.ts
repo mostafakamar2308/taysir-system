@@ -11,6 +11,7 @@ import { StudentStatus } from "@/types/student";
 import { recordStudentStatusChangeHistory } from "@/lib/history";
 import type { DashboardSession } from "@/types/session";
 import { decrementBalance, incrementBalance } from "@/lib/balance";
+import { createZoomMeeting } from "@/lib/zoom";
 
 type CreateSessionInput = {
   studentId: number;
@@ -83,10 +84,8 @@ export async function createSession(input: CreateSessionInput) {
   }
 
   const session = await db.$transaction(async (tx) => {
-    if (!input.isTrial) {
-      await decrementBalance(input.studentId, tx);
-    }
-    return await tx.session.create({
+    if (!input.isTrial) await decrementBalance(input.studentId, tx);
+    return tx.session.create({
       data: {
         startTime: startDate,
         endTime: endDate,
@@ -100,6 +99,34 @@ export async function createSession(input: CreateSessionInput) {
       },
     });
   });
+
+  // Zoom integration
+  const tutor = await db.tutor.findUnique({
+    where: { id: input.tutorId },
+    select: { zoomAuthenticated: true, id: true },
+  });
+
+  if (tutor?.zoomAuthenticated) {
+    try {
+      const meeting = await createZoomMeeting(tutor.id, {
+        topic: input.topic || "Session",
+        startTime: startDate,
+        duration: input.duration,
+      });
+      await db.session.update({
+        where: { id: session.id },
+        data: {
+          zoomMeetingId: meeting.id,
+          zoomJoinUrl: meeting.joinUrl,
+          zoomMeetingUuid: meeting.uuid,
+          zoomStartUrl: meeting.startUrl,
+        },
+      });
+    } catch (error) {
+      console.error("Zoom meeting creation failed:", error);
+    }
+  }
+
   revalidatePath("/ar/dashboard/sessions");
   revalidatePath("/ar/dashboard/tutor/sessions");
   return session;
@@ -128,6 +155,19 @@ export async function updateSession(input: UpdateSessionInput) {
     },
   });
 
+  if (updated.zoomMeetingId) {
+    try {
+      const { updateZoomMeeting } = await import("@/lib/zoom");
+      await updateZoomMeeting(updated.zoomMeetingId, updated.tutorId, {
+        topic: updated.topic || undefined,
+        startTime: updated.startTime,
+        duration: updated.durationMinutes,
+      });
+    } catch (error) {
+      console.error("Zoom meeting update failed:", error);
+    }
+  }
+
   revalidatePath("/ar/dashboard/sessions");
   return updated;
 }
@@ -137,7 +177,14 @@ export async function deleteSession(id: number) {
     where: { id },
   });
   if (!session) throw new Error("Session not found");
-
+  if (session.zoomMeetingId) {
+    try {
+      const { deleteZoomMeeting } = await import("@/lib/zoom");
+      await deleteZoomMeeting(session.zoomMeetingId, session.tutorId);
+    } catch (error) {
+      console.error("Zoom meeting deletion failed:", error);
+    }
+  }
   await db.$transaction(async (tx) => {
     if (!session.cancelledBy && !session.isTrial) {
       await incrementBalance(session.studentId, tx);
@@ -205,6 +252,9 @@ export async function getSessionsForWeek(startDate: Date, endDate: Date) {
     notes: s.notes,
     studentId: s.studentId,
     studentName: s.student.name,
+    zoomMeetingId: s.zoomMeetingId,
+    zoomJoinUrl: s.zoomJoinUrl,
+    zoomStartUrl: s.zoomStartUrl,
     tutorId: s.tutorId,
     tutorName: s.tutor.user.name,
     attendance: s.attendance
@@ -284,6 +334,9 @@ export async function getSessionDetails(
     tutorId: session.tutorId,
     isTrial: session.isTrial,
     tutorName: session.tutor.user.name ?? "",
+    zoomMeetingId: session.zoomMeetingId,
+    zoomJoinUrl: session.zoomJoinUrl,
+    zoomStartUrl: session.zoomStartUrl,
     attendance: session.attendance
       ? {
           id: session.attendance.id,
@@ -315,7 +368,14 @@ export async function cancelSession(sessionId: number, cancelledBy: number) {
   const session = await db.session.findUnique({ where: { id: sessionId } });
   if (!session || session.cancelledBy !== null)
     throw new Error("لا يمكن إلغاء هذه الحصة");
-
+  if (session.zoomMeetingId) {
+    try {
+      const { deleteZoomMeeting } = await import("@/lib/zoom");
+      await deleteZoomMeeting(session.zoomMeetingId, session.tutorId);
+    } catch (error) {
+      console.error("Zoom meeting deletion failed:", error);
+    }
+  }
   await db.$transaction(async (tx) => {
     await tx.session.update({
       where: { id: sessionId },

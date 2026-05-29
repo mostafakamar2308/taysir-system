@@ -33,6 +33,7 @@ import {
   DashboardSession,
   SessionStatus,
 } from "@/types/session";
+import { Copy, ExternalLink, Video } from "lucide-react";
 
 interface SessionDetailPanelProps {
   session: DashboardSession;
@@ -50,7 +51,7 @@ export default function SessionDetailPanel({
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState("details");
+  const [activeTab, setActiveTab] = useState("zoom");
   const [editMode, setEditMode] = useState(false);
   const [topic, setTopic] = useState(session.topic || "");
   const [notes, setNotes] = useState(session.notes || "");
@@ -173,6 +174,9 @@ export default function SessionDetailPanel({
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="flex w-full *:grow">
+            {session.zoomJoinUrl && (
+              <TabsTrigger value="zoom">الرابط</TabsTrigger>
+            )}
             <TabsTrigger value="details">التفاصيل</TabsTrigger>
             <TabsTrigger value="attendance">الحضور</TabsTrigger>
             {session.attendance &&
@@ -182,6 +186,90 @@ export default function SessionDetailPanel({
               <TabsTrigger value="report">التقرير</TabsTrigger>
             ) : null}
           </TabsList>
+          <TabsContent value="zoom" className="space-y-4 mt-4">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-primary">
+                <Video className="h-5 w-5" />
+                <span className="font-semibold">رابط زووم</span>
+              </div>
+
+              {/* Join URL (for student) */}
+              <div className="space-y-1">
+                <Label className="text-sm text-muted-foreground">
+                  رابط الحضور للطالب
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={session.zoomJoinUrl!}
+                    readOnly
+                    className="font-mono text-sm"
+                    dir="ltr"
+                  />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    title="نسخ الرابط"
+                    onClick={() => {
+                      navigator.clipboard.writeText(session.zoomJoinUrl!);
+                      toast({ title: "تم نسخ الرابط" });
+                    }}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    title="فتح الرابط"
+                    onClick={() => window.open(session.zoomJoinUrl!, "_blank")}
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              {/* Start URL (for tutor) – only if it exists */}
+              {session.zoomStartUrl && (
+                <div className="space-y-1">
+                  <Label className="text-sm text-muted-foreground">
+                    رابط البدء للمعلم
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={session.zoomStartUrl!}
+                      readOnly
+                      className="font-mono text-sm bg-muted/50"
+                      dir="ltr"
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      title="نسخ الرابط"
+                      onClick={() => {
+                        navigator.clipboard.writeText(session.zoomStartUrl!);
+                        toast({ title: "تم نسخ الرابط" });
+                      }}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      title="فتح الرابط"
+                      onClick={() =>
+                        window.open(session.zoomStartUrl!, "_blank")
+                      }
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              <p className="text-xs text-muted-foreground">
+                رابط الحضور يشارك مع الطالب، رابط البدء خاص بك (المعلم).
+              </p>
+            </div>
+          </TabsContent>
 
           {/* Details Tab */}
           <TabsContent value="details" className="space-y-4 mt-4">

@@ -1,10 +1,19 @@
 "use client";
-import { useTranslations } from "next-intl";
-import { BookOpen, Mail, Globe, Facebook } from "lucide-react";
+import { useTranslations, useLocale } from "next-intl";
+import { Mail, Globe, Facebook } from "lucide-react";
 import Link from "next/link";
+import logo from "@/assets/logo-transparent.png";
+import Image from "next/image";
 
 const Footer = () => {
   const t = useTranslations();
+  const locale = useLocale();
+  const isRTL = locale === "ar";
+
+  // Helper to build localized URLs
+  const getLocalizedPath = (path: string) => {
+    return locale === "ar" ? `/ar${path}` : path;
+  };
 
   return (
     <footer className="bg-foreground text-primary-foreground/80 py-16">
@@ -14,7 +23,13 @@ const Footer = () => {
           <div>
             <div className="flex items-center gap-2 mb-4">
               <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
-                <BookOpen className="w-5 h-5 text-primary-foreground" />
+                <Image
+                  alt="Academiyati System Logo"
+                  src={logo}
+                  width={20}
+                  height={20}
+                  className="invert"
+                />
               </div>
               <span className="font-bold text-lg text-primary-foreground">
                 {t("footer.brand")}
@@ -30,37 +45,68 @@ const Footer = () => {
             <h4 className="font-bold text-primary-foreground mb-4">
               {t("footer.quickLinks")}
             </h4>
-            <ul className="space-y-2 text-sm">
-              <li>
-                <a href="#" className="hover:text-primary transition-colors">
-                  {t("footer.home")}
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#features"
-                  className="hover:text-primary transition-colors"
-                >
-                  {t("footer.features")}
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#pricing"
-                  className="hover:text-primary transition-colors"
-                >
-                  {t("footer.pricing")}
-                </a>
-              </li>
-              <li>
+            <div className="flex justify-between">
+              <ul className="space-y-2 text-sm">
+                <li>
+                  <Link
+                    href="/#"
+                    className="hover:text-primary transition-colors"
+                  >
+                    {t("footer.home")}
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/#features"
+                    className="hover:text-primary transition-colors"
+                  >
+                    {t("footer.features")}
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/#pricing"
+                    className="hover:text-primary transition-colors"
+                  >
+                    {t("footer.pricing")}
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/register"
+                    className="hover:text-primary transition-colors"
+                  >
+                    {t("footer.register")}
+                  </Link>
+                </li>
+              </ul>
+              <div className="flex flex-col gap-2 justify-center gap-x-6 gap-y-2 mt-10 text-sm text-primary-foreground/50">
                 <Link
-                  href="/register"
+                  href={getLocalizedPath("/privacy")}
                   className="hover:text-primary transition-colors"
                 >
-                  {t("footer.register")}
+                  {isRTL ? "سياسة الخصوصية" : "Privacy Policy"}
                 </Link>
-              </li>
-            </ul>
+                <Link
+                  href={getLocalizedPath("/terms")}
+                  className="hover:text-primary transition-colors"
+                >
+                  {isRTL ? "شروط الخدمة" : "Terms of Service"}
+                </Link>
+                <Link
+                  href={getLocalizedPath("/zoom")}
+                  className="hover:text-primary transition-colors"
+                >
+                  {isRTL ? "دليل تكامل Zoom" : "Zoom Integration Guide"}
+                </Link>
+                <Link
+                  href={getLocalizedPath("/support")}
+                  className="hover:text-primary transition-colors"
+                >
+                  {isRTL ? "الدعم" : "Support"}
+                </Link>
+              </div>
+            </div>
           </div>
 
           {/* Contact */}
@@ -71,12 +117,12 @@ const Footer = () => {
             <ul className="space-y-3 text-sm">
               <li className="flex items-center gap-2">
                 <Mail className="w-4 h-4 text-primary" />
-                <a
+                <Link
                   href="mailto:academiyatisystem@gmail.com"
                   className="hover:text-primary transition-colors"
                 >
                   {t("footer.email")}
-                </a>
+                </Link>
               </li>
               <li className="flex items-center gap-2">
                 <Globe className="w-4 h-4 text-primary" />
@@ -92,19 +138,21 @@ const Footer = () => {
             </h4>
             <div className="flex gap-3">
               {[Facebook].map((Icon, i) => (
-                <a
+                <Link
                   key={i}
                   href="https://www.facebook.com/profile.php?id=61575448018616"
                   className="w-10 h-10 rounded-lg bg-primary-foreground/10 flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-colors"
                 >
                   <Icon className="w-4 h-4" />
-                </a>
+                </Link>
               ))}
             </div>
           </div>
         </div>
 
-        <div className="border-t border-primary-foreground/10 mt-12 pt-6 text-center text-sm text-primary-foreground/40">
+        {/* Legal Links Row */}
+
+        <div className="border-t border-primary-foreground/10 mt-6 pt-6 text-center text-sm text-primary-foreground/40">
           {t("footer.copyright")}
         </div>
       </div>

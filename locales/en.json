@@ -1,7 +1,23 @@
 {
   "Metadata": {
-    "title": "Taysir System",
-    "description": "Taysir System"
+    "title": "Academiyati System",
+    "description": "Academiyati System"
+  },
+  "privacy": {
+    "title": "Privacy Policy",
+    "description": "Our Privacy Policy for the Academiyati System."
+  },
+  "support": {
+    "title": "Support Center",
+    "description": "Support center for the Academiyati System."
+  },
+  "zoomGuide": {
+    "title": "Zoom Integration Guide",
+    "description": "How to integrate Zoom with the Academiyati System."
+  },
+  "terms": {
+    "title": "Terms of Service",
+    "description": "Our Terms of Service for the Academiyati System."
   },
   "nav": {
     "home": "Home",
@@ -9,14 +25,14 @@
     "pricing": "Pricing",
     "howItWorks": "How It Works",
     "joinWaitlist": "Join Waitlist",
-    "brand": "Taysir System",
+    "brand": "Academiyati System",
     "brandSub": "Quran Academy Management Made Easy",
     "login": "Login"
   },
   "hero": {
     "mainHeadline": "Say Goodbye to Chaos, Enjoy Organized Management",
     "mainSubheadline": "The first Arabic system designed specifically for Quran memorization circle management",
-    "mainDescription": "Many academy directors spend long hours tracking administrative details, losing valuable teaching and supervision time. Taysir was born to carry this burden for you.",
+    "mainDescription": "Many academy directors spend long hours tracking administrative details, losing valuable teaching and supervision time. Academiyati was born to carry this burden for you.",
     "headline": "Choose Your Next Day",
     "subheadline": "Go from a paper manager to a development leader",
     "before": {
@@ -29,7 +45,7 @@
       ]
     },
     "after": {
-      "label": "Your Day with Taysir",
+      "label": "Your Day with Academiyati",
       "items": [
         "Just 30 minutes of oversight",
         "An automated system that never errs",
@@ -217,7 +233,7 @@
       ]
     },
     "pro": {
-      "name": "Taysir Pro",
+      "name": "Academiyati Pro",
       "originalPrice": "$99",
       "price": "$59",
       "period": "/month",
@@ -275,7 +291,7 @@
     "cta": "Write Your New Chapter"
   },
   "footer": {
-    "brand": "Taysir System",
+    "brand": "Academiyati System",
     "vision": "Making Quran circle management an easy part of teaching, not a barrier.",
     "quickLinks": "Quick Links",
     "contact": "Contact Us",
@@ -286,9 +302,9 @@
     "register": "Register",
     "privacy": "Privacy Policy",
     "terms": "Terms of Service",
-    "email": "info@academiyati.com",
+    "email": "academiyatisystem@gmail.com",
     "website": "academiyati.com",
-    "copyright": "© 2024 Taysir System. Crafted with care for the people of the Quran."
+    "copyright": "© 2024 Academiyati System. Crafted with care for the people of the Quran."
   },
   "register": {
     "title": "Be among the pioneers who will change Quran circle management",
@@ -330,7 +346,7 @@
     },
     "success": {
       "title": "Registration Successful! 🎉",
-      "subtitle": "Welcome to the Taysir family",
+      "subtitle": "Welcome to the Academiyati family",
       "steps": [
         "We'll contact you via WhatsApp within 24 hours",
         "You'll receive trial credentials at launch",

@@ -14,6 +14,7 @@ import {
   User,
   Users2,
   Phone,
+  Video,
 } from "lucide-react";
 import { Role } from "@/types/user";
 
@@ -176,6 +177,11 @@ export const getSidebarGroups = (role: number) => {
             title: "ملفي الشخصي",
             url: "/ar/dashboard/settings/personal",
             icon: User,
+          },
+          {
+            title: "إعدادات الزوم",
+            url: "/ar/dashboard/tutor/zoom",
+            icon: Video,
           },
           {
             title: "إعدادات الأمان",
