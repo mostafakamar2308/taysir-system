@@ -1,6 +1,6 @@
 import { utcToLocalTime } from "@/lib/dates";
 import { sessionStatusColors } from "@/const/sessions";
-import { CheckCircle2, StickyNote } from "lucide-react";
+import { CheckCircle2, StickyNote, Video } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -56,7 +56,7 @@ export function SessionCard({
         </div>
       </button>
       {session.status === SessionStatus.COMPLETED && !session.attendance && (
-        <div className="absolute top-0 left-0 -mt-1 -ml-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute top-2 left-1 -mt-1 -ml-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <Button
             variant="ghost"
             size="icon"
@@ -67,6 +67,21 @@ export function SessionCard({
             }}
           >
             <CheckCircle2 className="h-3 w-3 text-primary" />
+          </Button>
+        </div>
+      )}
+      {session.zoomStartUrl && session.status !== SessionStatus.COMPLETED && (
+        <div className="absolute top-2 left-1 -mt-1 -ml-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              window.open(session.zoomStartUrl!, "_blank");
+            }}
+            className="block h-5 w-5 shadow-sm p-0"
+          >
+            <Video className="h-3 w-3 text-primary" />
           </Button>
         </div>
       )}

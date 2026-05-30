@@ -35,15 +35,16 @@ export default function SessionsClient({
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [detailSession, setDetailSession] = useState<DashboardSession | null>(() => {
-    if (sessionIdParam) {
-      return initialSessions.find(s => s.id === sessionIdParam) || null;
-    }
-    return null;
-  });
+  const [detailSession, setDetailSession] = useState<DashboardSession | null>(
+    () => {
+      if (sessionIdParam) {
+        return initialSessions.find((s) => s.id === sessionIdParam) || null;
+      }
+      return null;
+    },
+  );
 
   const [detailOpen, setDetailOpen] = useState(!!sessionIdParam);
-
 
   const handleSessionClick = (session: DashboardSession) => {
     setDetailSession(session);
@@ -96,10 +97,10 @@ export default function SessionsClient({
       {view === "calendar" ? (
         <CalendarView
           currentWeekStart={currentWeekStart}
-          sessions={initialSessions} // البيانات المفلترة من الخادم مباشرة
-          onSlotClick={() => { }}
+          sessions={initialSessions}
+          onSlotClick={() => {}}
           onSessionClick={handleSessionClick}
-          onMarkAttendance={() => { }}
+          onMarkAttendance={() => {}}
         />
       ) : (
         <Card>
@@ -112,7 +113,6 @@ export default function SessionsClient({
         </Card>
       )}
 
-      {/* لوحة تفاصيل الحصة */}
       {detailSession && (
         <SessionDetailPanel
           session={detailSession}

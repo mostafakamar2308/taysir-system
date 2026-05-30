@@ -91,7 +91,7 @@ export function WeekView({
                   return (
                     <div
                       key={dayIdx}
-                      className={`p-1 border-r border-border cursor-pointer hover:bg-accent/30 transition-colors relative min-h-[4rem] min-w-0 ${
+                      className={`p-1 border-r border-border cursor-pointer hover:bg-accent/30 transition-colors relative min-h-16 min-w-0 ${
                         isToday ? "bg-primary/2" : ""
                       } ${isPast ? "opacity-80" : ""}`}
                       onClick={() =>
