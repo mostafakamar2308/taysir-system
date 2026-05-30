@@ -12,7 +12,7 @@ import { faker } from "@faker-js/faker/locale/ar";
 const NOW = dayjs();
 const ACADEMY_NAME = "أكاديمية النمو";
 const START_DATE = dayjs().startOf("year");
-const MONTHS = 4;
+const MONTHS = 5;
 
 // Plans in EGP
 const PLANS = [
@@ -24,9 +24,9 @@ const PLANS = [
 const TUTORS_INITIAL = 10;
 const TUTORS_ADDED_MONTH3 = 2;
 
-const LEADS_BASE = [50, 65, 80, 95];
-const TRIALS_BASE = [30, 40, 50, 60];
-const CONVERSIONS_BASE = [10, 15, 20, 25];
+const LEADS_BASE = [50, 65, 80, 95, 110];
+const TRIALS_BASE = [30, 40, 50, 60, 70];
+const CONVERSIONS_BASE = [10, 15, 20, 25, 30];
 
 const randomInt = (min: number, max: number) =>
   Math.floor(Math.random() * (max - min + 1)) + min;
@@ -76,9 +76,77 @@ async function generateSessions(
   return sessions;
 }
 
+const SPECIALITIES = [
+  "Tajweed",
+  "Memorization",
+  "Qira’at",
+  "Tafseer",
+  "Arabic Language",
+];
+
 // ========= Main seed function ==========
 async function seedDemoAcademy() {
   const password = await bcrypt.hash("24689110134", 10);
+
+  console.log("🌱 Seeding started...");
+
+  const costCenters = await Promise.all([
+    db.costCenter.create({
+      data: { title: "مرتبات المعلمين" },
+    }),
+    db.costCenter.create({
+      data: { title: "مرتبات الموظفين (غير المعلمين)" },
+    }),
+    db.costCenter.create({
+      data: { title: "الإعلانات" },
+    }),
+    db.costCenter.create({
+      data: { title: "تصوير المحتوى" },
+    }),
+    db.costCenter.create({
+      data: { title: "إشتراكات برامج" },
+    }),
+    db.costCenter.create({
+      data: { title: "ضرائب" },
+    }),
+    db.costCenter.create({
+      data: { title: "حوافز" },
+    }),
+    db.costCenter.create({
+      data: { title: "أخرى" },
+    }),
+  ]);
+
+  await Promise.all([
+    db.currency.create({
+      data: { code: "SAR", name: "ريال سعودي", symbol: "ر.س" },
+    }),
+    db.currency.create({
+      data: { code: "USD", name: "دولار أمريكي", symbol: "$" },
+    }),
+    db.currency.create({
+      data: { code: "EGP", name: "جنيه مصري", symbol: "ج.م" },
+    }),
+  ]);
+  console.log("✅ Created currencies");
+
+  await Promise.all(
+    SPECIALITIES.map((title) => db.speciality.create({ data: { title } })),
+  );
+  console.log("✅ Created specialities");
+
+  // Create super admin
+  const superAdminUser = await db.user.create({
+    data: {
+      email: "mostafakamar.dev@gmail.com",
+      password: await bcrypt.hash("24689110134", 10),
+      name: "Super Admin: Mostaf Kamar",
+      role: Role.SuperAdmin,
+      phone: "+201018303125",
+    },
+  });
+  await db.superAdmin.create({ data: { userId: superAdminUser.id } });
+  console.log("✅ Created super admin");
 
   console.log("🌱 Seeding demo academy...");
 
@@ -90,11 +158,6 @@ async function seedDemoAcademy() {
   const specialities = await db.speciality.findMany();
   if (specialities.length === 0)
     throw new Error("No specialities; run initial seed first.");
-
-  const superAdminUser = await db.user.findFirst({
-    where: { role: Role.SuperAdmin },
-  });
-  if (!superAdminUser) throw new Error("Super admin missing from DB.");
 
   // 2. Create the demo academy
   const academy = await db.academy.create({
@@ -161,7 +224,7 @@ async function seedDemoAcademy() {
         qualifications: faker.lorem.words(3),
         specialities: {
           connect: pickRandom(specialities, randomInt(1, 3)).map((s) => ({
-            id: s.id,
+            id: s?.id,
           })),
         },
       },
@@ -198,7 +261,10 @@ async function seedDemoAcademy() {
     if (!isFirstMonth) {
       const subscribedStudents = await db.student.findMany({
         where: { academyId: academy.id, status: StudentStatus.subscribed },
-        include: { subscriptions: { orderBy: { startDate: "desc" }, take: 1 } },
+        include: {
+          subscriptions: { orderBy: { startDate: "desc" }, take: 1 },
+          plan: true,
+        },
       });
 
       for (const student of subscribedStudents) {
@@ -221,7 +287,19 @@ async function seedDemoAcademy() {
             planId: lastSub.planId,
             startDate: monthStart.toDate(),
             endDate: monthEnd.toDate(),
+            academyId: academy.id,
             status: SubscriptionStatus.active,
+          },
+        });
+
+        await db.student.update({
+          where: { id: student.id },
+          data: {
+            sessionsBalance: {
+              increment: student.plan?.sessionsPerWeek
+                ? student.plan.sessionsPerWeek * 4
+                : 0,
+            },
           },
         });
 
@@ -241,7 +319,6 @@ async function seedDemoAcademy() {
               ],
               1,
             )[0],
-            date: monthStart.toDate(),
             dueDate: monthStart.toDate(),
             description: `اشتراك شهر ${monthStart.format("M")} - ${plan!.title}`,
             academyId: academy.id,
@@ -308,17 +385,23 @@ async function seedDemoAcademy() {
         .hour(10)
         .minute(0)
         .second(0);
+      const studentUser = await db.user.create({
+        data: {
+          email: `lead${m}${i}@demo.com`,
+          password,
+          name: faker.person.fullName(),
+          role: Role.Student,
+          phone: `+201018303125`,
+        },
+      });
 
       const student = await db.student.create({
         data: {
-          name: faker.person.fullName(),
-          email: `lead${m}${i}@demo.com`,
-          phone: `+201018303125`,
-          timezone: "Africa/Cairo",
           status: StudentStatus.lead,
           currencyId: eurCurrency.id,
           academyId: academy.id,
           createdAt: createdAt.toDate(),
+          userId: studentUser.id,
         },
       });
 
@@ -482,6 +565,7 @@ async function seedDemoAcademy() {
           planId: plan.id,
           startDate: finalConvDate.toDate(),
           endDate: monthEnd.toDate(),
+          academyId: academy.id,
           status: SubscriptionStatus.active,
         },
       });
@@ -501,7 +585,6 @@ async function seedDemoAcademy() {
             ],
             1,
           )[0],
-          date: finalConvDate.toDate(),
           dueDate: finalConvDate.toDate(),
           description: `اشتراك أولي - ${plan.title}`,
           academyId: academy.id,
@@ -591,7 +674,7 @@ async function seedDemoAcademy() {
         data: {
           date: monthEnd.toDate(),
           description: `راتب شهر ${monthStart.format("M")}`,
-          costCenter: "Tutors",
+          costCenterId: costCenters[0].id,
           amount: count * tutor.pricePerHour,
           currencyId: eurCurrency.id,
           method: PaymentMethod.BANK_TRANSFER,

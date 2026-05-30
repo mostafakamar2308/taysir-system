@@ -126,17 +126,54 @@ model AcademyCurrencyRate {
   @@index([academyId])
 }
 
+// ===================USERS=================
+model User {
+  id                Int     @id @default(autoincrement())
+  email             String  @unique
+  password          String
+  name              String?
+  role              Int
+  timezone          String  @default("Africa/Cairo")
+  phone             String?
+  preferredLanguage String  @default("ar")
+  imageUrl          String?
+
+  superAdmin SuperAdmin?
+  admin      Admin?
+  supervisor Supervisor?
+  student    Student?
+  tutor      Tutor?
+  notes      Note[]
+  revenues   Revenue[]
+  expenses   Expense[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Admin {
+  id     Int  @id @default(autoincrement())
+  userId Int  @unique
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  academyId Int     @unique
+  academy   Academy @relation(fields: [academyId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
 model Student {
   id                    Int      @id @default(autoincrement())
-  name                  String
-  email                 String?
   age                   Int      @default(12)
-  phone                 String?
   country               String?
-  timezone              String
   status                Int      @default(0)
-  currency              Currency @relation(fields: [currencyId], references: [id])
   currencyId            Int
+  currency              Currency @relation(fields: [currencyId], references: [id])
+  userId                Int      @unique
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   sessionsBalance       Int      @default(0)
   currentSubscriptionId Int?
 
@@ -144,8 +181,6 @@ model Student {
   currentProgram        String?
   emergencyContactName  String?
   emergencyContactPhone String?
-  preferredLanguage     String?
-  imageUrl              String?
 
   tutorId Int?
   tutor   Tutor? @relation(fields: [tutorId], references: [id])
@@ -167,43 +202,6 @@ model Student {
 
   @@index([tutorId])
   @@index([status])
-}
-
-// ===================USERS=================
-model User {
-  id                Int     @id @default(autoincrement())
-  email             String  @unique
-  password          String
-  name              String?
-  role              Int
-  timezone          String  @default("Africa/Cairo")
-  phone             String?
-  preferredLanguage String  @default("ar")
-
-  superAdmin SuperAdmin?
-  admin      Admin?
-  supervisor Supervisor?
-  tutor      Tutor?
-  notes      Note[]
-  revenues   Revenue[]
-
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  expenses  Expense[]
-}
-
-model Admin {
-  id     Int  @id @default(autoincrement())
-  userId Int  @unique
-  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  academyId Int     @unique
-  academy   Academy @relation(fields: [academyId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId])
 }
 
 model Supervisor {

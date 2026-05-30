@@ -3,6 +3,7 @@ export enum Role {
   Admin,
   Supervisor,
   Tutor,
+  Student,
 }
 
 export interface User {

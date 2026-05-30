@@ -20,26 +20,31 @@ export async function login(formData: FormData) {
       admin: { include: { academy: true } },
       supervisor: true,
       tutor: true,
+      student: true,
     },
   });
 
   if (!user) {
-    return { error: "البريد الإلكتروني أو كلمة المرور غير صحيحة" };
+    return { error: "البريد الإلكتروني غير صحيح" };
   }
 
   const valid = await bcrypt.compare(password, user.password);
   if (!valid) {
-    return { error: "البريد الإلكتروني أو كلمة المرور غير صحيحة" };
+    return { error: "كلمة المرور غير صحيحة" };
   }
 
   // Determine academyId if applicable
   let academyId: number | undefined;
   let tutorId: number | undefined;
+  let studentId: number | undefined;
   if (user.admin) academyId = user.admin.academyId;
   else if (user.supervisor) academyId = user.supervisor.academyId;
   else if (user.tutor) {
     academyId = user.tutor.academyId;
     tutorId = user.tutor.id;
+  } else if (user.role === Role.Student) {
+    academyId = user.student?.academyId;
+    studentId = user.student?.id;
   }
 
   const payload = {
@@ -49,6 +54,7 @@ export async function login(formData: FormData) {
     role: user.role,
     academyId,
     tutorId,
+    studentId,
   };
 
   const token = signToken(payload);
@@ -58,8 +64,12 @@ export async function login(formData: FormData) {
     redirect("/ar/dashboard/admin/academies");
   } else if (user.role === Role.Admin) {
     redirect("/ar/dashboard");
-  } else {
+  } else if (user.role === Role.Supervisor) {
+    redirect("/ar/dashboard/supervisor");
+  } else if (user.role === Role.Tutor) {
     redirect("/ar/dashboard/tutor");
+  } else {
+    redirect("/ar/dashboard/student");
   }
 }
 
