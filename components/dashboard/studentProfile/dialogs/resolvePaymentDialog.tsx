@@ -65,7 +65,6 @@ export default function ResolvePaymentDialog({
       if (!payment) return;
       await resolvePayment(
         payment.id,
-        parseFloat(amount),
         method ? parseInt(method) : null,
         invoiceUrl || null,
       );
@@ -95,6 +94,7 @@ export default function ResolvePaymentDialog({
             <Label>المبلغ</Label>
             <Input
               type="number"
+              disabled
               step="0.01"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}

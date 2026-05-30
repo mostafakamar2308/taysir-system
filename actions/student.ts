@@ -494,6 +494,9 @@ export async function changePlan(studentId: number, newPlanId: number) {
       currentSubscriptionId: newSubscription.id,
       planId: newPlanId,
       status: StudentStatus.subscribed,
+      sessionsBalance: {
+        increment: plan.sessionsPerWeek * 4,
+      },
     },
   });
 
@@ -573,7 +576,6 @@ export async function recordPayment(
 
 export async function resolvePayment(
   paymentId: number,
-  amount: number,
   method: number | null,
   invoiceUrl: string | null,
 ) {
@@ -593,7 +595,6 @@ export async function resolvePayment(
   await db.revenue.update({
     where: { id: paymentId },
     data: {
-      amount,
       method,
       invoiceUrl,
       status: PaymentStatus.PAID,
