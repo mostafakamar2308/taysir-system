@@ -194,7 +194,15 @@ export async function getTutorSessionsForMonth(
       startTime: { gte: start, lte: end },
     },
     include: {
-      student: true,
+      student: {
+        include: {
+          user: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      },
       attendance: true,
       sessionReport: true,
     },
@@ -209,7 +217,7 @@ export async function getTutorSessionsForMonth(
     status: getSessionStatus(s),
     topic: s.topic,
     studentId: s.studentId,
-    studentName: s.student.name,
+    studentName: s.student.user.name || "",
     attendance: s.attendance
       ? {
           id: s.attendance.id,

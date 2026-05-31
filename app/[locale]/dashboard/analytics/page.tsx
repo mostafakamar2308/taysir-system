@@ -130,7 +130,7 @@ export default async function AnalyticsPage() {
 
   const students = await db.student.findMany({
     where: { academyId },
-    select: { id: true, name: true },
+    select: { id: true, user: { select: { name: true } } },
   });
 
   const topStudents = await Promise.all(
@@ -161,7 +161,7 @@ export default async function AnalyticsPage() {
 
       return {
         studentId: student.id,
-        studentName: student.name,
+        studentName: student.user.name || "",
         attendanceRate,
       };
     }),

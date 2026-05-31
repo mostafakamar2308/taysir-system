@@ -16,15 +16,21 @@ export async function GET(request: Request) {
   const students = await db.student.findMany({
     where: {
       academyId: parseInt(academyId),
-      name: {
-        contains: search,
-        mode: "insensitive",
+      user: {
+        name: {
+          contains: search,
+          mode: "insensitive",
+        },
       },
     },
     select: {
       id: true,
-      name: true,
-      email: true,
+      user: {
+        select: {
+          name: true,
+          email: true,
+        },
+      },
     },
     take: 20,
   });

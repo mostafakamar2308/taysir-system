@@ -15,13 +15,18 @@ export default async function StudentsPage({
 
   const students = await db.student.findMany({
     where: {
-      name: {
-        contains: name,
-        mode: "insensitive",
+      user: {
+        name: {
+          contains: name,
+          mode: "insensitive",
+        },
       },
       academyId: currentUser?.academyId,
     },
     include: {
+      user: {
+        select: { name: true, phone: true, email: true, timezone: true },
+      },
       tutor: {
         include: {
           user: true,
@@ -39,12 +44,12 @@ export default async function StudentsPage({
 
   const transformedStudents: DashboardStudent[] = students.map((student) => ({
     id: student.id,
-    name: student.name,
-    email: student.email || "",
+    name: student.user.name || "",
+    email: student.user.email || "",
     age: student.age,
-    phone: student.phone || "",
+    phone: student.user.phone || "",
     country: student.country || "",
-    timezone: student.timezone,
+    timezone: student.user.timezone,
     status: student.status,
     currentProgram: student.currentProgram || undefined,
     tutorName: student.tutor?.user?.name || "غير معين",

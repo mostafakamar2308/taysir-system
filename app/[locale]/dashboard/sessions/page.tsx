@@ -27,7 +27,7 @@ export default async function SessionsPage({
   // Fetch all students and tutors for dropdowns
   const students = await db.student.findMany({
     where: { academyId },
-    select: { id: true, name: true, tutorId: true },
+    select: { id: true, user: { select: { name: true } }, tutorId: true },
   });
   const tutors = await db.tutor.findMany({
     where: { academyId },
@@ -39,7 +39,7 @@ export default async function SessionsPage({
     <SessionViewer
       initialSessions={sessions}
       initialWeekStart={weekDates[0].toISOString()}
-      students={students}
+      students={students.map((s) => ({ ...s, name: s.user.name || "" }))}
       tutors={tutorOptions}
       academyId={academyId}
     />

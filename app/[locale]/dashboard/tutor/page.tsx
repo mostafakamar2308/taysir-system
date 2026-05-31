@@ -40,7 +40,9 @@ export default async function TutorDashboardPage() {
       },
     },
     include: {
-      student: { select: { id: true, name: true, phone: true } },
+      student: {
+        select: { id: true, user: { select: { name: true, phone: true } } },
+      },
       attendance: true,
       sessionReport: true,
     },
@@ -96,8 +98,8 @@ export default async function TutorDashboardPage() {
     endTime: s.endTime.toISOString(),
     topic: s.topic,
     studentId: s.studentId,
-    studentName: s.student.name,
-    studentPhone: s.student.phone,
+    studentName: s.student.user.name || "",
+    studentPhone: s.student.user.phone,
     status: getSessionStatus(s),
     hasAttendance: !!s.attendance,
     hasReport: !!s.sessionReport,

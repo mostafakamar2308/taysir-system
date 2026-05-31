@@ -73,7 +73,6 @@ export interface StudentProfile {
   academyId: number;
   emergencyContactPhone: string | null;
   preferredLanguage: string | null;
-  imageUrl: string | null;
   tutorId: number | null;
   tutorName: string | null;
   planId: number | null;

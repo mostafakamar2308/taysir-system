@@ -95,7 +95,7 @@ export default async function SessionsManagementPage() {
       cancelledBy: null,
     },
     include: {
-      student: { select: { name: true } },
+      student: { select: { user: { select: { name: true } } } },
       tutor: { include: { user: { select: { name: true } } } },
     },
     orderBy: { startTime: "asc" },
@@ -108,7 +108,7 @@ export default async function SessionsManagementPage() {
       startTime: { gte: todayStart, lte: todayEnd },
     },
     include: {
-      student: { select: { name: true, phone: true } },
+      student: { select: { user: { select: { name: true, phone: true } } } },
       tutor: { include: { user: { select: { name: true, phone: true } } } },
       attendance: {
         select: {
@@ -182,7 +182,7 @@ export default async function SessionsManagementPage() {
         id: s.id,
         startTime: s.startTime.toISOString(),
         endTime: s.endTime.toISOString(),
-        studentName: s.student.name,
+        studentName: s.student.user.name || "",
         tutorName: s.tutor.user.name ?? "",
         topic: s.topic,
       }))}
@@ -195,8 +195,8 @@ export default async function SessionsManagementPage() {
             id: s.id,
             startTime: s.startTime.toISOString(),
             endTime: s.endTime.toISOString(),
-            studentName: s.student.name,
-            studentPhone: s.student.phone,
+            studentName: s.student.user.name || "",
+            studentPhone: s.student.user.phone || "",
             topic: s.topic,
             status: s.cancelledBy ? 2 : s.startTime > now.toDate() ? 0 : 1, // simplified status
             attendance: s.attendance

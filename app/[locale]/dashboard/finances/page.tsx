@@ -46,7 +46,10 @@ export default async function FinancesPage() {
   // Fetch all payments for this academy
   const payments = await db.revenue.findMany({
     where: { academyId },
-    include: { student: { select: { name: true } }, currency: true },
+    include: {
+      student: { select: { user: { select: { name: true } } } },
+      currency: true,
+    },
     orderBy: { dueDate: "desc" },
   });
 
@@ -74,7 +77,7 @@ export default async function FinancesPage() {
     dueDate: p.dueDate?.toISOString().split("T")[0] || null,
     description: p.description,
     studentId: p.studentId,
-    studentName: p.student.name,
+    studentName: p.student.user.name || "",
     planId: p.planId,
     recordedBy: p.recordedBy,
     invoiceUrl: p.invoiceUrl,
@@ -107,7 +110,7 @@ export default async function FinancesPage() {
   // Fetch options for dialogs
   const students = await db.student.findMany({
     where: { academyId },
-    select: { id: true, name: true },
+    select: { id: true, user: { select: { name: true } } },
   });
   const tutors = await db.tutor.findMany({
     where: { academyId },
@@ -118,6 +121,10 @@ export default async function FinancesPage() {
   });
   const currencies = await db.currency.findMany();
 
+  const studentOptions = students.map((t) => ({
+    id: t.id,
+    name: t.user.name ?? "",
+  }));
   const tutorOptions = tutors.map((t) => ({
     id: t.id,
     name: t.user.name ?? "",
@@ -130,7 +137,7 @@ export default async function FinancesPage() {
       initialPayments={transformedPayments}
       initialExpenses={transformedExpenses}
       academyId={academyId}
-      students={students}
+      students={studentOptions}
       tutors={tutorOptions}
       plans={plans}
       currencies={currencies}

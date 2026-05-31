@@ -877,7 +877,7 @@ export async function getOverdueRevenue(
   const revenues = await db.revenue.findMany({
     where,
     include: {
-      student: { select: { name: true, phone: true } },
+      student: { select: { user: { select: { name: true, phone: true } } } },
       plan: { select: { title: true } },
     },
     orderBy: { dueDate: "asc" },
@@ -888,10 +888,10 @@ export async function getOverdueRevenue(
     amount: r.amount,
     defaultAmount: convert(r.amount, r.currencyId, defaultCurrencyId, rateMap),
     dueDate: dayjs(r.dueDate).format("YYYY-MM-DD"),
-    studentName: r.student.name,
+    studentName: r.student.user.name || "",
     planName: r.plan?.title,
     method: r.method,
-    studentPhone: r.student.phone,
+    studentPhone: r.student.user.phone || "",
   }));
 }
 
@@ -932,7 +932,7 @@ export async function getRenewalSubscriptions(academyId: number): Promise<{
       startDate: { in: maxStarts },
     },
     include: {
-      student: { select: { name: true, phone: true } },
+      student: { select: { user: { select: { name: true, phone: true } } } },
       plan: { select: { title: true, price: true } },
     },
   });
@@ -948,10 +948,10 @@ export async function getRenewalSubscriptions(academyId: number): Promise<{
     const item: RenewalSubscription = {
       id: sub.id,
       studentId: sub.studentId,
-      studentName: sub.student.name,
+      studentName: sub.student.user.name || "",
       planName: sub.plan.title,
       endDate: end.format("YYYY-MM-DD"),
-      studentPhone: sub.student.phone,
+      studentPhone: sub.student.user.phone || "",
       daysLeft,
       planPrice: sub.plan.price,
     };
@@ -1008,7 +1008,7 @@ export async function getRevenueHistory(
   const revenues = await db.revenue.findMany({
     where,
     include: {
-      student: { select: { name: true } },
+      student: { select: { user: { select: { name: true } } } },
       plan: { select: { title: true } },
       currency: { select: { code: true } },
     },
@@ -1024,7 +1024,7 @@ export async function getRevenueHistory(
     method: r.method,
     currencyId: r.currencyId,
     dueDate: dayjs(r.dueDate).format("YYYY-MM-DD"),
-    studentName: r.student.name,
+    studentName: r.student.user.name || "",
     planName: r.plan?.title,
   }));
 }

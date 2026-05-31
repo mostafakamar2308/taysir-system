@@ -19,57 +19,62 @@ import { Role } from "@/types/user";
 import dayjs from "dayjs";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import bcrypt from "bcrypt";
 
-const createStudentSchema = z.object({
+const userSchema = z.object({
   name: z.string().min(1, "الاسم مطلوب"),
-  email: z.string().email("بريد إلكتروني غير صالح").optional().nullable(),
-  age: z.number().min(1, "العمر مطلوب"),
+  email: z.string().email("بريد إلكتروني غير صالح"),
   phone: z.string().optional().nullable(),
-  country: z.string().optional().nullable(),
   timezone: z.string().min(1, "المنطقة الزمنية مطلوبة"),
+  preferredLanguage: z.string().optional().nullable(),
+});
+
+// Schema for student-specific fields (stored in Student table)
+const studentDataSchema = z.object({
+  age: z.number().min(1, "العمر مطلوب"),
+  country: z.string().optional().nullable(),
   status: z.number().default(0),
-  startDate: z.date().optional(),
-  renewalDate: z.date().optional().nullable(),
   source: z.string().optional().nullable(),
   currentProgram: z.string().optional().nullable(),
   emergencyContactName: z.string().optional().nullable(),
   emergencyContactPhone: z.string().optional().nullable(),
-  preferredLanguage: z.string().optional().nullable(),
   tutorId: z.number().optional().nullable(),
   currencyId: z.number(),
   planId: z.number().optional().nullable(),
 });
 
 export async function createStudent(formData: FormData) {
-  const token = await getTokenFromCookie();
-  if (!token) throw new Error("غير مصرح");
-  const payload = verifyToken(token);
-  if (!payload || !payload.academyId) throw new Error("غير مصرح");
+  const currentUser = await user();
+  if (!currentUser || !currentUser.academyId) throw new Error("غير مصرح");
 
-  const rawData = {
+  // Extract raw data from FormData
+  const rawUser = {
     name: formData.get("name"),
-    email: formData.get("email") || null,
+    email: formData.get("email"),
+    phone: formData.get("phone") || null,
+    timezone: formData.get("timezone"),
+    preferredLanguage: formData.get("preferredLanguage") || null,
+  };
+
+  const rawStudent = {
     age: formData.get("age")
       ? parseInt(formData.get("age") as string)
       : undefined,
-    phone: formData.get("phone") || null,
     country: formData.get("country") || null,
-    timezone: formData.get("timezone"),
-    currencyId:
-      formData.get("currencyId") && formData.get("currencyId") !== "none"
-        ? parseInt(formData.get("currencyId") as string)
-        : null,
     status: formData.get("status")
       ? parseInt(formData.get("status") as string)
       : 0,
     source: formData.get("source") || null,
+    currentProgram: formData.get("currentProgram") || null,
     emergencyContactName: formData.get("emergencyContactName") || null,
     emergencyContactPhone: formData.get("emergencyContactPhone") || null,
-    currentProgram: formData.get("currentProgram") || null,
-    preferredLanguage: formData.get("preferredLanguage") || null,
     tutorId:
       formData.get("tutorId") && formData.get("tutorId") !== "none"
         ? parseInt(formData.get("tutorId") as string)
+        : null,
+    currencyId:
+      formData.get("currencyId") && formData.get("currencyId") !== "none"
+        ? parseInt(formData.get("currencyId") as string)
         : null,
     planId:
       formData.get("planId") && formData.get("planId") !== "none"
@@ -77,95 +82,244 @@ export async function createStudent(formData: FormData) {
         : null,
   };
 
-  const validated = createStudentSchema.parse(rawData);
+  // Validate both parts
+  const validatedUser = userSchema.parse(rawUser);
+  const validatedStudent = studentDataSchema.parse(rawStudent);
 
-  const student = await db.student.create({
-    data: { ...validated, academyId: payload.academyId },
+  // For subscribed students, planId is mandatory
+  if (
+    validatedStudent.status === StudentStatus.subscribed &&
+    !validatedStudent.planId
+  ) {
+    throw new Error("الخطة مطلوبة للطلاب المشتركين");
+  }
+
+  // Generate temporary password
+  const tempPassword = Math.random().toString(36).slice(-8);
+  const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
+  const result = await db.$transaction(async (tx) => {
+    // 1. Create User
+    const user = await tx.user.create({
+      data: {
+        name: validatedUser.name,
+        email: validatedUser.email,
+        password: hashedPassword,
+        phone: validatedUser.phone,
+        timezone: validatedUser.timezone,
+        preferredLanguage: validatedUser.preferredLanguage || "ar",
+        role: Role.Student,
+      },
+    });
+
+    // 2. Create Student (without currentSubscriptionId for now)
+    const student = await tx.student.create({
+      data: {
+        userId: user.id,
+        academyId: currentUser.academyId!,
+        age: validatedStudent.age,
+        country: validatedStudent.country,
+        status: validatedStudent.status,
+        currencyId: validatedStudent.currencyId,
+        source: validatedStudent.source,
+        currentProgram: validatedStudent.currentProgram,
+        emergencyContactName: validatedStudent.emergencyContactName,
+        emergencyContactPhone: validatedStudent.emergencyContactPhone,
+        tutorId: validatedStudent.tutorId,
+        planId: validatedStudent.planId,
+      },
+    });
+
+    let subscriptionId: number | null = null;
+
+    // 3. If student is subscribed, create subscription + paid revenue
+    if (
+      validatedStudent.status === StudentStatus.subscribed &&
+      validatedStudent.planId
+    ) {
+      const plan = await tx.plan.findUnique({
+        where: { id: validatedStudent.planId },
+      });
+      if (!plan) throw new Error("الخطة غير موجودة");
+
+      const startDate = new Date();
+      const endDate = new Date();
+      endDate.setDate(endDate.getDate() + plan.billingPeriod);
+
+      // Create subscription (status = active)
+      const subscription = await tx.subscription.create({
+        data: {
+          academyId: currentUser.academyId!,
+          studentId: student.id,
+          planId: plan.id,
+          startDate,
+          endDate,
+          status: SubscriptionStatus.active, // 0 = active
+        },
+      });
+
+      // Create a paid revenue entry (status = 1 for paid, adjust if needed)
+      await tx.revenue.create({
+        data: {
+          amount: plan.price,
+          currencyId: plan.currencyId,
+          status: 1, // 1 = paid (0 = pending)
+          dueDate: new Date(),
+          description: `دفع خطة ${plan.title}`,
+          academyId: currentUser.academyId!,
+          studentId: student.id,
+          planId: plan.id,
+          recordedBy: currentUser.id,
+          subscriptionId: subscription.id,
+          // method: optional, can be added from form later
+        },
+      });
+
+      subscriptionId = subscription.id;
+    }
+
+    // 4. Update student with currentSubscriptionId if created
+    let updatedStudent = student;
+    if (subscriptionId) {
+      updatedStudent = await tx.student.update({
+        where: { id: student.id },
+        data: { currentSubscriptionId: subscriptionId },
+      });
+    }
+
+    return { user, student: updatedStudent };
   });
-  if (validated.status === StudentStatus.lead) {
-    await recordLeadCreatedHistory(student.id, payload.id, payload.academyId);
+
+  // If status is "lead", record lead history (optional)
+  if (validatedStudent.status === StudentStatus.lead) {
+    await recordLeadCreatedHistory(
+      result.student.id,
+      currentUser.id,
+      currentUser.academyId!,
+    );
   }
 
   revalidatePath("/ar/dashboard/students");
 }
 
+const userUpdateSchema = z.object({
+  name: z.string().min(1, "الاسم مطلوب"),
+  email: z.string().email("بريد إلكتروني غير صالح"),
+  phone: z.string().optional().nullable(),
+  timezone: z.string().min(1, "المنطقة الزمنية مطلوبة"),
+  preferredLanguage: z.string().optional().nullable(),
+});
+
+// Schema for student fields (excluding relations that shouldn't be updated directly)
+const studentUpdateSchema = z.object({
+  age: z.number().min(1, "العمر مطلوب"),
+  country: z.string().optional().nullable(),
+  source: z.string().optional().nullable(),
+  currentProgram: z.string().optional().nullable(),
+  emergencyContactName: z.string().optional().nullable(),
+  emergencyContactPhone: z.string().optional().nullable(),
+  tutorId: z.number().optional().nullable(),
+  // status, currencyId, planId are not updated from this dialog
+});
+
 export async function updateStudent(id: number, formData: FormData) {
   const currentUser = await user();
   if (!currentUser || !currentUser.academyId) throw new Error("غير مصرح");
 
-  const rawData = {
-    name: formData.get("name"),
-    email: formData.get("email") || null,
+  // 1. Fetch existing student to get userId and current status
+  const existingStudent = await db.student.findUnique({
+    where: { id },
+    include: { user: true },
+  });
+  if (!existingStudent) throw new Error("الطالب غير موجود");
+
+  // 2. Extract and validate user fields from formData
+  const rawUser = {
+    name: formData.get("name") as string,
+    email: formData.get("email") as string,
+    phone: formData.get("phone") || null,
+    timezone: formData.get("timezone") as string,
+    preferredLanguage: formData.get("preferredLanguage") || null,
+  };
+  const validatedUser = userUpdateSchema.parse(rawUser);
+
+  // 3. Extract and validate student fields
+  const rawStudent = {
     age: formData.get("age")
       ? parseInt(formData.get("age") as string)
       : undefined,
-    phone: formData.get("phone") || null,
     country: formData.get("country") || null,
-    timezone: formData.get("timezone"),
-    currencyId: formData.get("currencyId")
-      ? parseInt(formData.get("currencyId") as string)
-      : undefined,
-    status: formData.get("status")
-      ? parseInt(formData.get("status") as string)
-      : 0,
     source: formData.get("source") || null,
+    currentProgram: formData.get("currentProgram") || null,
     emergencyContactName: formData.get("emergencyContactName") || null,
     emergencyContactPhone: formData.get("emergencyContactPhone") || null,
-    preferredLanguage: formData.get("preferredLanguage") || null,
     tutorId:
       formData.get("tutorId") && formData.get("tutorId") !== "none"
         ? parseInt(formData.get("tutorId") as string)
         : null,
-    planId: formData.get("planId")
-      ? parseInt(formData.get("planId") as string)
-      : null,
-    imageUrl: formData.get("imageUrl") || null,
   };
-  console.log({ rawData }, formData.get("tutorId"));
+  const validatedStudent = studentUpdateSchema.parse(rawStudent);
 
-  const validated = createStudentSchema
-    .extend({
-      imageUrl: z.string().nullable().optional(),
-      currencyId: z.number().optional(),
-    })
-    .parse(rawData);
-
-  await db.student.update({
-    where: { id },
-    data: validated,
-  });
-
-  if (validated.status === StudentStatus.lead)
-    await db.history.create({
+  // 4. Perform updates in a transaction
+  await db.$transaction(async (tx) => {
+    // Update User record
+    await tx.user.update({
+      where: { id: existingStudent.userId },
       data: {
-        targetType: TargetType.Student,
-        targetId: id,
-        action: HistoryActionType.LeadCreated,
-        recordedBy: currentUser.id,
-        academyId: currentUser.academyId,
-        recorderType: Role.Admin,
+        name: validatedUser.name,
+        email: validatedUser.email,
+        phone: validatedUser.phone,
+        timezone: validatedUser.timezone,
+        preferredLanguage: validatedUser.preferredLanguage || undefined,
       },
     });
 
-  if (
-    [StudentStatus.paused, StudentStatus.churned].includes(validated.status)
-  ) {
-    await db.subscription.updateMany({
-      where: {
-        studentId: id,
-      },
-      data: {
-        status: SubscriptionStatus.cancelled,
-      },
-    });
-    await db.student.update({
+    // Update Student record
+    await tx.student.update({
       where: { id },
       data: {
-        currentSubscriptionId: null,
-        planId: null,
+        age: validatedStudent.age,
+        country: validatedStudent.country,
+        source: validatedStudent.source,
+        currentProgram: validatedStudent.currentProgram,
+        emergencyContactName: validatedStudent.emergencyContactName,
+        emergencyContactPhone: validatedStudent.emergencyContactPhone,
+        tutorId: validatedStudent.tutorId,
+        // Note: status, currencyId, planId are NOT updated here
       },
     });
+  });
+
+  // 5. Optional: Handle status‑related side effects only if status was changed
+  //    Since the edit dialog does not include status, we normally wouldn't run this.
+  //    But if you later add status to the form, uncomment and adjust accordingly.
+  /*
+  const newStatus = formData.get("status") ? parseInt(formData.get("status") as string) : existingStudent.status;
+  if (newStatus !== existingStudent.status) {
+    if (newStatus === StudentStatus.lead) {
+      await db.history.create({
+        data: {
+          targetType: TargetType.Student,
+          targetId: id,
+          action: HistoryActionType.LeadCreated,
+          recordedBy: currentUser.id,
+          academyId: currentUser.academyId,
+          recorderType: Role.Admin,
+        },
+      });
+    }
+    if ([StudentStatus.paused, StudentStatus.churned].includes(newStatus)) {
+      await db.subscription.updateMany({
+        where: { studentId: id },
+        data: { status: SubscriptionStatus.cancelled },
+      });
+      await db.student.update({
+        where: { id },
+        data: { currentSubscriptionId: null, planId: null },
+      });
+    }
   }
+  */
 
   revalidatePath("/ar/dashboard/students");
 }
@@ -176,6 +330,7 @@ export async function getStudent(id: number) {
       id,
     },
     include: {
+      user: true,
       tutor: {
         include: {
           user: {

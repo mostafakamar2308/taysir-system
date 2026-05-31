@@ -32,6 +32,7 @@ export default async function StudentProfilePage({
     where: { id },
     include: {
       tutor: { include: { user: true } },
+      user: true,
       plan: {
         include: {
           currency: true,
@@ -72,19 +73,18 @@ export default async function StudentProfilePage({
 
   const transformed: StudentProfile = {
     id: student.id,
-    name: student.name,
-    email: student.email,
+    name: student.user.name || "",
+    email: student.user.email || "",
     age: student.age,
-    phone: student.phone,
+    phone: student.user.phone || "",
     country: student.country,
-    timezone: student.timezone,
+    timezone: student.user.timezone,
     status: student.status,
     source: student.source,
     currentProgram: student.currentProgram,
     emergencyContactName: student.emergencyContactName,
     emergencyContactPhone: student.emergencyContactPhone,
-    preferredLanguage: student.preferredLanguage,
-    imageUrl: student.imageUrl,
+    preferredLanguage: student.user.preferredLanguage,
     tutorId: student.tutorId,
     tutorName: student.tutor?.user.name ?? null,
     planId: student.planId,
@@ -160,7 +160,7 @@ export default async function StudentProfilePage({
       topic: s.topic,
       notes: s.notes,
       studentId: s.studentId,
-      studentName: student.name, // or fetch student name if needed
+      studentName: student.user.name || "",
       tutorId: s.tutorId,
       tutorName: s.tutor.user.name,
       attendance: s.attendance

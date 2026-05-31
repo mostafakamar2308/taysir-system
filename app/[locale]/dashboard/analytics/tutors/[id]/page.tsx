@@ -133,7 +133,7 @@ export default async function TutorAnalyticsPage({
   // Top students by attendance (among those assigned to this tutor)
   const students = await db.student.findMany({
     where: { tutorId },
-    select: { id: true, name: true },
+    select: { id: true, user: { select: { name: true } } },
   });
 
   const topStudents = await Promise.all(
@@ -164,7 +164,7 @@ export default async function TutorAnalyticsPage({
           : 0;
       return {
         studentId: student.id,
-        studentName: student.name,
+        studentName: student.user.name || "",
         attendanceRate: rate,
         // program name – we could fetch from enrollment, but for simplicity, we'll leave empty
         programName: "—",

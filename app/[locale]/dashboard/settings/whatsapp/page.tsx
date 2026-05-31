@@ -7,7 +7,11 @@ import { redirect } from "next/navigation";
 
 export default async function Page() {
   const currentUser = await user();
-  if (!currentUser || currentUser.role !== Role.Admin || !currentUser.academyId) {
+  if (
+    !currentUser ||
+    currentUser.role !== Role.Admin ||
+    !currentUser.academyId
+  ) {
     redirect("/login");
   }
 
@@ -16,7 +20,7 @@ export default async function Page() {
   const [students, tutors] = await Promise.all([
     db.student.findMany({
       where: { academyId },
-      select: { id: true, name: true, phone: true },
+      select: { id: true, user: { select: { name: true, phone: true } } },
     }),
     db.tutor.findMany({
       where: { academyId },
@@ -27,7 +31,18 @@ export default async function Page() {
   return (
     <div className="flex flex-col items-center justify-center h-full">
       <WhatsAppConnect />
-      <BulkMessagePanel students={students} tutors={tutors.map(t => ({ id: t.id, name: t.user.name, phone: t.user.phone }))} />
+      <BulkMessagePanel
+        students={students.map((t) => ({
+          id: t.id,
+          name: t.user.name,
+          phone: t.user.phone,
+        }))}
+        tutors={tutors.map((t) => ({
+          id: t.id,
+          name: t.user.name,
+          phone: t.user.phone,
+        }))}
+      />
     </div>
   );
 }

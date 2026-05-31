@@ -42,6 +42,12 @@ export default async function TutorProfilePage({
       currency: true,
       students: {
         include: {
+          user: {
+            select: {
+              name: true,
+              phone: true,
+            },
+          },
           plan: true,
           sessions: {
             where: {
@@ -60,7 +66,9 @@ export default async function TutorProfilePage({
           startTime: { gte: startOfMonth, lte: endOfMonth },
         },
         include: {
-          student: true,
+          student: {
+            include: { user: { select: { name: true } } },
+          },
           attendance: true,
           sessionReport: true,
         },
@@ -176,10 +184,10 @@ export default async function TutorProfilePage({
   // Transform other data
   const transformedStudents: AssignedStudent[] = tutor.students.map((s) => ({
     id: s.id,
-    name: s.name,
+    name: s.user.name || "",
     age: s.age,
     status: s.status,
-    phone: s.phone,
+    phone: s.user.phone || "",
     planTitle: s.plan?.title ?? null,
     nextSessionDate: s.sessions[0]?.startTime.toISOString() ?? null,
   }));
@@ -192,7 +200,7 @@ export default async function TutorProfilePage({
     status: getSessionStatus(s),
     topic: s.topic,
     studentId: s.studentId,
-    studentName: s.student.name,
+    studentName: s.student.user.name || "",
     attendance: s.attendance
       ? {
           id: s.attendance.id,

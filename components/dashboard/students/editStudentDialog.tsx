@@ -22,7 +22,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { getStudent, updateStudent } from "@/actions/student";
 import { User } from "lucide-react";
-import { Student } from "@/generated/prisma/browser";
+import { GetStudentResult } from "@/types/student";
 
 interface EditStudentDialogProps {
   studentId: number;
@@ -41,7 +41,7 @@ export default function EditStudentDialog({
 }: EditStudentDialogProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [student, setStudent] = useState<Student | null>(null);
+  const [student, setStudent] = useState<GetStudentResult | null>(null);
 
   const router = useRouter();
   const { toast } = useToast();
@@ -95,7 +95,7 @@ export default function EditStudentDialog({
                 <Input
                   id="name"
                   name="name"
-                  defaultValue={student.name}
+                  defaultValue={student.user.name || ""}
                   required
                 />
               </div>
@@ -105,7 +105,7 @@ export default function EditStudentDialog({
                   id="email"
                   name="email"
                   type="email"
-                  defaultValue={student.email || ""}
+                  defaultValue={student.user.email || ""}
                 />
               </div>
               <div>
@@ -123,7 +123,7 @@ export default function EditStudentDialog({
                 <Input
                   id="phone"
                   name="phone"
-                  defaultValue={student.phone || ""}
+                  defaultValue={student.user.phone || ""}
                 />
               </div>
               <div>
@@ -136,7 +136,7 @@ export default function EditStudentDialog({
               </div>
               <div>
                 <Label htmlFor="timezone">المنطقة الزمنية *</Label>
-                <Select name="timezone" defaultValue={student.timezone}>
+                <Select name="timezone" defaultValue={student.user.timezone}>
                   <SelectTrigger>
                     <SelectValue placeholder="اختر المنطقة الزمنية" />
                   </SelectTrigger>
@@ -153,7 +153,7 @@ export default function EditStudentDialog({
                 <Input
                   id="preferredLanguage"
                   name="preferredLanguage"
-                  defaultValue={student.preferredLanguage || ""}
+                  defaultValue={student.user.preferredLanguage || ""}
                 />
               </div>
               <div>

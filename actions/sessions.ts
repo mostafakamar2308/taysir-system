@@ -242,7 +242,7 @@ export async function getSessionsForWeek(startDate: Date, endDate: Date) {
       academyId: payload.academyId,
     },
     include: {
-      student: true,
+      student: { select: { user: { select: { name: true } } } },
       tutor: { include: { user: true } },
       attendance: true,
     },
@@ -259,7 +259,7 @@ export async function getSessionsForWeek(startDate: Date, endDate: Date) {
     topic: s.topic,
     notes: s.notes,
     studentId: s.studentId,
-    studentName: s.student.name,
+    studentName: s.student.user.name || "",
     zoomMeetingId: s.zoomMeetingId,
     zoomJoinUrl: s.zoomJoinUrl,
     zoomStartUrl: s.zoomStartUrl,
@@ -320,7 +320,7 @@ export async function getSessionDetails(
   const session = await db.session.findUnique({
     where: { id: sessionId },
     include: {
-      student: { select: { name: true, phone: true } },
+      student: { select: { user: { select: { name: true, phone: true } } } },
       tutor: { include: { user: { select: { name: true, phone: true } } } },
       attendance: true,
       sessionReport: true,
@@ -338,7 +338,7 @@ export async function getSessionDetails(
     topic: session.topic,
     notes: session.notes,
     studentId: session.studentId,
-    studentName: session.student.name,
+    studentName: session.student.user.name || "",
     tutorId: session.tutorId,
     isTrial: session.isTrial,
     tutorName: session.tutor.user.name ?? "",

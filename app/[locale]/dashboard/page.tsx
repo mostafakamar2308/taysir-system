@@ -285,18 +285,19 @@ export default async function DashboardPage() {
       reason: string;
     }[]
   >`
-  SELECT s.id, s.name, s.phone, 'غياب بدون عذر' as reason
-  FROM "Student" s
-  JOIN "Session" sess ON sess."studentId" = s.id
-  JOIN "Attendance" a ON a."sessionId" = sess.id
-  WHERE s."academyId" = ${academyId}
-    AND s.status = ${StudentStatus.subscribed}
-    AND a."studentAttendanceStatus" = ${AttendanceStatus.ABSENT_UNEXCUSED}
-    AND sess."startTime" = (
-      SELECT MAX("startTime") FROM "Session" 
-      WHERE "studentId" = s.id AND "startTime" <= NOW()
-    )
-  LIMIT 100;  -- add pagination later
+SELECT s.id, u.name, u.phone, 'غياب بدون عذر' as reason
+FROM "Student" s
+JOIN "User" u ON s."userId" = u.id
+JOIN "Session" sess ON sess."studentId" = s.id
+JOIN "Attendance" a ON a."sessionId" = sess.id
+WHERE s."academyId" = ${academyId}
+  AND s.status = ${StudentStatus.subscribed}
+  AND a."studentAttendanceStatus" = ${AttendanceStatus.ABSENT_UNEXCUSED}
+  AND sess."startTime" = (
+    SELECT MAX("startTime") FROM "Session"
+    WHERE "studentId" = s.id AND "startTime" <= NOW()
+  )
+LIMIT 100;
 `;
 
   // ---------- Attendance Sheet ----------
@@ -307,7 +308,9 @@ export default async function DashboardPage() {
       attendance: null,
     },
     include: {
-      student: { select: { id: true, name: true, phone: true } },
+      student: {
+        select: { id: true, user: { select: { name: true, phone: true } } },
+      },
       tutor: {
         select: {
           id: true,
@@ -326,7 +329,9 @@ export default async function DashboardPage() {
       status: SubscriptionStatus.active,
     },
     include: {
-      student: { select: { id: true, name: true, phone: true } },
+      student: {
+        select: { id: true, user: { select: { name: true, phone: true } } },
+      },
       plan: { select: { title: true, price: true } },
     },
   });
@@ -339,8 +344,8 @@ export default async function DashboardPage() {
     })
     .map((sub) => ({
       id: sub.studentId,
-      studentName: sub.student.name,
-      phone: sub.student.phone,
+      studentName: sub.student.user.name || "",
+      phone: sub.student.user.phone || "",
       planTitle: sub.plan.title,
       amountDue: sub.plan.price,
       daysOverdue: sub.endDate
@@ -356,8 +361,8 @@ export default async function DashboardPage() {
     })
     .map((sub) => ({
       id: sub.studentId,
-      studentName: sub.student.name,
-      phone: sub.student.phone,
+      studentName: sub.student.user.name || "",
+      phone: sub.student.user.phone || "",
       planTitle: sub.plan.title,
       endDate: (
         dayjs(sub.endDate) || dayjs(sub.startDate).add(30, "day")
@@ -383,7 +388,9 @@ export default async function DashboardPage() {
       },
     },
     include: {
-      student: { select: { id: true, name: true, phone: true } },
+      student: {
+        select: { id: true, user: { select: { name: true, phone: true } } },
+      },
       tutor: { include: { user: { select: { name: true, phone: true } } } },
     },
   });
@@ -396,7 +403,7 @@ export default async function DashboardPage() {
       sessionReport: null,
     },
     include: {
-      student: { select: { name: true } },
+      student: { select: { user: { select: { name: true } } } },
       tutor: { include: { user: { select: { name: true, phone: true } } } },
     },
   });
@@ -465,6 +472,11 @@ export default async function DashboardPage() {
   const plans = await db.plan.findMany({ where: { academyId } });
   const allStudents = await db.student.findMany({
     where: { academyId },
+    include: {
+      user: {
+        select: { name: true },
+      },
+    },
   });
 
   return (
@@ -475,17 +487,17 @@ export default async function DashboardPage() {
       attendanceSheet={todaySessions.map((s) => ({
         sessionId: s.id,
         studentId: s.student.id,
-        studentName: s.student.name,
-        studentPhone: s.student.phone,
-        tutorName: s.tutor.user.name,
+        studentName: s.student.user.name || "",
+        studentPhone: s.student.user.phone,
+        tutorName: s.tutor.user.name || "",
         tutorPhone: s.tutor.user.phone,
         startTime: s.startTime.toISOString(),
       }))}
       absentSessions={absentSessions.map((s) => ({
         sessionId: s.id,
         studentId: s.student.id,
-        studentName: s.student.name,
-        studentPhone: s.student.phone,
+        studentName: s.student.user.name || "",
+        studentPhone: s.student.user.phone,
         tutorName: s.tutor.user.name || "",
         tutorPhone: s.tutor.user.phone,
         startTime: s.startTime.toISOString(),
@@ -497,14 +509,14 @@ export default async function DashboardPage() {
         tutorId: s.tutor.id,
         tutorName: s.tutor.user.name || "",
         tutorPhone: s.tutor.user.phone,
-        studentName: s.student.name,
+        studentName: s.student.user.name || "",
         startTime: s.startTime.toISOString(),
       }))}
       academyId={academyId}
       plans={plans.map((p) => ({ id: p.id, title: p.title }))}
       currencies={currencies.map((c) => ({ id: c.id, name: c.name }))}
       tutors={tutors.map((t) => ({ id: t.id, name: t.user.name }))}
-      students={allStudents.map((t) => ({ id: t.id, name: t.name }))}
+      students={allStudents.map((t) => ({ id: t.id, name: t.user.name }))}
       specialities={specialities.map((s) => ({ id: s.id, title: s.title }))}
       defaultCurrency={{
         code: defaultCurrencyCode,

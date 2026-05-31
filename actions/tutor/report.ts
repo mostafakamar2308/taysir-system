@@ -26,7 +26,7 @@ export async function upsertSessionReport(
     where: { id: sessionId },
     include: {
       student: {
-        select: { name: true, phone: true },
+        select: { user: { select: { name: true, phone: true } } },
       },
     },
   });
@@ -39,10 +39,10 @@ export async function upsertSessionReport(
     create: { sessionId, ...data },
   });
 
-  if (session.student.phone) {
+  if (session.student.user.phone) {
     const message = {
-      phoneNumber: session.student.phone,
-      content: `السلام عليكم، ${session.student.name ? `والد الطالب ${session.student.name}` : ""}
+      phoneNumber: session.student.user.phone,
+      content: `السلام عليكم، ${session.student.user.name ? `والد الطالب ${session.student.user.name}` : ""}
 هذا تقرير حصة يوم ${dayjs(session.startTime).format("dddd")}:
 ${data.rating ? `تقييم الحصة: ${data.rating}` : ""}
 ${data.outcomes ? `نتائج الحصة: ${data.outcomes}` : ""}

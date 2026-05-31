@@ -1,3 +1,4 @@
+import { Student, User, Tutor, Plan } from "@/generated/prisma/browser";
 export type DashboardStudent = {
   id: number;
   name: string;
@@ -21,3 +22,15 @@ export enum StudentStatus {
   churned,
   paused,
 }
+
+// Type for tutor with user (password omitted)
+type TutorWithUser = Tutor & {
+  user: Omit<User, "password">;
+};
+
+// Type for student with all includes
+export type GetStudentResult = Student & {
+  user: User;
+  tutor: TutorWithUser | null;
+  plan: Plan | null;
+};

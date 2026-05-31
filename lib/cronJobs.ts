@@ -37,7 +37,7 @@ async function sendSessionReminders() {
         startTime: { gte: now.toDate(), lte: nextHour.toDate() },
       },
       include: {
-        student: { select: { name: true, phone: true } },
+        student: { select: { user: { select: { name: true, phone: true } } } },
         tutor: {
           select: {
             user: { select: { name: true, phone: true } },
@@ -60,21 +60,21 @@ async function sendSessionReminders() {
       const startTimeStr = sessionStart.tz("Africa/Cairo").format("hh:mm A");
 
       // Student message
-      if (session.student?.phone) {
+      if (session.student?.user?.phone) {
         const studentMsg = `تذكير: لديك حصة "${session.topic || "حصتك"}" مع ${session.tutor?.user.name || "المعلم"} بعد ${timeText} (الساعة ${startTimeStr}). 
         ${session.zoomJoinUrl ? `لينك الحصة: ${session.zoomJoinUrl}` : ""}
         `;
         await whatsappQueue.add("session-reminder", {
           academyId: academy.id,
           instanceName,
-          recipientJid: formatPhoneToJid(session.student.phone),
+          recipientJid: formatPhoneToJid(session.student.user.phone),
           message: studentMsg,
         });
       }
 
       // Tutor message
       if (session.tutor?.user.phone) {
-        const tutorMsg = `تذكير: لديك حصة "${session.topic || "حصتك"}" مع الطالب ${session.student?.name || "طالب"} بعد ${timeText} (الساعة ${startTimeStr}).
+        const tutorMsg = `تذكير: لديك حصة "${session.topic || "حصتك"}" مع الطالب ${session.student?.user.name || "طالب"} بعد ${timeText} (الساعة ${startTimeStr}).
         ${session.zoomStartUrl ? `لينك الحصة: ${session.zoomStartUrl}` : ""}
         `;
         await whatsappQueue.add("session-reminder", {
@@ -113,7 +113,7 @@ async function sendReportReminders() {
         sessionReport: null,
       },
       include: {
-        student: { select: { name: true } },
+        student: { select: { user: { select: { name: true, phone: true } } } },
         tutor: {
           select: { id: true, user: { select: { name: true, phone: true } } },
         },
@@ -135,7 +135,7 @@ async function sendReportReminders() {
           students: new Set(),
         });
       }
-      tutorMap.get(tutorId)!.students.add(session.student.name);
+      tutorMap.get(tutorId)!.students.add(session.student.user.name || "طالب");
     }
 
     for (const [_, info] of tutorMap) {

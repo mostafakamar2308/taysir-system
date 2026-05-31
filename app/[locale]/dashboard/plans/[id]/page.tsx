@@ -22,7 +22,15 @@ export default async function PlanDetailPage({
       currency: true,
       subscriptions: {
         where: { status: SubscriptionStatus.active },
-        include: { student: true },
+        include: {
+          student: {
+            select: {
+              id: true,
+              user: { select: { name: true, email: true, phone: true } },
+              status: true,
+            },
+          },
+        },
       },
       revenues: {
         where: { status: PaymentStatus.PAID },
@@ -34,9 +42,9 @@ export default async function PlanDetailPage({
 
   const activeStudents = plan.subscriptions.map((sub) => ({
     id: sub.student.id,
-    name: sub.student.name,
-    email: sub.student.email,
-    phone: sub.student.phone,
+    name: sub.student.user.name || "",
+    email: sub.student.user.email,
+    phone: sub.student.user.phone || "",
     status: sub.student.status,
     startDate: sub.startDate,
     endDate: sub.endDate,

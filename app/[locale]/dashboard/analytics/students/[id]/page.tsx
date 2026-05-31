@@ -16,6 +16,9 @@ export default async function StudentAnalyticsPage({
     where: { id: studentId },
     include: {
       tutor: { include: { user: true } },
+      user: {
+        select: { name: true },
+      },
       sessions: {
         where: {
           startTime: {
@@ -84,7 +87,7 @@ export default async function StudentAnalyticsPage({
 
   return (
     <StudentAnalyticsClient
-      studentName={student.name}
+      studentName={student.user.name || ""}
       studentStatus={student.status}
       totalSessions={totalSessions}
       attendanceRate={attendanceRate}

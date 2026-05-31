@@ -72,7 +72,9 @@ export default async function TutorSessionsPage({
   const sessions = await db.session.findMany({
     where,
     include: {
-      student: { select: { id: true, name: true, phone: true } },
+      student: {
+        select: { id: true, user: { select: { name: true, phone: true } } },
+      },
       attendance: true,
       sessionReport: true,
     },
@@ -81,9 +83,13 @@ export default async function TutorSessionsPage({
 
   const students = await db.student.findMany({
     where: { tutorId },
+    select: { id: true, user: { select: { name: true } } },
   });
 
-  const tutorStudents = students.map((s) => ({ id: s.id, name: s.name }));
+  const tutorStudents = students.map((s) => ({
+    id: s.id,
+    name: s.user.name || "",
+  }));
 
   const transformedSessions: DashboardSession[] = sessions.map((s) => ({
     id: s.id,
@@ -97,8 +103,8 @@ export default async function TutorSessionsPage({
     tutorName: currentUser.name,
     isTrial: s.isTrial,
     studentId: s.studentId,
-    studentName: s.student.name,
-    studentPhone: s.student.phone,
+    studentName: s.student.user.name || "",
+    studentPhone: s.student.user.phone,
     zoomMeetingId: s.zoomMeetingId,
     zoomJoinUrl: s.zoomJoinUrl,
     zoomStartUrl: s.zoomStartUrl,
