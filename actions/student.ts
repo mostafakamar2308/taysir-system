@@ -129,6 +129,24 @@ export async function createStudent(formData: FormData) {
         planId: validatedStudent.planId,
       },
     });
+    if (rawStudent.tutorId) {
+      const tutor = await tx.tutor.findUnique({
+        where: {
+          id: rawStudent.tutorId,
+        },
+        select: {
+          userId: true,
+        },
+      });
+      if (!tutor) throw new Error("المعلم غير موجود");
+      await tx.chatRoom.create({
+        data: {
+          studentUserId: student.userId,
+          tutorUserId: tutor.userId,
+          academyId: currentUser.academyId!,
+        },
+      });
+    }
 
     let subscriptionId: number | null = null;
 
@@ -288,6 +306,49 @@ export async function updateStudent(id: number, formData: FormData) {
         // Note: status, currencyId, planId are NOT updated here
       },
     });
+
+    // Close chat with old tutor if tutor changed
+    if (rawStudent.tutorId) {
+      if (existingStudent.tutorId) {
+        const existingTutor = await tx.tutor.findUnique({
+          where: {
+            id: rawStudent.tutorId,
+          },
+          select: {
+            userId: true,
+          },
+        });
+        if (!existingTutor)
+          throw new Error("المعلم المسجل غير موجود: Shouldn't Happen");
+        await tx.chatRoom.update({
+          where: {
+            tutorUserId_studentUserId: {
+              tutorUserId: existingTutor?.userId,
+              studentUserId: existingStudent.userId,
+            },
+          },
+          data: {
+            isClosed: true,
+          },
+        });
+      }
+      const tutor = await tx.tutor.findUnique({
+        where: {
+          id: rawStudent.tutorId,
+        },
+        select: {
+          userId: true,
+        },
+      });
+      if (!tutor) throw new Error("المعلم غير موجود");
+      await tx.chatRoom.create({
+        data: {
+          studentUserId: existingStudent.userId,
+          tutorUserId: tutor.userId,
+          academyId: currentUser.academyId!,
+        },
+      });
+    }
   });
 
   // 5. Optional: Handle status‑related side effects only if status was changed

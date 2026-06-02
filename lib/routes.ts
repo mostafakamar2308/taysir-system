@@ -15,6 +15,7 @@ import {
   Users2,
   Phone,
   Video,
+  MessageSquare,
 } from "lucide-react";
 import { Role } from "@/types/user";
 
@@ -65,6 +66,11 @@ export const getSidebarGroups = (role: number) => {
         label: "الرئيسية",
         items: [
           { title: "لوحة التحكم", url: "/ar/dashboard", icon: LayoutDashboard },
+          {
+            title: "المحادثات",
+            url: "/ar/dashboard/chat",
+            icon: MessageSquare,
+          },
         ],
       },
       {
@@ -148,6 +154,11 @@ export const getSidebarGroups = (role: number) => {
             url: "/ar/dashboard/tutor",
             icon: LayoutDashboard,
           },
+          {
+            title: "المحادثات",
+            url: "/ar/dashboard/chat",
+            icon: MessageSquare,
+          },
         ],
       },
       {
@@ -198,6 +209,7 @@ export const getSidebarGroups = (role: number) => {
       label: "الرئيسية",
       items: [
         { title: "لوحة التحكم", url: "/ar/dashboard", icon: LayoutDashboard },
+        { title: "المحادثات", url: "/ar/dashboard/chat", icon: MessageSquare },
       ],
     },
   ];

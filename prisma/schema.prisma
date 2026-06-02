@@ -108,8 +108,9 @@ model Academy {
   whatsAppMessages     WhatsAppMessage[]
   subscriptions        Subscription[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  chatRooms ChatRoom[]
 }
 
 model AcademyCurrencyRate {
@@ -138,14 +139,17 @@ model User {
   preferredLanguage String  @default("ar")
   imageUrl          String?
 
-  superAdmin SuperAdmin?
-  admin      Admin?
-  supervisor Supervisor?
-  student    Student?
-  tutor      Tutor?
-  notes      Note[]
-  revenues   Revenue[]
-  expenses   Expense[]
+  superAdmin       SuperAdmin?
+  admin            Admin?
+  supervisor       Supervisor?
+  student          Student?
+  tutor            Tutor?
+  notes            Note[]
+  revenues         Revenue[]
+  expenses         Expense[]
+  chatMessages     ChatMessage[]
+  tutorChatRooms   ChatRoom[]    @relation("TutorChatRooms")
+  studentChatRooms ChatRoom[]    @relation("StudentChatRooms")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -525,4 +529,43 @@ model CostCenter {
   expenses Expense[]
 
   createdAt DateTime @default(now())
+}
+
+model ChatRoom {
+  id            Int     @id @default(autoincrement())
+  tutorUserId   Int
+  tutor         User    @relation(fields: [tutorUserId], references: [id], name: "TutorChatRooms")
+  studentUserId Int
+  student       User    @relation(fields: [studentUserId], references: [id], name: "StudentChatRooms")
+  isClosed      Boolean @default(false)
+  academyId     Int
+  academy       Academy @relation(fields: [academyId], references: [id])
+
+  messages ChatMessage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tutorUserId, studentUserId])
+  @@index([tutorUserId, studentUserId])
+  @@index([academyId])
+}
+
+model ChatMessage {
+  id        Int       @id @default(autoincrement())
+  roomId    Int
+  room      ChatRoom  @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  senderId  Int
+  sender    User      @relation(fields: [senderId], references: [id])
+  content   String
+  isRead    Boolean   @default(false)
+  isDeleted Boolean   @default(false)
+  readAt    DateTime?
+  refId     String? // client‑side temporary ID for optimistic updates
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([roomId])
+  @@index([senderId])
 }

@@ -435,13 +435,15 @@ async function seedDemoAcademy() {
       const finalTrialDate = trialDate.isBefore(monthEnd)
         ? trialDate
         : monthEnd;
-
+      const tutorPool = m < 2 ? initialTutors : allTutors;
+      const tutorId = tutorPool[randomInt(0, tutorPool.length - 1)];
       // Update status
       await db.student.update({
         where: { id: lead.id },
         data: {
           status: StudentStatus.trial,
           updatedAt: finalTrialDate.toDate(),
+          tutorId,
         },
       });
 
@@ -464,8 +466,7 @@ async function seedDemoAcademy() {
       });
 
       // Create trial session (isTrial = true)
-      const tutorPool = m < 2 ? initialTutors : allTutors;
-      const tutorId = tutorPool[randomInt(0, tutorPool.length - 1)];
+
       const trialSessionDate = finalTrialDate.add(1, "day").hour(16);
       const trialSession = await db.session.create({
         data: {
@@ -707,6 +708,89 @@ async function seedDemoAcademy() {
         },
       });
     }
+
+    // ---- 8 Creating Chat Rooms with messages ----
+    console.log("\n💬 Creating chat rooms and messages...");
+
+    const studentsWithTutor = await db.student.findMany({
+      where: {
+        academyId: academy.id,
+        tutorId: { not: null },
+        status: { in: [StudentStatus.trial, StudentStatus.subscribed] },
+      },
+      select: { id: true, tutor: true, userId: true, createdAt: true },
+    });
+
+    for (const s of studentsWithTutor) {
+      if (!s.tutor) continue;
+      await db.chatRoom.upsert({
+        where: {
+          tutorUserId_studentUserId: {
+            tutorUserId: s.tutor.userId,
+            studentUserId: s.userId,
+          },
+        },
+        update: {},
+        create: {
+          tutorUserId: s.tutor.userId,
+          studentUserId: s.userId,
+          academyId: academy.id,
+        },
+      });
+    }
+    console.log(`  ✅ ${studentsWithTutor.length} tutor–student chat rooms`);
+
+    async function generateChatMessages(
+      roomId: number,
+      participantUserIds: [number, number], // [userA, userB]
+      startDate: Date,
+      countPerUser: number,
+    ) {
+      const messages: {
+        roomId: number;
+        senderId: number;
+        content: string;
+        createdAt: Date;
+        updatedAt: Date;
+      }[] = [];
+
+      for (let i = 0; i < countPerUser * 2; i++) {
+        const senderId = participantUserIds[i % 2];
+        const createdAt = faker.date.between({
+          from: startDate,
+          to: dayjs().toDate(),
+        });
+        messages.push({
+          roomId,
+          senderId,
+          content: faker.lorem.sentence(),
+          createdAt,
+          updatedAt: createdAt,
+        });
+      }
+
+      // Sort chronologically
+      messages.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+
+      // Batch insert
+      await db.chatMessage.createMany({ data: messages });
+    }
+
+    const allRooms = await db.chatRoom.findMany({
+      where: { academyId: academy.id },
+    });
+
+    for (const room of allRooms) {
+      const participantIds: [number, number] | null = [
+        room.tutorUserId,
+        room.studentUserId,
+      ];
+      if (participantIds) {
+        const startDate = room.createdAt;
+        await generateChatMessages(room.id, participantIds, startDate, 50);
+      }
+    }
+    console.log(`  ✅ Messages generated for all chat rooms`);
   }
 
   console.log("\n🎉 Demo academy seeded successfully!");

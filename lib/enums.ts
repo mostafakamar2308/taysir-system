@@ -87,3 +87,13 @@ export const dayLabels: Record<number, string> = {
   5: "الجمعة",
   6: "السبت",
 };
+
+import { Role } from "@/types/user";
+
+export const roleLabels: Record<Role, string> = {
+  [Role.SuperAdmin]: "مالك المنصة",
+  [Role.Admin]: "المدير",
+  [Role.Supervisor]: "مشرف",
+  [Role.Tutor]: "معلم",
+  [Role.Student]: "طالب",
+};

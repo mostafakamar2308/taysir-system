@@ -200,7 +200,7 @@ export default function SessionDetailPanel({
                 </Label>
                 <div className="flex items-center gap-2">
                   <Input
-                    value={session.zoomJoinUrl!}
+                    value={session.zoomJoinUrl || ""}
                     readOnly
                     className="font-mono text-sm"
                     dir="ltr"
@@ -210,7 +210,7 @@ export default function SessionDetailPanel({
                     size="icon"
                     title="نسخ الرابط"
                     onClick={() => {
-                      navigator.clipboard.writeText(session.zoomJoinUrl!);
+                      navigator.clipboard.writeText(session.zoomJoinUrl || "");
                       toast({ title: "تم نسخ الرابط" });
                     }}
                   >
@@ -235,7 +235,7 @@ export default function SessionDetailPanel({
                   </Label>
                   <div className="flex items-center gap-2">
                     <Input
-                      value={session.zoomStartUrl!}
+                      value={session.zoomStartUrl || ""}
                       readOnly
                       className="font-mono text-sm bg-muted/50"
                       dir="ltr"
@@ -245,7 +245,9 @@ export default function SessionDetailPanel({
                       size="icon"
                       title="نسخ الرابط"
                       onClick={() => {
-                        navigator.clipboard.writeText(session.zoomStartUrl!);
+                        navigator.clipboard.writeText(
+                          session.zoomStartUrl || "",
+                        );
                         toast({ title: "تم نسخ الرابط" });
                       }}
                     >
