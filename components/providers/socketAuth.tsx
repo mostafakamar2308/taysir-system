@@ -2,12 +2,14 @@
 import { useEffect, useState } from "react";
 import { SocketProvider } from "./socketProvider";
 import { Loader2 } from "lucide-react";
+import { usePushNotifications } from "@/hooks/use-push-notifications";
 
 export function SocketAuthProvider({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  usePushNotifications();
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
