@@ -139,17 +139,18 @@ model User {
   preferredLanguage String  @default("ar")
   imageUrl          String?
 
-  superAdmin       SuperAdmin?
-  admin            Admin?
-  supervisor       Supervisor?
-  student          Student?
-  tutor            Tutor?
-  notes            Note[]
-  revenues         Revenue[]
-  expenses         Expense[]
-  chatMessages     ChatMessage[]
-  tutorChatRooms   ChatRoom[]    @relation("TutorChatRooms")
-  studentChatRooms ChatRoom[]    @relation("StudentChatRooms")
+  superAdmin        SuperAdmin?
+  admin             Admin?
+  supervisor        Supervisor?
+  student           Student?
+  tutor             Tutor?
+  notes             Note[]
+  revenues          Revenue[]
+  expenses          Expense[]
+  chatMessages      ChatMessage[]
+  tutorChatRooms    ChatRoom[]         @relation("TutorChatRooms")
+  studentChatRooms  ChatRoom[]         @relation("StudentChatRooms")
+  pushSubscriptions PushSubscription[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -568,4 +569,17 @@ model ChatMessage {
 
   @@index([roomId])
   @@index([senderId])
+}
+
+model PushSubscription {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }

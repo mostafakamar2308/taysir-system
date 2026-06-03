@@ -28,6 +28,7 @@ export async function generateMetadata({
   return {
     title: t("title"),
     description: t("title"),
+    manifest: "/manifest.json",
   };
 }
 
@@ -53,6 +54,7 @@ export default async function RootLayout({
     <html className="scroll-smooth" data-scroll-behavior="smooth" lang={locale}>
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
+        <meta name="apple-mobile-web-app-title" content="أكاديميتي" />
       </head>
       <body
         dir={locale === "ar" ? "rtl" : "ltr"}

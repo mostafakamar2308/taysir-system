@@ -4,6 +4,7 @@ import { ChatList } from "./chatList";
 import { ChatWindow } from "./chatWindow";
 import { FullChatMessage } from "@/wss/types";
 import { cn } from "@/lib/utils";
+import { useSearchParams } from "next/navigation";
 
 interface Chat {
   id: number;
@@ -32,8 +33,13 @@ interface Props {
 }
 
 export function ChatLayout({ chats, currentUser }: Props) {
+  const searchParams = useSearchParams();
+  const roomIdParam = searchParams.get("room")
+    ? Number(searchParams.get("room"))
+    : null;
+
   const [selectedChatId, setSelectedChatId] = useState<number | null>(
-    chats.length > 0 ? chats[0].id : null,
+    roomIdParam || (chats.length > 0 ? chats[0].id : null),
   );
 
   const [mobileChatOpen, setMobileChatOpen] = useState(false);

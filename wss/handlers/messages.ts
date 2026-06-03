@@ -1,4 +1,5 @@
 import { dayjs } from "@/lib/dayjs";
+import { sendPushNotification } from "@/lib/notifications";
 import prisma from "@/lib/prisma";
 import { WssHandler } from "@/wss/handlers/base";
 import {
@@ -72,6 +73,16 @@ export class Messages extends WssHandler {
           },
         },
       });
+
+      const recipientUserId =
+        room.tutorUserId === userId ? room.studentUserId : room.tutorUserId;
+      if (recipientUserId !== userId) {
+        sendPushNotification(recipientUserId, {
+          title: "New message from " + message.sender.name,
+          body: text.length > 50 ? text.substring(0, 47) + "..." : text,
+          url: `/ar/dashboard/chat?room=${roomId}`,
+        }).catch(console.error);
+      }
 
       this.broadcast(ServerEvent.RoomMessage, asChatRoomId(roomId), {
         message,

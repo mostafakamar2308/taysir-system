@@ -1,4 +1,4 @@
-// wss-server.ts
+// server.ts
 import { createServer } from "http";
 import { Server } from "socket.io";
 import { authenticateSocket } from "./wss/auth";
