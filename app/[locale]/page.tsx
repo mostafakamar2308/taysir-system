@@ -1,6 +1,6 @@
 import Navbar from "@/components/landing/Navbar";
 import HeroSection from "@/components/landing/HeroSection";
-import BeforeAfterSection from "@/components/landing/BeforeAfterSection";
+// import BeforeAfterSection from "@/components/landing/BeforeAfterSection";
 import ProblemsSection from "@/components/landing/ProblemsSection";
 import StoryJourneySection from "@/components/landing/StoryJourneySection";
 import FeaturesSection from "@/components/landing/FeaturesSection";
@@ -9,7 +9,7 @@ import HowItWorksSection from "@/components/landing/HowItWorksSection";
 import FinalCTASection from "@/components/landing/FinalCTASection";
 import Footer from "@/components/landing/Footer";
 import "@/i18n/request";
-import PricingSectionWrapper from "@/components/landing/pricingWrapper";
+import PricingSection from "@/components/landing/PricingSection";
 
 export default function Home() {
   return (
@@ -18,11 +18,11 @@ export default function Home() {
       <main>
         <HeroSection />
         <ProblemsSection />
-        <BeforeAfterSection />
+        {/* <BeforeAfterSection /> */}
         <FeaturesSection />
         <StoryJourneySection />
         {/* <TimeCalculatorSection /> */}
-        <PricingSectionWrapper />
+        <PricingSection />
         <HowItWorksSection />
         <FinalCTASection />
       </main>

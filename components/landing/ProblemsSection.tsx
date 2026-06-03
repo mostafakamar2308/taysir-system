@@ -2,20 +2,14 @@
 import { useMessages, useTranslations } from "next-intl";
 import { motion } from "framer-motion";
 import {
+  FileWarning,
+  UserMinus,
   CalendarX,
   CreditCard,
-  MessageCircleOff,
-  FileWarning,
-  TrendingDown,
+  Users,
 } from "lucide-react";
 
-const icons = [
-  CalendarX,
-  CreditCard,
-  MessageCircleOff,
-  FileWarning,
-  TrendingDown,
-];
+const icons = [FileWarning, UserMinus, CalendarX, CreditCard, Users];
 
 const ProblemsSection = () => {
   const t = useTranslations();

@@ -6,11 +6,25 @@ import {
   Wallet,
   MessageSquare,
   BarChart3,
-  Building2,
+  LayoutDashboard,
   FileText,
+  Video,
+  Smartphone,
+  ShieldCheck,
 } from "lucide-react";
 
-const icons = [Calendar, Wallet, MessageSquare, BarChart3, Building2, FileText];
+// Each feature gets a specific icon and a `variant` for grid classes
+const featuresConfig = [
+  { icon: ShieldCheck, variant: "medium" }, // 8: Monitored Chat
+  { icon: Smartphone, variant: "medium" }, // 7: PWA (full width)
+  { icon: Calendar, variant: "small" }, // 0: Smart Schedule
+  { icon: LayoutDashboard, variant: "large" }, // 4: Interfaces
+  { icon: Wallet, variant: "medium" }, // 1: Financial
+  { icon: MessageSquare, variant: "small" }, // 2: WhatsApp
+  { icon: BarChart3, variant: "small" }, // 3: Dashboard
+  { icon: FileText, variant: "medium" }, // 5: Auto Reports
+  { icon: Video, variant: "medium" }, // 6: Zoom
+];
 
 const FeaturesSection = () => {
   const t = useTranslations();
@@ -19,6 +33,20 @@ const FeaturesSection = () => {
     title: string;
     description: string;
   }[];
+
+  // Map variants to Tailwind classes (for md+ screens)
+  const gridClasses = (variant: string) => {
+    switch (variant) {
+      case "large":
+        return "md:col-span-3";
+      case "medium":
+        return "md:col-span-2";
+      case "full":
+        return "md:col-span-4";
+      default:
+        return "";
+    }
+  };
 
   return (
     <section id="features" className="py-20 md:py-28">
@@ -35,19 +63,20 @@ const FeaturesSection = () => {
           <div className="w-16 h-1 bg-primary mx-auto rounded-full" />
         </motion.div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 max-w-6xl mx-auto">
           {items.map((item, index) => {
-            const Icon = icons[index] || FileText;
+            const config = featuresConfig[index] || featuresConfig[0];
+            const Icon = config.icon;
             return (
               <motion.div
                 key={index}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: index * 0.08 }}
-                className="group bg-card rounded-xl p-6 border border-border hover:border-primary/30 hover:shadow-lg transition-all duration-300"
+                transition={{ delay: index * 0.05 }}
+                className={`${gridClasses(config.variant)} bg-card rounded-xl p-6 border border-border hover:border-primary/30 hover:shadow-lg transition-all duration-300 flex flex-col`}
               >
-                <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
+                <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors shrink-0">
                   <Icon className="w-6 h-6 text-primary" />
                 </div>
                 <h3 className="text-lg font-bold text-foreground mb-2">

@@ -88,5 +88,5 @@ export default async function PricingSectionWrapper() {
   const exchangeRate = 50;
   console.log({ plans, features: plans.map((p) => p.features) });
 
-  return <PricingSection plans={plans} exchangeRate={exchangeRate} />;
+  return <PricingSection />;
 }

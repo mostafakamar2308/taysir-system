@@ -130,56 +130,68 @@
     ]
   },
   "problems": {
-    "title": "Do you face these challenges?",
+    "title": "Managing Your Academy with Excel & WhatsApp… A Daily Nightmare Threatening Your Growth!",
     "items": [
       {
-        "title": "Schedule Chaos",
-        "description": "Unstable class schedules causing confusion and disruption."
+        "title": "Unprofessional Appearance to Clients",
+        "description": "Relying on manual schedules and random messages reduces parents' and international students' trust in your academy's professionalism."
       },
       {
-        "title": "Payment Tracking",
-        "description": "Student payment follow-ups consuming days every month."
+        "title": "The \"Student Leakage\" Nightmare",
+        "description": "Lack of an internal communication system allows teachers to exchange personal numbers with students, leading to stolen clients and constant revenue loss."
       },
       {
-        "title": "Random Communication",
-        "description": "Parent communication about student progress is unstructured."
+        "title": "Scheduling & Management Hell",
+        "description": "Wasting hours every day adjusting timetables, resolving conflicts, and manually informing everyone of changes."
       },
       {
-        "title": "Manual Reports",
-        "description": "Performance reports require significant manual effort."
+        "title": "Lost Payments & Financial Reports",
+        "description": "Difficulty tracking overdue payments and accurately calculating teacher salaries based on actual consumed sessions."
       },
       {
-        "title": "Scaling Difficulties",
-        "description": "You want to expand, but administrative complexity stands in the way."
+        "title": "Scattered Supervisors & Primitive Follow-ups",
+        "description": "Spending time reminding teachers to write reports and sending irregular, exhausting parent updates via WhatsApp."
       }
     ]
   },
   "features": {
-    "title": "Imagine all these tasks happening automatically",
+    "title": "One Integrated System… Manages Your Operations & Protects Your Assets",
     "items": [
       {
-        "title": "Smart Scheduling",
-        "description": "Adapts to changes and notifies everyone automatically"
+        "title": "Student Portal & PWA App",
+        "description": "A cutting-edge, fast web app that allows students and parents to log in, follow schedules, and review reports from any device easily."
+      },
+      {
+        "title": "Monitored Internal Communication (Academy Fortress)",
+        "description": "Direct communication between students and teachers only inside the platform, fully supervised and monitored by management, preventing personal number exchanges and eliminating student poaching forever."
+      },
+      {
+        "title": "Smart Schedule",
+        "description": "Adapts flexibly to any sudden schedule changes, automatically notifying the teacher, student, and management with zero manual intervention."
+      },
+      {
+        "title": "Dedicated Interfaces for All Parties",
+        "description": "An organized work environment with separate, customized interfaces for: academy manager, teacher, and now the student."
       },
       {
         "title": "Automated Financial System",
-        "description": "Issues invoices, tracks payments, and prepares financial reports"
+        "description": "Tracks student payments precisely, calculates teacher salaries instantly based on sessions, and issues comprehensive financial reports (LTV, CAC, Cashflow)."
       },
       {
-        "title": "WhatsApp Integration",
-        "description": "Monthly reports sent automatically to parents"
+        "title": "Smart WhatsApp Communication",
+        "description": "Automatically sends monthly performance reports and important alerts to parents via WhatsApp to ensure maximum satisfaction and commitment."
       },
       {
-        "title": "Student Progress Tracking",
-        "description": "One dashboard to track every student and teacher"
+        "title": "Dashboard & Performance Tracking",
+        "description": "One screen gives you a complete view of student attendance rates, teacher commitment, and key performance indicators (KPIs) for your academy."
       },
       {
-        "title": "Multi-branch Management",
-        "description": "Custom interfaces for admin, supervisor, teacher, and parent"
+        "title": "Automatic Performance Reports",
+        "description": "An automatic reminder system that prompts teachers to prepare detailed performance reports immediately after sessions to document the student's learning journey with zero administrative effort."
       },
       {
-        "title": "Automated Reports",
-        "description": "Detailed performance reports generated automatically"
+        "title": "Direct & Secure Zoom Integration",
+        "description": "Automatically generates session links upon scheduling. Direct links are hidden and appear only as buttons inside the platform to protect your academy's privacy."
       }
     ]
   },
@@ -203,54 +215,45 @@
     ]
   },
   "pricing": {
-    "title": "Plans for every size",
+    "title": "Choose the plan that fits your academy’s growth",
     "monthly": "Monthly",
     "yearly": "Yearly",
-    "contact-us": "contact us",
-    "yearlySave": "Save 2 months",
+    "yearlySave": "Save 20% yearly",
+    "contactUs": "Contact Us",
     "limitedOffer": "Register now and get the launch offer before spots run out!",
-    "earlyBird": {
-      "first10": {
-        "title": "🏆 First 10 Subscribers",
-        "description": "Pro plan free for 2 months + 40% off the first year"
-      },
-      "others": {
-        "title": "🎁 Other Early Registrants",
-        "description": "40% off the first year of the Pro plan"
-      }
-    },
-    "free": {
-      "name": "Starter",
-      "price": "Free",
-      "badge": "Best for beginners",
-      "cta": "Start Free",
+    "management": {
+      "name": "Management & Organization Plan",
+      "badge": "Best for starters",
+      "description": "The ideal choice for emerging academies looking to streamline their operations and eliminate Excel chaos.",
+      "priceUnit": " / active tutor / month",
+      "yearlyUnit": " / active tutor / year",
       "features": [
-        "Up to 5 teachers",
-        "Up to 20 students",
-        "Basic circle management",
-        "Monthly performance reports",
-        "WhatsApp support",
-        "Access to private managers group"
+        "Student, teacher & schedule management",
+        "Automated financial system & teacher salary calculation",
+        "Automatic reminders for sessions & reports",
+        "WhatsApp integration for monthly reports",
+        "Comprehensive technical support",
+        "Free migration of your existing Excel data",
+        "Custom video tutorials & ongoing follow-up"
       ]
     },
-    "pro": {
-      "name": "Academiyati Pro",
-      "originalPrice": "$99",
-      "price": "$59",
-      "period": "/month",
-      "yearlyPeriod": "/year",
-      "badge": "40% early bird discount",
-      "cta": "Join Waitlist - 1 Month Free",
+    "fullSuite": {
+      "name": "Complete Suite (Revenue Protection)",
+      "badge": "Recommended ⭐",
+      "description": "The most powerful solution for ambitious academies serving international students, wanting to secure their assets and build a professional brand.",
+      "priceUnit": " / active tutor / month",
+      "yearlyUnit": " / active tutor / year",
       "features": [
-        "Up to 15 teachers",
-        "Up to 300 students",
-        "All free plan features",
-        "Complete financial system",
-        "WhatsApp communication",
-        "Detailed financial reports",
-        "Phone support",
-        "Automatic performance report delivery"
+        "All features from the Management Plan",
+        "Student Portal & Progressive Web App",
+        "Professional automatic Zoom integration (link hiding)",
+        "Monitored internal communication system (prevents student poaching)",
+        "Priority support & staff training"
       ]
+    },
+    "first20offer": {
+      "title": "🏆 Early Bird Offer – Only 20 spots left!",
+      "description": "Subscribe now and get: 1 month free on registration + 1 extra free month for leaving a review + 40% off the first year."
     }
   },
   "howItWorks": {
