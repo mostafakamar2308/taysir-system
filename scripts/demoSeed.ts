@@ -36,6 +36,93 @@ function pickRandom<T>(arr: T[], count: number): T[] {
   return shuffled.slice(0, count);
 }
 
+async function cleanup() {
+  console.log("🧹 Starting database cleanup...");
+
+  // 1. Delete chat messages (no FK to other seeded entities that we'll keep)
+  await db.chatMessage.deleteMany();
+  console.log("  ✅ Chat messages deleted");
+
+  // 2. Delete chat rooms
+  await db.chatRoom.deleteMany();
+  console.log("  ✅ Chat rooms deleted");
+
+  // 3. Delete push subscriptions
+  await db.pushSubscription.deleteMany();
+  console.log("  ✅ Push subscriptions deleted");
+
+  // 4. Delete notes
+  await db.note.deleteMany();
+  console.log("  ✅ Notes deleted");
+
+  // 5. Delete session reports (FK to sessions)
+  await db.sessionReport.deleteMany();
+  console.log("  ✅ Session reports deleted");
+
+  // 6. Delete attendance
+  await db.attendance.deleteMany();
+  console.log("  ✅ Attendance records deleted");
+
+  // 7. Delete sessions
+  await db.session.deleteMany();
+  console.log("  ✅ Sessions deleted");
+
+  // 8. Delete revenues (FK to students, plans, subscriptions)
+  await db.revenue.deleteMany();
+  console.log("  ✅ Revenues deleted");
+
+  // 9. Delete expenses (FK to tutors, cost centers)
+  await db.expense.deleteMany();
+  console.log("  ✅ Expenses deleted");
+
+  // 10. Delete subscriptions
+  await db.subscription.deleteMany();
+  console.log("  ✅ Subscriptions deleted");
+
+  // 11. Delete plans (we'll recreate them in seed)
+  await db.plan.deleteMany();
+  console.log("  ✅ Plans deleted");
+
+  // 12. Delete students (FK to users)
+  await db.student.deleteMany();
+  console.log("  ✅ Students deleted");
+
+  // 13. Delete tutors
+  await db.tutor.deleteMany();
+  console.log("  ✅ Tutors deleted");
+
+  // 14. Delete supervisors
+  await db.supervisor.deleteMany();
+  console.log("  ✅ Supervisors deleted");
+
+  // 15. Delete admin
+  await db.admin.deleteMany();
+  console.log("  ✅ Admins deleted");
+
+  // 16. Delete superAdmin
+  await db.superAdmin.deleteMany();
+  console.log("  ✅ Super admins deleted");
+
+  // 17. Delete users (except maybe the super admin? We'll delete all)
+  // Be careful: if you want to keep the super admin, skip this.
+  await db.user.deleteMany();
+  console.log("  ✅ Users deleted");
+
+  await db.currency.deleteMany();
+  console.log("  ✅ Currencies deleted");
+
+  // 18. Delete academy (optional – remove if you have multiple academies)
+  await db.academy.deleteMany();
+  console.log("  ✅ Academy deleted");
+
+  // 19. Keep currencies, specialities, cost centers (they are reference data)
+  console.log(
+    "💾 Skipping deletion of reference data: currencies, specialities, cost centers.",
+  );
+
+  console.log("🎉 Cleanup complete!");
+}
+
 async function generateSessions(
   studentId: number,
   tutorId: number,
@@ -796,7 +883,8 @@ async function seedDemoAcademy() {
   console.log("\n🎉 Demo academy seeded successfully!");
 }
 
-seedDemoAcademy()
+cleanup()
+  .then(() => seedDemoAcademy())
   .catch((e) => {
     console.error(e);
     process.exit(1);
