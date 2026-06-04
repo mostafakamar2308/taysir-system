@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { updateSessionDetails } from "@/actions/tutor/session";
+import { updateSession } from "@/actions/sessions";
 import { markStudentAttendanceByTutor } from "@/actions/tutor/attendance";
 import { upsertSessionReport } from "@/actions/tutor/report";
 import { formatDate, formatTime } from "@/lib/dates";
@@ -34,6 +34,7 @@ import {
   SessionStatus,
 } from "@/types/session";
 import { Copy, ExternalLink, Video } from "lucide-react";
+import dayjs from "@/lib/dayjs";
 
 interface SessionDetailPanelProps {
   session: DashboardSession;
@@ -53,8 +54,18 @@ export default function SessionDetailPanel({
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("zoom");
   const [editMode, setEditMode] = useState(false);
+
+  // edit fields – only used when !isPast
+  const [editDate, setEditDate] = useState(
+    dayjs(session.startTime).format("YYYY-MM-DD"),
+  );
+  const [editStartTime, setEditStartTime] = useState(
+    dayjs(session.startTime).format("HH:mm"),
+  );
+  const [editDuration, setEditDuration] = useState(session.durationMinutes);
   const [topic, setTopic] = useState(session.topic || "");
   const [notes, setNotes] = useState(session.notes || "");
+
   const [attendanceStatus, setAttendanceStatus] = useState<string>(
     session.attendance?.tutorAttendance?.toString() || "",
   );
@@ -74,24 +85,49 @@ export default function SessionDetailPanel({
   const canMarkAttendance =
     isPast && session.status === SessionStatus.COMPLETED && !session.attendance;
 
-  const handleUpdateDetails = async () => {
+  const handleEnterEditMode = () => {
+    if (!isPast) {
+      setEditDate(dayjs(session.startTime).format("YYYY-MM-DD"));
+      setEditStartTime(dayjs(session.startTime).format("HH:mm"));
+      setEditDuration(session.durationMinutes);
+    }
+    setTopic(session.topic || "");
+    setNotes(session.notes || "");
+    setEditMode(true);
+  };
+
+  const handleUpdateFullDetails = async () => {
     setLoading(true);
     try {
-      await updateSessionDetails(session.id, {
-        topic: topic || null,
-        notes: notes || null,
-      });
+      const payload: {
+        id: number;
+        date?: string;
+        startTime?: string;
+        duration?: number;
+        topic?: string;
+      } = {
+        id: session.id,
+        topic: topic,
+      };
+
+      if (!isPast) {
+        const startTimeISO = dayjs(
+          `${editDate}T${editStartTime}:00`,
+        ).toISOString();
+        payload.date = editDate;
+        payload.startTime = startTimeISO;
+        payload.duration = editDuration;
+      }
+
+      await updateSession(payload);
       toast({ title: "تم تحديث الحصة" });
       setEditMode(false);
       onUpdate();
       router.refresh();
     } catch (error) {
       if (error instanceof Error)
-        toast({
-          title: "خطأ",
-          description: error.message,
-          variant: "destructive",
-        });
+        toast({ title: error.message, variant: "destructive" });
+      else toast({ title: "حدث خطأ", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -186,6 +222,8 @@ export default function SessionDetailPanel({
               <TabsTrigger value="report">التقرير</TabsTrigger>
             ) : null}
           </TabsList>
+
+          {/* Zoom Links Tab */}
           <TabsContent value="zoom" className="space-y-4 mt-4">
             <div className="space-y-4">
               <div className="flex items-center gap-2 text-primary">
@@ -193,7 +231,7 @@ export default function SessionDetailPanel({
                 <span className="font-semibold">رابط زووم</span>
               </div>
 
-              {/* Join URL (for student) */}
+              {/* Join URL */}
               <div className="space-y-1">
                 <Label className="text-sm text-muted-foreground">
                   رابط الحضور للطالب
@@ -227,7 +265,7 @@ export default function SessionDetailPanel({
                 </div>
               </div>
 
-              {/* Start URL (for tutor) – only if it exists */}
+              {/* Start URL (for tutor) */}
               {session.zoomStartUrl && (
                 <div className="space-y-1">
                   <Label className="text-sm text-muted-foreground">
@@ -288,7 +326,7 @@ export default function SessionDetailPanel({
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setEditMode(true)}
+                    onClick={handleEnterEditMode}
                   >
                     تعديل
                   </Button>
@@ -300,7 +338,7 @@ export default function SessionDetailPanel({
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">التاريخ والوقت</p>
-                <p>
+                <p dir="rtl">
                   {formatDate(session.startTime)} •{" "}
                   {formatTime(session.startTime)} –{" "}
                   {formatTime(session.endTime)}
@@ -308,6 +346,36 @@ export default function SessionDetailPanel({
               </div>
               {editMode ? (
                 <>
+                  {!isPast && (
+                    <>
+                      <div className="space-y-2">
+                        <Label>التاريخ</Label>
+                        <Input
+                          type="date"
+                          value={editDate}
+                          onChange={(e) => setEditDate(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>وقت البدء</Label>
+                        <Input
+                          type="time"
+                          value={editStartTime}
+                          onChange={(e) => setEditStartTime(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>المدة (دقيقة)</Label>
+                        <Input
+                          type="number"
+                          value={editDuration}
+                          onChange={(e) =>
+                            setEditDuration(parseInt(e.target.value))
+                          }
+                        />
+                      </div>
+                    </>
+                  )}
                   <div className="space-y-2">
                     <Label>الموضوع</Label>
                     <Input
@@ -324,7 +392,10 @@ export default function SessionDetailPanel({
                     />
                   </div>
                   <div className="flex gap-2">
-                    <Button onClick={handleUpdateDetails} disabled={loading}>
+                    <Button
+                      onClick={handleUpdateFullDetails}
+                      disabled={loading}
+                    >
                       حفظ
                     </Button>
                     <Button
@@ -497,7 +568,10 @@ export default function SessionDetailPanel({
                   <Textarea
                     value={reportData.outcomes}
                     onChange={(e) =>
-                      setReportData({ ...reportData, outcomes: e.target.value })
+                      setReportData({
+                        ...reportData,
+                        outcomes: e.target.value,
+                      })
                     }
                     rows={2}
                     placeholder="اذكر ما تم تحقيقه في هذه الحصة"
@@ -550,7 +624,10 @@ export default function SessionDetailPanel({
                   <Textarea
                     value={reportData.comments}
                     onChange={(e) =>
-                      setReportData({ ...reportData, comments: e.target.value })
+                      setReportData({
+                        ...reportData,
+                        comments: e.target.value,
+                      })
                     }
                     rows={2}
                     placeholder="أي ملاحظات أخرى"

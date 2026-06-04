@@ -13,6 +13,7 @@ import type { DashboardSession } from "@/types/session";
 import { decrementBalance, incrementBalance } from "@/lib/balance";
 import { createZoomMeeting } from "@/lib/zoom";
 import { user } from "@/lib/auth";
+import { updateZoomMeeting } from "@/lib/zoom";
 
 type CreateSessionInput = {
   studentId: number;
@@ -165,7 +166,6 @@ export async function updateSession(input: UpdateSessionInput) {
 
   if (updated.zoomMeetingId) {
     try {
-      const { updateZoomMeeting } = await import("@/lib/zoom");
       await updateZoomMeeting(updated.zoomMeetingId, updated.tutorId, {
         topic: updated.topic || undefined,
         startTime: updated.startTime,
