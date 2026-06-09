@@ -1,4 +1,3 @@
-// app/ar/dashboard/tutor/settings/page.tsx
 import { user } from "@/lib/auth";
 import { Role } from "@/types/user";
 import { redirect } from "next/navigation";
@@ -7,9 +6,27 @@ import { startZoomOAuth, unlinkZoom } from "@/actions/tutor/zoom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Unlink, Link } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Unlink, Link, AlertTriangle } from "lucide-react";
 
-const Page = async () => {
+// Error code → user-friendly Arabic message
+const errorMessages: Record<string, string> = {
+  missing_code: "لم يتم استلام رمز التفويض من Zoom. يرجى المحاولة مرة أخرى.",
+  zoom_auth_failed:
+    "فشل تبادل الرمز مع Zoom. تأكد من صحة إعدادات التطبيق وحاول مرة أخرى.",
+  zoom_user_fetch_failed:
+    "تم ربط الحساب ولكن تعذر جلب معلومات المستخدم من Zoom. يرجى المحاولة مرة أخرى.",
+  not_authenticated:
+    "انتهت جلسة العمل الخاصة بك. يرجى تسجيل الدخول والمحاولة مرة أخرى.",
+  not_tutor: "حساب المستخدم الحالي ليس معلماً. لا يمكن ربط Zoom.",
+  invalid_state: "حالة الأمان غير متطابقة. يرجى المحاولة مرة أخرى.",
+};
+
+const Page = async ({
+  searchParams,
+}: {
+  searchParams: Promise<{ message?: string }>;
+}) => {
   const currentUser = await user();
   if (!currentUser || currentUser.role !== Role.Tutor) {
     redirect("/login");
@@ -25,9 +42,28 @@ const Page = async () => {
 
   const isConnected = tutor?.zoomAuthenticated ?? false;
 
+  const { message } = await searchParams;
+  const errorMessage =
+    message && errorMessages[message]
+      ? errorMessages[message]
+      : message
+        ? "حدث خطأ غير متوقع أثناء ربط Zoom. يرجى المحاولة مرة أخرى."
+        : null;
+
   return (
     <div className="mx-auto space-y-6">
       <h1 className="text-2xl font-bold">إعدادات زووم</h1>
+
+      {/* Error Banner */}
+      {errorMessage && (
+        <Alert variant="destructive" className="flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 mt-0.5" />
+          <div>
+            <AlertTitle>خطأ في ربط Zoom</AlertTitle>
+            <AlertDescription>{errorMessage}</AlertDescription>
+          </div>
+        </Alert>
+      )}
 
       <Card>
         <CardHeader>
@@ -48,11 +84,6 @@ const Page = async () => {
             )}
           </div>
 
-          {/* {isConnected && tutor?.zoomUserId && (
-            <div className="text-sm text-muted-foreground">
-              معرف المستخدم: {tutor.zoomUserId}
-            </div>
-          )} */}
           <p>
             {isConnected
               ? "حساب زووم الخاص بك مرتبط حالياً. يمكنك إلغاء الربط إذا كنت ترغب في ربط حساب آخر."

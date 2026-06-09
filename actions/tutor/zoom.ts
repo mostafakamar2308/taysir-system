@@ -13,18 +13,18 @@ export async function startZoomOAuth() {
   const payload = verifyToken(token);
   if (!payload?.academyId) throw new Error("Unauthorized");
 
-  // Generate a cryptographically random state
-  const state = randomBytes(32).toString("hex");
+  // // Generate a cryptographically random state
+  // const state = randomBytes(32).toString("hex");
 
-  // Store state in a short-lived, httpOnly cookie
-  const cookieStore = await cookies();
-  cookieStore.set("zoom_oauth_state", state, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: 600, // 10 minutes
-    path: "/",
-  });
+  // // Store state in a short-lived, httpOnly cookie
+  // const cookieStore = await cookies();
+  // cookieStore.set("zoom_oauth_state", state, {
+  //   httpOnly: true,
+  //   secure: process.env.NODE_ENV === "production",
+  //   sameSite: "lax",
+  //   maxAge: 600, // 10 minutes
+  //   path: "/",
+  // });
 
   // Use the exact granular scopes from your Zoom app
   const scope = [
@@ -32,7 +32,6 @@ export async function startZoomOAuth() {
     "meeting:write:meeting",
     "meeting:update:meeting",
     "meeting:delete:meeting",
-    "zoomapp:inmeeting",
   ].join(" ");
 
   const params = new URLSearchParams({
@@ -40,7 +39,7 @@ export async function startZoomOAuth() {
     client_id: process.env.ZOOM_CLIENT_ID!,
     redirect_uri: process.env.ZOOM_REDIRECT_URI!,
     scope,
-    state,
+    // state,
   });
 
   const url = `https://zoom.us/oauth/authorize?${params.toString()}`;

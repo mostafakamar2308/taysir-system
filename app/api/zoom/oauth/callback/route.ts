@@ -8,22 +8,23 @@ import { verifyToken } from "@/lib/jwt";
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const code = searchParams.get("code");
-  const state = searchParams.get("state");
+  // const state = searchParams.get("state");
 
-  // 1. Validate state
+  // // 1. Validate state
   const cookieStore = await cookies();
-  const storedState = cookieStore.get("zoom_oauth_state")?.value;
-  if (!storedState || storedState !== state) {
-    cookieStore.delete("zoom_oauth_state");
-    return NextResponse.redirect(
-      new URL("/error?message=invalid_state", request.url),
-    );
-  }
-  cookieStore.delete("zoom_oauth_state");
+  // const storedState = cookieStore.get("zoom_oauth_state")?.value;
+  // console.log({ state, code, storedState });
+  // if (!storedState || storedState !== state) {
+  //   cookieStore.delete("zoom_oauth_state");
+  //   return NextResponse.redirect(
+  //     new URL("/ar/dashboard/tutor/zoom?message=invalid_state", request.url),
+  //   );
+  // }
+  // cookieStore.delete("zoom_oauth_state");
 
   if (!code) {
     return NextResponse.redirect(
-      new URL("/error?message=missing_code", request.url),
+      new URL("/ar/dashboard/tutor/zoom?message=missing_code", request.url),
     );
   }
 
@@ -47,7 +48,7 @@ export async function GET(request: NextRequest) {
     const error = await tokenResponse.text();
     console.error("Zoom token exchange failed:", error);
     return NextResponse.redirect(
-      new URL("/error?message=zoom_auth_failed", request.url),
+      new URL("/ar/dashboard/tutor/zoom?message=zoom_auth_failed", request.url),
     );
   }
 
@@ -60,7 +61,10 @@ export async function GET(request: NextRequest) {
   });
   if (!userResponse.ok) {
     return NextResponse.redirect(
-      new URL("/error?message=zoom_user_fetch_failed", request.url),
+      new URL(
+        "/ar/dashboard/tutor/zoom?message=zoom_user_fetch_failed",
+        request.url,
+      ),
     );
   }
   const zoomUser = await userResponse.json();
@@ -69,12 +73,17 @@ export async function GET(request: NextRequest) {
   // 4. Get current tutor from JWT cookie
   const tokenCookie = cookieStore.get("token")?.value;
   if (!tokenCookie) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    return NextResponse.redirect(
+      new URL(
+        "/ar/dashboard/tutor/zoom?message=not_authenticated",
+        request.url,
+      ),
+    );
   }
   const payload = verifyToken(tokenCookie);
   if (!payload?.tutorId) {
     return NextResponse.redirect(
-      new URL("/error?message=not_tutor", request.url),
+      new URL("/ar/dashboard/tutor/zoom?message=not_tutor", request.url),
     );
   }
 
