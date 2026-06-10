@@ -31,7 +31,6 @@ export async function startZoomOAuth() {
     "user:read:user",
     "meeting:write:meeting",
     "meeting:update:meeting",
-    "meeting:delete:meeting",
   ].join(" ");
 
   const params = new URLSearchParams({
