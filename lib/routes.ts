@@ -227,7 +227,7 @@ export const getSidebarGroups = (role: number, locale: string = "ar") => {
       items: [
         {
           titleKey: "items.dashboard",
-          url: `/${locale}/dashboard`,
+          url: `/${locale}/dashboard/student`,
           icon: LayoutDashboard,
         },
         {

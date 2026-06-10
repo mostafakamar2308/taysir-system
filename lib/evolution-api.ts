@@ -116,8 +116,6 @@ export async function sendTextMessage(
   text: string,
   options?: { delay?: number; linkPreview?: boolean },
 ) {
-  console.log(`${EVO_API_URL}/message/sendText/${instanceName}`);
-
   const response = await fetchWithTimeout(
     `${EVO_API_URL}/message/sendText/${instanceName}`,
     {
@@ -129,7 +127,6 @@ export async function sendTextMessage(
       body: JSON.stringify({ number, text, ...options }),
     },
   );
-console.log(response);
 
   if (!response.ok) {
     const error = await response.text();

@@ -1,11 +1,11 @@
 "use client";
+import { useTranslations } from "next-intl";
 import { FullChatMessage } from "@/wss/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Check, CheckCheck, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
-import { roleLabels } from "@/lib/enums";
 import { cn } from "@/lib/utils";
 import {
   Tooltip,
@@ -13,6 +13,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { dayjs } from "@/lib/dayjs";
+import { Role } from "@/types/user";
 
 interface Props {
   message: FullChatMessage;
@@ -29,11 +30,10 @@ export function ChatMessageItem({
   onEdit,
   onDelete,
 }: Props) {
+  const t = useTranslations("Chat");
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(message.content);
   const [showActions, setShowActions] = useState(false);
-
-  const roleLabel = roleLabels[message.sender.role] ?? "User";
 
   const canModify = dayjs().diff(dayjs(message.createdAt), "minute") <= 15;
 
@@ -61,10 +61,12 @@ export function ChatMessageItem({
           )}
         >
           <span className="font-medium text-sm">
-            {isOwn ? "أنت" : message.sender.name || "Unknown"}
+            {isOwn ? t("you") : message.sender.name || t("unknown")}
           </span>
           <Badge variant="secondary" className="text-xs w-fit">
-            {roleLabel}
+            {t(
+              `roles.${message.sender.role === Role.Admin ? "admin" : message.sender.role === Role.Tutor ? "tutor" : "student"}`,
+            )}
           </Badge>
         </div>
 
@@ -99,7 +101,11 @@ export function ChatMessageItem({
                   <CheckCheck className="h-4 w-4 text-yellow-300" />
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Read At {dayjs(message.readAt).format("h:mm A")}</p>
+                  <p>
+                    {t("readAt", {
+                      time: dayjs(message.readAt).format("h:mm A"),
+                    })}
+                  </p>
                 </TooltipContent>
               </Tooltip>
             ) : null}
@@ -138,7 +144,7 @@ export function ChatMessageItem({
             onClick={onMarkRead}
             className="text-xs underline mt-1 text-primary hover:text-primary/80"
           >
-            Mark as read
+            {t("markAsRead")}
           </button>
         )}
       </div>

@@ -110,7 +110,6 @@ export default function SessionsTab({ student, tutors }: SessionsTabProps) {
       .add(direction === "next" ? 1 : -1, "month")
       .startOf("month")
       .toISOString();
-    console.log({ monthStart, newMonth });
 
     fetchMonth(newMonth);
   };

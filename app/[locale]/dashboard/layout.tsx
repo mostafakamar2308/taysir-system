@@ -14,7 +14,6 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = async ({ children, params }) => {
   const { locale } = await params;
   const dir = locale === "ar" ? "rtl" : "ltr";
-  console.log(dir, locale);
 
   return (
     <AuthProvider>

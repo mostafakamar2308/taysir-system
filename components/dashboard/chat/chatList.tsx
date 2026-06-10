@@ -1,6 +1,6 @@
-// components/chat/chat-list.tsx
 "use client";
 import { useState, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -42,6 +42,7 @@ export function ChatList({
   onSelect,
   currentUser,
 }: Props) {
+  const t = useTranslations("Chat");
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<"all" | "tutor" | "student">(
     "all",
@@ -58,7 +59,7 @@ export function ChatList({
 
       const matchesRole =
         roleFilter === "all" ||
-        (roleFilter === "tutor" && currentUser.role !== Role.Tutor) || // admin can filter by tutor
+        (roleFilter === "tutor" && currentUser.role !== Role.Tutor) ||
         (roleFilter === "student" && currentUser.role !== Role.Student);
 
       return matchesSearch && matchesRole;
@@ -70,12 +71,12 @@ export function ChatList({
   return (
     <div className="flex flex-col h-full w-full">
       <div className="p-4 border-b border-border">
-        <h2 className="font-semibold mb-3">المحادثات</h2>
+        <h2 className="font-semibold mb-3">{t("title")}</h2>
         <div className="space-y-2">
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search by name..."
+              placeholder={t("searchPlaceholder")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-8"
@@ -88,7 +89,7 @@ export function ChatList({
                 className="cursor-pointer"
                 onClick={() => setRoleFilter("all")}
               >
-                All
+                {t("filterAll")}
               </Badge>
               {currentUser.role === Role.Tutor ? null : (
                 <Badge
@@ -96,7 +97,7 @@ export function ChatList({
                   className="cursor-pointer"
                   onClick={() => setRoleFilter("tutor")}
                 >
-                  Tutors
+                  {t("filterTutors")}
                 </Badge>
               )}
               {currentUser.role === Role.Student ? null : (
@@ -105,7 +106,7 @@ export function ChatList({
                   className="cursor-pointer"
                   onClick={() => setRoleFilter("student")}
                 >
-                  Students
+                  {t("filterStudents")}
                 </Badge>
               )}
             </div>
@@ -139,7 +140,7 @@ export function ChatList({
                 <div className="text-muted-foreground w-full">
                   {chat.messages.length > 0
                     ? chat.messages[chat.messages.length - 1].content
-                    : "No messages yet"}
+                    : t("noMessagesYet")}
                 </div>
               </div>
               {chat.messages.length > 0 &&

@@ -142,7 +142,6 @@ export async function createZoomMeeting(
   }
 
   const meeting = await response.json();
-  console.log({ meeting });
 
   return {
     id: String(meeting.id),

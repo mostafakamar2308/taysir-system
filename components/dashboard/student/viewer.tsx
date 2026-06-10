@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import dayjs from "@/lib/dayjs";
-import { sessionStatusLabels } from "@/lib/enums";
 import {
   ExternalLink,
   Clock,
@@ -112,6 +112,7 @@ interface StudentDashboardProps {
 }
 
 export function StudentDashboardClient(props: StudentDashboardProps) {
+  const t = useTranslations("StudentDashboard");
   const {
     student,
     nextSession,
@@ -132,22 +133,28 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
       sessionDate: r.sessionDate,
       rating: r.rating as number,
     }));
+
   const getStatusBadge = (status: number) => {
-    const label = sessionStatusLabels[status as SessionStatus] || "غير معروف";
     let variant: "default" | "secondary" | "destructive" | "outline" =
       "default";
     let icon = null;
+    let labelKey = "";
     if (status === SessionStatus.COMPLETED) {
       variant = "secondary";
       icon = <CheckCircle className="h-4 w-4 ml-1 text-green-600" />;
+      labelKey = "status.completed";
     } else if (status === SessionStatus.CANCELLED) {
       variant = "destructive";
       icon = <XCircle className="h-4 w-4 ml-1 text-red-600" />;
+      labelKey = "status.cancelled";
     } else if (status === SessionStatus.SCHEDULED) {
       variant = "outline";
       icon = <AlertCircle className="h-4 w-4 ml-1 text-blue-600" />;
+      labelKey = "status.scheduled";
+    } else {
+      labelKey = "status.unknown";
     }
-    return { label, variant, icon };
+    return { label: t(labelKey), variant, icon };
   };
 
   useEffect(() => {
@@ -159,7 +166,7 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
       const diffSeconds = start.diff(now, "second");
 
       if (diffSeconds <= 0) {
-        setTimeToNextSession("الآن");
+        setTimeToNextSession(t("countdown.now"));
         setShowJoinButton(true);
         return;
       }
@@ -178,20 +185,22 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
     updateCountdown();
     const interval = setInterval(updateCountdown, 1000);
     return () => clearInterval(interval);
-  }, [nextSession]);
+  }, [nextSession, t]);
 
   const hasUpcomingSession = nextSession !== null;
 
   return (
     <div className="min-h-screen pb-10 relative" dir="rtl">
-      {/* اللافتة العلوية */}
+      {/* Top banner */}
       {hasUpcomingSession && (
         <div className="bg-primary text-primary-foreground shadow-lg p-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Clock className="h-5 w-5" />
             <span>
-              لديك حصة مع أستاذ {nextSession!.tutorName} خلال{" "}
-              <span className="font-bold">{timeToNextSession}</span>
+              {t("banner.message", {
+                tutorName: nextSession!.tutorName,
+                time: timeToNextSession || "-",
+              })}
             </span>
           </div>
           {showJoinButton && nextSession!.zoomJoinUrl && (
@@ -201,7 +210,7 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                انضم الآن
+                {t("banner.joinButton")}
                 <ExternalLink className="h-4 w-4 mr-1" />
               </a>
             </Button>
@@ -210,7 +219,7 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
       )}
 
       <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-6 pt-14">
-        {/* بطاقة الترحيب */}
+        {/* Welcome Card */}
         <Card>
           <CardContent className="p-6 flex items-center gap-4">
             <Avatar className="h-16 w-16">
@@ -218,25 +227,33 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
               <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
             </Avatar>
             <div className="flex-1">
-              <h2 className="text-2xl font-bold">أهلاً يا {student.name}</h2>
+              <h2 className="text-2xl font-bold">
+                {t("welcome.title", { name: student.name })}
+              </h2>
               {hasUpcomingSession ? (
                 <p className="text-muted-foreground mt-1">
-                  حصتك القادمة مع أستاذ {nextSession!.tutorName} تبدأ{" "}
-                  {dayjs.utc(nextSession!.startTime).format("dddd hh:mm A")}
+                  {t("welcome.nextSession", {
+                    tutorName: nextSession!.tutorName,
+                    time: dayjs
+                      .utc(nextSession!.startTime)
+                      .format("dddd hh:mm A"),
+                  })}
                 </p>
               ) : (
-                <p className="text-muted-foreground mt-1">ليس لديك حصص قادمة</p>
+                <p className="text-muted-foreground mt-1">
+                  {t("welcome.noNextSession")}
+                </p>
               )}
             </div>
           </CardContent>
         </Card>
 
-        {/* التحليلات الشهرية */}
+        {/* Monthly Analytics */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card>
             <CardContent className="p-4 text-center">
               <p className="text-sm text-muted-foreground">
-                إجمالي الحصص الشهرية
+                {t("analytics.totalSessions")}
               </p>
               <p className="text-3xl font-bold">
                 {monthlyAnalytics.totalMonthlySessions}
@@ -246,7 +263,7 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
           <Card>
             <CardContent className="p-4 text-center">
               <p className="text-sm text-muted-foreground">
-                الحصص المتبقية هذا الشهر
+                {t("analytics.remainingSessions")}
               </p>
               <p className="text-3xl font-bold">
                 {monthlyAnalytics.remainingMonthlySessions}
@@ -255,7 +272,9 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
           </Card>
           <Card>
             <CardContent className="p-4 text-center">
-              <p className="text-sm text-muted-foreground">تاريخ التجديد</p>
+              <p className="text-sm text-muted-foreground">
+                {t("analytics.renewalDate")}
+              </p>
               <p className="text-3xl font-bold">
                 {monthlyAnalytics.renewalDate
                   ? dayjs.utc(monthlyAnalytics.renewalDate).format("DD/MM/YYYY")
@@ -270,11 +289,11 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
             <Card className="grow-3">
               <CardContent className="p-4">
                 <h3 className="text-lg font-semibold mb-2">
-                  تقرير آخر حصة (يوم{" "}
-                  {dayjs
-                    .utc(lastReport.sessionDate)
-                    .format("DD/MM/YYYY الساعة HH:mm")}
-                  )
+                  {t("lastReport.title", {
+                    date: dayjs
+                      .utc(lastReport.sessionDate)
+                      .format("DD/MM/YYYY HH:mm"),
+                  })}
                 </h3>
                 <SessionReportCard
                   report={{
@@ -291,17 +310,17 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
           </div>
         )}
 
-        {/* التبويبات */}
+        {/* Tabs */}
         <Tabs defaultValue="sessions">
           <TabsList dir="rtl" className="w-full">
             <TabsTrigger value="sessions" className="flex-1">
-              الحصص
+              {t("tabs.sessions")}
             </TabsTrigger>
             <TabsTrigger value="reports" className="flex-1">
-              التقارير
+              {t("tabs.reports")}
             </TabsTrigger>
             <TabsTrigger value="billing" className="flex-1">
-              الفوترة
+              {t("tabs.billing")}
             </TabsTrigger>
           </TabsList>
 
@@ -314,19 +333,19 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
                 <TableHeader>
                   <TableRow className="bg-linear-to-l from-primary/10 to-primary/5 hover:bg-linear-to-l hover:from-primary/10 hover:to-primary/5">
                     <TableHead className="text-right font-semibold">
-                      التاريخ
+                      {t("sessionsTable.date")}
                     </TableHead>
                     <TableHead className="text-right font-semibold">
-                      الوقت
+                      {t("sessionsTable.time")}
                     </TableHead>
                     <TableHead className="text-right font-semibold">
-                      المعلم
+                      {t("sessionsTable.tutor")}
                     </TableHead>
                     <TableHead className="text-right font-semibold">
-                      الموضوع
+                      {t("sessionsTable.topic")}
                     </TableHead>
                     <TableHead className="text-right font-semibold">
-                      الحالة
+                      {t("sessionsTable.status")}
                     </TableHead>
                   </TableRow>
                 </TableHeader>
@@ -362,7 +381,7 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
                           </Badge>
                           {s.hasReport && (
                             <span className="mr-2 text-green-600 text-xs">
-                              ● تقرير
+                              {t("sessionsTable.hasReport")}
                             </span>
                           )}
                         </TableCell>
@@ -381,7 +400,7 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
               ))}
               {reports.length === 0 && (
                 <p className="text-muted-foreground col-span-full text-center py-8">
-                  لا توجد تقارير بعد
+                  {t("reports.empty")}
                 </p>
               )}
             </div>
@@ -390,32 +409,37 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
           <TabsContent value="billing">
             {activeSubscription ? (
               <div className="space-y-4">
-                {/* بطاقة الاشتراك الحالي */}
+                {/* Current Subscription Card */}
                 <Card className="bg-linear-to-br from-card to-primary/5 border shadow-sm">
                   <CardContent className="p-5">
                     <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                       <CreditCard className="h-5 w-5 text-primary" />
-                      الاشتراك الحالي
+                      {t("billing.currentSubscription")}
                     </h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                       <div className="flex items-center gap-2">
                         <BookOpen className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-muted-foreground">الخطة:</span>
+                        <span className="text-muted-foreground">
+                          {t("billing.plan")}:
+                        </span>
                         <span className="font-medium">
                           {activeSubscription.planTitle}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
                         <Repeat className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-muted-foreground">أسبوعياً:</span>
+                        <span className="text-muted-foreground">
+                          {t("billing.weekly")}:
+                        </span>
                         <span className="font-medium">
-                          {activeSubscription.planSessionsPerWeek} حصة
+                          {activeSubscription.planSessionsPerWeek}{" "}
+                          {t("billing.sessions")}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
                         <DollarSign className="h-4 w-4 text-muted-foreground" />
                         <span className="text-muted-foreground">
-                          سعر الخطة:
+                          {t("billing.price")}:
                         </span>
                         <span className="font-semibold text-primary">
                           {activeSubscription.planPrice}
@@ -426,7 +450,9 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
                       </div>
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-muted-foreground">البداية:</span>
+                        <span className="text-muted-foreground">
+                          {t("billing.startDate")}:
+                        </span>
                         <span className="font-medium">
                           {dayjs
                             .utc(activeSubscription.startDate)
@@ -437,7 +463,7 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4 text-muted-foreground" />
                           <span className="text-muted-foreground">
-                            الانتهاء:
+                            {t("billing.endDate")}:
                           </span>
                           <span className="font-medium">
                             {dayjs
@@ -450,16 +476,16 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
                   </CardContent>
                 </Card>
 
-                {/* سجل المدفوعات */}
+                {/* Payment History */}
                 <Card className="border shadow-sm">
                   <CardContent className="p-5">
                     <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                       <FileText className="h-5 w-5 text-primary" />
-                      سجل المدفوعات
+                      {t("billing.paymentHistory")}
                     </h3>
                     {activeSubscription.payments.length === 0 ? (
                       <p className="text-muted-foreground text-sm text-center py-6">
-                        لا توجد مدفوعات مسجلة
+                        {t("billing.noPayments")}
                       </p>
                     ) : (
                       <div
@@ -470,13 +496,13 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
                           <TableHeader>
                             <TableRow className="bg-linear-to-l from-primary/10 to-primary/5 hover:bg-linear-to-l hover:from-primary/10 hover:to-primary/5">
                               <TableHead className="text-right font-semibold">
-                                التاريخ
+                                {t("billing.paymentDate")}
                               </TableHead>
                               <TableHead className="text-right font-semibold">
-                                المبلغ
+                                {t("billing.amount")}
                               </TableHead>
                               <TableHead className="text-right font-semibold">
-                                الحالة
+                                {t("billing.status")}
                               </TableHead>
                             </TableRow>
                           </TableHeader>
@@ -511,7 +537,9 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
                                       ) : (
                                         <AlertCircle className="h-3.5 w-3.5 text-orange-500" />
                                       )}
-                                      {isPaid ? "مدفوع" : "معلق"}
+                                      {isPaid
+                                        ? t("billing.paid")
+                                        : t("billing.pending")}
                                     </Badge>
                                   </TableCell>
                                 </TableRow>
@@ -528,7 +556,7 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
               <Card className="border shadow-sm">
                 <CardContent className="p-6 text-center text-muted-foreground">
                   <CreditCard className="h-10 w-10 mx-auto mb-3 opacity-50" />
-                  <p>لا يوجد اشتراك نشط حالياً</p>
+                  <p>{t("billing.noActiveSubscription")}</p>
                 </CardContent>
               </Card>
             )}

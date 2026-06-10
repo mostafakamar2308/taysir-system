@@ -1,5 +1,5 @@
-// components/chat/chat-input.tsx
 "use client";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ interface Props {
 }
 
 export function ChatInput({ onSend, onTyping, disabled }: Props) {
+  const t = useTranslations("Chat");
   const [text, setText] = useState("");
 
   const handleSend = () => {
@@ -25,7 +26,7 @@ export function ChatInput({ onSend, onTyping, disabled }: Props) {
     <div className="p-4 border-t border-border bg-card">
       {disabled && (
         <p className="text-xs text-muted-foreground mb-2">
-          This conversation is closed.
+          {t("conversationClosed")}
         </p>
       )}
       <div className="flex gap-2">
@@ -41,7 +42,9 @@ export function ChatInput({ onSend, onTyping, disabled }: Props) {
               handleSend();
             }
           }}
-          placeholder={disabled ? "المحادثة مغلقة" : "اكتب رسالتك..."}
+          placeholder={
+            disabled ? t("inputPlaceholderDisabled") : t("inputPlaceholder")
+          }
           disabled={disabled}
           className="flex-1"
         />

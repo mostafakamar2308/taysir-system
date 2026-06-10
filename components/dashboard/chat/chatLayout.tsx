@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { ChatList } from "./chatList";
 import { ChatWindow } from "./chatWindow";
 import { FullChatMessage } from "@/wss/types";
@@ -33,6 +34,7 @@ interface Props {
 }
 
 export function ChatLayout({ chats, currentUser }: Props) {
+  const t = useTranslations("Chat");
   const searchParams = useSearchParams();
   const roomIdParam = searchParams.get("room")
     ? Number(searchParams.get("room"))
@@ -61,8 +63,8 @@ export function ChatLayout({ chats, currentUser }: Props) {
       <div
         className={cn(
           "flex flex-col border-r border-border bg-card h-full",
-          "md:w-80 md:flex", // desktop: fixed width, always visible
-          mobileChatOpen ? "hidden md:flex" : "flex flex-1 md:flex-none", // mobile: hide when chat is open
+          "md:w-80 md:flex",
+          mobileChatOpen ? "hidden md:flex" : "flex flex-1 md:flex-none",
         )}
       >
         <ChatList
@@ -78,7 +80,6 @@ export function ChatLayout({ chats, currentUser }: Props) {
           mobileChatOpen ? "flex" : "hidden md:flex",
         )}
       >
-        {" "}
         {selectedChatId ? (
           <ChatWindow
             roomId={selectedChatId}
@@ -90,7 +91,7 @@ export function ChatLayout({ chats, currentUser }: Props) {
           />
         ) : (
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
-            اختر محادثة لبدء الدردشة
+            {t("selectChatPlaceholder")}
           </div>
         )}
       </div>

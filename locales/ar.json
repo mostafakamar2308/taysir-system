@@ -914,6 +914,7 @@
     "roleSuperAdmin": "مدير عام",
     "roleAdmin": "مدير أكاديمية",
     "roleTutor": "معلم",
+    "roleStudent": "طالب",
     "roleSupervisor": "مشرف",
     "roleUser": "مستخدم",
     "accountSettings": "إعدادات الحساب",
@@ -953,5 +954,97 @@
     },
     "switchToEnglish": "English",
     "switchToArabic": "العربية"
+  },
+  "StudentDashboard": {
+    "countdown": {
+      "now": "الآن"
+    },
+    "banner": {
+      "message": "لديك حصة مع أستاذ {tutorName} خلال {time}",
+      "joinButton": "انضم الآن"
+    },
+    "welcome": {
+      "title": "أهلاً يا {name}",
+      "nextSession": "حصتك القادمة مع أستاذ {tutorName} تبدأ {time}",
+      "noNextSession": "ليس لديك حصص قادمة"
+    },
+    "analytics": {
+      "totalSessions": "إجمالي الحصص الشهرية",
+      "remainingSessions": "الحصص المتبقية هذا الشهر",
+      "renewalDate": "تاريخ التجديد"
+    },
+    "lastReport": {
+      "title": "تقرير آخر حصة (يوم {date})"
+    },
+    "tabs": {
+      "sessions": "الحصص",
+      "reports": "التقارير",
+      "billing": "الفوترة"
+    },
+    "sessionsTable": {
+      "date": "التاريخ",
+      "time": "الوقت",
+      "tutor": "المعلم",
+      "topic": "الموضوع",
+      "status": "الحالة",
+      "hasReport": "● تقرير"
+    },
+    "reports": {
+      "empty": "لا توجد تقارير بعد"
+    },
+    "billing": {
+      "currentSubscription": "الاشتراك الحالي",
+      "plan": "الخطة",
+      "weekly": "أسبوعياً",
+      "sessions": "حصة",
+      "price": "سعر الخطة",
+      "startDate": "البداية",
+      "endDate": "الانتهاء",
+      "paymentHistory": "سجل المدفوعات",
+      "noPayments": "لا توجد مدفوعات مسجلة",
+      "paymentDate": "التاريخ",
+      "amount": "المبلغ",
+      "status": "الحالة",
+      "paid": "مدفوع",
+      "pending": "معلق",
+      "noActiveSubscription": "لا يوجد اشتراك نشط حالياً"
+    },
+    "status": {
+      "completed": "مكتملة",
+      "cancelled": "ملغاة",
+      "scheduled": "مجدولة",
+      "unknown": "غير معروف"
+    },
+    "report": {
+      "outcomes": "المخرجات",
+      "strengths": "نقاط القوة",
+      "weaknesses": "نقاط الضعف",
+      "nextGoals": "الأهداف القادمة",
+      "noDetails": "لا توجد تفاصيل"
+    }
+  },
+  "Chat": {
+    "selectChatPlaceholder": "اختر محادثة لبدء الدردشة",
+    "title": "المحادثات",
+    "searchPlaceholder": "ابحث بالاسم...",
+    "filterAll": "الكل",
+    "filterTutors": "المعلمين",
+    "filterStudents": "الطلاب",
+    "noMessagesYet": "لا توجد رسائل بعد",
+    "loadingMessages": "جاري تحميل الرسائل...",
+    "noMessages": "لا يوجد رسائل حتى الآن، قل مرحباً!",
+    "typingIndicator": "يكتب...",
+    "you": "أنت",
+    "unknown": "غير معروف",
+    "markAsRead": "تحديد كمقروء",
+    "readAt": "قرأت في {time}",
+    "conversationClosed": "هذه المحادثة مغلقة.",
+    "inputPlaceholder": "اكتب رسالتك...",
+    "inputPlaceholderDisabled": "المحادثة مغلقة",
+    "roles": {
+      "tutor": "معلم",
+      "student": "طالب",
+      "admin": "مدير"
+    }
   }
 }

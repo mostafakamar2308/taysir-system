@@ -64,8 +64,6 @@ export default function StudentProfileClient({
   };
 
   const handleMarkPayment = () => {
-    console.log(student);
-
     setRecordPayment(true);
   };
 

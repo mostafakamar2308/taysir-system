@@ -913,6 +913,7 @@
     "roleSuperAdmin": "Super Admin",
     "roleAdmin": "Academy Manager",
     "roleTutor": "Tutor",
+    "roleStudent": "Student",
     "roleSupervisor": "Supervisor",
     "roleUser": "User",
     "accountSettings": "Account Settings",
@@ -952,5 +953,97 @@
     },
     "switchToEnglish": "English",
     "switchToArabic": "العربية"
+  },
+  "StudentDashboard": {
+    "countdown": {
+      "now": "Now"
+    },
+    "banner": {
+      "message": "You have a session with {tutorName} in {time}",
+      "joinButton": "Join Now"
+    },
+    "welcome": {
+      "title": "Welcome {name}",
+      "nextSession": "Your next session with {tutorName} starts at {time}",
+      "noNextSession": "You have no upcoming sessions"
+    },
+    "analytics": {
+      "totalSessions": "Monthly Total Sessions",
+      "remainingSessions": "Remaining Sessions This Month",
+      "renewalDate": "Renewal Date"
+    },
+    "lastReport": {
+      "title": "Last Session Report ({date})"
+    },
+    "tabs": {
+      "sessions": "Sessions",
+      "reports": "Reports",
+      "billing": "Billing"
+    },
+    "sessionsTable": {
+      "date": "Date",
+      "time": "Time",
+      "tutor": "Tutor",
+      "topic": "Topic",
+      "status": "Status",
+      "hasReport": "● Report"
+    },
+    "reports": {
+      "empty": "No reports yet"
+    },
+    "billing": {
+      "currentSubscription": "Current Subscription",
+      "plan": "Plan",
+      "weekly": "Weekly",
+      "sessions": "session(s)",
+      "price": "Plan Price",
+      "startDate": "Start Date",
+      "endDate": "End Date",
+      "paymentHistory": "Payment History",
+      "noPayments": "No payment records",
+      "paymentDate": "Date",
+      "amount": "Amount",
+      "status": "Status",
+      "paid": "Paid",
+      "pending": "Pending",
+      "noActiveSubscription": "No active subscription"
+    },
+    "status": {
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "scheduled": "Scheduled",
+      "unknown": "Unknown"
+    },
+    "report": {
+      "outcomes": "Outcomes",
+      "strengths": "Strengths",
+      "weaknesses": "Weaknesses",
+      "nextGoals": "Next Goals",
+      "noDetails": "No details"
+    }
+  },
+  "Chat": {
+    "selectChatPlaceholder": "Select a chat to start messaging",
+    "title": "Chats",
+    "searchPlaceholder": "Search by name...",
+    "filterAll": "All",
+    "filterTutors": "Tutors",
+    "filterStudents": "Students",
+    "noMessagesYet": "No messages yet",
+    "loadingMessages": "Loading messages...",
+    "noMessages": "No messages yet, say hello!",
+    "typingIndicator": "typing...",
+    "you": "You",
+    "unknown": "Unknown",
+    "markAsRead": "Mark as read",
+    "readAt": "Read at {time}",
+    "conversationClosed": "This conversation is closed.",
+    "inputPlaceholder": "Type your message...",
+    "inputPlaceholderDisabled": "Conversation closed",
+    "roles": {
+      "tutor": "Tutor",
+      "student": "Student",
+      "admin": "Admin"
+    }
   }
 }

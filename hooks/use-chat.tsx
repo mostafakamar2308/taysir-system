@@ -184,8 +184,6 @@ export function useChat({ roomId, userId, userRole }: UseChatOptions) {
         ClientEvent.SendMessage,
         { roomId, text, refId },
         (res: AcknowledgePayload) => {
-          console.log({ res });
-
           if (res.code !== AcknowledgeCode.Success) {
             setMessages((prev) => prev.filter((m) => m.refId !== refId));
             console.error("Send failed:", res.message);

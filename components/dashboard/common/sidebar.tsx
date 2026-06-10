@@ -48,11 +48,11 @@ export default function Sidebar() {
     if (user.role === Role.SuperAdmin) return t("roleSuperAdmin");
     if (user.role === Role.Admin) return t("roleAdmin");
     if (user.role === Role.Tutor) return t("roleTutor");
+    if (user.role === Role.Student) return t("roleStudent");
     if (user.role === Role.Supervisor) return t("roleSupervisor");
     return t("roleUser");
   };
 
-  console.log(pathname, pathname.split("/"), locale, otherLocale);
   const switchLanguage = () => {
     const pathWithoutLocale = pathname.replace(`/${locale}`, "") || "/";
     router.push(pathWithoutLocale, { locale: otherLocale });

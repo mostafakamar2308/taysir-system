@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { Star, Clock, BookOpen } from "lucide-react";
 import dayjs from "@/lib/dayjs";
 
@@ -12,6 +13,7 @@ interface ReportData {
 }
 
 export function SessionReportCard({ report }: { report: ReportData }) {
+  const t = useTranslations("StudentDashboard");
   const formattedDate = dayjs
     .utc(report.sessionDate)
     .format("dddd، DD MMMM YYYY");
@@ -22,7 +24,7 @@ export function SessionReportCard({ report }: { report: ReportData }) {
       dir="rtl"
       className="bg-linear-to-br from-card to-muted/30 border rounded-xl p-5 space-y-4 shadow-sm transition-all hover:shadow-md"
     >
-      {/* رأس البطاقة: تفاصيل الجلسة */}
+      {/* Card header: session details */}
       <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground border-b pb-3">
         <div className="flex items-center gap-1.5">
           <Clock className="h-4 w-4 text-primary" />
@@ -37,7 +39,7 @@ export function SessionReportCard({ report }: { report: ReportData }) {
         )}
       </div>
 
-      {/* التقييم */}
+      {/* Rating */}
       {report.rating && (
         <div className="flex items-center gap-1">
           {Array.from({ length: 5 }).map((_, i) => (
@@ -54,30 +56,36 @@ export function SessionReportCard({ report }: { report: ReportData }) {
         </div>
       )}
 
-      {/* التفاصيل */}
+      {/* Details */}
       <div className="text-sm space-y-1">
         {report.outcomes && (
           <p>
-            <span className="font-semibold text-primary">المخرجات:</span>{" "}
+            <span className="font-semibold text-primary">
+              {t("report.outcomes")}:
+            </span>{" "}
             {report.outcomes}
           </p>
         )}
         {report.strengths && (
           <p>
-            <span className="font-semibold text-green-600">نقاط القوة:</span>{" "}
+            <span className="font-semibold text-green-600">
+              {t("report.strengths")}:
+            </span>{" "}
             {report.strengths}
           </p>
         )}
         {report.weaknesses && (
           <p>
-            <span className="font-semibold text-orange-600">نقاط الضعف:</span>{" "}
+            <span className="font-semibold text-orange-600">
+              {t("report.weaknesses")}:
+            </span>{" "}
             {report.weaknesses}
           </p>
         )}
         {report.nextGoals && (
           <p>
             <span className="font-semibold text-blue-600">
-              الأهداف القادمة:
+              {t("report.nextGoals")}:
             </span>{" "}
             {report.nextGoals}
           </p>
@@ -89,7 +97,9 @@ export function SessionReportCard({ report }: { report: ReportData }) {
         !report.strengths &&
         !report.weaknesses &&
         !report.nextGoals && (
-          <p className="text-muted-foreground text-sm">لا توجد تفاصيل</p>
+          <p className="text-muted-foreground text-sm">
+            {t("report.noDetails")}
+          </p>
         )}
     </div>
   );

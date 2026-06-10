@@ -1,4 +1,5 @@
 "use client";
+import { useTranslations } from "next-intl";
 import { useChat } from "@/hooks/use-chat";
 import { ChatMessageItem } from "./chatMessageItem";
 import { ChatInput } from "./chatInput";
@@ -45,6 +46,7 @@ export function ChatWindow({
   onBack,
   showBackButton,
 }: Props) {
+  const t = useTranslations("Chat");
   const {
     messages,
     loading,
@@ -66,6 +68,11 @@ export function ChatWindow({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
   }, [messages.length, loading]);
+
+  const otherUserRole =
+    currentUser.role === Role.Tutor || currentUser.role === Role.Admin
+      ? "student"
+      : "tutor";
 
   return (
     <div className="flex flex-col h-full">
@@ -89,13 +96,12 @@ export function ChatWindow({
           <div className="font-semibold">{otherUser.name}</div>
           <div className="flex gap-2 items-center">
             <Badge variant="outline" className="text-xs">
-              {currentUser.role === Role.Tutor ||
-              currentUser.role === Role.Admin
-                ? "Student"
-                : "Tutor"}
+              {t(`roles.${otherUserRole}`)}
             </Badge>
             {typingUsers.size > 0 && (
-              <span className="text-xs text-muted-foreground">typing...</span>
+              <span className="text-xs text-muted-foreground">
+                {t("typingIndicator")}
+              </span>
             )}
           </div>
         </div>
@@ -105,11 +111,11 @@ export function ChatWindow({
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {loading ? (
           <div className="text-center text-muted-foreground">
-            جاري تحميل الرسائل...
+            {t("loadingMessages")}
           </div>
         ) : messages.length === 0 ? (
           <div className="text-center text-muted-foreground">
-            لا يوجد رسائل حتي الان، قل مرحبا!
+            {t("noMessages")}
           </div>
         ) : (
           messages.map((msg) => (
