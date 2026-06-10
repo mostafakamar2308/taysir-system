@@ -368,5 +368,590 @@
       "academyRequired": "اسم الأكاديمية مطلوب",
       "termsRequired": "يجب الموافقة على الشروط والأحكام"
     }
+  },
+  "Dashboard": {
+    "title": "لوحة التحكم",
+    "subtitle": "نظرة عامة على أداء الأكاديمية",
+    "quickActions": "إجراءات سريعة",
+    "addStudent": "إضافة طالب",
+    "addTutor": "إضافة معلم",
+    "addSession": "إضافة حصة",
+    "addExpense": "تسجيل مصروف",
+    "addRevenue": "تسجيل إيراد",
+    "userStats": "إحصائيات المستخدمين",
+    "studentStats": "إحصائيات الطلاب",
+    "financeStats": "إحصائيات الماليات",
+    "conversionRates": "معدلات التحويل",
+    "totalStudents": "إجمالي الطلاب",
+    "activeTutors": "معلمين نشطين",
+    "totalSupervisors": "مشرفين",
+    "subscribedStudents": "المشتركين",
+    "trialStudents": "تجريبي",
+    "leadStudents": "عملاء محتملين",
+    "newStudentsThisWeek": "طلاب جدد هذا الأسبوع",
+    "revenueThisMonth": "إيرادات هذا الشهر {value} {currency}",
+    "expenseThisMonth": "مصروفات هذا الشهر {value} {currency}",
+    "leadToTrialRate": "تحويل العملاء المحتملين إلي حصص تجريبية (آخر 30 يوم)",
+    "leadToTrialComparison": "مقارنة بالفترة السابقة (30-60 يوم)",
+    "trialToSubscribedRate": "تحويل الحصص التجريبية إلي اشتراكات (آخر 30 يوم)",
+    "trialToSubscribedComparison": "مقارنة بالفترة السابقة (30-60 يوم)",
+    "atRiskTitle": "طلاب غابوا بدون عذر",
+    "atRiskSafe": "لا يوجد طلاب، الوضع اّمن",
+    "sendBulkMessage": "إرسال رسالة جماعية",
+    "attendance": "سجل الحضور اليوم",
+    "reconciliation": "التسوية المالية",
+    "reports": "التقارير المفقودة",
+    "missingAttendanceTitle": "حصص بدون تسجيل حضور",
+    "noMissingAttendance": "لا توجد حصص بدون حضور اليوم",
+    "absentTodayTitle": "حصص اليوم التي غابها الطلاب",
+    "noAbsentToday": "لا يوجد غياب اليوم",
+    "latePaymentsTitle": "مدفوعات متأخرة",
+    "noLatePayments": "لا توجد مدفوعات متأخرة",
+    "nearEndTitle": "اشتراكات قاربت على الانتهاء",
+    "noNearEnd": "لا توجد اشتراكات قاربت على الانتهاء",
+    "missingReportsTitle": "حصص اليوم بدون تقارير",
+    "allReportsPresent": "جميع الحصص اليوم تحتوي على تقارير",
+    "missingAttendanceItem": "حصة المعلم {tutorName} مع الطالب {studentName}",
+    "absentTodayItem": "{studentName} غائب – حصة مع {tutorName} ({time})",
+    "latePaymentItem": "{studentName} – {planTitle} – {amountDue} {currency} – متأخر {daysOverdue} يوم",
+    "nearEndItem": "{studentName} – {planTitle} – تنتهي {endDate} (متبقي {daysLeft} يوم)",
+    "missingReportItem": "{tutorName} مع {studentName} الساعة {time}",
+    "remind": "تذكير",
+    "contact": "تواصل",
+    "whatsapp": {
+      "atRisk": "مرحباً {name}، نود التواصل معك بخصوص حسابك.",
+      "attendanceReminder": "مرحباً، برجاء تسجيل حضور حصة اليوم مع الطالب {studentName} الساعة {time}.",
+      "absentContact": "مرحباً {studentName}، نود التواصل معك بخصوص غيابك اليوم.",
+      "latePaymentReminder": "مرحباً، نود تذكيرك بدفع مستحقات الاشتراك.",
+      "nearEndContact": "مرحباً، نود إعلامك بأن اشتراكك سينتهي قريباً.",
+      "reportReminder": "مرحباً، نود تذكيرك بكتابة تقرير حصة {studentName} اليوم."
+    }
+  },
+  "AddStudentDialog": {
+    "triggerLabel": "إضافة طالب",
+    "title": "إضافة طالب جديد",
+    "personalInfo": "المعلومات الشخصية",
+    "name": "الاسم",
+    "email": "البريد الإلكتروني",
+    "age": "العمر",
+    "phone": "رقم الهاتف",
+    "phoneHint": "برجاء كتابة الرقم بالصيغة الدولية",
+    "country": "الدولة",
+    "timezone-label": "المنطقة الزمنية",
+    "timezonePlaceholder": "اختر المنطقة الزمنية",
+    "timezone": {
+      "cairo": "القاهرة",
+      "riyadh": "الرياض",
+      "dubai": "دبي"
+    },
+    "preferredLanguage": "اللغة المفضلة",
+    "source": "المصدر",
+    "currentProgram": "البرنامج",
+    "subscriptionInfo": "معلومات الاشتراك",
+    "status-label": "الحالة",
+    "statusPlaceholder": "اختر الحالة",
+    "status": {
+      "trial": "تجريبي",
+      "subscribed": "مشترك",
+      "lead": "عميل محتمل"
+    },
+    "plan-label": "الخطة",
+    "planPlaceholder": "اختر الخطة",
+    "plan": {
+      "none": "بدون خطة"
+    },
+    "currency-label": "العملة",
+    "currencyPlaceholder": "اختر العملة",
+    "currency": {
+      "none": "بدون عملة"
+    },
+    "tutor-label": "المعلم",
+    "tutorPlaceholder": "اختر المعلم",
+    "tutor": {
+      "none": "بدون معلم"
+    },
+    "cancel": "إلغاء",
+    "add": "إضافة",
+    "saving": "جاري الحفظ...",
+    "toast": {
+      "success": "تم إضافة الطالب بنجاح",
+      "error": "حدث خطأ"
+    }
+  },
+
+  "AddTutorDialog": {
+    "triggerLabel": "إضافة معلم",
+    "title": "إضافة معلم جديد",
+    "name": "الاسم",
+    "email": "البريد الإلكتروني",
+    "phone": "رقم الهاتف",
+    "phoneHint": "برجاء كتابة الرقم بالصيغة الدولية",
+    "timezone-label": "المنطقة الزمنية",
+    "timezonePlaceholder": "اختر المنطقة الزمنية",
+    "timezone": {
+      "cairo": "القاهرة",
+      "riyadh": "الرياض",
+      "dubai": "دبي"
+    },
+    "pricePerHour": "سعر الساعة",
+    "currency": "العملة",
+    "currencyPlaceholder": "اختر العملة",
+    "specialities": "التخصصات",
+    "specialitiesPlaceholder": "اختر تخصصات المعلم",
+    "searchSpecialities": "ابحث عن تخصص",
+    "bio": "النبذة التعريفية",
+    "qualifications": "المؤهلات",
+    "active": "نشط",
+    "zoomEnabled": "مفعل على Zoom",
+    "zoomUrl": "رابط Zoom الشخصي",
+    "cancel": "إلغاء",
+    "add": "إضافة",
+    "saving": "جاري الحفظ...",
+    "toast": {
+      "success": "تم إضافة المعلم بنجاح",
+      "error": "حدث خطأ"
+    }
+  },
+  "AddSessionDialog": {
+    "triggerLabel": "إضافة حصة",
+    "title": "إضافة حصة جديدة",
+    "student": "الطالب",
+    "studentPlaceholder": "اختر الطالب",
+    "tutor": "المعلم",
+    "tutorPlaceholder": "اختر المعلم",
+    "date": "التاريخ",
+    "startTime": "وقت البدء",
+    "duration": "المدة (دقيقة)",
+    "durationMinute": "{minutes} دقيقة",
+    "topic": "الموضوع",
+    "topicPlaceholder": "مثال: سورة البقرة - الآيات 1-20",
+    "notes": "ملاحظات",
+    "notesPlaceholder": "ملاحظات...",
+    "trialSession": "حصة تجريبية",
+    "recurringSession": "حصة متكررة",
+    "recurringDays": "أيام التكرار",
+    "recurringEndDate": "تاريخ الانتهاء (اختياري)",
+    "days": {
+      "sunday": "الأحد",
+      "monday": "الاثنين",
+      "tuesday": "الثلاثاء",
+      "wednesday": "الأربعاء",
+      "thursday": "الخميس",
+      "friday": "الجمعة",
+      "saturday": "السبت"
+    },
+    "cancel": "إلغاء",
+    "add": "إضافة",
+    "saving": "جاري الحفظ...",
+    "validation": {
+      "required": "يرجى اختيار الطالب وإدخال التاريخ والوقت"
+    },
+    "toast": {
+      "success": "تمت إضافة الحصة",
+      "error": "حدث خطأ"
+    }
+  },
+  "AddRevenueDialog": {
+    "title": "إضافة إيراد",
+    "date": "التاريخ",
+    "amount": "المبلغ",
+    "amountHint": "سيتم احتساب المبلغ بعملة الطالب",
+    "student": "الطالب",
+    "studentPlaceholder": "اختر الطالب",
+    "paymentMethod": "طريقة الدفع",
+    "methodPlaceholder": "اختر",
+    "method": {
+      "BANK_TRANSFER": "تحويل بنكي",
+      "CASH": "نقدي",
+      "CARD": "بطاقة ائتمان",
+      "PAYPAL": "PayPal",
+      "OTHER": "أخرى",
+      "ONLINE": "عبر الإنترنت"
+    },
+    "status-label": "الحالة",
+    "status": {
+      "pending": "معلق",
+      "paid": "مدفوع",
+      "failed": "فشل",
+      "refunded": "مسترد"
+    },
+    "description": "الوصف",
+    "dueDate": "تاريخ الاستحقاق",
+    "invoiceUrl": "رابط الفاتورة",
+    "notes": "ملاحظات",
+    "cancel": "إلغاء",
+    "add": "إضافة",
+    "validation": {
+      "error": "خطأ",
+      "required": "يرجى ملء الحقول المطلوبة"
+    }
+  },
+  "AddExpenseDialog": {
+    "title": "تسجيل مصروف",
+    "date": "التاريخ",
+    "amount": "المبلغ",
+    "currency": "العملة",
+    "currencyPlaceholder": "اختر",
+    "paymentMethod": "طريقة الدفع",
+    "methodPlaceholder": "اختر",
+    "method": {
+      "BANK_TRANSFER": "تحويل بنكي",
+      "CASH": "نقدي",
+      "CARD": "بطاقة ائتمان",
+      "PAYPAL": "PayPal",
+      "OTHER": "أخرى",
+      "ONLINE": "عبر الإنترنت"
+    },
+    "status-label": "الحالة",
+    "status": {
+      "pending": "معلق",
+      "paid": "مدفوع",
+      "failed": "فشل",
+      "refunded": "مسترد"
+    },
+    "description": "الوصف",
+    "costCenter": "نوع المصروف",
+    "costCenterPlaceholder": "اختر",
+    "tutorSalary": "راتب معلم",
+    "tutor": "المعلم",
+    "salaryMonth": "الشهر",
+    "salaryMonthPlaceholder": "شهر 4",
+    "invoiceUrl": "رابط الفاتورة",
+    "notes": "ملاحظات",
+    "cancel": "إلغاء",
+    "add": "إضافة",
+    "validation": {
+      "error": "خطأ",
+      "required": "يرجى ملء الحقول المطلوبة"
+    }
+  },
+  "SendBulkMessagesDialog": {
+    "title": "إرسال رسالة جماعية",
+    "description": "سيتم إرسال هذه الرسالة إلى {count} مستخدم",
+    "notConnectedAlert": "يجب ربط واتساب أولاً قبل إرسال الرسائل.",
+    "goToWhatsappSettings": "الذهاب إلى صفحة ربط واتساب",
+    "messagePlaceholder": "اكتب رسالتك هنا...",
+    "messageHint": "سيتم إرسال الرسالة عبر واتساب لكل مستخدم على حدة",
+    "cancel": "إلغاء",
+    "send": "إرسال",
+    "sending": "جاري الإرسال...",
+    "toast": {
+      "notConnected": "واتساب غير متصل",
+      "connectFirst": "يجب ربط حساب واتساب أولاً قبل إرسال الرسائل",
+      "emptyMessage": "الرجاء كتابة رسالة",
+      "sentSuccess": "تم إرسال {count} رسالة بنجاح",
+      "sentDescription": "ستصل الرسائل إلى المستلمين خلال لحظات",
+      "failed": "فشل الإرسال",
+      "defaultError": "حدث خطأ ما",
+      "networkError": "خطأ في الشبكة",
+      "networkDescription": "تعذر الاتصال بالخادم"
+    }
+  },
+  "TutorDashboard": {
+    "title": "لوحة التحكم",
+    "subtitle": "مرحباً بك في لوحة تحكم المعلم",
+    "zoomAlert": {
+      "title": "اربط برنامج الزوم الخاص بك",
+      "description": "يرجى الذهاب إلى إعدادات الحساب لربط حساب الزوم الخاص بك.",
+      "link": "ربط حساب الزوم"
+    },
+    "pendingAlert": {
+      "title": "إجراءات معلقة",
+      "description": "{attendance} حصة بحاجة لتسجيل حضور، {reports} حصة بحاجة لتقرير",
+      "viewAll": "عرض الكل"
+    },
+    "summaryCards": {
+      "todaySessions": "حصص اليوم",
+      "upcomingSessions": "الحصص القادمة",
+      "thisMonthSessions": "الحصص هذا الشهر",
+      "expectedEarnings": "المستحق هذا الشهر"
+    },
+    "tabs": {
+      "overview": "نظرة عامة",
+      "today": "حصص اليوم",
+      "upcoming": "الحصص القادمة"
+    },
+    "todaySection": {
+      "title": "حصص اليوم",
+      "empty": "لا توجد حصص اليوم"
+    },
+    "upcomingSection": {
+      "title": "الحصص القادمة",
+      "empty": "لا توجد حصص قادمة"
+    },
+    "financialSummary": {
+      "title": "ملخص مالي للشهر الحالي",
+      "totalSessions": "عدد الحصص",
+      "expected": "المستحق",
+      "paid": "تم دفعه",
+      "remaining": "المتبقي"
+    },
+    "pendingActions": {
+      "title": "إجراءات معلقة",
+      "attendanceNeeded": "{count} حصة بحاجة لتسجيل حضور",
+      "record": "تسجيل",
+      "reportNeeded": "{count} حصة بحاجة لتقرير",
+      "write": "كتابة"
+    },
+    "sessionItem": {
+      "noAttendance": "لم يسجل",
+      "noReport": "بدون تقرير",
+      "view": "عرض",
+      "startSession": "بدأ الحصة"
+    }
+  },
+  "ZoomSettings": {
+    "title": "إعدادات زووم",
+    "errorTitle": "خطأ في ربط Zoom",
+    "cardTitle": "حالة الاتصال",
+    "statusLabel": "الحالة:",
+    "statusConnected": "متصل",
+    "statusDisconnected": "غير متصل",
+    "connectedDescription": "حساب زووم الخاص بك مرتبط حالياً. يمكنك إلغاء الربط إذا كنت ترغب في ربط حساب آخر.",
+    "disconnectedDescription": "لم تقم بربط حساب زووم بعد. قم بالربط لإنشاء روابط زووم تلقائياً لحصصك.",
+    "connectButton": "ربط حساب زووم",
+    "unlinkButton": "إلغاء الربط",
+    "helpText": "عند الربط، سيتم إنشاء روابط زووم تلقائياً للحصص الجديدة.",
+    "missing_code": "لم يتم استلام رمز التفويض من Zoom. يرجى المحاولة مرة أخرى.",
+    "zoom_auth_failed": "فشل تبادل الرمز مع Zoom. تأكد من صحة إعدادات التطبيق وحاول مرة أخرى.",
+    "zoom_user_fetch_failed": "تم ربط الحساب ولكن تعذر جلب معلومات المستخدم من Zoom. يرجى المحاولة مرة أخرى.",
+    "not_authenticated": "انتهت جلسة العمل الخاصة بك. يرجى تسجيل الدخول والمحاولة مرة أخرى.",
+    "not_tutor": "حساب المستخدم الحالي ليس معلماً. لا يمكن ربط Zoom.",
+    "invalid_state": "حالة الأمان غير متطابقة. يرجى المحاولة مرة أخرى.",
+    "unexpected_error": "حدث خطأ غير متوقع أثناء ربط Zoom. يرجى المحاولة مرة أخرى."
+  },
+  "TutorSessions": {
+    "title": "الحصص",
+    "subtitle": "إدارة حصصك وجدولك الأسبوعي",
+    "addSessionButton": "إضافة حصة",
+    "calendarView": "تقويم",
+    "tableView": "جدول",
+    "today": "اليوم",
+    "allStudents": "كل الطلاب",
+    "statusPlaceholder": "الحالة",
+    "statusAll": "الكل",
+    "statusScheduled": "مجدولة",
+    "statusCompleted": "مكتملة",
+    "statusCancelled": "ملغاة",
+    "daySat": "سبت",
+    "daySun": "أحد",
+    "dayMon": "اثنين",
+    "dayTue": "ثلاثاء",
+    "dayWed": "أربعاء",
+    "dayThu": "خميس",
+    "dayFri": "جمعة",
+    "table": {
+      "date": "التاريخ",
+      "time": "الوقت",
+      "student": "الطالب",
+      "topic": "الموضوع",
+      "status": "الحالة",
+      "attendance": "الحضور",
+      "report": "التقرير",
+      "actions": "إجراءات",
+      "noSessions": "لا توجد حصص"
+    },
+    "attendancePresent": "حاضر",
+    "attendanceLate": "متأخر",
+    "attendanceAbsent": "غائب",
+    "attendanceNotRecorded": "لم يسجل",
+    "reportCompleted": "مكتمل",
+    "reportNeeded": "بحاجة تقرير"
+  },
+  "SessionDetail": {
+    "title": "تفاصيل الحصة",
+    "closeButton": "إغلاق",
+    "tabs": {
+      "zoom": "الرابط",
+      "details": "التفاصيل",
+      "attendance": "الحضور",
+      "report": "التقرير"
+    },
+    "zoom": {
+      "title": "رابط زووم",
+      "joinUrlLabel": "رابط الحضور للطالب",
+      "startUrlLabel": "رابط البدء للمعلم",
+      "copyTitle": "نسخ الرابط",
+      "openTitle": "فتح الرابط",
+      "helpText": "رابط الحضور يشارك مع الطالب، رابط البدء خاص بك (المعلم)."
+    },
+    "details": {
+      "editButton": "تعديل",
+      "student": "الطالب",
+      "datetime": "التاريخ والوقت",
+      "date": "التاريخ",
+      "startTime": "وقت البدء",
+      "duration": "المدة (دقيقة)",
+      "topic": "الموضوع",
+      "notes": "ملاحظات",
+      "saveButton": "حفظ",
+      "cancelButton": "إلغاء"
+    },
+    "attendance": {
+      "selectStatusError": "يرجى اختيار حالة الحضور",
+      "statusLabel": "حالة الحضور",
+      "selectPlaceholder": "اختر الحالة",
+      "statusPresent": "حاضر",
+      "statusLate": "متأخر",
+      "statusAbsentExcused": "غائب بعذر",
+      "statusAbsentUnexcused": "غائب بدون عذر",
+      "reasonLabel": "السبب (للغياب)",
+      "reasonPlaceholder": "اكتب سبب الغياب إن وجد",
+      "submitButton": "تسجيل الحضور",
+      "alreadyRecorded": "تم تسجيل الحضور",
+      "reasonPrefix": "السبب:",
+      "statusAbsent": "غائب",
+      "notAvailableYet": "لا يمكن تسجيل الحضور إلا بعد انتهاء الحصة"
+    },
+    "report": {
+      "missingFieldsError": "يرجى ملء الحقول الأساسية للتقرير",
+      "rating": "التقييم",
+      "outcomes": "النتائج",
+      "strengths": "نقاط القوة",
+      "weaknesses": "نقاط الضعف",
+      "nextGoals": "الأهداف القادمة",
+      "comments": "تعليقات",
+      "ratingLabel": "التقييم (1-5)",
+      "outcomesLabel": "النتائج (ما تم إنجازه) *",
+      "outcomesPlaceholder": "اذكر ما تم تحقيقه في هذه الحصة",
+      "strengthsLabel": "نقاط القوة",
+      "strengthsPlaceholder": "ما الذي أجاد فيه الطالب؟",
+      "weaknessesLabel": "نقاط الضعف",
+      "weaknessesPlaceholder": "ما الذي يحتاج إلى تحسين؟",
+      "nextGoalsLabel": "الأهداف القادمة *",
+      "nextGoalsPlaceholder": "ما هي أهداف الحصة القادمة؟",
+      "commentsLabel": "تعليقات إضافية",
+      "commentsPlaceholder": "أي ملاحظات أخرى",
+      "submitButton": "حفظ التقرير"
+    },
+    "toast": {
+      "updateSuccess": "تم تحديث الحصة",
+      "updateError": "حدث خطأ",
+      "attendanceSaved": "تم تسجيل الحضور",
+      "reportSaved": "تم حفظ التقرير",
+      "copySuccess": "تم نسخ الرابط",
+      "error": "خطأ"
+    }
+  },
+  "AddSessionToTutorDialog": {
+    "title": "إضافة حصة جديدة",
+    "triggerButton": "إضافة حصة",
+    "studentLabel": "الطالب *",
+    "studentPlaceholder": "اختر الطالب",
+    "dateLabel": "التاريخ *",
+    "startTimeLabel": "وقت البدء *",
+    "durationLabel": "المدة (دقيقة)",
+    "durationMinutes": "{minutes} دقيقة",
+    "topicLabel": "الموضوع",
+    "topicPlaceholder": "مثال: سورة البقرة - الآيات 1-20",
+    "notesLabel": "ملاحظات",
+    "notesPlaceholder": "ملاحظات...",
+    "recurring": {
+      "label": "حصة متكررة",
+      "daysLabel": "أيام التكرار",
+      "endDateLabel": "تاريخ الانتهاء (اختياري)"
+    },
+    "cancelButton": "إلغاء",
+    "submitButton": "إضافة",
+    "submittingButton": "جاري الحفظ...",
+    "validation": {
+      "missingFields": "يرجى اختيار الطالب وإدخال التاريخ والوقت"
+    },
+    "toast": {
+      "success": "تمت إضافة الحصة",
+      "error": "حدث خطأ"
+    },
+    "daySun": "الأحد",
+    "dayMon": "الاثنين",
+    "dayTue": "الثلاثاء",
+    "dayWed": "الأربعاء",
+    "dayThu": "الخميس",
+    "dayFri": "الجمعة",
+    "daySat": "السبت"
+  },
+  "TutorFinances": {
+    "title": "المالية",
+    "subtitle": "نظرة عامة على أرباحك ومدفوعاتك",
+    "cards": {
+      "sessions": "الحصص هذا الشهر",
+      "expected": "المستحق",
+      "paid": "المدفوع",
+      "remaining": "المتبقي"
+    },
+    "progress": {
+      "title": "تقدم الرواتب هذا الشهر",
+      "paid": "المدفوع"
+    },
+    "chart": {
+      "title": "الأرباح الشهرية",
+      "month": "الشهر",
+      "earningsName": "الأرباح"
+    },
+    "history": {
+      "title": "سجل المدفوعات",
+      "empty": "لا توجد مدفوعات مسجلة",
+      "defaultDescription": "راتب شهري",
+      "headers": {
+        "month": "الشهر",
+        "date": "التاريخ",
+        "description": "الوصف",
+        "amount": "المبلغ",
+        "status": "الحالة"
+      }
+    },
+    "paymentStatus": {
+      "paid": "مدفوع",
+      "pending": "معلق",
+      "failed": "فشل"
+    }
+  },
+  "Sidebar": {
+    "appName": "نظام أكاديميتي",
+    "superAdminPlatform": "الإدارة العامة",
+    "adminPlatform": "منصة المدير",
+    "tutorPlatform": "منصة المعلمين",
+    "defaultPlatform": "نظام أكاديميتي",
+    "roleSuperAdmin": "مدير عام",
+    "roleAdmin": "مدير أكاديمية",
+    "roleTutor": "معلم",
+    "roleSupervisor": "مشرف",
+    "roleUser": "مستخدم",
+    "accountSettings": "إعدادات الحساب",
+    "logout": "تسجيل الخروج",
+    "groups": {
+      "main": "الرئيسية",
+      "administration": "الإدارة",
+      "users": "المستخدمين",
+      "finance": "المالية",
+      "sessionsAndKpis": "الحصص ومؤشرات الأداء",
+      "settings": "الإعدادات",
+      "sessions": "الحصص"
+    },
+    "items": {
+      "dashboard": "لوحة التحكم",
+      "wishlists": "قائمة الانتظار",
+      "academies": "الأكاديميات",
+      "subscriptions": "الاشتراكات",
+      "currencySettings": "إعدادات العملات",
+      "chat": "المحادثات",
+      "students": "الطلاب",
+      "tutors": "المعلمين",
+      "finances": "الماليات",
+      "plans": "الخطط",
+      "currencies": "العملات وأسعار الصرف",
+      "sessionManagement": "إدارة الحصص",
+      "schedules": "الجداول",
+      "kpis": "مؤشرات الأداء",
+      "personalSettings": "إعدادات شخصية",
+      "whatsappSettings": "إعدادات الواتس اب",
+      "securitySettings": "إعدادات الأمان",
+      "userManagement": "إدارة المستخدمين",
+      "sessionSchedule": "جدول الحصص",
+      "myEarnings": "أرباحي",
+      "myProfile": "ملفي الشخصي",
+      "zoomSettings": "إعدادات الزوم"
+    },
+    "switchToEnglish": "English",
+    "switchToArabic": "العربية"
   }
 }

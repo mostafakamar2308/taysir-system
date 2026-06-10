@@ -19,40 +19,40 @@ import {
 } from "lucide-react";
 import { Role } from "@/types/user";
 
-export const getSidebarGroups = (role: number) => {
+export const getSidebarGroups = (role: number, locale: string = "ar") => {
   if (role === Role.SuperAdmin) {
     return [
       {
-        label: "الرئيسية",
+        labelKey: "groups.main",
         items: [
           {
-            title: "لوحة التحكم",
-            url: "/ar/dashboard/admin/dashboard",
+            titleKey: "items.dashboard",
+            url: `/${locale}/dashboard/admin/dashboard`,
             icon: LayoutDashboard,
           },
           {
-            title: "قائمة الانتظار",
-            url: "/ar/dashboard/admin/wishlists",
+            titleKey: "items.wishlists",
+            url: `/${locale}/dashboard/admin/wishlists`,
             icon: Users2,
           },
         ],
       },
       {
-        label: "الإدارة",
+        labelKey: "groups.administration",
         items: [
           {
-            title: "الأكاديميات",
-            url: "/ar/dashboard/admin/academies",
+            titleKey: "items.academies",
+            url: `/${locale}/dashboard/admin/academies`,
             icon: Shield,
           },
           {
-            title: "الاشتراكات",
-            url: "/ar/dashboard/admin/subscriptions",
+            titleKey: "items.subscriptions",
+            url: `/${locale}/dashboard/admin/subscriptions`,
             icon: Users,
           },
           {
-            title: "إعدادات العملات",
-            url: "/ar/dashboard/admin/currencies",
+            titleKey: "items.currencySettings",
+            url: `/${locale}/dashboard/admin/currencies`,
             icon: DollarSign,
           },
         ],
@@ -63,80 +63,96 @@ export const getSidebarGroups = (role: number) => {
   if (role === Role.Admin) {
     return [
       {
-        label: "الرئيسية",
+        labelKey: "groups.main",
         items: [
-          { title: "لوحة التحكم", url: "/ar/dashboard", icon: LayoutDashboard },
           {
-            title: "المحادثات",
-            url: "/ar/dashboard/chat",
+            titleKey: "items.dashboard",
+            url: `/${locale}/dashboard`,
+            icon: LayoutDashboard,
+          },
+          {
+            titleKey: "items.chat",
+            url: `/${locale}/dashboard/chat`,
             icon: MessageSquare,
           },
         ],
       },
       {
-        label: "المستخدمين",
+        labelKey: "groups.users",
         items: [
           {
-            title: "الطلاب",
-            url: "/ar/dashboard/students",
+            titleKey: "items.students",
+            url: `/${locale}/dashboard/students`,
             icon: GraduationCap,
           },
-          { title: "المعلمين", url: "/ar/dashboard/tutors", icon: BookOpen },
+          {
+            titleKey: "items.tutors",
+            url: `/${locale}/dashboard/tutors`,
+            icon: BookOpen,
+          },
         ],
       },
       {
-        label: "المالية",
+        labelKey: "groups.finance",
         items: [
           {
-            title: "الماليات",
-            url: "/ar/dashboard/finances",
+            titleKey: "items.finances",
+            url: `/${locale}/dashboard/finances`,
             icon: TrendingUp,
           },
-          { title: "الخطط", url: "/ar/dashboard/plans", icon: BookOpen },
           {
-            title: "العملات وأسعار الصرف",
-            url: "/ar/dashboard/settings/currencies",
+            titleKey: "items.plans",
+            url: `/${locale}/dashboard/plans`,
+            icon: BookOpen,
+          },
+          {
+            titleKey: "items.currencies",
+            url: `/${locale}/dashboard/settings/currencies`,
             icon: Coins,
           },
         ],
       },
       {
-        label: "الحصص ومؤشرات الأداء",
+        labelKey: "groups.sessionsAndKpis",
         items: [
           {
-            title: "إدارة الحصص",
-            url: "/ar/dashboard/session-management",
+            titleKey: "items.sessionManagement",
+            url: `/${locale}/dashboard/session-management`,
             icon: Clock,
           },
-          { title: "الجداول", url: "/ar/dashboard/sessions", icon: Clock },
           {
-            title: "مؤشرات الأداء",
-            url: "/ar/dashboard/analytics",
+            titleKey: "items.schedules",
+            url: `/${locale}/dashboard/sessions`,
+            icon: Clock,
+          },
+          {
+            titleKey: "items.kpis",
+            url: `/${locale}/dashboard/analytics`,
             icon: BarChart3,
           },
         ],
       },
       {
-        label: "الإعدادات",
+        labelKey: "groups.settings",
         items: [
           {
-            title: "إعدادات شخصية",
-            url: "/ar/dashboard/settings/personal",
+            titleKey: "items.personalSettings",
+            url: `/${locale}/dashboard/settings/personal`,
             icon: UserCog,
           },
           {
-            title: "إعدادات الواتس اب",
-            url: "/ar/dashboard/settings/whatsapp",
+            titleKey: "items.whatsappSettings",
+            url: `/${locale}/dashboard/settings/whatsapp`,
             icon: Phone,
           },
           {
-            title: "إعدادات الأمان",
-            url: "/ar/dashboard/settings/security",
+            titleKey: "items.securitySettings",
+            url: `/${locale}/dashboard/settings/security`,
             icon: Shield,
           },
           {
-            title: "إدارة المستخدمين",
-            url: "/ar/dashboard/settings/users",
+            titleKey: "items.userManagement",
+            url: `/${locale}/dashboard/settings/users`,
             icon: Users,
           },
         ],
@@ -147,56 +163,56 @@ export const getSidebarGroups = (role: number) => {
   if (role === Role.Tutor) {
     return [
       {
-        label: "الرئيسية",
+        labelKey: "groups.main",
         items: [
           {
-            title: "لوحة التحكم",
-            url: "/ar/dashboard/tutor",
+            titleKey: "items.dashboard",
+            url: `/${locale}/dashboard/tutor`,
             icon: LayoutDashboard,
           },
           {
-            title: "المحادثات",
-            url: "/ar/dashboard/chat",
+            titleKey: "items.chat",
+            url: `/${locale}/dashboard/chat`,
             icon: MessageSquare,
           },
         ],
       },
       {
-        label: "الحصص",
+        labelKey: "groups.sessions",
         items: [
           {
-            title: "جدول الحصص",
-            url: "/ar/dashboard/tutor/sessions",
+            titleKey: "items.sessionSchedule",
+            url: `/${locale}/dashboard/tutor/sessions`,
             icon: Calendar,
           },
         ],
       },
       {
-        label: "المالية",
+        labelKey: "groups.finance",
         items: [
           {
-            title: "أرباحي",
-            url: "/ar/dashboard/tutor/finances",
+            titleKey: "items.myEarnings",
+            url: `/${locale}/dashboard/tutor/finances`,
             icon: DollarSign,
           },
         ],
       },
       {
-        label: "الإعدادات",
+        labelKey: "groups.settings",
         items: [
           {
-            title: "ملفي الشخصي",
-            url: "/ar/dashboard/settings/personal",
+            titleKey: "items.myProfile",
+            url: `/${locale}/dashboard/settings/personal`,
             icon: User,
           },
           {
-            title: "إعدادات الزوم",
-            url: "/ar/dashboard/tutor/zoom",
+            titleKey: "items.zoomSettings",
+            url: `/${locale}/dashboard/tutor/zoom`,
             icon: Video,
           },
           {
-            title: "إعدادات الأمان",
-            url: "/ar/dashboard/settings/security",
+            titleKey: "items.securitySettings",
+            url: `/${locale}/dashboard/settings/security`,
             icon: Shield,
           },
         ],
@@ -204,12 +220,21 @@ export const getSidebarGroups = (role: number) => {
     ];
   }
 
+  // Default for unknown roles
   return [
     {
-      label: "الرئيسية",
+      labelKey: "groups.main",
       items: [
-        { title: "لوحة التحكم", url: "/ar/dashboard", icon: LayoutDashboard },
-        { title: "المحادثات", url: "/ar/dashboard/chat", icon: MessageSquare },
+        {
+          titleKey: "items.dashboard",
+          url: `/${locale}/dashboard`,
+          icon: LayoutDashboard,
+        },
+        {
+          titleKey: "items.chat",
+          url: `/${locale}/dashboard/chat`,
+          icon: MessageSquare,
+        },
       ],
     },
   ];

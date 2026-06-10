@@ -6,29 +6,29 @@ import { getWeekDates } from "@/lib/dates";
 import dayjs from "@/lib/dayjs";
 
 interface CalendarViewProps {
-    currentWeekStart: string;
-    sessions: DashboardSession[];
-    onSlotClick: () => void;
-    onSessionClick: (session: DashboardSession) => void;
-    onMarkAttendance: () => void;
+  currentWeekStart: string;
+  sessions: DashboardSession[];
+  onSlotClick: () => void;
+  onSessionClick: (session: DashboardSession) => void;
+  onMarkAttendance: () => void;
 }
 
 export default function CalendarView({
-    currentWeekStart,
-    sessions,
-    onSlotClick,
-    onSessionClick,
-    onMarkAttendance,
+  currentWeekStart,
+  sessions,
+  onSlotClick,
+  onSessionClick,
+  onMarkAttendance,
 }: CalendarViewProps) {
-    const weekDates = getWeekDates(dayjs(currentWeekStart).toDate());
+  const weekDates = getWeekDates(dayjs(currentWeekStart).toDate());
 
-    return (
-        <WeekView
-            weekDates={weekDates}
-            sessions={sessions}
-            onSlotClick={onSlotClick}
-            onSessionClick={onSessionClick}
-            onMarkAttendance={onMarkAttendance}
-        />
-    );
+  return (
+    <WeekView
+      weekDates={weekDates}
+      sessions={sessions}
+      onSlotClick={onSlotClick}
+      onSessionClick={onSessionClick}
+      onMarkAttendance={onMarkAttendance}
+    />
+  );
 }

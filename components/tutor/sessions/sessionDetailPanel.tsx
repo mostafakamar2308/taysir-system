@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -49,6 +50,7 @@ export default function SessionDetailPanel({
   onOpenChange,
   onUpdate,
 }: SessionDetailPanelProps) {
+  const t = useTranslations("SessionDetail");
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -120,14 +122,14 @@ export default function SessionDetailPanel({
       }
 
       await updateSession(payload);
-      toast({ title: "تم تحديث الحصة" });
+      toast({ title: t("toast.updateSuccess") });
       setEditMode(false);
       onUpdate();
       router.refresh();
     } catch (error) {
       if (error instanceof Error)
         toast({ title: error.message, variant: "destructive" });
-      else toast({ title: "حدث خطأ", variant: "destructive" });
+      else toast({ title: t("toast.updateError"), variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -135,7 +137,10 @@ export default function SessionDetailPanel({
 
   const handleMarkAttendance = async () => {
     if (!attendanceStatus) {
-      toast({ title: "يرجى اختيار حالة الحضور", variant: "destructive" });
+      toast({
+        title: t("attendance.selectStatusError"),
+        variant: "destructive",
+      });
       return;
     }
     setLoading(true);
@@ -145,13 +150,13 @@ export default function SessionDetailPanel({
         parseInt(attendanceStatus) as AttendanceStatus,
         attendanceReason || undefined,
       );
-      toast({ title: "تم تسجيل الحضور" });
+      toast({ title: t("toast.attendanceSaved") });
       onUpdate?.();
       router.refresh();
     } catch (error) {
       if (error instanceof Error)
         toast({
-          title: "خطأ",
+          title: t("toast.error"),
           description: error.message,
           variant: "destructive",
         });
@@ -168,7 +173,7 @@ export default function SessionDetailPanel({
       !reportData.nextGoals
     ) {
       toast({
-        title: "يرجى ملء الحقول الأساسية للتقرير",
+        title: t("report.missingFieldsError"),
         variant: "destructive",
       });
       return;
@@ -183,13 +188,13 @@ export default function SessionDetailPanel({
         nextGoals: reportData.nextGoals || null,
         comments: reportData.comments || null,
       });
-      toast({ title: "تم حفظ التقرير" });
+      toast({ title: t("toast.reportSaved") });
       onUpdate?.();
       router.refresh();
     } catch (error) {
       if (error instanceof Error)
         toast({
-          title: "خطأ",
+          title: t("toast.error"),
           description: error.message,
           variant: "destructive",
         });
@@ -205,21 +210,21 @@ export default function SessionDetailPanel({
         dir="rtl"
       >
         <DialogHeader>
-          <DialogTitle>تفاصيل الحصة</DialogTitle>
+          <DialogTitle>{t("title")}</DialogTitle>
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="flex w-full *:grow">
             {session.zoomJoinUrl && (
-              <TabsTrigger value="zoom">الرابط</TabsTrigger>
+              <TabsTrigger value="zoom">{t("tabs.zoom")}</TabsTrigger>
             )}
-            <TabsTrigger value="details">التفاصيل</TabsTrigger>
-            <TabsTrigger value="attendance">الحضور</TabsTrigger>
+            <TabsTrigger value="details">{t("tabs.details")}</TabsTrigger>
+            <TabsTrigger value="attendance">{t("tabs.attendance")}</TabsTrigger>
             {session.attendance &&
             [AttendanceStatus.ATTENDED, AttendanceStatus.LATE].includes(
               session.attendance.studentAttendance,
             ) ? (
-              <TabsTrigger value="report">التقرير</TabsTrigger>
+              <TabsTrigger value="report">{t("tabs.report")}</TabsTrigger>
             ) : null}
           </TabsList>
 
@@ -228,13 +233,12 @@ export default function SessionDetailPanel({
             <div className="space-y-4">
               <div className="flex items-center gap-2 text-primary">
                 <Video className="h-5 w-5" />
-                <span className="font-semibold">رابط زووم</span>
+                <span className="font-semibold">{t("zoom.title")}</span>
               </div>
 
-              {/* Join URL */}
               <div className="space-y-1">
                 <Label className="text-sm text-muted-foreground">
-                  رابط الحضور للطالب
+                  {t("zoom.joinUrlLabel")}
                 </Label>
                 <div className="flex items-center gap-2">
                   <Input
@@ -246,10 +250,10 @@ export default function SessionDetailPanel({
                   <Button
                     variant="outline"
                     size="icon"
-                    title="نسخ الرابط"
+                    title={t("zoom.copyTitle")}
                     onClick={() => {
                       navigator.clipboard.writeText(session.zoomJoinUrl || "");
-                      toast({ title: "تم نسخ الرابط" });
+                      toast({ title: t("toast.copySuccess") });
                     }}
                   >
                     <Copy className="h-4 w-4" />
@@ -257,7 +261,7 @@ export default function SessionDetailPanel({
                   <Button
                     variant="outline"
                     size="icon"
-                    title="فتح الرابط"
+                    title={t("zoom.openTitle")}
                     onClick={() => window.open(session.zoomJoinUrl!, "_blank")}
                   >
                     <ExternalLink className="h-4 w-4" />
@@ -265,11 +269,10 @@ export default function SessionDetailPanel({
                 </div>
               </div>
 
-              {/* Start URL (for tutor) */}
               {session.zoomStartUrl && (
                 <div className="space-y-1">
                   <Label className="text-sm text-muted-foreground">
-                    رابط البدء للمعلم
+                    {t("zoom.startUrlLabel")}
                   </Label>
                   <div className="flex items-center gap-2">
                     <Input
@@ -281,12 +284,12 @@ export default function SessionDetailPanel({
                     <Button
                       variant="outline"
                       size="icon"
-                      title="نسخ الرابط"
+                      title={t("zoom.copyTitle")}
                       onClick={() => {
                         navigator.clipboard.writeText(
                           session.zoomStartUrl || "",
                         );
-                        toast({ title: "تم نسخ الرابط" });
+                        toast({ title: t("toast.copySuccess") });
                       }}
                     >
                       <Copy className="h-4 w-4" />
@@ -294,7 +297,7 @@ export default function SessionDetailPanel({
                     <Button
                       variant="outline"
                       size="icon"
-                      title="فتح الرابط"
+                      title={t("zoom.openTitle")}
                       onClick={() =>
                         window.open(session.zoomStartUrl!, "_blank")
                       }
@@ -306,7 +309,7 @@ export default function SessionDetailPanel({
               )}
 
               <p className="text-xs text-muted-foreground">
-                رابط الحضور يشارك مع الطالب، رابط البدء خاص بك (المعلم).
+                {t("zoom.helpText")}
               </p>
             </div>
           </TabsContent>
@@ -328,16 +331,20 @@ export default function SessionDetailPanel({
                     size="sm"
                     onClick={handleEnterEditMode}
                   >
-                    تعديل
+                    {t("details.editButton")}
                   </Button>
                 )}
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">الطالب</p>
+                <p className="text-sm text-muted-foreground">
+                  {t("details.student")}
+                </p>
                 <p className="font-medium">{session.studentName}</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">التاريخ والوقت</p>
+                <p className="text-sm text-muted-foreground">
+                  {t("details.datetime")}
+                </p>
                 <p dir="rtl">
                   {formatDate(session.startTime)} •{" "}
                   {formatTime(session.startTime)} –{" "}
@@ -349,7 +356,7 @@ export default function SessionDetailPanel({
                   {!isPast && (
                     <>
                       <div className="space-y-2">
-                        <Label>التاريخ</Label>
+                        <Label>{t("details.date")}</Label>
                         <Input
                           type="date"
                           value={editDate}
@@ -357,7 +364,7 @@ export default function SessionDetailPanel({
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>وقت البدء</Label>
+                        <Label>{t("details.startTime")}</Label>
                         <Input
                           type="time"
                           value={editStartTime}
@@ -365,7 +372,7 @@ export default function SessionDetailPanel({
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>المدة (دقيقة)</Label>
+                        <Label>{t("details.duration")}</Label>
                         <Input
                           type="number"
                           value={editDuration}
@@ -377,14 +384,14 @@ export default function SessionDetailPanel({
                     </>
                   )}
                   <div className="space-y-2">
-                    <Label>الموضوع</Label>
+                    <Label>{t("details.topic")}</Label>
                     <Input
                       value={topic}
                       onChange={(e) => setTopic(e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>ملاحظات</Label>
+                    <Label>{t("details.notes")}</Label>
                     <Textarea
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
@@ -396,13 +403,13 @@ export default function SessionDetailPanel({
                       onClick={handleUpdateFullDetails}
                       disabled={loading}
                     >
-                      حفظ
+                      {t("details.saveButton")}
                     </Button>
                     <Button
                       variant="outline"
                       onClick={() => setEditMode(false)}
                     >
-                      إلغاء
+                      {t("details.cancelButton")}
                     </Button>
                   </div>
                 </>
@@ -410,13 +417,17 @@ export default function SessionDetailPanel({
                 <>
                   {session.topic && (
                     <div>
-                      <p className="text-sm text-muted-foreground">الموضوع</p>
+                      <p className="text-sm text-muted-foreground">
+                        {t("details.topic")}
+                      </p>
                       <p>{session.topic}</p>
                     </div>
                   )}
                   {session.notes && (
                     <div>
-                      <p className="text-sm text-muted-foreground">ملاحظات</p>
+                      <p className="text-sm text-muted-foreground">
+                        {t("details.notes")}
+                      </p>
                       <p>{session.notes}</p>
                     </div>
                   )}
@@ -430,50 +441,54 @@ export default function SessionDetailPanel({
             {canMarkAttendance ? (
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label>حالة الحضور</Label>
+                  <Label>{t("attendance.statusLabel")}</Label>
                   <Select
                     value={attendanceStatus}
                     onValueChange={setAttendanceStatus}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="اختر الحالة" />
+                      <SelectValue
+                        placeholder={t("attendance.selectPlaceholder")}
+                      />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value={AttendanceStatus.ATTENDED.toString()}>
-                        حاضر
+                        {t("attendance.statusPresent")}
                       </SelectItem>
                       <SelectItem value={AttendanceStatus.LATE.toString()}>
-                        متأخر
+                        {t("attendance.statusLate")}
                       </SelectItem>
                       <SelectItem
                         value={AttendanceStatus.ABSENT_EXCUSED.toString()}
                       >
-                        غائب بعذر
+                        {t("attendance.statusAbsentExcused")}
                       </SelectItem>
                       <SelectItem
                         value={AttendanceStatus.ABSENT_UNEXCUSED.toString()}
                       >
-                        غائب بدون عذر
+                        {t("attendance.statusAbsentUnexcused")}
                       </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>السبب (للغياب)</Label>
+                  <Label>{t("attendance.reasonLabel")}</Label>
                   <Textarea
                     value={attendanceReason}
                     onChange={(e) => setAttendanceReason(e.target.value)}
                     rows={2}
-                    placeholder="اكتب سبب الغياب إن وجد"
+                    placeholder={t("attendance.reasonPlaceholder")}
                   />
                 </div>
                 <Button onClick={handleMarkAttendance} disabled={loading}>
-                  تسجيل الحضور
+                  {t("attendance.submitButton")}
                 </Button>
               </div>
             ) : session.attendance ? (
               <div>
-                <p className="text-sm text-muted-foreground">تم تسجيل الحضور</p>
+                <p className="text-sm text-muted-foreground">
+                  {t("attendance.alreadyRecorded")}
+                </p>
                 <Badge
                   className={
                     session.attendance.tutorAttendance ===
@@ -487,21 +502,21 @@ export default function SessionDetailPanel({
                 >
                   {session.attendance.tutorAttendance ===
                   AttendanceStatus.ATTENDED
-                    ? "حاضر"
+                    ? t("attendance.statusPresent")
                     : session.attendance.tutorAttendance ===
                         AttendanceStatus.LATE
-                      ? "متأخر"
-                      : "غائب"}
+                      ? t("attendance.statusLate")
+                      : t("attendance.statusAbsent")}
                 </Badge>
                 {session.attendance.reason && (
                   <p className="mt-2 text-sm">
-                    السبب: {session.attendance.reason}
+                    {t("attendance.reasonPrefix")} {session.attendance.reason}
                   </p>
                 )}
               </div>
             ) : (
               <p className="text-muted-foreground">
-                لا يمكن تسجيل الحضور إلا بعد انتهاء الحصة
+                {t("attendance.notAvailableYet")}
               </p>
             )}
           </TabsContent>
@@ -512,39 +527,49 @@ export default function SessionDetailPanel({
               <div className="space-y-3">
                 {session.report.rating && (
                   <div>
-                    <p className="text-sm text-muted-foreground">التقييم</p>
+                    <p className="text-sm text-muted-foreground">
+                      {t("report.rating")}
+                    </p>
                     <p>{session.report.rating} / 5</p>
                   </div>
                 )}
                 {session.report.outcomes && (
                   <div>
-                    <p className="text-sm text-muted-foreground">النتائج</p>
+                    <p className="text-sm text-muted-foreground">
+                      {t("report.outcomes")}
+                    </p>
                     <p>{session.report.outcomes}</p>
                   </div>
                 )}
                 {session.report.strengths && (
                   <div>
-                    <p className="text-sm text-muted-foreground">نقاط القوة</p>
+                    <p className="text-sm text-muted-foreground">
+                      {t("report.strengths")}
+                    </p>
                     <p>{session.report.strengths}</p>
                   </div>
                 )}
                 {session.report.weaknesses && (
                   <div>
-                    <p className="text-sm text-muted-foreground">نقاط الضعف</p>
+                    <p className="text-sm text-muted-foreground">
+                      {t("report.weaknesses")}
+                    </p>
                     <p>{session.report.weaknesses}</p>
                   </div>
                 )}
                 {session.report.nextGoals && (
                   <div>
                     <p className="text-sm text-muted-foreground">
-                      الأهداف القادمة
+                      {t("report.nextGoals")}
                     </p>
                     <p>{session.report.nextGoals}</p>
                   </div>
                 )}
                 {session.report.comments && (
                   <div>
-                    <p className="text-sm text-muted-foreground">تعليقات</p>
+                    <p className="text-sm text-muted-foreground">
+                      {t("report.comments")}
+                    </p>
                     <p>{session.report.comments}</p>
                   </div>
                 )}
@@ -552,7 +577,7 @@ export default function SessionDetailPanel({
             ) : (
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label>التقييم (1-5)</Label>
+                  <Label>{t("report.ratingLabel")}</Label>
                   <Input
                     type="number"
                     min="1"
@@ -564,7 +589,7 @@ export default function SessionDetailPanel({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>النتائج (ما تم إنجازه) *</Label>
+                  <Label>{t("report.outcomesLabel")} *</Label>
                   <Textarea
                     value={reportData.outcomes}
                     onChange={(e) =>
@@ -574,11 +599,11 @@ export default function SessionDetailPanel({
                       })
                     }
                     rows={2}
-                    placeholder="اذكر ما تم تحقيقه في هذه الحصة"
+                    placeholder={t("report.outcomesPlaceholder")}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>نقاط القوة</Label>
+                  <Label>{t("report.strengthsLabel")}</Label>
                   <Textarea
                     value={reportData.strengths}
                     onChange={(e) =>
@@ -588,11 +613,11 @@ export default function SessionDetailPanel({
                       })
                     }
                     rows={2}
-                    placeholder="ما الذي أجاد فيه الطالب؟"
+                    placeholder={t("report.strengthsPlaceholder")}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>نقاط الضعف</Label>
+                  <Label>{t("report.weaknessesLabel")}</Label>
                   <Textarea
                     value={reportData.weaknesses}
                     onChange={(e) =>
@@ -602,11 +627,11 @@ export default function SessionDetailPanel({
                       })
                     }
                     rows={2}
-                    placeholder="ما الذي يحتاج إلى تحسين؟"
+                    placeholder={t("report.weaknessesPlaceholder")}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>الأهداف القادمة *</Label>
+                  <Label>{t("report.nextGoalsLabel")} *</Label>
                   <Textarea
                     value={reportData.nextGoals}
                     onChange={(e) =>
@@ -616,11 +641,11 @@ export default function SessionDetailPanel({
                       })
                     }
                     rows={2}
-                    placeholder="ما هي أهداف الحصة القادمة؟"
+                    placeholder={t("report.nextGoalsPlaceholder")}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>تعليقات إضافية</Label>
+                  <Label>{t("report.commentsLabel")}</Label>
                   <Textarea
                     value={reportData.comments}
                     onChange={(e) =>
@@ -630,11 +655,11 @@ export default function SessionDetailPanel({
                       })
                     }
                     rows={2}
-                    placeholder="أي ملاحظات أخرى"
+                    placeholder={t("report.commentsPlaceholder")}
                   />
                 </div>
                 <Button onClick={handleSubmitReport} disabled={loading}>
-                  حفظ التقرير
+                  {t("report.submitButton")}
                 </Button>
               </div>
             )}
@@ -643,7 +668,7 @@ export default function SessionDetailPanel({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            إغلاق
+            {t("closeButton")}
           </Button>
         </DialogFooter>
       </DialogContent>

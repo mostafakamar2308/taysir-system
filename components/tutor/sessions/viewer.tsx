@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
@@ -32,6 +33,7 @@ export default function SessionsClient({
   tutorId,
   academyId,
 }: SessionsClientProps) {
+  const t = useTranslations("TutorSessions");
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -63,13 +65,10 @@ export default function SessionsClient({
 
   return (
     <div className="space-y-6">
-      {/* العنوان وزر الإضافة */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">الحصص</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            إدارة حصصك وجدولك الأسبوعي
-          </p>
+          <h1 className="text-2xl font-bold text-foreground">{t("title")}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t("subtitle")}</p>
         </div>
         <AddSessionDialog
           tutorId={tutorId}
@@ -77,7 +76,7 @@ export default function SessionsClient({
           academyId={academyId}
         >
           <Button size="sm" className="gap-1">
-            <Plus className="h-4 w-4" /> إضافة حصة
+            <Plus className="h-4 w-4" /> {t("addSessionButton")}
           </Button>
         </AddSessionDialog>
       </div>

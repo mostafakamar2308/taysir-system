@@ -368,5 +368,589 @@
       "academyRequired": "Academy name is required",
       "termsRequired": "You must agree to the terms"
     }
+  },
+  "Dashboard": {
+    "title": "Dashboard",
+    "subtitle": "Academy performance overview",
+    "quickActions": "Quick Actions",
+    "addStudent": "Add Student",
+    "addTutor": "Add Tutor",
+    "addSession": "Add Session",
+    "addExpense": "Record Expense",
+    "addRevenue": "Record Revenue",
+    "userStats": "User Statistics",
+    "studentStats": "Student Statistics",
+    "financeStats": "Financial Statistics",
+    "conversionRates": "Conversion Rates",
+    "totalStudents": "Total Students",
+    "activeTutors": "Active Tutors",
+    "totalSupervisors": "Supervisors",
+    "subscribedStudents": "Subscribed",
+    "trialStudents": "Trial",
+    "leadStudents": "Leads",
+    "newStudentsThisWeek": "New Students This Week",
+    "revenueThisMonth": "Revenue this Month {value} {currency}",
+    "expenseThisMonth": "Expenses this Month {value} {currency}",
+    "leadToTrialRate": "Lead to Trial Conversion (Last 30 Days)",
+    "leadToTrialComparison": "Compared to previous period (30-60 days)",
+    "trialToSubscribedRate": "Trial to Subscribed Conversion (Last 30 Days)",
+    "trialToSubscribedComparison": "Compared to previous period (30-60 days)",
+    "atRiskTitle": "Students Absent Without Excuse",
+    "atRiskSafe": "No students at risk, all clear",
+    "sendBulkMessage": "Send Bulk Message",
+    "attendance": "Today's Attendance",
+    "reconciliation": "Financial Reconciliation",
+    "reports": "Missing Reports",
+    "missingAttendanceTitle": "Sessions Without Attendance",
+    "noMissingAttendance": "No sessions without attendance today",
+    "absentTodayTitle": "Sessions Students Missed Today",
+    "noAbsentToday": "No absences today",
+    "latePaymentsTitle": "Late Payments",
+    "noLatePayments": "No late payments",
+    "nearEndTitle": "Subscriptions Nearing End",
+    "noNearEnd": "No subscriptions nearing end",
+    "missingReportsTitle": "Sessions Without Reports Today",
+    "allReportsPresent": "All sessions have reports today",
+    "missingAttendanceItem": "Session of teacher {tutorName} with student {studentName}",
+    "absentTodayItem": "{studentName} absent – session with {tutorName} ({time})",
+    "latePaymentItem": "{studentName} – {planTitle} – {amountDue} {currency} – overdue {daysOverdue} days",
+    "nearEndItem": "{studentName} – {planTitle} – ends {endDate} ({daysLeft} days left)",
+    "missingReportItem": "{tutorName} with {studentName} at {time}",
+    "remind": "Remind",
+    "contact": "Contact",
+    "whatsapp": {
+      "atRisk": "Hello {name}, we would like to contact you regarding your account.",
+      "attendanceReminder": "Please record attendance for today's session with {studentName} at {time}.",
+      "absentContact": "Hello {studentName}, we would like to contact you regarding your absence today.",
+      "latePaymentReminder": "Hello, we remind you to pay the subscription dues.",
+      "nearEndContact": "Hello, your subscription will expire soon.",
+      "reportReminder": "Please write the report for today's session with {studentName}."
+    }
+  },
+  "AddStudentDialog": {
+    "triggerLabel": "Add Student",
+    "title": "Add New Student",
+    "personalInfo": "Personal Information",
+    "name": "Name",
+    "email": "Email",
+    "age": "Age",
+    "phone": "Phone",
+    "phoneHint": "Please write the number in international format",
+    "country": "Country",
+    "timezone-label": "Timezone",
+    "timezonePlaceholder": "Select timezone",
+    "timezone": {
+      "cairo": "Cairo",
+      "riyadh": "Riyadh",
+      "dubai": "Dubai"
+    },
+    "preferredLanguage": "Preferred Language",
+    "source": "Source",
+    "currentProgram": "Program",
+    "subscriptionInfo": "Subscription Information",
+    "status-label": "Status",
+    "statusPlaceholder": "Select status",
+    "status": {
+      "trial": "Trial",
+      "subscribed": "Subscribed",
+      "lead": "Lead"
+    },
+    "plan-label": "Plan",
+    "planPlaceholder": "Select plan",
+    "plan": {
+      "none": "No Plan"
+    },
+    "currency-label": "Currency",
+    "currencyPlaceholder": "Select currency",
+    "currency": {
+      "none": "No Currency"
+    },
+    "tutor-label": "Tutor",
+    "tutorPlaceholder": "Select tutor",
+    "tutor": {
+      "none": "No Tutor"
+    },
+    "cancel": "Cancel",
+    "add": "Add",
+    "saving": "Saving...",
+    "toast": {
+      "success": "Student added successfully",
+      "error": "An error occurred"
+    }
+  },
+  "AddTutorDialog": {
+    "triggerLabel": "Add Tutor",
+    "title": "Add New Tutor",
+    "name": "Name",
+    "email": "Email",
+    "phone": "Phone",
+    "phoneHint": "Please write the number in international format",
+    "timezone-label": "Timezone",
+    "timezonePlaceholder": "Select timezone",
+    "timezone": {
+      "cairo": "Cairo",
+      "riyadh": "Riyadh",
+      "dubai": "Dubai"
+    },
+    "pricePerHour": "Price per Hour",
+    "currency": "Currency",
+    "currencyPlaceholder": "Select currency",
+    "specialities": "Specialities",
+    "specialitiesPlaceholder": "Select tutor specialities",
+    "searchSpecialities": "Search specialities",
+    "bio": "Bio",
+    "qualifications": "Qualifications",
+    "active": "Active",
+    "zoomEnabled": "Zoom Enabled",
+    "zoomUrl": "Personal Zoom Link",
+    "cancel": "Cancel",
+    "add": "Add",
+    "saving": "Saving...",
+    "toast": {
+      "success": "Tutor added successfully",
+      "error": "An error occurred"
+    }
+  },
+  "AddSessionDialog": {
+    "triggerLabel": "Add Session",
+    "title": "Add New Session",
+    "student": "Student",
+    "studentPlaceholder": "Select student",
+    "tutor": "Tutor",
+    "tutorPlaceholder": "Select tutor",
+    "date": "Date",
+    "startTime": "Start Time",
+    "duration": "Duration (minutes)",
+    "durationMinute": "{minutes} min",
+    "topic": "Topic",
+    "topicPlaceholder": "e.g. Surah Al-Baqarah - verses 1-20",
+    "notes": "Notes",
+    "notesPlaceholder": "Notes...",
+    "trialSession": "Trial Session",
+    "recurringSession": "Recurring Session",
+    "recurringDays": "Recurrence days",
+    "recurringEndDate": "End date (optional)",
+    "days": {
+      "sunday": "Sunday",
+      "monday": "Monday",
+      "tuesday": "Tuesday",
+      "wednesday": "Wednesday",
+      "thursday": "Thursday",
+      "friday": "Friday",
+      "saturday": "Saturday"
+    },
+    "cancel": "Cancel",
+    "add": "Add",
+    "saving": "Saving...",
+    "validation": {
+      "required": "Please select a student and enter date and time"
+    },
+    "toast": {
+      "success": "Session added successfully",
+      "error": "An error occurred"
+    }
+  },
+  "AddRevenueDialog": {
+    "title": "Add Revenue",
+    "date": "Date",
+    "amount": "Amount",
+    "amountHint": "Amount will be in the student's currency",
+    "student": "Student",
+    "studentPlaceholder": "Select student",
+    "paymentMethod": "Payment Method",
+    "methodPlaceholder": "Select",
+    "method": {
+      "BANK_TRANSFER": "Bank Transfer",
+      "CASH": "Cash",
+      "CREDIT_CARD": "Credit Card",
+      "PAYPAL": "PayPal",
+      "OTHER": "Other"
+    },
+    "status-label": "Status",
+    "status": {
+      "pending": "Pending",
+      "paid": "Paid",
+      "failed": "Failed",
+      "refunded": "Refunded"
+    },
+    "description": "Description",
+    "dueDate": "Due Date",
+    "invoiceUrl": "Invoice URL",
+    "notes": "Notes",
+    "cancel": "Cancel",
+    "add": "Add",
+    "validation": {
+      "error": "Error",
+      "required": "Please fill in required fields"
+    }
+  },
+
+  "AddExpenseDialog": {
+    "title": "Record Expense",
+    "date": "Date",
+    "amount": "Amount",
+    "currency": "Currency",
+    "currencyPlaceholder": "Select",
+    "paymentMethod": "Payment Method",
+    "methodPlaceholder": "Select",
+    "method": {
+      "BANK_TRANSFER": "Bank Transfer",
+      "CASH": "Cash",
+      "CARD": "Credit Card",
+      "PAYPAL": "PayPal",
+      "OTHER": "Other",
+      "ONLINE": "Online Payment"
+    },
+    "status-label": "Status",
+    "status": {
+      "pending": "Pending",
+      "paid": "Paid",
+      "failed": "Failed",
+      "refunded": "Refunded"
+    },
+    "description": "Description",
+    "costCenter": "Cost Center",
+    "costCenterPlaceholder": "Select",
+    "tutorSalary": "Tutor Salary",
+    "tutor": "Tutor",
+    "salaryMonth": "Month",
+    "salaryMonthPlaceholder": "e.g. April",
+    "invoiceUrl": "Invoice URL",
+    "notes": "Notes",
+    "cancel": "Cancel",
+    "add": "Add",
+    "validation": {
+      "error": "Error",
+      "required": "Please fill in required fields"
+    }
+  },
+  "SendBulkMessagesDialog": {
+    "title": "Send Bulk Message",
+    "description": "This message will be sent to {count} users",
+    "notConnectedAlert": "You must connect WhatsApp first before sending messages.",
+    "goToWhatsappSettings": "Go to WhatsApp Settings",
+    "messagePlaceholder": "Type your message here...",
+    "messageHint": "The message will be sent via WhatsApp to each user individually",
+    "cancel": "Cancel",
+    "send": "Send",
+    "sending": "Sending...",
+    "toast": {
+      "notConnected": "WhatsApp not connected",
+      "connectFirst": "Please connect your WhatsApp account first",
+      "emptyMessage": "Please write a message",
+      "sentSuccess": "{count} messages sent successfully",
+      "sentDescription": "Messages will be delivered shortly",
+      "failed": "Send failed",
+      "defaultError": "Something went wrong",
+      "networkError": "Network error",
+      "networkDescription": "Unable to connect to the server"
+    }
+  },
+  "TutorDashboard": {
+    "title": "Dashboard",
+    "subtitle": "Welcome to your tutor dashboard",
+    "zoomAlert": {
+      "title": "Connect your Zoom account",
+      "description": "Please go to account settings to connect your Zoom account.",
+      "link": "Connect Zoom"
+    },
+    "pendingAlert": {
+      "title": "Pending Actions",
+      "description": "{attendance} session(s) need attendance, {reports} session(s) need report",
+      "viewAll": "View All"
+    },
+    "summaryCards": {
+      "todaySessions": "Today's Sessions",
+      "upcomingSessions": "Upcoming Sessions",
+      "thisMonthSessions": "This Month's Sessions",
+      "expectedEarnings": "Expected this Month"
+    },
+    "tabs": {
+      "overview": "Overview",
+      "today": "Today's Sessions",
+      "upcoming": "Upcoming Sessions"
+    },
+    "todaySection": {
+      "title": "Today's Sessions",
+      "empty": "No sessions today"
+    },
+    "upcomingSection": {
+      "title": "Upcoming Sessions",
+      "empty": "No upcoming sessions"
+    },
+    "financialSummary": {
+      "title": "Financial Summary (Current Month)",
+      "totalSessions": "Total Sessions",
+      "expected": "Expected",
+      "paid": "Paid",
+      "remaining": "Remaining"
+    },
+    "pendingActions": {
+      "title": "Pending Actions",
+      "attendanceNeeded": "{count} session(s) need attendance",
+      "record": "Record",
+      "reportNeeded": "{count} session(s) need report",
+      "write": "Write"
+    },
+    "sessionItem": {
+      "noAttendance": "Not recorded",
+      "noReport": "No report",
+      "view": "View",
+      "startSession": "Start Session"
+    }
+  },
+  "ZoomSettings": {
+    "title": "Zoom Settings",
+    "errorTitle": "Zoom Linking Error",
+    "cardTitle": "Connection Status",
+    "statusLabel": "Status:",
+    "statusConnected": "Connected",
+    "statusDisconnected": "Disconnected",
+    "connectedDescription": "Your Zoom account is currently linked. You can unlink it if you wish to connect another account.",
+    "disconnectedDescription": "You haven't linked a Zoom account yet. Connect to automatically create Zoom links for your sessions.",
+    "connectButton": "Link Zoom Account",
+    "unlinkButton": "Unlink",
+    "helpText": "When linked, Zoom meeting links will be automatically generated for new sessions.",
+    "missing_code": "Authorization code not received from Zoom. Please try again.",
+    "zoom_auth_failed": "Failed to exchange token with Zoom. Please verify your app settings and try again.",
+    "zoom_user_fetch_failed": "Account linked but could not retrieve user info from Zoom. Please try again.",
+    "not_authenticated": "Your session has expired. Please log in and try again.",
+    "not_tutor": "Current user is not a tutor. Cannot link Zoom.",
+    "invalid_state": "Security state mismatch. Please try again.",
+    "unexpected_error": "An unexpected error occurred while linking Zoom. Please try again."
+  },
+  "TutorSessions": {
+    "title": "Sessions",
+    "subtitle": "Manage your sessions and weekly schedule",
+    "addSessionButton": "Add Session",
+    "calendarView": "Calendar",
+    "tableView": "Table",
+    "today": "Today",
+    "allStudents": "All Students",
+    "statusPlaceholder": "Status",
+    "statusAll": "All",
+    "statusScheduled": "Scheduled",
+    "statusCompleted": "Completed",
+    "statusCancelled": "Cancelled",
+    "daySat": "Sat",
+    "daySun": "Sun",
+    "dayMon": "Mon",
+    "dayTue": "Tue",
+    "dayWed": "Wed",
+    "dayThu": "Thu",
+    "dayFri": "Fri",
+    "table": {
+      "date": "Date",
+      "time": "Time",
+      "student": "Student",
+      "topic": "Topic",
+      "status": "Status",
+      "attendance": "Attendance",
+      "report": "Report",
+      "actions": "Actions",
+      "noSessions": "No sessions"
+    },
+    "attendancePresent": "Present",
+    "attendanceLate": "Late",
+    "attendanceAbsent": "Absent",
+    "attendanceNotRecorded": "Not recorded",
+    "reportCompleted": "Completed",
+    "reportNeeded": "Report needed"
+  },
+  "SessionDetail": {
+    "title": "Session Details",
+    "closeButton": "Close",
+    "tabs": {
+      "zoom": "Link",
+      "details": "Details",
+      "attendance": "Attendance",
+      "report": "Report"
+    },
+    "zoom": {
+      "title": "Zoom Link",
+      "joinUrlLabel": "Student join link",
+      "startUrlLabel": "Tutor start link",
+      "copyTitle": "Copy link",
+      "openTitle": "Open link",
+      "helpText": "The join link is shared with the student; the start link is for you (tutor)."
+    },
+    "details": {
+      "editButton": "Edit",
+      "student": "Student",
+      "datetime": "Date & Time",
+      "date": "Date",
+      "startTime": "Start Time",
+      "duration": "Duration (minutes)",
+      "topic": "Topic",
+      "notes": "Notes",
+      "saveButton": "Save",
+      "cancelButton": "Cancel"
+    },
+    "attendance": {
+      "selectStatusError": "Please select an attendance status",
+      "statusLabel": "Attendance Status",
+      "selectPlaceholder": "Select status",
+      "statusPresent": "Present",
+      "statusLate": "Late",
+      "statusAbsentExcused": "Absent (excused)",
+      "statusAbsentUnexcused": "Absent (unexcused)",
+      "reasonLabel": "Reason (for absence)",
+      "reasonPlaceholder": "Write the reason for absence if any",
+      "submitButton": "Record Attendance",
+      "alreadyRecorded": "Attendance already recorded",
+      "reasonPrefix": "Reason:",
+      "statusAbsent": "Absent",
+      "notAvailableYet": "Attendance can only be recorded after the session ends"
+    },
+    "report": {
+      "missingFieldsError": "Please fill in the required report fields",
+      "rating": "Rating",
+      "outcomes": "Outcomes",
+      "strengths": "Strengths",
+      "weaknesses": "Weaknesses",
+      "nextGoals": "Next Goals",
+      "comments": "Comments",
+      "ratingLabel": "Rating (1-5)",
+      "outcomesLabel": "Outcomes (what was achieved) *",
+      "outcomesPlaceholder": "List what was achieved in this session",
+      "strengthsLabel": "Strengths",
+      "strengthsPlaceholder": "What did the student do well?",
+      "weaknessesLabel": "Weaknesses",
+      "weaknessesPlaceholder": "What needs improvement?",
+      "nextGoalsLabel": "Next Goals *",
+      "nextGoalsPlaceholder": "What are the goals for the next session?",
+      "commentsLabel": "Additional Comments",
+      "commentsPlaceholder": "Any other notes",
+      "submitButton": "Save Report"
+    },
+    "toast": {
+      "updateSuccess": "Session updated",
+      "updateError": "An error occurred",
+      "attendanceSaved": "Attendance recorded",
+      "reportSaved": "Report saved",
+      "copySuccess": "Link copied",
+      "error": "Error"
+    }
+  },
+  "AddSessionToTutorDialog": {
+    "title": "Add New Session",
+    "triggerButton": "Add Session",
+    "studentLabel": "Student *",
+    "studentPlaceholder": "Select student",
+    "dateLabel": "Date *",
+    "startTimeLabel": "Start Time *",
+    "durationLabel": "Duration (minutes)",
+    "durationMinutes": "{minutes} min",
+    "topicLabel": "Topic",
+    "topicPlaceholder": "e.g., Surah Al-Baqarah verses 1-20",
+    "notesLabel": "Notes",
+    "notesPlaceholder": "Notes...",
+    "recurring": {
+      "label": "Recurring Session",
+      "daysLabel": "Recurrence Days",
+      "endDateLabel": "End Date (optional)"
+    },
+    "cancelButton": "Cancel",
+    "submitButton": "Add",
+    "submittingButton": "Saving...",
+    "validation": {
+      "missingFields": "Please select a student and enter the date and time"
+    },
+    "toast": {
+      "success": "Session added",
+      "error": "An error occurred"
+    },
+    "daySun": "Sunday",
+    "dayMon": "Monday",
+    "dayTue": "Tuesday",
+    "dayWed": "Wednesday",
+    "dayThu": "Thursday",
+    "dayFri": "Friday",
+    "daySat": "Saturday"
+  },
+  "TutorFinances": {
+    "title": "Finances",
+    "subtitle": "Overview of your earnings and payments",
+    "cards": {
+      "sessions": "Sessions this month",
+      "expected": "Expected",
+      "paid": "Paid",
+      "remaining": "Remaining"
+    },
+    "progress": {
+      "title": "Monthly Salary Progress",
+      "paid": "Paid"
+    },
+    "chart": {
+      "title": "Monthly Earnings",
+      "month": "Month",
+      "earningsName": "Earnings"
+    },
+    "history": {
+      "title": "Payment History",
+      "empty": "No payment records found",
+      "defaultDescription": "Monthly salary",
+      "headers": {
+        "month": "Month",
+        "date": "Date",
+        "description": "Description",
+        "amount": "Amount",
+        "status": "Status"
+      }
+    },
+    "paymentStatus": {
+      "paid": "Paid",
+      "pending": "Pending",
+      "failed": "Failed"
+    }
+  },
+  "Sidebar": {
+    "appName": "Academiyati System",
+    "superAdminPlatform": "General Administration",
+    "adminPlatform": "Admin Platform",
+    "tutorPlatform": "Tutor Platform",
+    "defaultPlatform": "Academiyati System",
+    "roleSuperAdmin": "Super Admin",
+    "roleAdmin": "Academy Manager",
+    "roleTutor": "Tutor",
+    "roleSupervisor": "Supervisor",
+    "roleUser": "User",
+    "accountSettings": "Account Settings",
+    "logout": "Logout",
+    "groups": {
+      "main": "Main",
+      "administration": "Administration",
+      "users": "Users",
+      "finance": "Finance",
+      "sessionsAndKpis": "Sessions & KPIs",
+      "settings": "Settings",
+      "sessions": "Sessions"
+    },
+    "items": {
+      "dashboard": "Dashboard",
+      "wishlists": "Waitlist",
+      "academies": "Academies",
+      "subscriptions": "Subscriptions",
+      "currencySettings": "Currency Settings",
+      "chat": "Chat",
+      "students": "Students",
+      "tutors": "Tutors",
+      "finances": "Finances",
+      "plans": "Plans",
+      "currencies": "Currencies & Exchange Rates",
+      "sessionManagement": "Session Management",
+      "schedules": "Schedules",
+      "kpis": "KPIs",
+      "personalSettings": "Personal Settings",
+      "whatsappSettings": "WhatsApp Settings",
+      "securitySettings": "Security Settings",
+      "userManagement": "User Management",
+      "sessionSchedule": "Session Schedule",
+      "myEarnings": "My Earnings",
+      "myProfile": "My Profile",
+      "zoomSettings": "Zoom Settings"
+    },
+    "switchToEnglish": "English",
+    "switchToArabic": "العربية"
   }
 }

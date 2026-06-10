@@ -1,6 +1,9 @@
 "use client";
 
 import Image from "next/image";
+import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { useRouter } from "@/i18n/navigation"; // i18n‑aware router for locale switching
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -9,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronsUpDown, LogOut, UserCog } from "lucide-react";
+import { ChevronsUpDown, LogOut, UserCog, Globe } from "lucide-react";
 import { useAuth } from "@/lib/contexts/auth";
 import { Role } from "@/types/user";
 import {
@@ -25,21 +28,41 @@ export default function Sidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const { user, logout } = useAuth();
+  const pathname = usePathname();
+  const router = useRouter();
+  const t = useTranslations("Sidebar");
 
   if (!user) return null;
 
+  const locale = pathname.split("/")[1] || "ar";
+  const otherLocale = locale === "ar" ? "en" : "ar";
+
+  const getRolePlatformLabel = () => {
+    if (user.role === Role.SuperAdmin) return t("superAdminPlatform");
+    if (user.role === Role.Admin) return t("adminPlatform");
+    if (user.role === Role.Tutor) return t("tutorPlatform");
+    return t("defaultPlatform");
+  };
+
   const getRoleLabel = () => {
-    if (user.role === Role.SuperAdmin) return "الإدارة العامة";
-    if (user.role === Role.Admin) return "منصة المدير";
-    if (user.role === Role.Tutor) return "منصة المعلمين";
-    return "نظام أكاديميتي";
+    if (user.role === Role.SuperAdmin) return t("roleSuperAdmin");
+    if (user.role === Role.Admin) return t("roleAdmin");
+    if (user.role === Role.Tutor) return t("roleTutor");
+    if (user.role === Role.Supervisor) return t("roleSupervisor");
+    return t("roleUser");
+  };
+
+  console.log(pathname, pathname.split("/"), locale, otherLocale);
+  const switchLanguage = () => {
+    const pathWithoutLocale = pathname.replace(`/${locale}`, "") || "/";
+    router.push(pathWithoutLocale, { locale: otherLocale });
   };
 
   return (
     <BaseSidebar
       className="w-60 bg-white hidden md:block"
       collapsible="icon"
-      side="right"
+      side={locale === "ar" ? "right" : "left"}
     >
       <SidebarHeader className="border-b border-sidebar-border px-4 py-5">
         <div className="flex items-center gap-3">
@@ -47,10 +70,10 @@ export default function Sidebar() {
           {!collapsed && (
             <div className="flex flex-col">
               <span className="text-base font-bold text-sidebar-foreground leading-tight">
-                نظام أكاديميتي
+                {t("appName")}
               </span>
               <span className="text-xs text-muted-foreground">
-                {getRoleLabel()}
+                {getRolePlatformLabel()}
               </span>
             </div>
           )}
@@ -75,15 +98,7 @@ export default function Sidebar() {
                       {user.name}
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      {user.role === Role.SuperAdmin
-                        ? "مدير عام"
-                        : user.role === Role.Admin
-                          ? "مدير أكاديمية"
-                          : user.role === Role.Tutor
-                            ? "معلم"
-                            : user.role === Role.Supervisor
-                              ? "مشرف"
-                              : "مستخدم"}
+                      {getRoleLabel()}
                     </span>
                   </div>
                   <ChevronsUpDown className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -100,11 +115,20 @@ export default function Sidebar() {
             <DropdownMenuItem
               className="gap-2 cursor-pointer"
               onClick={() =>
-                (window.location.href = "/ar/dashboard/settings/personal")
+                (window.location.href = `/${locale}/dashboard/settings/personal`)
               }
             >
               <UserCog className="h-4 w-4" />
-              <span>إعدادات الحساب</span>
+              <span>{t("accountSettings")}</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="gap-2 cursor-pointer"
+              onClick={switchLanguage}
+            >
+              <Globe className="h-4 w-4" />
+              <span>
+                {locale === "ar" ? t("switchToEnglish") : t("switchToArabic")}
+              </span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
@@ -112,7 +136,7 @@ export default function Sidebar() {
               onClick={logout}
             >
               <LogOut className="h-4 w-4" />
-              <span>تسجيل الخروج</span>
+              <span>{t("logout")}</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

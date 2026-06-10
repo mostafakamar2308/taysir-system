@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -52,16 +53,35 @@ export default function FinancesClient({
   paymentHistory,
   monthlyEarnings,
 }: FinancesClientProps) {
+  const t = useTranslations("TutorFinances");
   const paidPercentage =
     expectedEarnings > 0 ? (paidThisMonth / expectedEarnings) * 100 : 0;
+
+  const getPaymentStatusBadge = (status: number) => {
+    switch (status) {
+      case PaymentStatus.PAID:
+        return {
+          label: t("paymentStatus.paid"),
+          className: "bg-green-100 text-green-700",
+        };
+      case PaymentStatus.PENDING:
+        return {
+          label: t("paymentStatus.pending"),
+          className: "bg-amber-100 text-amber-700",
+        };
+      default:
+        return {
+          label: t("paymentStatus.failed"),
+          className: "bg-red-100 text-red-700",
+        };
+    }
+  };
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">المالية</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          نظرة عامة على أرباحك ومدفوعاتك
-        </p>
+        <h1 className="text-2xl font-bold text-foreground">{t("title")}</h1>
+        <p className="text-sm text-muted-foreground mt-1">{t("subtitle")}</p>
       </div>
 
       {/* Summary Cards */}
@@ -72,7 +92,9 @@ export default function FinancesClient({
               <TrendingUp className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">الحصص هذا الشهر</p>
+              <p className="text-xs text-muted-foreground">
+                {t("cards.sessions")}
+              </p>
               <p className="text-2xl font-bold">{sessionCount}</p>
             </div>
           </CardContent>
@@ -83,7 +105,9 @@ export default function FinancesClient({
               <DollarSign className="h-5 w-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">المستحق</p>
+              <p className="text-xs text-muted-foreground">
+                {t("cards.expected")}
+              </p>
               <p className="text-2xl font-bold">
                 {formatCurrency(expectedEarnings, currency)}
               </p>
@@ -96,7 +120,7 @@ export default function FinancesClient({
               <CheckCircle2 className="h-5 w-5 text-green-600" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">المدفوع</p>
+              <p className="text-xs text-muted-foreground">{t("cards.paid")}</p>
               <p className="text-2xl font-bold text-green-600">
                 {formatCurrency(paidThisMonth, currency)}
               </p>
@@ -109,7 +133,9 @@ export default function FinancesClient({
               <Clock className="h-5 w-5 text-amber-600" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">المتبقي</p>
+              <p className="text-xs text-muted-foreground">
+                {t("cards.remaining")}
+              </p>
               <p className="text-2xl font-bold text-amber-600">
                 {formatCurrency(remainingEarnings, currency)}
               </p>
@@ -121,12 +147,12 @@ export default function FinancesClient({
       {/* Progress Bar */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">تقدم الرواتب هذا الشهر</CardTitle>
+          <CardTitle className="text-base">{t("progress.title")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <span>المدفوع</span>
+              <span>{t("progress.paid")}</span>
               <span>{paidPercentage.toFixed(0)}%</span>
             </div>
             <div className="h-2 bg-muted rounded-full overflow-hidden">
@@ -147,7 +173,7 @@ export default function FinancesClient({
       {monthlyEarnings.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">الأرباح الشهرية</CardTitle>
+            <CardTitle className="text-base">{t("chart.title")}</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -162,13 +188,14 @@ export default function FinancesClient({
                   formatter={(value) =>
                     typeof value === "number" ? formatCurrency(value) : ""
                   }
+                  labelFormatter={(label) => `${t("chart.month")}: ${label}`}
                 />
                 <Line
                   type="monotone"
                   dataKey="earnings"
                   stroke="hsl(152, 69%, 33%)"
                   strokeWidth={2}
-                  name="الأرباح"
+                  name={t("chart.earningsName")}
                   dot={{ r: 4 }}
                 />
               </LineChart>
@@ -180,53 +207,46 @@ export default function FinancesClient({
       {/* Payment History */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">سجل المدفوعات</CardTitle>
+          <CardTitle className="text-base">{t("history.title")}</CardTitle>
         </CardHeader>
         <CardContent>
           {paymentHistory.length === 0 ? (
             <p className="text-center py-8 text-muted-foreground">
-              لا توجد مدفوعات مسجلة
+              {t("history.empty")}
             </p>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>الشهر</TableHead>
-                    <TableHead>التاريخ</TableHead>
-                    <TableHead>الوصف</TableHead>
-                    <TableHead>المبلغ</TableHead>
-                    <TableHead>الحالة</TableHead>
+                    <TableHead>{t("history.headers.month")}</TableHead>
+                    <TableHead>{t("history.headers.date")}</TableHead>
+                    <TableHead>{t("history.headers.description")}</TableHead>
+                    <TableHead>{t("history.headers.amount")}</TableHead>
+                    <TableHead>{t("history.headers.status")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {paymentHistory.map((p) => (
-                    <TableRow key={p.id}>
-                      <TableCell>{p.month}</TableCell>
-                      <TableCell>{formatDate(p.date)}</TableCell>
-                      <TableCell>{p.description || "راتب شهري"}</TableCell>
-                      <TableCell className="font-medium">
-                        {formatCurrency(p.amount, currency)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          className={
-                            p.status === PaymentStatus.PAID
-                              ? "bg-green-100 text-green-700"
-                              : p.status === PaymentStatus.PENDING
-                                ? "bg-amber-100 text-amber-700"
-                                : "bg-red-100 text-red-700"
-                          }
-                        >
-                          {p.status === PaymentStatus.PAID
-                            ? "مدفوع"
-                            : p.status === PaymentStatus.PENDING
-                              ? "معلق"
-                              : "فشل"}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {paymentHistory.map((p) => {
+                    const statusBadge = getPaymentStatusBadge(p.status);
+                    return (
+                      <TableRow key={p.id}>
+                        <TableCell>{p.month}</TableCell>
+                        <TableCell>{formatDate(p.date)}</TableCell>
+                        <TableCell>
+                          {p.description || t("history.defaultDescription")}
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {formatCurrency(p.amount, currency)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={statusBadge.className}>
+                            {statusBadge.label}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>

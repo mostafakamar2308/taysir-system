@@ -17,6 +17,7 @@ import { AddRevenueDialog } from "../dialogs/addRevenueDialog";
 import { AddExpenseDialog } from "../dialogs/addExpenseDialog";
 import { useState } from "react";
 import SendBulkMessagesDialog from "../common/SendBulkMessagesDialog";
+import { useTranslations } from "next-intl";
 
 interface StatItem {
   value: number;
@@ -144,6 +145,7 @@ type BulkGroup =
   | null;
 
 export default function DashboardClient(props: DashboardClientProps) {
+  const t = useTranslations("Dashboard");
   const formatTime = (iso: string) => dayjs(iso).format("h:mm A");
 
   const handleWhatsApp = (phone: string | null, text?: string) => {
@@ -192,14 +194,14 @@ export default function DashboardClient(props: DashboardClientProps) {
   return (
     <div className="space-y-6" dir="rtl">
       <div>
-        <h1 className="text-2xl font-bold">لوحة التحكم</h1>
-        <p className="text-muted-foreground">نظرة عامة على أداء الأكاديمية</p>
+        <h1 className="text-2xl font-bold">{t("title")}</h1>
+        <p className="text-muted-foreground">{t("subtitle")}</p>
       </div>
 
       {/* Quick Actions */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">إجراءات سريعة</CardTitle>
+          <CardTitle className="text-base">{t("quickActions")}</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
           <AddStudentDialog
@@ -209,7 +211,7 @@ export default function DashboardClient(props: DashboardClientProps) {
             academyId={props.academyId}
           >
             <Button size="sm">
-              <Plus className="h-4 w-4 ml-2" /> إضافة طالب
+              <Plus className="h-4 w-4 ml-2" /> {t("addStudent")}
             </Button>
           </AddStudentDialog>
           <AddTutorDialog
@@ -218,7 +220,7 @@ export default function DashboardClient(props: DashboardClientProps) {
             specialities={props.specialities}
           >
             <Button size="sm">
-              <Plus className="h-4 w-4 ml-2" /> إضافة معلم
+              <Plus className="h-4 w-4 ml-2" /> {t("addTutor")}
             </Button>
           </AddTutorDialog>
           <AddSessionDialog
@@ -227,7 +229,7 @@ export default function DashboardClient(props: DashboardClientProps) {
             academyId={props.academyId}
           >
             <Button size="sm">
-              <Plus className="h-4 w-4 ml-2" /> إضافة حصة
+              <Plus className="h-4 w-4 ml-2" /> {t("addSession")}
             </Button>
           </AddSessionDialog>
           <AddExpenseDialog
@@ -237,7 +239,7 @@ export default function DashboardClient(props: DashboardClientProps) {
             tutors={props.tutors}
           >
             <Button size="sm">
-              <Plus className="h-4 w-4 ml-2" /> تسجيل مصروف
+              <Plus className="h-4 w-4 ml-2" /> {t("addExpense")}
             </Button>
           </AddExpenseDialog>
           <AddRevenueDialog
@@ -245,7 +247,7 @@ export default function DashboardClient(props: DashboardClientProps) {
             students={props.students}
           >
             <Button size="sm">
-              <Plus className="h-4 w-4 ml-2" /> تسجيل إيراد
+              <Plus className="h-4 w-4 ml-2" /> {t("addRevenue")}
             </Button>
           </AddRevenueDialog>
         </CardContent>
@@ -253,60 +255,66 @@ export default function DashboardClient(props: DashboardClientProps) {
 
       {/* Stats Cards */}
       <div className="space-y-4">
-        <h1 className="text-xl font-bold">إحصائيات المستخدمين</h1>
+        <h1 className="text-xl font-bold">{t("userStats")}</h1>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <StatCard
-            label="إجمالي الطلاب"
+            label={t("totalStudents")}
             value={props.stats.totalStudents.value}
             change={props.stats.totalStudents.change}
           />
           <StatCard
-            label="معلمين نشطين"
+            label={t("activeTutors")}
             value={props.stats.activeTutors.value}
             change={props.stats.activeTutors.change}
           />
           <StatCard
-            label="مشرفين"
+            label={t("totalSupervisors")}
             value={props.stats.totalSupervisors.value}
             change={props.stats.totalSupervisors.change}
           />
         </div>
       </div>
       <div className="space-y-4">
-        <h1 className="text-xl font-bold">إحصائيات الطلاب</h1>
+        <h1 className="text-xl font-bold">{t("studentStats")}</h1>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard
-            label="المشتركين"
+            label={t("subscribedStudents")}
             value={props.stats.subscribedStudents.value}
             change={props.stats.subscribedStudents.change}
           />
           <StatCard
-            label="تجريبي"
+            label={t("trialStudents")}
             value={props.stats.trialStudents.value}
             change={props.stats.trialStudents.change}
           />
           <StatCard
-            label="عملاء محتملين"
+            label={t("leadStudents")}
             value={props.stats.leadStudents.value}
             change={props.stats.leadStudents.change}
           />
           <StatCard
-            label="طلاب جدد هذا الأسبوع"
+            label={t("newStudentsThisWeek")}
             value={props.stats.newStudentsThisWeek.value}
             change={props.stats.newStudentsThisWeek.change}
           />
         </div>
       </div>
       <div className="space-y-4">
-        <h1 className="text-xl font-bold">إحصائيات الماليات</h1>
+        <h1 className="text-xl font-bold">{t("financeStats")}</h1>
         <div className="grid grid-cols-2 gap-4">
           <StatCard
-            label="إيرادات هذا الشهر"
+            label={t("revenueThisMonth", {
+              value: props.stats.revenueThisMonth.value,
+              currency: props.defaultCurrency.name,
+            })}
             value={`${props.stats.revenueThisMonth.value} ${props.defaultCurrency.name}`}
             change={props.stats.revenueThisMonth.change}
           />
           <StatCard
-            label="مصروفات هذا الشهر"
+            label={t("expenseThisMonth", {
+              value: props.stats.expenseThisMonth.value,
+              currency: props.defaultCurrency.name,
+            })}
             value={`${props.stats.expenseThisMonth.value} ${props.defaultCurrency.name}`}
             change={props.stats.expenseThisMonth.change}
           />
@@ -314,13 +322,11 @@ export default function DashboardClient(props: DashboardClientProps) {
       </div>
       {/* Conversion Rates */}
       <div className="space-y-4">
-        <h1 className="text-xl font-bold">معدلات التحويل</h1>
+        <h1 className="text-xl font-bold">{t("conversionRates")}</h1>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">
-                تحويل العملاء المحتملين إلي حصص تجريبية (آخر 30 يوم)
-              </CardTitle>
+              <CardTitle className="text-sm">{t("leadToTrialRate")}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-baseline gap-2">
@@ -341,14 +347,14 @@ export default function DashboardClient(props: DashboardClientProps) {
                 )}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                مقارنة بالفترة السابقة (30-60 يوم)
+                {t("leadToTrialComparison")}
               </p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader>
               <CardTitle className="text-sm">
-                تحويل الحصص التجريبية إلي اشتراكات (آخر 30 يوم)
+                {t("trialToSubscribedRate")}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -373,7 +379,7 @@ export default function DashboardClient(props: DashboardClientProps) {
                 )}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                مقارنة بالفترة السابقة (30-60 يوم)
+                {t("trialToSubscribedComparison")}
               </p>
             </CardContent>
           </Card>
@@ -385,11 +391,11 @@ export default function DashboardClient(props: DashboardClientProps) {
         <Card className="border-amber-300 bg-amber-50/50">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-600" /> طلاب غابوا
-              بدون عذر
+              <AlertTriangle className="h-4 w-4 text-amber-600" />{" "}
+              {t("atRiskTitle")}
             </CardTitle>
             <Button onClick={() => setSendBulkMessages("at-risk")}>
-              إرسال رسالة جماعية
+              {t("sendBulkMessage")}
             </Button>
           </CardHeader>
           <CardContent>
@@ -409,7 +415,7 @@ export default function DashboardClient(props: DashboardClientProps) {
                       onClick={() =>
                         handleWhatsApp(
                           s.phone,
-                          `مرحباً ${s.name}، نود التواصل معك بخصوص حسابك.`,
+                          t("whatsapp.atRisk", { name: s.name }),
                         )
                       }
                     >
@@ -425,14 +431,12 @@ export default function DashboardClient(props: DashboardClientProps) {
         <Card className="border-green-300 bg-green-50/50">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-600" /> طلاب معرضون
-              للخطر
+              <AlertTriangle className="h-4 w-4 text-amber-600" />{" "}
+              {t("atRiskSafe")}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-center text-primary">
-              لا يوجد طلاب، الوضع اّمن
-            </div>
+            <div className="text-center text-primary">{t("atRiskSafe")}</div>
           </CardContent>
         </Card>
       )}
@@ -440,9 +444,11 @@ export default function DashboardClient(props: DashboardClientProps) {
       {/* Tabbed Sheets */}
       <Tabs defaultValue="attendance">
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="attendance">سجل الحضور اليوم</TabsTrigger>
-          <TabsTrigger value="reconciliation">التسوية المالية</TabsTrigger>
-          <TabsTrigger value="reports">التقارير المفقودة</TabsTrigger>
+          <TabsTrigger value="attendance">{t("attendance")}</TabsTrigger>
+          <TabsTrigger value="reconciliation">
+            {t("reconciliation")}
+          </TabsTrigger>
+          <TabsTrigger value="reports">{t("reports")}</TabsTrigger>
         </TabsList>
 
         {/* Attendance Sheet */}
@@ -451,19 +457,21 @@ export default function DashboardClient(props: DashboardClientProps) {
             {/* 1. حصص بدون حضور */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-base">حصص بدون تسجيل حضور</CardTitle>
+                <CardTitle className="text-base">
+                  {t("missingAttendanceTitle")}
+                </CardTitle>
                 {props.attendanceSheet.length > 0 && (
                   <Button
                     onClick={() => setSendBulkMessages("attendance-missing")}
                   >
-                    إرسال رسالة جماعية
+                    {t("sendBulkMessage")}
                   </Button>
                 )}
               </CardHeader>
               <CardContent>
                 {props.attendanceSheet.length === 0 ? (
                   <p className="text-muted-foreground">
-                    لا توجد حصص بدون حضور اليوم
+                    {t("noMissingAttendance")}
                   </p>
                 ) : (
                   <ul className="space-y-2">
@@ -474,14 +482,10 @@ export default function DashboardClient(props: DashboardClientProps) {
                       >
                         <div>
                           <span className="font-medium">
-                            حصة المعلم{" "}
-                            <span className="text-primary">
-                              {item.tutorName}
-                            </span>{" "}
-                            مع الطالب{" "}
-                            <span className="text-primary">
-                              {item.studentName}
-                            </span>
+                            {t("missingAttendanceItem", {
+                              tutorName: item.tutorName || "-",
+                              studentName: item.studentName,
+                            })}
                           </span>
                           <span className="text-sm text-muted-foreground mr-2">
                             {formatTime(item.startTime)}
@@ -494,11 +498,15 @@ export default function DashboardClient(props: DashboardClientProps) {
                             onClick={() =>
                               handleWhatsApp(
                                 item.tutorPhone,
-                                `مرحباً، برجاء تسجيل حضور حصة اليوم مع الطالب ${item.studentName} الساعة ${formatTime(item.startTime)}.`,
+                                t("whatsapp.attendanceReminder", {
+                                  studentName: item.studentName,
+                                  time: formatTime(item.startTime),
+                                }),
                               )
                             }
                           >
-                            <MessageSquare className="h-4 w-4 ml-2" /> تذكير
+                            <MessageSquare className="h-4 w-4 ml-2" />{" "}
+                            {t("remind")}
                           </Button>
                         )}
                       </li>
@@ -512,19 +520,19 @@ export default function DashboardClient(props: DashboardClientProps) {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-base text-destructive">
-                  حصص اليوم التي غابها الطلاب
+                  {t("absentTodayTitle")}
                 </CardTitle>
                 {props.absentSessions.length > 0 && (
                   <Button
                     onClick={() => setSendBulkMessages("attendance-absent")}
                   >
-                    إرسال رسالة جماعية
+                    {t("sendBulkMessage")}
                   </Button>
                 )}
               </CardHeader>
               <CardContent>
                 {props.absentSessions.length === 0 ? (
-                  <p className="text-muted-foreground">لا يوجد غياب اليوم</p>
+                  <p className="text-muted-foreground">{t("noAbsentToday")}</p>
                 ) : (
                   <ul className="space-y-2">
                     {props.absentSessions.map((item) => (
@@ -537,8 +545,11 @@ export default function DashboardClient(props: DashboardClientProps) {
                             {item.studentName}
                           </span>
                           <span className="text-sm text-muted-foreground mr-2">
-                            غائب – حصة مع {item.tutorName} (
-                            {formatTime(item.startTime)})
+                            {t("absentTodayItem", {
+                              studentName: item.studentName,
+                              tutorName: item.tutorName,
+                              time: formatTime(item.startTime),
+                            })}
                           </span>
                         </div>
                         {item.studentPhone && (
@@ -548,11 +559,14 @@ export default function DashboardClient(props: DashboardClientProps) {
                             onClick={() =>
                               handleWhatsApp(
                                 item.studentPhone,
-                                `مرحباً ${item.studentName}، نود التواصل معك بخصوص غيابك اليوم.`,
+                                t("whatsapp.absentContact", {
+                                  studentName: item.studentName,
+                                }),
                               )
                             }
                           >
-                            <MessageSquare className="h-4 w-4 ml-2" /> تواصل
+                            <MessageSquare className="h-4 w-4 ml-2" />{" "}
+                            {t("contact")}
                           </Button>
                         )}
                       </li>
@@ -570,17 +584,15 @@ export default function DashboardClient(props: DashboardClientProps) {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-base text-destructive">
-                  مدفوعات متأخرة
+                  {t("latePaymentsTitle")}
                 </CardTitle>
                 <Button onClick={() => setSendBulkMessages("late-payment")}>
-                  إرسال رسالة جماعية
+                  {t("sendBulkMessage")}
                 </Button>
               </CardHeader>
               <CardContent>
                 {props.latePayments.length === 0 ? (
-                  <p className="text-muted-foreground">
-                    لا توجد مدفوعات متأخرة
-                  </p>
+                  <p className="text-muted-foreground">{t("noLatePayments")}</p>
                 ) : (
                   <ul className="space-y-2">
                     {props.latePayments.map((p) => (
@@ -591,8 +603,13 @@ export default function DashboardClient(props: DashboardClientProps) {
                         <div>
                           <span className="font-medium">{p.studentName}</span>
                           <span className="text-sm text-muted-foreground mr-2">
-                            {p.planTitle} – {p.amountDue} ر.س – متأخر{" "}
-                            {p.daysOverdue} يوم
+                            {t("latePaymentItem", {
+                              studentName: p.studentName,
+                              planTitle: p.planTitle,
+                              amountDue: p.amountDue,
+                              currency: props.defaultCurrency.name,
+                              daysOverdue: p.daysOverdue,
+                            })}
                           </span>
                         </div>
                         {p.phone && (
@@ -602,11 +619,12 @@ export default function DashboardClient(props: DashboardClientProps) {
                             onClick={() =>
                               handleWhatsApp(
                                 p.phone,
-                                `مرحباً، نود تذكيرك بدفع مستحقات الاشتراك.`,
+                                t("whatsapp.latePaymentReminder"),
                               )
                             }
                           >
-                            <MessageSquare className="h-4 w-4 ml-2" /> تذكير
+                            <MessageSquare className="h-4 w-4 ml-2" />{" "}
+                            {t("remind")}
                           </Button>
                         )}
                       </li>
@@ -618,17 +636,15 @@ export default function DashboardClient(props: DashboardClientProps) {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-base text-amber-600">
-                  اشتراكات قاربت على الانتهاء
+                  {t("nearEndTitle")}
                 </CardTitle>
                 <Button onClick={() => setSendBulkMessages("near-end")}>
-                  إرسال رسالة جماعية
+                  {t("sendBulkMessage")}
                 </Button>
               </CardHeader>
               <CardContent>
                 {props.nearEndSubscriptions.length === 0 ? (
-                  <p className="text-muted-foreground">
-                    لا توجد اشتراكات قاربت على الانتهاء
-                  </p>
+                  <p className="text-muted-foreground">{t("noNearEnd")}</p>
                 ) : (
                   <ul className="space-y-2">
                     {props.nearEndSubscriptions.map((s) => (
@@ -639,8 +655,12 @@ export default function DashboardClient(props: DashboardClientProps) {
                         <div>
                           <span className="font-medium">{s.studentName}</span>
                           <span className="text-sm text-muted-foreground mr-2">
-                            {s.planTitle} – تنتهي {s.endDate} (متبقي{" "}
-                            {s.daysLeft} يوم)
+                            {t("nearEndItem", {
+                              studentName: s.studentName,
+                              planTitle: s.planTitle,
+                              endDate: s.endDate,
+                              daysLeft: s.daysLeft,
+                            })}
                           </span>
                         </div>
                         {s.phone && (
@@ -650,11 +670,12 @@ export default function DashboardClient(props: DashboardClientProps) {
                             onClick={() =>
                               handleWhatsApp(
                                 s.phone,
-                                `مرحباً، نود إعلامك بأن اشتراكك سينتهي قريباً.`,
+                                t("whatsapp.nearEndContact"),
                               )
                             }
                           >
-                            <MessageSquare className="h-4 w-4 ml-2" /> تواصل
+                            <MessageSquare className="h-4 w-4 ml-2" />{" "}
+                            {t("contact")}
                           </Button>
                         )}
                       </li>
@@ -673,20 +694,20 @@ export default function DashboardClient(props: DashboardClientProps) {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-base">
-                  حصص اليوم بدون تقارير
+                  {t("missingReportsTitle")}
                 </CardTitle>
                 {props.reportsSheet.length > 0 && (
                   <Button
                     onClick={() => setSendBulkMessages("reports-missing")}
                   >
-                    إرسال رسالة جماعية
+                    {t("sendBulkMessage")}
                   </Button>
                 )}
               </CardHeader>
               <CardContent>
                 {props.reportsSheet.length === 0 ? (
                   <p className="text-muted-foreground">
-                    جميع الحصص اليوم تحتوي على تقارير
+                    {t("allReportsPresent")}
                   </p>
                 ) : (
                   <ul className="space-y-2">
@@ -698,8 +719,11 @@ export default function DashboardClient(props: DashboardClientProps) {
                         <div>
                           <span className="font-medium">{item.tutorName}</span>{" "}
                           <span className="text-sm text-muted-foreground mr-2">
-                            مع {item.studentName} الساعة{" "}
-                            {formatTime(item.startTime)}
+                            {t("missingReportItem", {
+                              tutorName: item.tutorName,
+                              studentName: item.studentName,
+                              time: formatTime(item.startTime),
+                            })}
                           </span>
                         </div>
                         {item.tutorPhone && (
@@ -709,11 +733,14 @@ export default function DashboardClient(props: DashboardClientProps) {
                             onClick={() =>
                               handleWhatsApp(
                                 item.tutorPhone,
-                                `مرحباً، نود تذكيرك بكتابة تقرير حصة ${item.studentName} اليوم.`,
+                                t("whatsapp.reportReminder", {
+                                  studentName: item.studentName,
+                                }),
                               )
                             }
                           >
-                            <MessageSquare className="h-4 w-4 ml-2" /> تذكير
+                            <MessageSquare className="h-4 w-4 ml-2" />{" "}
+                            {t("remind")}
                           </Button>
                         )}
                       </li>
@@ -727,17 +754,17 @@ export default function DashboardClient(props: DashboardClientProps) {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-base">
-                  حصص اليوم التي غابها الطلاب
+                  {t("absentTodayTitle")}
                 </CardTitle>
                 {props.absentSessions.length > 0 && (
                   <Button onClick={() => setSendBulkMessages("reports-absent")}>
-                    إرسال رسالة جماعية
+                    {t("sendBulkMessage")}
                   </Button>
                 )}
               </CardHeader>
               <CardContent>
                 {props.absentSessions.length === 0 ? (
-                  <p className="text-muted-foreground">لا يوجد غياب اليوم</p>
+                  <p className="text-muted-foreground">{t("noAbsentToday")}</p>
                 ) : (
                   <ul className="space-y-2">
                     {props.absentSessions.map((item) => (
@@ -750,8 +777,11 @@ export default function DashboardClient(props: DashboardClientProps) {
                             {item.studentName}
                           </span>
                           <span className="text-sm text-muted-foreground mr-2">
-                            غائب – حصة مع {item.tutorName} (
-                            {formatTime(item.startTime)})
+                            {t("absentTodayItem", {
+                              studentName: item.studentName,
+                              tutorName: item.tutorName,
+                              time: formatTime(item.startTime),
+                            })}
                           </span>
                         </div>
                         {item.studentPhone && (
@@ -761,11 +791,14 @@ export default function DashboardClient(props: DashboardClientProps) {
                             onClick={() =>
                               handleWhatsApp(
                                 item.studentPhone,
-                                `مرحباً ${item.studentName}، نود التواصل معك بخصوص غيابك اليوم.`,
+                                t("whatsapp.absentContact", {
+                                  studentName: item.studentName,
+                                }),
                               )
                             }
                           >
-                            <MessageSquare className="h-4 w-4 ml-2" /> تواصل
+                            <MessageSquare className="h-4 w-4 ml-2" />{" "}
+                            {t("contact")}
                           </Button>
                         )}
                       </li>

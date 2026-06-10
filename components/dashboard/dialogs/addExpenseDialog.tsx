@@ -21,10 +21,10 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
-import { paymentMethodLabels } from "@/lib/finances";
 import { createExpense } from "@/actions/expense";
-import { PaymentStatus } from "@/types/payment";
+import { PaymentMethod, PaymentStatus } from "@/types/payment";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useTranslations } from "next-intl";
 
 interface AddExpenseDialogProps {
   children: React.ReactNode;
@@ -41,6 +41,7 @@ export function AddExpenseDialog({
   currencies,
   costCenters,
 }: AddExpenseDialogProps) {
+  const t = useTranslations("AddExpenseDialog");
   const [open, setOpen] = useState(false);
   const [salary, setSalary] = useState(false);
 
@@ -52,8 +53,8 @@ export function AddExpenseDialog({
       !formData.get("paymentMethod")
     ) {
       toast({
-        title: "خطأ",
-        description: "يرجى ملء الحقول المطلوبة",
+        title: t("validation.error"),
+        description: t("validation.required"),
         variant: "destructive",
       });
       return;
@@ -76,13 +77,13 @@ export function AddExpenseDialog({
         dir="rtl"
       >
         <DialogHeader>
-          <DialogTitle>تسجيل مصروف</DialogTitle>
+          <DialogTitle>{t("title")}</DialogTitle>
         </DialogHeader>
         <form action={handleSubmit}>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>التاريخ *</Label>
+                <Label>{t("date")} *</Label>
                 <Input
                   defaultValue={new Date().toISOString().split("T")[0]}
                   type="date"
@@ -90,17 +91,17 @@ export function AddExpenseDialog({
                 />
               </div>
               <div className="space-y-2">
-                <Label>المبلغ *</Label>
+                <Label>{t("amount")} *</Label>
                 <Input type="number" name="amount" placeholder="0" />
               </div>
               <div className="space-y-2">
-                <Label>العملة</Label>
+                <Label>{t("currency")}</Label>
                 <Select
                   name="currencyId"
                   defaultValue={currencies[0].id.toString()}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="اختر" />
+                    <SelectValue placeholder={t("currencyPlaceholder")} />
                   </SelectTrigger>
                   <SelectContent>
                     {currencies.map((c) => (
@@ -115,38 +116,40 @@ export function AddExpenseDialog({
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>طريقة الدفع</Label>
+                <Label>{t("paymentMethod")}</Label>
                 <Select name="paymentMethod">
                   <SelectTrigger>
-                    <SelectValue placeholder="اختر" />
+                    <SelectValue placeholder={t("methodPlaceholder")} />
                   </SelectTrigger>
                   <SelectContent>
-                    {Object.entries(paymentMethodLabels).map(([k, v]) => (
-                      <SelectItem key={k} value={k}>
-                        {v}
-                      </SelectItem>
-                    ))}
+                    {Object.entries(PaymentMethod)
+                      .filter(([key]) => isNaN(Number(key)))
+                      .map(([key, value]) => (
+                        <SelectItem key={value} value={value.toString()}>
+                          {t(`method.${key}`)}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>الحالة</Label>
+                <Label>{t("status-label")}</Label>
                 <Select name="status">
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={PaymentStatus.PENDING.toString()}>
-                      معلق
+                      {t("status.pending")}
                     </SelectItem>
                     <SelectItem value={PaymentStatus.PAID.toString()}>
-                      مدفوع
+                      {t("status.paid")}
                     </SelectItem>
                     <SelectItem value={PaymentStatus.FAILED.toString()}>
-                      فشل
+                      {t("status.failed")}
                     </SelectItem>
                     <SelectItem value={PaymentStatus.REFUNDED.toString()}>
-                      مسترد
+                      {t("status.refunded")}
                     </SelectItem>
                   </SelectContent>
                 </Select>
@@ -155,17 +158,17 @@ export function AddExpenseDialog({
 
             <div>
               <div className="space-y-2">
-                <Label>الوصف</Label>
+                <Label>{t("description")}</Label>
                 <Input name="description" />
               </div>
               <div className="space-y-2">
-                <Label>نوع المصروف</Label>
+                <Label>{t("costCenter")}</Label>
                 <Select
                   name="costCenterId"
                   defaultValue={costCenters[0].id.toString()}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="اختر" />
+                    <SelectValue placeholder={t("costCenterPlaceholder")} />
                   </SelectTrigger>
                   <SelectContent>
                     {costCenters.map((c) => (
@@ -185,12 +188,12 @@ export function AddExpenseDialog({
                   state !== "indeterminate" && setSalary(state)
                 }
               />
-              <Label>راتب معلم</Label>
+              <Label>{t("tutorSalary")}</Label>
             </div>
             {salary ? (
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>المعلم</Label>
+                  <Label>{t("tutor")}</Label>
                   <Select name="tutorId">
                     <SelectTrigger>
                       <SelectValue />
@@ -202,32 +205,35 @@ export function AddExpenseDialog({
                         </SelectItem>
                       ))}
                     </SelectContent>
-                  </Select>{" "}
+                  </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>الشهر</Label>
-                  <Input name="salaryMonth" placeholder="شهر 4" />
+                  <Label>{t("salaryMonth")}</Label>
+                  <Input
+                    name="salaryMonth"
+                    placeholder={t("salaryMonthPlaceholder")}
+                  />
                 </div>
               </div>
             ) : null}
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>رابط الفاتورة</Label>
+                <Label>{t("invoiceUrl")}</Label>
                 <Input name="invoiceUrl" placeholder="https://..." />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label>ملاحظات</Label>
+              <Label>{t("notes")}</Label>
               <Textarea name="notes" rows={2} />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>
-              إلغاء
+              {t("cancel")}
             </Button>
-            <Button formAction={handleSubmit}>إضافة</Button>
+            <Button formAction={handleSubmit}>{t("add")}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

@@ -1,3 +1,5 @@
+"use client";
+
 import { utcToLocalTime } from "@/lib/dates";
 import { sessionStatusColors } from "@/const/sessions";
 import { CheckCircle2, StickyNote, Video } from "lucide-react";

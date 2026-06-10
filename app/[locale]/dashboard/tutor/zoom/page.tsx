@@ -8,26 +8,28 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Unlink, Link, AlertTriangle } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 
-// Error code → user-friendly Arabic message
-const errorMessages: Record<string, string> = {
-  missing_code: "لم يتم استلام رمز التفويض من Zoom. يرجى المحاولة مرة أخرى.",
-  zoom_auth_failed:
-    "فشل تبادل الرمز مع Zoom. تأكد من صحة إعدادات التطبيق وحاول مرة أخرى.",
-  zoom_user_fetch_failed:
-    "تم ربط الحساب ولكن تعذر جلب معلومات المستخدم من Zoom. يرجى المحاولة مرة أخرى.",
-  not_authenticated:
-    "انتهت جلسة العمل الخاصة بك. يرجى تسجيل الدخول والمحاولة مرة أخرى.",
-  not_tutor: "حساب المستخدم الحالي ليس معلماً. لا يمكن ربط Zoom.",
-  invalid_state: "حالة الأمان غير متطابقة. يرجى المحاولة مرة أخرى.",
-};
+// Error codes – translation keys are used instead of hardcoded messages
+const errorCodes = [
+  "missing_code",
+  "zoom_auth_failed",
+  "zoom_user_fetch_failed",
+  "not_authenticated",
+  "not_tutor",
+  "invalid_state",
+] as const;
+
+type ErrorCode = (typeof errorCodes)[number];
 
 const Page = async ({
   searchParams,
 }: {
   searchParams: Promise<{ message?: string }>;
 }) => {
+  const t = await getTranslations("ZoomSettings");
   const currentUser = await user();
+
   if (!currentUser || currentUser.role !== Role.Tutor) {
     redirect("/login");
   }
@@ -41,25 +43,25 @@ const Page = async ({
   });
 
   const isConnected = tutor?.zoomAuthenticated ?? false;
-
   const { message } = await searchParams;
-  const errorMessage =
-    message && errorMessages[message]
-      ? errorMessages[message]
-      : message
-        ? "حدث خطأ غير متوقع أثناء ربط Zoom. يرجى المحاولة مرة أخرى."
-        : null;
+
+  let errorMessage: string | null = null;
+  if (message && errorCodes.includes(message as ErrorCode)) {
+    errorMessage = t(message as ErrorCode);
+  } else if (message) {
+    errorMessage = t("unexpected_error");
+  }
 
   return (
     <div className="mx-auto space-y-6">
-      <h1 className="text-2xl font-bold">إعدادات زووم</h1>
+      <h1 className="text-2xl font-bold">{t("title")}</h1>
 
       {/* Error Banner */}
       {errorMessage && (
         <Alert variant="destructive" className="flex items-start gap-3">
           <AlertTriangle className="h-5 w-5 mt-0.5" />
           <div>
-            <AlertTitle>خطأ في ربط Zoom</AlertTitle>
+            <AlertTitle>{t("errorTitle")}</AlertTitle>
             <AlertDescription>{errorMessage}</AlertDescription>
           </div>
         </Alert>
@@ -67,49 +69,48 @@ const Page = async ({
 
       <Card>
         <CardHeader>
-          <CardTitle>حالة الاتصال</CardTitle>
+          <CardTitle>{t("cardTitle")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center gap-3">
-            <span className="text-sm font-medium">الحالة:</span>
+            <span className="text-sm font-medium">{t("statusLabel")}</span>
             {isConnected ? (
               <Badge
                 variant="default"
                 className="bg-green-100 text-green-800 hover:bg-green-200"
               >
-                متصل
+                {t("statusConnected")}
               </Badge>
             ) : (
-              <Badge variant="secondary">غير متصل</Badge>
+              <Badge variant="secondary">{t("statusDisconnected")}</Badge>
             )}
           </div>
 
           <p>
             {isConnected
-              ? "حساب زووم الخاص بك مرتبط حالياً. يمكنك إلغاء الربط إذا كنت ترغب في ربط حساب آخر."
-              : "لم تقم بربط حساب زووم بعد. قم بالربط لإنشاء روابط زووم تلقائياً لحصصك."}
+              ? t("connectedDescription")
+              : t("disconnectedDescription")}
           </p>
+
           <div className="pt-2 flex gap-3">
             {!isConnected ? (
               <form action={startZoomOAuth}>
                 <Button type="submit" className="gap-2">
                   <Link className="h-4 w-4" />
-                  ربط حساب زووم
+                  {t("connectButton")}
                 </Button>
               </form>
             ) : (
               <form action={unlinkZoom}>
                 <Button variant="destructive" type="submit" className="gap-2">
                   <Unlink className="h-4 w-4" />
-                  إلغاء الربط
+                  {t("unlinkButton")}
                 </Button>
               </form>
             )}
           </div>
 
-          <p className="text-xs text-muted-foreground mt-4">
-            عند الربط، سيتم إنشاء روابط زووم تلقائياً للحصص الجديدة.
-          </p>
+          <p className="text-xs text-muted-foreground mt-4">{t("helpText")}</p>
         </CardContent>
       </Card>
     </div>

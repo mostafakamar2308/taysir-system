@@ -4,18 +4,31 @@ import { SocketAuthProvider } from "@/components/providers/socketAuth";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AuthProvider } from "@/lib/contexts/auth";
 import { WhatsAppProvider } from "@/lib/contexts/whatsapp";
+import { cn } from "@/lib/utils";
 
-const Layout: React.FC<{ children: React.ReactNode }> = async ({
-  children,
-}) => {
+interface LayoutProps {
+  children: React.ReactNode;
+  params: Promise<{ locale: string }> | { locale: string };
+}
+
+const Layout: React.FC<LayoutProps> = async ({ children, params }) => {
+  const { locale } = await params;
+  const dir = locale === "ar" ? "rtl" : "ltr";
+  console.log(dir, locale);
+
   return (
     <AuthProvider>
       <SocketAuthProvider>
         <SidebarProvider>
           <WhatsAppProvider>
-            <div className="min-h-screen flex w-full">
+            <div className="min-h-screen flex w-full" dir={dir}>
               <Sidebar />
-              <div className="flex-1 flex md:pr-60 flex-col min-w-0">
+              <div
+                className={cn(
+                  "flex-1 flex flex-col min-w-0",
+                  dir === "rtl" ? "md:pr-60" : "md:pl-60",
+                )}
+              >
                 <MobileHeader />
                 <main className="flex-1 p-4 md:p-6 overflow-auto">
                   {children}

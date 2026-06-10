@@ -28,6 +28,7 @@ import { createSession } from "@/actions/sessions";
 import { Plus } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import dayjs from "@/lib/dayjs";
+import { useTranslations } from "next-intl";
 
 interface AddSessionDialogProps {
   tutors: { id: number; name: string | null }[];
@@ -42,6 +43,7 @@ export default function AddSessionDialog({
   academyId,
   children,
 }: AddSessionDialogProps) {
+  const t = useTranslations("AddSessionDialog");
   const [open, setOpen] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
@@ -59,13 +61,13 @@ export default function AddSessionDialog({
   const [recurEndDate, setRecurEndDate] = useState("");
 
   const dayOptions = [
-    { value: 0, label: "الأحد" },
-    { value: 1, label: "الاثنين" },
-    { value: 2, label: "الثلاثاء" },
-    { value: 3, label: "الأربعاء" },
-    { value: 4, label: "الخميس" },
-    { value: 5, label: "الجمعة" },
-    { value: 6, label: "السبت" },
+    { value: 0, label: t("days.sunday") },
+    { value: 1, label: t("days.monday") },
+    { value: 2, label: t("days.tuesday") },
+    { value: 3, label: t("days.wednesday") },
+    { value: 4, label: t("days.thursday") },
+    { value: 5, label: t("days.friday") },
+    { value: 6, label: t("days.saturday") },
   ];
 
   const toggleRecurDay = (day: number) => {
@@ -78,7 +80,7 @@ export default function AddSessionDialog({
     e.preventDefault();
     if (!studentId || !date || !startTime) {
       toast({
-        title: "يرجى اختيار الطالب وإدخال التاريخ والوقت",
+        title: t("validation.required"),
         variant: "destructive",
       });
       return;
@@ -100,15 +102,14 @@ export default function AddSessionDialog({
         recurEndDate: isRecurring ? recurEndDate : undefined,
       };
       await createSession(input);
-      toast({ title: "تمت إضافة الحصة" });
+      toast({ title: t("toast.success") });
       router.refresh();
       setOpen(false);
     } catch (error) {
       console.log(error);
-
       if (error instanceof Error)
         toast({
-          title: "حدث خطأ",
+          title: t("toast.error"),
           description: error.message,
           variant: "destructive",
         });
@@ -122,7 +123,7 @@ export default function AddSessionDialog({
       <DialogTrigger asChild>
         {children || (
           <Button size="sm" className="gap-1">
-            <Plus className="h-4 w-4" /> إضافة حصة
+            <Plus className="h-4 w-4" /> {t("triggerLabel")}
           </Button>
         )}
       </DialogTrigger>
@@ -131,17 +132,17 @@ export default function AddSessionDialog({
         dir="rtl"
       >
         <DialogHeader>
-          <DialogTitle>إضافة حصة جديدة</DialogTitle>
+          <DialogTitle>{t("title")}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label>الطالب *</Label>
+            <Label>{t("student")} *</Label>
             <Select
               value={studentId.toString()}
               onValueChange={(val) => setStudentId(parseInt(val))}
             >
               <SelectTrigger>
-                <SelectValue placeholder="اختر الطالب" />
+                <SelectValue placeholder={t("studentPlaceholder")} />
               </SelectTrigger>
               <SelectContent>
                 {students.map((s) => (
@@ -153,13 +154,13 @@ export default function AddSessionDialog({
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>المعلم *</Label>
+            <Label>{t("tutor")} *</Label>
             <Select
               value={tutorId.toString()}
               onValueChange={(val) => setTutorId(parseInt(val))}
             >
               <SelectTrigger>
-                <SelectValue placeholder="اختر الطالب" />
+                <SelectValue placeholder={t("tutorPlaceholder")} />
               </SelectTrigger>
               <SelectContent>
                 {tutors.map((s) => (
@@ -173,7 +174,7 @@ export default function AddSessionDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>التاريخ *</Label>
+              <Label>{t("date")} *</Label>
               <Input
                 type="date"
                 value={date}
@@ -181,7 +182,7 @@ export default function AddSessionDialog({
               />
             </div>
             <div className="space-y-2">
-              <Label>وقت البدء *</Label>
+              <Label>{t("startTime")} *</Label>
               <Input
                 type="time"
                 value={startTime}
@@ -191,7 +192,7 @@ export default function AddSessionDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>المدة (دقيقة)</Label>
+            <Label>{t("duration")}</Label>
             <Select value={duration} onValueChange={setDuration}>
               <SelectTrigger>
                 <SelectValue />
@@ -199,7 +200,7 @@ export default function AddSessionDialog({
               <SelectContent>
                 {[15, 20, 25, 30, 45, 60, 90].map((m) => (
                   <SelectItem key={m} value={String(m)}>
-                    {m} دقيقة
+                    {t("durationMinute", { minutes: m })}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -207,20 +208,20 @@ export default function AddSessionDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>الموضوع</Label>
+            <Label>{t("topic")}</Label>
             <Input
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
-              placeholder="مثال: سورة البقرة - الآيات 1-20"
+              placeholder={t("topicPlaceholder")}
             />
           </div>
 
           <div className="space-y-2">
-            <Label>ملاحظات</Label>
+            <Label>{t("notes")}</Label>
             <Textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="ملاحظات..."
+              placeholder={t("notesPlaceholder")}
               rows={2}
             />
           </div>
@@ -234,21 +235,23 @@ export default function AddSessionDialog({
               htmlFor="trial"
               className="text-sm font-normal cursor-pointer"
             >
-              حصة تجريبية
+              {t("trialSession")}
             </Label>
           </div>
 
           {/* Recurring */}
           <div className="space-y-3 rounded-lg border border-border p-4">
             <div className="flex items-center justify-between">
-              <Label className="flex items-center gap-2">حصة متكررة</Label>
+              <Label className="flex items-center gap-2">
+                {t("recurringSession")}
+              </Label>
               <Switch checked={isRecurring} onCheckedChange={setIsRecurring} />
             </div>
             {isRecurring && (
               <div className="space-y-3 pt-2">
                 <div>
                   <Label className="text-xs text-muted-foreground">
-                    أيام التكرار
+                    {t("recurringDays")}
                   </Label>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {dayOptions.map((d) => (
@@ -267,7 +270,7 @@ export default function AddSessionDialog({
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground">
-                    تاريخ الانتهاء (اختياري)
+                    {t("recurringEndDate")}
                   </Label>
                   <Input
                     type="date"
@@ -285,10 +288,10 @@ export default function AddSessionDialog({
               variant="outline"
               onClick={() => setOpen(false)}
             >
-              إلغاء
+              {t("cancel")}
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? "جاري الحفظ..." : "إضافة"}
+              {loading ? t("saving") : t("add")}
             </Button>
           </DialogFooter>
         </form>

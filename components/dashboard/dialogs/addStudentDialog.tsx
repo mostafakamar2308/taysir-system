@@ -23,6 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 import { createStudent } from "@/actions/student";
 import { Plus, User, CreditCard } from "lucide-react";
 import { StudentStatus } from "@/types/student";
+import { useTranslations } from "next-intl";
 
 interface AddStudentDialogProps {
   tutors: { id: number; name: string | null }[];
@@ -39,6 +40,7 @@ export default function AddStudentDialog({
   academyId,
   children,
 }: AddStudentDialogProps) {
+  const t = useTranslations("AddStudentDialog");
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState(StudentStatus.lead.toString());
@@ -53,12 +55,12 @@ export default function AddStudentDialog({
       if (!academyId) return;
       formData.append("academyId", academyId.toString());
       await createStudent(formData);
-      toast({ title: "تم إضافة الطالب بنجاح" });
+      toast({ title: t("toast.success") });
       setOpen(false);
       router.refresh();
     } catch (error) {
       console.log({ error });
-      toast({ title: "حدث خطأ", variant: "destructive" });
+      toast({ title: t("toast.error"), variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -69,7 +71,7 @@ export default function AddStudentDialog({
       <DialogTrigger asChild>
         {children || (
           <Button size="sm" className="gap-1">
-            <Plus className="h-4 w-4" /> إضافة طالب
+            <Plus className="h-4 w-4" /> {t("triggerLabel")}
           </Button>
         )}
       </DialogTrigger>
@@ -78,62 +80,68 @@ export default function AddStudentDialog({
         dir="rtl"
       >
         <DialogHeader>
-          <DialogTitle>إضافة طالب جديد</DialogTitle>
+          <DialogTitle>{t("title")}</DialogTitle>
         </DialogHeader>
         <form action={handleSubmit} className="space-y-6">
           {/* Group 1: Personal Information */}
           <div className="space-y-4">
             <h3 className="text-sm font-semibold flex items-center gap-2 text-muted-foreground border-b pb-2">
-              <User className="h-4 w-4" /> المعلومات الشخصية
+              <User className="h-4 w-4" /> {t("personalInfo")}
             </h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="name">الاسم *</Label>
+                <Label htmlFor="name">{t("name")} *</Label>
                 <Input id="name" name="name" required />
               </div>
               <div>
-                <Label htmlFor="email">البريد الإلكتروني</Label>
+                <Label htmlFor="email">{t("email")}</Label>
                 <Input id="email" name="email" type="email" />
               </div>
               <div>
-                <Label htmlFor="age">العمر *</Label>
+                <Label htmlFor="age">{t("age")} *</Label>
                 <Input id="age" name="age" type="number" required />
               </div>
               <div>
-                <Label htmlFor="phone">رقم الهاتف</Label>
+                <Label htmlFor="phone">{t("phone")}</Label>
                 <Input id="phone" name="phone" />
-                <span className="text-xs text-slate-600">
-                  برجاء كتابة الرقم بالصيغة الدولية
-                </span>
+                <span className="text-xs text-slate-600">{t("phoneHint")}</span>
               </div>
               <div>
-                <Label htmlFor="country">الدولة</Label>
+                <Label htmlFor="country">{t("country")}</Label>
                 <Input id="country" name="country" />
               </div>
               <div>
-                <Label htmlFor="timezone">المنطقة الزمنية *</Label>
+                <Label htmlFor="timezone">{t("timezone-label")} *</Label>
                 <Select name="timezone" defaultValue="Africa/Cairo">
                   <SelectTrigger>
-                    <SelectValue placeholder="اختر المنطقة الزمنية" />
+                    <SelectValue placeholder={t("timezonePlaceholder")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Africa/Cairo">القاهرة</SelectItem>
-                    <SelectItem value="Asia/Riyadh">الرياض</SelectItem>
-                    <SelectItem value="Asia/Dubai">دبي</SelectItem>
+                    <SelectItem value="Africa/Cairo">
+                      {t("timezone.cairo")}
+                    </SelectItem>
+                    <SelectItem value="Asia/Riyadh">
+                      {t("timezone.riyadh")}
+                    </SelectItem>
+                    <SelectItem value="Asia/Dubai">
+                      {t("timezone.dubai")}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div>
-                <Label htmlFor="preferredLanguage">اللغة المفضلة</Label>
+                <Label htmlFor="preferredLanguage">
+                  {t("preferredLanguage")}
+                </Label>
                 <Input id="preferredLanguage" name="preferredLanguage" />
               </div>
               <div>
-                <Label htmlFor="source">المصدر</Label>
+                <Label htmlFor="source">{t("source")}</Label>
                 <Input id="source" name="source" />
               </div>
               <div>
-                <Label htmlFor="currentProgram">البرنامج</Label>
+                <Label htmlFor="currentProgram">{t("currentProgram")}</Label>
                 <Input id="currentProgram" name="currentProgram" />
               </div>
             </div>
@@ -142,40 +150,40 @@ export default function AddStudentDialog({
           {!isLead && (
             <div className="space-y-4">
               <h3 className="text-sm font-semibold flex items-center gap-2 text-muted-foreground border-b pb-2">
-                <CreditCard className="h-4 w-4" /> معلومات الاشتراك
+                <CreditCard className="h-4 w-4" /> {t("subscriptionInfo")}
               </h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="status">الحالة</Label>
+                  <Label htmlFor="status">{t("status-label")}</Label>
                   <Select
                     name="status"
                     value={status}
                     onValueChange={setStatus}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="اختر الحالة" />
+                      <SelectValue placeholder={t("statusPlaceholder")} />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value={StudentStatus.trial.toString()}>
-                        تجريبي
+                        {t("status.trial")}
                       </SelectItem>
                       <SelectItem value={StudentStatus.subscribed.toString()}>
-                        مشترك
+                        {t("status.subscribed")}
                       </SelectItem>
                       <SelectItem value={StudentStatus.lead.toString()}>
-                        عميل محتمل
+                        {t("status.lead")}
                       </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="planId">الخطة</Label>
+                  <Label htmlFor="planId">{t("plan-label")}</Label>
                   <Select name="planId" defaultValue={String(plans[0]?.id)}>
                     <SelectTrigger>
-                      <SelectValue placeholder="اختر الخطة" />
+                      <SelectValue placeholder={t("planPlaceholder")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">بدون خطة</SelectItem>
+                      <SelectItem value="none">{t("plan.none")}</SelectItem>
                       {plans.map((p) => (
                         <SelectItem key={p.id} value={p.id.toString()}>
                           {p.title}
@@ -185,16 +193,16 @@ export default function AddStudentDialog({
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="currencyId">العملة</Label>
+                  <Label htmlFor="currencyId">{t("currency-label")}</Label>
                   <Select
                     name="currencyId"
                     defaultValue={currencies[0]?.id.toString()}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="اختر العملة" />
+                      <SelectValue placeholder={t("currencyPlaceholder")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">بدون عملة</SelectItem>
+                      <SelectItem value="none">{t("currency.none")}</SelectItem>
                       {currencies.map((c) => (
                         <SelectItem key={c.id} value={c.id.toString()}>
                           {c.name}
@@ -204,13 +212,13 @@ export default function AddStudentDialog({
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="tutorId">المعلم</Label>
+                  <Label htmlFor="tutorId">{t("tutor-label")}</Label>
                   <Select name="tutorId" defaultValue={String(tutors[0]?.id)}>
                     <SelectTrigger>
-                      <SelectValue placeholder="اختر المعلم" />
+                      <SelectValue placeholder={t("tutorPlaceholder")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">بدون معلم</SelectItem>
+                      <SelectItem value="none">{t("tutor.none")}</SelectItem>
                       {tutors.map((t) => (
                         <SelectItem key={t.id} value={t.id.toString()}>
                           {t.name}
@@ -227,43 +235,43 @@ export default function AddStudentDialog({
           {isLead && (
             <div className="space-y-4">
               <h3 className="text-sm font-semibold flex items-center gap-2 text-muted-foreground border-b pb-2">
-                <CreditCard className="h-4 w-4" /> الحالة
+                <CreditCard className="h-4 w-4" /> {t("status-label")}
               </h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="status">الحالة</Label>
+                  <Label htmlFor="status">{t("status-label")}</Label>
                   <Select
                     name="status"
                     value={status}
                     onValueChange={setStatus}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="اختر الحالة" />
+                      <SelectValue placeholder={t("statusPlaceholder")} />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value={StudentStatus.trial.toString()}>
-                        تجريبي
+                        {t("status.trial")}
                       </SelectItem>
                       <SelectItem value={StudentStatus.subscribed.toString()}>
-                        مشترك
+                        {t("status.subscribed")}
                       </SelectItem>
                       <SelectItem value={StudentStatus.lead.toString()}>
-                        عميل محتمل
+                        {t("status.lead")}
                       </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="currencyId">العملة</Label>
+                  <Label htmlFor="currencyId">{t("currency-label")}</Label>
                   <Select
                     name="currencyId"
                     defaultValue={currencies[0]?.id.toString()}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="اختر العملة" />
+                      <SelectValue placeholder={t("currencyPlaceholder")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">بدون عملة</SelectItem>
+                      <SelectItem value="none">{t("currency.none")}</SelectItem>
                       {currencies.map((c) => (
                         <SelectItem key={c.id} value={c.id.toString()}>
                           {c.name}
@@ -283,10 +291,10 @@ export default function AddStudentDialog({
                 variant="outline"
                 onClick={() => setOpen(false)}
               >
-                إلغاء
+                {t("cancel")}
               </Button>
               <Button type="submit" disabled={loading}>
-                {loading ? "جاري الحفظ..." : "إضافة"}
+                {loading ? t("saving") : t("add")}
               </Button>
             </div>
           </DialogTrigger>

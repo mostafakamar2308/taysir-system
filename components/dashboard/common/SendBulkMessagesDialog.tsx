@@ -21,6 +21,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useWhatsApp } from "@/lib/contexts/whatsapp";
+import { useTranslations } from "next-intl";
 
 interface SendBulkMessagesDialogProps {
   open: boolean;
@@ -33,10 +34,11 @@ const SendBulkMessagesDialog: React.FC<SendBulkMessagesDialogProps> = ({
   users,
   setOpen,
 }) => {
+  const t = useTranslations("SendBulkMessagesDialog");
   const [bulkMessage, setBulkMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
   const { toast } = useToast();
-  const { status } = useWhatsApp(); // الحصول على حالة الاتصال
+  const { status } = useWhatsApp();
   const router = useRouter();
 
   const isConnected = status === "connected";
@@ -44,8 +46,8 @@ const SendBulkMessagesDialog: React.FC<SendBulkMessagesDialogProps> = ({
   const handleSendBulkMessage = async () => {
     if (!isConnected) {
       toast({
-        title: "واتساب غير متصل",
-        description: "يجب ربط حساب واتساب أولاً قبل إرسال الرسائل",
+        title: t("toast.notConnected"),
+        description: t("toast.connectFirst"),
         variant: "destructive",
       });
       return;
@@ -53,7 +55,7 @@ const SendBulkMessagesDialog: React.FC<SendBulkMessagesDialogProps> = ({
 
     if (!bulkMessage.trim()) {
       toast({
-        title: "الرجاء كتابة رسالة",
+        title: t("toast.emptyMessage"),
         variant: "destructive",
       });
       return;
@@ -75,23 +77,23 @@ const SendBulkMessagesDialog: React.FC<SendBulkMessagesDialogProps> = ({
 
       if (data.success) {
         toast({
-          title: `تم إرسال ${data.jobs.length} رسالة بنجاح`,
-          description: "ستصل الرسائل إلى المستلمين خلال لحظات",
+          title: t("toast.sentSuccess", { count: data.jobs.length }),
+          description: t("toast.sentDescription"),
         });
         setOpen(false);
         setBulkMessage("");
       } else {
         toast({
-          title: "فشل الإرسال",
-          description: data.error || "حدث خطأ ما",
+          title: t("toast.failed"),
+          description: data.error || t("toast.defaultError"),
           variant: "destructive",
         });
       }
     } catch (error) {
       console.error(error);
       toast({
-        title: "خطأ في الشبكة",
-        description: "تعذر الاتصال بالخادم",
+        title: t("toast.networkError"),
+        description: t("toast.networkDescription"),
         variant: "destructive",
       });
     } finally {
@@ -103,13 +105,12 @@ const SendBulkMessagesDialog: React.FC<SendBulkMessagesDialogProps> = ({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="sm:max-w-md" dir="rtl">
         <DialogHeader>
-          <DialogTitle>إرسال رسالة جماعية</DialogTitle>
+          <DialogTitle>{t("title")}</DialogTitle>
           <DialogDescription>
-            سيتم إرسال هذه الرسالة إلى {users.length} مستخدم
+            {t("description", { count: users.length })}
           </DialogDescription>
         </DialogHeader>
 
-        {/* تنبيه إذا لم يكن واتساب متصلاً */}
         {!isConnected && (
           <Alert
             variant="destructive"
@@ -117,7 +118,7 @@ const SendBulkMessagesDialog: React.FC<SendBulkMessagesDialogProps> = ({
           >
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription className="flex flex-col gap-2">
-              <span>يجب ربط واتساب أولاً قبل إرسال الرسائل.</span>
+              <span>{t("notConnectedAlert")}</span>
               <Button
                 variant="link"
                 className="h-auto p-0 text-amber-900 underline justify-start"
@@ -127,7 +128,7 @@ const SendBulkMessagesDialog: React.FC<SendBulkMessagesDialogProps> = ({
                 }}
               >
                 <ExternalLink className="ml-1 h-3 w-3" />
-                الذهاب إلى صفحة ربط واتساب
+                {t("goToWhatsappSettings")}
               </Button>
             </AlertDescription>
           </Alert>
@@ -135,16 +136,14 @@ const SendBulkMessagesDialog: React.FC<SendBulkMessagesDialogProps> = ({
 
         <div className="space-y-4 py-4">
           <Textarea
-            placeholder="اكتب رسالتك هنا..."
+            placeholder={t("messagePlaceholder")}
             value={bulkMessage}
             onChange={(e) => setBulkMessage(e.target.value)}
             rows={5}
             className="resize-none"
             disabled={!isConnected}
           />
-          <p className="text-xs text-muted-foreground">
-            سيتم إرسال الرسالة عبر واتساب لكل مستخدم على حدة
-          </p>
+          <p className="text-xs text-muted-foreground">{t("messageHint")}</p>
         </div>
 
         <DialogFooter className="sm:justify-between">
@@ -153,7 +152,7 @@ const SendBulkMessagesDialog: React.FC<SendBulkMessagesDialogProps> = ({
             onClick={() => setOpen(false)}
             disabled={isSending}
           >
-            إلغاء
+            {t("cancel")}
           </Button>
           <Button
             onClick={handleSendBulkMessage}
@@ -162,12 +161,12 @@ const SendBulkMessagesDialog: React.FC<SendBulkMessagesDialogProps> = ({
             {isSending ? (
               <>
                 <Loader2 className="h-4 w-4 ml-2 animate-spin" />
-                جاري الإرسال...
+                {t("sending")}
               </>
             ) : (
               <>
                 <MessageSquare className="h-4 w-4 ml-2" />
-                إرسال
+                {t("send")}
               </>
             )}
           </Button>

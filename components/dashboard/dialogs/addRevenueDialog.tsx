@@ -21,10 +21,10 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
-import { paymentMethodLabels } from "@/lib/finances";
 import { StudentOption } from "@/types/finances";
 import { PaymentMethod, PaymentStatus } from "@/types/payment";
 import { createRevenueFromDashboard } from "@/actions/finances";
+import { useTranslations } from "next-intl";
 
 interface AddRevenueDialogProps {
   children: React.ReactNode;
@@ -37,6 +37,7 @@ export function AddRevenueDialog({
   students,
   academyId,
 }: AddRevenueDialogProps) {
+  const t = useTranslations("AddRevenueDialog");
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState({
     amount: "",
@@ -62,8 +63,8 @@ export function AddRevenueDialog({
       !formData.method
     ) {
       toast({
-        title: "خطأ",
-        description: "يرجى ملء الحقول المطلوبة",
+        title: t("validation.error"),
+        description: t("validation.required"),
         variant: "destructive",
       });
       return;
@@ -91,12 +92,12 @@ export function AddRevenueDialog({
         dir="rtl"
       >
         <DialogHeader>
-          <DialogTitle>إضافة إيراد</DialogTitle>
+          <DialogTitle>{t("title")}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>التاريخ *</Label>
+              <Label>{t("date")} *</Label>
               <Input
                 type="date"
                 value={formData.date}
@@ -104,7 +105,7 @@ export function AddRevenueDialog({
               />
             </div>
             <div className="space-y-2">
-              <Label>المبلغ *</Label>
+              <Label>{t("amount")} *</Label>
               <Input
                 type="number"
                 value={formData.amount}
@@ -112,19 +113,19 @@ export function AddRevenueDialog({
                 placeholder="0"
               />
               <div className="text-xs font-light -mt-1 pointer-events-none">
-                سيتم احتساب المبلغ بعملة الطالب
+                {t("amountHint")}
               </div>
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label>الطالب *</Label>
+            <Label>{t("student")} *</Label>
             <Select
               value={formData.studentId}
               onValueChange={(v) => handleChange("studentId", v)}
             >
               <SelectTrigger>
-                <SelectValue placeholder="اختر الطالب" />
+                <SelectValue placeholder={t("studentPlaceholder")} />
               </SelectTrigger>
               <SelectContent>
                 {students.map((s) => (
@@ -138,25 +139,27 @@ export function AddRevenueDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>طريقة الدفع</Label>
+              <Label>{t("paymentMethod")}</Label>
               <Select
                 value={formData.method.toString()}
                 onValueChange={(v) => handleChange("method", parseInt(v))}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="اختر" />
+                  <SelectValue placeholder={t("methodPlaceholder")} />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(paymentMethodLabels).map(([k, v]) => (
-                    <SelectItem key={k} value={k}>
-                      {v}
-                    </SelectItem>
-                  ))}
+                  {Object.entries(PaymentMethod)
+                    .filter(([key]) => isNaN(Number(key))) // get string keys
+                    .map(([key, value]) => (
+                      <SelectItem key={value} value={value.toString()}>
+                        {t(`method.${key}`)}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>الحالة</Label>
+              <Label>{t("status-label")}</Label>
               <Select
                 value={formData.status.toString()}
                 onValueChange={(v) => handleChange("status", v)}
@@ -165,17 +168,17 @@ export function AddRevenueDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="0">معلق</SelectItem>
-                  <SelectItem value="1">مدفوع</SelectItem>
-                  <SelectItem value="2">فشل</SelectItem>
-                  <SelectItem value="3">مسترد</SelectItem>
+                  <SelectItem value="0">{t("status.pending")}</SelectItem>
+                  <SelectItem value="1">{t("status.paid")}</SelectItem>
+                  <SelectItem value="2">{t("status.failed")}</SelectItem>
+                  <SelectItem value="3">{t("status.refunded")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label>الوصف</Label>
+            <Label>{t("description")}</Label>
             <Input
               value={formData.description}
               onChange={(e) => handleChange("description", e.target.value)}
@@ -184,7 +187,7 @@ export function AddRevenueDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>تاريخ الاستحقاق</Label>
+              <Label>{t("dueDate")}</Label>
               <Input
                 type="date"
                 value={formData.dueDate}
@@ -192,7 +195,7 @@ export function AddRevenueDialog({
               />
             </div>
             <div className="space-y-2">
-              <Label>رابط الفاتورة</Label>
+              <Label>{t("invoiceUrl")}</Label>
               <Input
                 value={formData.invoiceUrl}
                 onChange={(e) => handleChange("invoiceUrl", e.target.value)}
@@ -202,7 +205,7 @@ export function AddRevenueDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>ملاحظات</Label>
+            <Label>{t("notes")}</Label>
             <Textarea
               value={formData.notes}
               onChange={(e) => handleChange("notes", e.target.value)}
@@ -212,9 +215,9 @@ export function AddRevenueDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>
-            إلغاء
+            {t("cancel")}
           </Button>
-          <Button onClick={handleSubmit}>إضافة</Button>
+          <Button onClick={handleSubmit}>{t("add")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

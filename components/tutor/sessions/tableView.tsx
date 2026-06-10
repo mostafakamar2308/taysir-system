@@ -1,4 +1,6 @@
 "use client";
+
+import { useTranslations } from "next-intl";
 import {
   Table,
   TableBody,
@@ -28,20 +30,22 @@ export default function TableView({
   sessions,
   onSessionClick,
 }: TableViewProps) {
+  const t = useTranslations("TutorSessions");
   const router = useRouter();
+
   return (
     <div className="overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>التاريخ</TableHead>
-            <TableHead>الوقت</TableHead>
-            <TableHead>الطالب</TableHead>
-            <TableHead>الموضوع</TableHead>
-            <TableHead>الحالة</TableHead>
-            <TableHead>الحضور</TableHead>
-            <TableHead>التقرير</TableHead>
-            <TableHead>إجراءات</TableHead>
+            <TableHead>{t("table.date")}</TableHead>
+            <TableHead>{t("table.time")}</TableHead>
+            <TableHead>{t("table.student")}</TableHead>
+            <TableHead>{t("table.topic")}</TableHead>
+            <TableHead>{t("table.status")}</TableHead>
+            <TableHead>{t("table.attendance")}</TableHead>
+            <TableHead>{t("table.report")}</TableHead>
+            <TableHead>{t("table.actions")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -51,7 +55,7 @@ export default function TableView({
                 colSpan={8}
                 className="text-center py-8 text-muted-foreground"
               >
-                لا توجد حصص
+                {t("table.noSessions")}
               </TableCell>
             </TableRow>
           ) : (
@@ -89,13 +93,15 @@ export default function TableView({
                     >
                       {s.attendance.tutorAttendance ===
                       AttendanceStatus.ATTENDED
-                        ? "حاضر"
+                        ? t("attendancePresent")
                         : s.attendance.tutorAttendance === AttendanceStatus.LATE
-                          ? "متأخر"
-                          : "غائب"}
+                          ? t("attendanceLate")
+                          : t("attendanceAbsent")}
                     </Badge>
                   ) : s.status === SessionStatus.COMPLETED ? (
-                    <span className="text-amber-600 text-xs">لم يسجل</span>
+                    <span className="text-amber-600 text-xs">
+                      {t("attendanceNotRecorded")}
+                    </span>
                   ) : (
                     "—"
                   )}
@@ -106,14 +112,16 @@ export default function TableView({
                       variant="outline"
                       className="bg-primary/10 text-primary"
                     >
-                      مكتمل
+                      {t("reportCompleted")}
                     </Badge>
                   ) : s.status === SessionStatus.COMPLETED &&
                     s.attendance &&
                     [AttendanceStatus.ATTENDED, AttendanceStatus.LATE].includes(
                       s.attendance.studentAttendance,
                     ) ? (
-                    <span className="text-blue-600 text-xs">بحاجة تقرير</span>
+                    <span className="text-blue-600 text-xs">
+                      {t("reportNeeded")}
+                    </span>
                   ) : (
                     "—"
                   )}

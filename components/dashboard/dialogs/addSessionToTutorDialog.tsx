@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -41,6 +42,7 @@ export default function AddSessionDialog({
   academyId,
   children,
 }: AddSessionDialogProps) {
+  const t = useTranslations("AddSessionToTutorDialog");
   const [open, setOpen] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
@@ -56,13 +58,13 @@ export default function AddSessionDialog({
   const [recurEndDate, setRecurEndDate] = useState("");
 
   const dayOptions = [
-    { value: 0, label: "الأحد" },
-    { value: 1, label: "الاثنين" },
-    { value: 2, label: "الثلاثاء" },
-    { value: 3, label: "الأربعاء" },
-    { value: 4, label: "الخميس" },
-    { value: 5, label: "الجمعة" },
-    { value: 6, label: "السبت" },
+    { value: 0, label: t("daySun") },
+    { value: 1, label: t("dayMon") },
+    { value: 2, label: t("dayTue") },
+    { value: 3, label: t("dayWed") },
+    { value: 4, label: t("dayThu") },
+    { value: 5, label: t("dayFri") },
+    { value: 6, label: t("daySat") },
   ];
 
   const toggleRecurDay = (day: number) => {
@@ -75,7 +77,7 @@ export default function AddSessionDialog({
     e.preventDefault();
     if (!studentId || !date || !startTime) {
       toast({
-        title: "يرجى اختيار الطالب وإدخال التاريخ والوقت",
+        title: t("validation.missingFields"),
         variant: "destructive",
       });
       return;
@@ -99,14 +101,13 @@ export default function AddSessionDialog({
         ...input,
         startTime: dayjs(`${input.date}T${input.startTime}`).toISOString(),
       });
-      toast({ title: "تمت إضافة الحصة" });
+      toast({ title: t("toast.success") });
       router.refresh();
     } catch (error) {
       console.log(error);
-
       if (error instanceof Error)
         toast({
-          title: "حدث خطأ",
+          title: t("toast.error"),
           description: error.message,
           variant: "destructive",
         });
@@ -121,7 +122,7 @@ export default function AddSessionDialog({
       <DialogTrigger asChild>
         {children || (
           <Button size="sm" className="gap-1">
-            <Plus className="h-4 w-4" /> إضافة حصة
+            <Plus className="h-4 w-4" /> {t("triggerButton")}
           </Button>
         )}
       </DialogTrigger>
@@ -130,14 +131,14 @@ export default function AddSessionDialog({
         dir="rtl"
       >
         <DialogHeader>
-          <DialogTitle>إضافة حصة جديدة</DialogTitle>
+          <DialogTitle>{t("title")}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label>الطالب *</Label>
+            <Label>{t("studentLabel")} *</Label>
             <Select value={studentId} onValueChange={setStudentId}>
               <SelectTrigger>
-                <SelectValue placeholder="اختر الطالب" />
+                <SelectValue placeholder={t("studentPlaceholder")} />
               </SelectTrigger>
               <SelectContent>
                 {studentOptions.map((s) => (
@@ -151,7 +152,7 @@ export default function AddSessionDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>التاريخ *</Label>
+              <Label>{t("dateLabel")} *</Label>
               <Input
                 type="date"
                 value={date}
@@ -159,7 +160,7 @@ export default function AddSessionDialog({
               />
             </div>
             <div className="space-y-2">
-              <Label>وقت البدء *</Label>
+              <Label>{t("startTimeLabel")} *</Label>
               <Input
                 type="time"
                 value={startTime}
@@ -169,7 +170,7 @@ export default function AddSessionDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>المدة (دقيقة)</Label>
+            <Label>{t("durationLabel")}</Label>
             <Select value={duration} onValueChange={setDuration}>
               <SelectTrigger>
                 <SelectValue />
@@ -177,7 +178,7 @@ export default function AddSessionDialog({
               <SelectContent>
                 {[15, 20, 25, 30, 45, 60, 90].map((m) => (
                   <SelectItem key={m} value={String(m)}>
-                    {m} دقيقة
+                    {t("durationMinutes", { minutes: m })}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -185,20 +186,20 @@ export default function AddSessionDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>الموضوع</Label>
+            <Label>{t("topicLabel")}</Label>
             <Input
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
-              placeholder="مثال: سورة البقرة - الآيات 1-20"
+              placeholder={t("topicPlaceholder")}
             />
           </div>
 
           <div className="space-y-2">
-            <Label>ملاحظات</Label>
+            <Label>{t("notesLabel")}</Label>
             <Textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="ملاحظات..."
+              placeholder={t("notesPlaceholder")}
               rows={2}
             />
           </div>
@@ -206,14 +207,16 @@ export default function AddSessionDialog({
           {/* Recurring */}
           <div className="space-y-3 rounded-lg border border-border p-4">
             <div className="flex items-center justify-between">
-              <Label className="flex items-center gap-2">حصة متكررة</Label>
+              <Label className="flex items-center gap-2">
+                {t("recurring.label")}
+              </Label>
               <Switch checked={isRecurring} onCheckedChange={setIsRecurring} />
             </div>
             {isRecurring && (
               <div className="space-y-3 pt-2">
                 <div>
                   <Label className="text-xs text-muted-foreground">
-                    أيام التكرار
+                    {t("recurring.daysLabel")}
                   </Label>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {dayOptions.map((d) => (
@@ -232,7 +235,7 @@ export default function AddSessionDialog({
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground">
-                    تاريخ الانتهاء (اختياري)
+                    {t("recurring.endDateLabel")}
                   </Label>
                   <Input
                     type="date"
@@ -250,10 +253,10 @@ export default function AddSessionDialog({
               variant="outline"
               onClick={() => setOpen(false)}
             >
-              إلغاء
+              {t("cancelButton")}
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? "جاري الحفظ..." : "إضافة"}
+              {loading ? t("submittingButton") : t("submitButton")}
             </Button>
           </DialogFooter>
         </form>

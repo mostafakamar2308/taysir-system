@@ -1,20 +1,14 @@
+"use client";
+
+import { useTranslations } from "next-intl";
 import { utcToLocalDate } from "@/lib/dates";
-import { SessionCard } from "@/components/dashboard/sessions/sessionCard";
 import { DashboardSession } from "@/types/session";
+import { SessionCard } from "@/components/dashboard/sessions/sessionCard";
 
 const timeSlots = Array.from({ length: 24 }, (_, i) => ({
   hour: i,
   label: `${i.toString().padStart(2, "0")}:00`,
 }));
-const dayNamesShort = [
-  "سبت",
-  "أحد",
-  "اثنين",
-  "ثلاثاء",
-  "أربعاء",
-  "خميس",
-  "جمعة",
-];
 
 type WeekViewProps = {
   weekDates: Date[];
@@ -31,12 +25,23 @@ export function WeekView({
   onSessionClick,
   onMarkAttendance,
 }: WeekViewProps) {
+  const t = useTranslations("TutorSessions");
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  // Get day names from translations
+  const dayNamesShort = [
+    t("daySat"),
+    t("daySun"),
+    t("dayMon"),
+    t("dayTue"),
+    t("dayWed"),
+    t("dayThu"),
+    t("dayFri"),
+  ];
+
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden">
-      {/* Horizontal scroll wrapper */}
       <div className="overflow-x-auto">
         <div className="min-w-175">
           {/* Day headers */}
