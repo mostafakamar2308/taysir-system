@@ -20,6 +20,7 @@ import dayjs from "dayjs";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import bcrypt from "bcrypt";
+import { Plan } from "@/generated/prisma/browser";
 
 const userSchema = z.object({
   name: z.string().min(1, "الاسم مطلوب"),
@@ -149,6 +150,7 @@ export async function createStudent(formData: FormData) {
     }
 
     let subscriptionId: number | null = null;
+    let subscribedPlan: Plan | null = null;
 
     // 3. If student is subscribed, create subscription + paid revenue
     if (
@@ -159,6 +161,7 @@ export async function createStudent(formData: FormData) {
         where: { id: validatedStudent.planId },
       });
       if (!plan) throw new Error("الخطة غير موجودة");
+      subscribedPlan = plan;
 
       const startDate = new Date();
       const endDate = new Date();
@@ -198,10 +201,13 @@ export async function createStudent(formData: FormData) {
 
     // 4. Update student with currentSubscriptionId if created
     let updatedStudent = student;
-    if (subscriptionId) {
+    if (subscriptionId && subscribedPlan) {
       updatedStudent = await tx.student.update({
         where: { id: student.id },
-        data: { currentSubscriptionId: subscriptionId },
+        data: {
+          currentSubscriptionId: subscriptionId,
+          sessionsBalance: { increment: subscribedPlan.sessionsPerWeek },
+        },
       });
     }
 
