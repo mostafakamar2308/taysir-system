@@ -31,8 +31,8 @@ export const getSidebarGroups = (role: number, locale: string = "ar") => {
             icon: LayoutDashboard,
           },
           {
-            titleKey: "items.wishlists",
-            url: `/${locale}/dashboard/admin/wishlists`,
+            titleKey: "items.leads",
+            url: `/${locale}/dashboard/admin/leads`,
             icon: Users2,
           },
         ],

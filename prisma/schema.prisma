@@ -7,24 +7,6 @@ datasource db {
   provider = "postgresql"
 }
 
-model Waitlist {
-  id            String   @id @default(cuid())
-  fullName      String
-  email         String   @unique
-  phone         String
-  academyName   String
-  academySize   String?
-  currentMethod String?
-  reviewBonus   Boolean  @default(false)
-  videoBonus    Boolean  @default(false)
-  terms         Boolean
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  @@index([academySize])
-  @@index([id])
-}
-
 // ===================General Data=================
 
 model Speciality {
@@ -506,21 +488,47 @@ model History {
   @@index([academyId])
 }
 
+model Lead {
+  id                  String   @id @default(cuid())
+  fullName            String
+  phone               String
+  academyName         String
+  countryCode         String?
+  studentCategory     String?
+  teacherCount        String?
+  currentMethod       String?
+  biggestChallenge    String?
+  urgency             String?
+  qualificationTier   String?
+  qualificationStatus String?
+  whatsappMessageId   String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  whatsAppMessages WhatsAppMessage[]
+
+  @@index([qualificationTier])
+  @@index([qualificationStatus])
+}
+
 model WhatsAppMessage {
   id           String    @id @default(cuid())
   academyId    Int
   academy      Academy   @relation(fields: [academyId], references: [id])
+  leadId       String?
+  lead         Lead?     @relation(fields: [leadId], references: [id])
   messageId    String?
   remoteJid    String
-  type         String // "text", "image", etc.
+  type         String
   content      String?
-  status       String // "pending", "sent", "delivered", "read", "failed"
+  status       String
   sentAt       DateTime  @default(now())
   deliveredAt  DateTime?
   readAt       DateTime?
   errorMessage String?
 
   @@index([academyId])
+  @@index([leadId])
 }
 
 model CostCenter {

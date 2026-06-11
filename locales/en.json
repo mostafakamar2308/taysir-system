@@ -311,63 +311,54 @@
     "copyright": "© 2024 Academiyati System. Crafted with care for the people of the Quran."
   },
   "register": {
-    "title": "Be among the pioneers who will change Quran circle management",
-    "backHome": "Back to Home",
-    "offers": {
-      "title": "Early Registration Benefits",
-      "items": [
-        "One free month of the premium plan",
-        "Permanent 40% discount for the first 20 subscribers",
-        "Priority technical support"
-      ]
-    },
+    "title": "Book Your Free Consultation to Develop & Protect Your Academy",
+    "subtitle": "Fill out the form below so we can understand your needs before the call. It takes less than a minute.",
     "form": {
-      "personalInfo": "Personal Information",
-      "academyInfo": "Academy Information",
-      "incentives": "Bonus Rewards",
+      "personalInfo": "Basic Information",
       "fullName": "Full Name",
-      "email": "Email Address",
-      "phone": "Phone Number (WhatsApp)",
-      "sameWhatsapp": "Same number for WhatsApp",
-      "academyName": "Academy or Circle Name",
-      "academySize": "Approximate Number of Teachers",
-      "academySizeOptions": {
-        "small": "1-5 teachers",
-        "medium": "5-15 teachers",
-        "large": "15+ teachers"
+      "academyName": "Academy Name",
+      "phone": "WhatsApp Number",
+      "country": "Country",
+      "qualification": "Business Size & Audience Assessment",
+      "studentCategory": "What is the primary student category in your academy?",
+      "teacherCount": "Current academy size (number of teachers)",
+      "currentMethod": "How do you currently manage your academy's operations?",
+      "biggestChallenge": "What is the biggest challenge facing your academy?",
+      "urgency": "When would you like to implement the new system?",
+      "submit": "Confirm & Book Your Free Consultation Call",
+      "submitting": "Submitting...",
+      "studentCategoryOptions": {
+        "foreign": "Foreign students (non-Arabic speakers)",
+        "expats": "Arab expats abroad",
+        "gulf": "Students in Gulf countries",
+        "egypt": "Students within Egypt"
       },
-      "currentMethod": "Current Management Method",
-      "methodOptions": {
-        "excel": "Excel / Spreadsheets",
-        "paper": "Paper / Manual",
-        "software": "Other Software"
+      "teacherCountOptions": {
+        "1-5": "Just starting (1 to 5 teachers)",
+        "6-15": "Growing (6 to 15 teachers)",
+        "16-30": "Mid-size (16 to 30 teachers)",
+        "30+": "Large (more than 30 teachers)"
       },
-      "reviewBonus": "I agree to write an honest review after trial (1 extra free month)",
-      "videoBonus": "I agree to record a video review (2 extra free months)",
-      "termsAccept": "I agree to the Terms of Service and Privacy Policy",
-      "submit": "Reserve My Spot Now",
-      "submitting": "Registering..."
+      "currentMethodOptions": {
+        "excel-whatsapp": "Multiple Excel sheets & WhatsApp groups",
+        "separate-tools": "Separate tools & apps (not connected)",
+        "other-software": "Another software system but it's insufficient",
+        "none": "No specific system yet"
+      },
+      "biggestChallengeOptions": {
+        "student-leakage": "Student leakage (teachers contacting students directly)",
+        "financial-chaos": "Financial chaos (hard to track subscriptions & payroll)",
+        "schedule-chaos": "Scheduling chaos (conflicts & constant manual edits)",
+        "professional-appearance": "Lack of professional image (need a system parents trust)"
+      },
+      "urgencyOptions": {
+        "asap": "As soon as possible",
+        "within-month": "Within the next month",
+        "exploring": "Just exploring options for now"
+      }
     },
-    "success": {
-      "title": "Registration Successful! 🎉",
-      "subtitle": "Welcome to the Academiyati family",
-      "steps": [
-        "We'll contact you via WhatsApp within 24 hours",
-        "You'll receive trial credentials at launch",
-        "Follow us on social media for updates"
-      ],
-      "backHome": "Back to Home"
-    },
-    "validation": {
-      "nameRequired": "Name is required",
-      "nameMax": "Name must be less than 100 characters",
-      "emailRequired": "Email is required",
-      "emailInvalid": "Invalid email address",
-      "phoneRequired": "Phone number is required",
-      "phoneInvalid": "Invalid phone number",
-      "academyRequired": "Academy name is required",
-      "termsRequired": "You must agree to the terms"
-    }
+    "defaultMessage": "Thank you for registering! We'll contact you soon to schedule your free consultation call.",
+    "success": "Registration Successful"
   },
   "Dashboard": {
     "title": "Dashboard",
@@ -929,7 +920,7 @@
     },
     "items": {
       "dashboard": "Dashboard",
-      "wishlists": "Waitlist",
+      "leads": "Leads",
       "academies": "Academies",
       "subscriptions": "Subscriptions",
       "currencySettings": "Currency Settings",
@@ -1044,6 +1035,90 @@
       "tutor": "Tutor",
       "student": "Student",
       "admin": "Admin"
+    }
+  },
+  "admin": {
+    "leads": {
+      "title": "Lead Management",
+      "subtitle": "View and manage registration requests and lead qualification",
+      "export": "Export CSV",
+      "searchPlaceholder": "Search by name, academy, or phone number...",
+      "noResults": "No matching results found",
+      "detailsTitle": "Lead Details",
+      "stats": {
+        "total": "Total Leads",
+        "qualified": "Qualified",
+        "rejected": "Rejected",
+        "today": "Today's Signups"
+      },
+      "filters": {
+        "all": "All",
+        "tier": "Tier",
+        "status": "Status",
+        "challenge": "Challenge"
+      },
+      "table": {
+        "fullName": "Full Name",
+        "phone": "Phone Number",
+        "academyName": "Academy Name",
+        "countryCode": "Country Code",
+        "studentCategory": "Student Category",
+        "teacherCount": "Academy Size",
+        "currentMethod": "Management Method",
+        "biggestChallenge": "Biggest Challenge",
+        "urgency": "Urgency",
+        "tier": "Tier",
+        "status": "Qualification Status",
+        "whatsappStatus": "WhatsApp Status",
+        "registrationDate": "Registration Date",
+        "details": "Details"
+      },
+      "studentCategoryOptions": {
+        "foreign": "Foreign",
+        "expats": "Expats",
+        "gulf": "Gulf",
+        "egypt": "Egypt"
+      },
+      "teacherCountOptions": {
+        "1-5": "1-5 Teachers",
+        "6-15": "6-15 Teachers",
+        "16-30": "16-30 Teachers",
+        "30+": "30+ Teachers"
+      },
+      "currentMethodOptions": {
+        "excel-whatsapp": "Excel & WhatsApp",
+        "separate-tools": "Separate Tools",
+        "other-software": "Other Software",
+        "none": "None"
+      },
+      "challengeOptions": {
+        "student-leakage": "Student Leakage",
+        "financial-chaos": "Financial Chaos",
+        "schedule-chaos": "Schedule Chaos",
+        "professional-appearance": "Professional Appearance"
+      },
+      "urgencyOptions": {
+        "asap": "ASAP",
+        "within-month": "Within a Month",
+        "exploring": "Exploring"
+      },
+      "tierOptions": {
+        "A": "Tier A",
+        "B": "Tier B",
+        "C": "Tier C"
+      },
+      "statusOptions": {
+        "qualified": "Qualified",
+        "rejected": "Rejected",
+        "pending": "Pending"
+      },
+      "whatsappStatusOptions": {
+        "sent": "Sent",
+        "failed": "Failed",
+        "pending": "Pending",
+        "delivered": "Delivered",
+        "read": "Read"
+      }
     }
   }
 }

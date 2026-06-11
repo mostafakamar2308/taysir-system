@@ -3,17 +3,19 @@
 import { useState } from "react";
 import Navbar from "@/components/landing/Navbar";
 import Footer from "@/components/landing/Footer";
-import { SuccessScreen } from "@/components/register/SuccessScreen";
 import { RegisterForm } from "@/components/register/RegisterForm";
-import { addToWaitlist } from "@/actions/waitlist";
+import { registerLead } from "@/actions/lead";
+import { LeadData } from "@/lib/schemas/lead";
+import { useTranslations } from "next-intl";
+import { CheckCircle } from "lucide-react";
 
 export default function RegisterPage() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
 
-  const handleSubmit = async (formData: FormData) => {
+  const handleSubmit = async (data: LeadData) => {
     setServerError(null);
-    const result = await addToWaitlist(formData);
+    const result = await registerLead(data);
 
     if (result.success) {
       setIsSubmitted(true);
@@ -26,7 +28,7 @@ export default function RegisterPage() {
     return (
       <div className="min-h-screen flex flex-col">
         <Navbar />
-        <SuccessScreen />
+        <SuccessScreen message="تم استلام طلبك بنجاح، سيتم التواصل معك عبر الواتساب قريباً." />
         <Footer />
       </div>
     );
@@ -43,6 +45,19 @@ export default function RegisterPage() {
         </div>
       </div>
       <Footer />
+    </div>
+  );
+}
+
+function SuccessScreen({ message }: { message?: string }) {
+  const t = useTranslations("register");
+  return (
+    <div className="text-center py-16 grow flex flex-col items-center justify-center">
+      <h2 className="text-2xl font-bold">{t("success")}</h2>
+      <CheckCircle className="text-green-500 mt-6" size={48} />
+      <p className="text-muted-foreground mt-4">
+        {message || t("defaultMessage")}
+      </p>
     </div>
   );
 }

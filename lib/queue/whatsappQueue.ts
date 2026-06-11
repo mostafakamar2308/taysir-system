@@ -6,7 +6,7 @@ import { connection } from "@/lib/redis";
 export interface WhatsAppJobData {
   academyId: number;
   instanceName: string;
-  recipientJid: string; // e.g., "201234567890@s.whatsapp.net" or group JID
+  recipientJid: string;
   message: string;
   isGroup?: boolean;
   options?: {
