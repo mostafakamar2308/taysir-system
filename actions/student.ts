@@ -96,7 +96,7 @@ export async function createStudent(formData: FormData) {
   }
 
   // Generate temporary password
-  const tempPassword = Math.random().toString(36).slice(-8);
+  const tempPassword = "default123";
   const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
   const result = await db.$transaction(async (tx) => {
