@@ -18,49 +18,63 @@ export default async function TutorAnalyticsPage({
       user: true,
       specialities: true,
       students: { select: { id: true } },
-      sessions: {
-        where: {
-          startTime: {
-            lte: dayjs().toDate(),
-          },
-        },
-        include: { attendance: true },
-        orderBy: { startTime: "desc" },
-      },
     },
   });
 
   if (!tutor) notFound();
 
-  // Compute summary stats
+  // ---- summary stats ----
   const studentCount = tutor.students.length;
-  const totalSessions = tutor.sessions.length;
 
-  // Average attendance across all sessions taught by this tutor
-  const completedSessions = tutor.sessions.filter((s) =>
-    dayjs(s.startTime).isBefore(dayjs()),
+  // total past non‑cancelled sessions
+  const totalSessions = await db.session.count({
+    where: {
+      tutorId,
+      startTime: { lte: dayjs().toDate() },
+      cancelledBy: null,
+    },
+  });
+
+  // ---- avg student attendance from participants ----
+  const attendanceStats = await db.sessionParticipant.groupBy({
+    by: ["studentAttendanceStatus"],
+    where: {
+      session: {
+        tutorId,
+        startTime: { lte: dayjs().toDate() },
+        cancelledBy: null,
+      },
+    },
+    _count: true,
+  });
+
+  const totalParticipations = attendanceStats.reduce(
+    (sum, g) => sum + g._count,
+    0,
   );
-  const attendedSessions = completedSessions.filter(
-    (s) =>
-      s.attendance?.studentAttendanceStatus !== undefined &&
-      [AttendanceStatus.ATTENDED, AttendanceStatus.LATE].includes(
-        s.attendance.studentAttendanceStatus,
-      ),
-  ).length;
+  const attendedCount = attendanceStats
+    .filter(
+      (g) =>
+        g.studentAttendanceStatus !== null &&
+        [AttendanceStatus.ATTENDED, AttendanceStatus.LATE].includes(
+          g.studentAttendanceStatus,
+        ),
+    )
+    .reduce((sum, g) => sum + g._count, 0);
+
   const avgAttendance =
-    completedSessions.length > 0
-      ? Math.round((attendedSessions / completedSessions.length) * 100)
+    totalParticipations > 0
+      ? Math.round((attendedCount / totalParticipations) * 100)
       : 0;
 
-  // Total salary expenses for this tutor (from Expense model)
+  // ---- total salary ----
   const salaryTotal = await db.expense.aggregate({
     where: { tutorId },
     _sum: { amount: true },
   });
-
   const totalSalary = salaryTotal._sum.amount ?? 0;
 
-  // Monthly sessions taught (last 6 months)
+  // ---- monthly sessions taught (last 6 months) ----
   const months = Array.from({ length: 6 }, (_, i) => {
     const d = new Date();
     d.setMonth(d.getMonth() - i);
@@ -85,52 +99,30 @@ export default async function TutorAnalyticsPage({
     }),
   );
 
-  // Attendance breakdown
-  const attendanceBreakdown = [
-    {
-      name: "حاضر",
-      value: tutor.sessions.filter(
-        (s) =>
-          s.attendance?.tutorAttendanceStatus === AttendanceStatus.ATTENDED,
-      ).length,
-      fill: "hsl(20 24% 52%)",
-    },
-    {
-      name: "غائب بعذر",
-      value: tutor.sessions.filter(
-        (s) =>
-          s.attendance?.tutorAttendanceStatus ===
-          AttendanceStatus.ABSENT_EXCUSED,
-      ).length,
-      fill: "hsl(43 74% 52%)",
-    },
-    {
-      name: "غائب بدون عذر",
-      value: tutor.sessions.filter(
-        (s) =>
-          s.attendance?.tutorAttendanceStatus ===
-          AttendanceStatus.ABSENT_UNEXCUSED,
-      ).length,
-      fill: "hsl(var(--destructive))",
-    },
-    {
-      name: "متأخر",
-      value: tutor.sessions.filter(
-        (s) => s.attendance?.tutorAttendanceStatus === AttendanceStatus.LATE,
-      ).length,
-      fill: "hsl(25 95% 53%)",
-    },
-    {
-      name: "ملغى",
-      value: tutor.sessions.filter(
-        (s) =>
-          s.attendance?.tutorAttendanceStatus === AttendanceStatus.CANCELLED,
-      ).length,
-      fill: "hsl(var(--muted))",
-    },
-  ].filter((item) => item.value > 0);
+  // ---- attendance breakdown (student participation) ----
+  const statusMap: Record<number, string> = {
+    [AttendanceStatus.ATTENDED]: "حاضر",
+    [AttendanceStatus.LATE]: "متأخر",
+    [AttendanceStatus.ABSENT_EXCUSED]: "غائب بعذر",
+    [AttendanceStatus.ABSENT_UNEXCUSED]: "غائب بدون عذر",
+  };
+  const statusColors: Record<number, string> = {
+    [AttendanceStatus.ATTENDED]: "hsl(20 24% 52%)",
+    [AttendanceStatus.LATE]: "hsl(25 95% 53%)",
+    [AttendanceStatus.ABSENT_EXCUSED]: "hsl(43 74% 52%)",
+    [AttendanceStatus.ABSENT_UNEXCUSED]: "hsl(var(--destructive))",
+  };
 
-  // Top students by attendance (among those assigned to this tutor)
+  const attendanceBreakdown = attendanceStats
+    .filter((g) => g.studentAttendanceStatus !== null)
+    .map((g) => ({
+      name: statusMap[g.studentAttendanceStatus!] ?? "غير معروف",
+      value: g._count,
+      fill: statusColors[g.studentAttendanceStatus!] ?? "hsl(var(--muted))",
+    }))
+    .filter((item) => item.value > 0);
+
+  // ---- top students by attendance (from this tutor) ----
   const students = await db.student.findMany({
     where: { tutorId },
     select: { id: true, user: { select: { name: true } } },
@@ -138,36 +130,36 @@ export default async function TutorAnalyticsPage({
 
   const topStudents = await Promise.all(
     students.map(async (student) => {
-      const studentSessions = await db.session.findMany({
+      const studentStats = await db.sessionParticipant.groupBy({
+        by: ["studentAttendanceStatus"],
         where: {
           studentId: student.id,
-          tutorId,
-          startTime: {
-            lte: dayjs().toDate(),
+          session: {
+            tutorId,
+            startTime: { lte: dayjs().toDate() },
+            cancelledBy: null,
           },
         },
-        include: { attendance: true },
+        _count: true,
       });
-      const completed = studentSessions;
 
-      const attended = completed.filter(
-        (s) =>
-          s.attendance?.studentAttendanceStatus !== undefined &&
-          [AttendanceStatus.ATTENDED, AttendanceStatus.LATE].includes(
-            s.attendance.studentAttendanceStatus,
-          ),
-      ).length;
+      const total = studentStats.reduce((sum, g) => sum + g._count, 0);
+      const attended = studentStats
+        .filter(
+          (g) =>
+            g.studentAttendanceStatus !== null &&
+            [AttendanceStatus.ATTENDED, AttendanceStatus.LATE].includes(
+              g.studentAttendanceStatus,
+            ),
+        )
+        .reduce((sum, g) => sum + g._count, 0);
 
-      const rate =
-        completed.length > 0
-          ? Math.round((attended / completed.length) * 100)
-          : 0;
+      const rate = total > 0 ? Math.round((attended / total) * 100) : 0;
       return {
         studentId: student.id,
         studentName: student.user.name || "",
         attendanceRate: rate,
-        // program name – we could fetch from enrollment, but for simplicity, we'll leave empty
-        programName: "—",
+        programName: "—", // no currentProgram field in the minimal select, can be fetched if needed
       };
     }),
   ).then((results) =>

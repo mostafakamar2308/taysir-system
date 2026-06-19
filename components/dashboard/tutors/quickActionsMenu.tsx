@@ -16,7 +16,7 @@ import {
   Mail,
   // UserPlus,
 } from "lucide-react";
-import { DashboardTutor } from "@/types/tutor";
+import { DashboardTutor } from "./viewer";
 // import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import EditTutorDialog from "@/components/dashboard/tutorProfile/editTutorDialog";
@@ -58,13 +58,15 @@ export function QuickActionsMenu({ tutor }: { tutor: DashboardTutor }) {
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem className="gap-2 text-sm" asChild>
-          <a
-            href={`https://wa.me/${tutor.phone.replace("+", "")}`}
-            target="_blank"
-            rel="noreferrer"
-          >
-            <Phone className="h-3.5 w-3.5" /> واتساب
-          </a>
+          {tutor.phone ? (
+            <a
+              href={`https://wa.me/${tutor.phone?.replace("+", "")}`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Phone className="h-3.5 w-3.5" /> واتساب
+            </a>
+          ) : null}
         </DropdownMenuItem>
         <DropdownMenuItem className="gap-2 text-sm" asChild>
           <a href={`mailto:${tutor.email}`}>

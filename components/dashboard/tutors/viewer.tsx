@@ -2,7 +2,6 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { DashboardTutor } from "@/types/tutor";
 import { BookOpen, Download, Filter, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,6 +16,30 @@ import { exportTutorsToCSV } from "@/lib/export";
 import { SortField, SortDir } from "@/types/lib";
 import AddTutorDialog from "@/components/dashboard/dialogs/addTutorDialog";
 import { Currency } from "@/generated/prisma/client";
+
+export interface DashboardTutor {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  status: boolean;
+  specialities: string[];
+  privatePricePerHour: number;
+  groupPricePerHour: number;
+  timezone: string;
+  createdAt: Date;
+  currency: string;
+  studentCount: number;
+  active: boolean;
+  bio: string;
+  qualifications: string;
+  timetable: {
+    day: string;
+    from: string;
+    to: string;
+  }[];
+  zoomAuthenticated: boolean;
+}
 
 interface TutorsViewerProps {
   tutors: DashboardTutor[];
@@ -81,7 +104,7 @@ export default function TutorsViewer({
   // Filter and sort tutors
   const filteredTutors = useMemo(() => {
     const result = tutors.filter((t) => {
-      if (search && !t.name.includes(search) && !t.email.includes(search))
+      if (search && !t.name.includes(search) && !t.email?.includes(search))
         return false;
       if (statusFilter) {
         const isActive = statusFilter === "active";
@@ -99,7 +122,7 @@ export default function TutorsViewer({
           cmp = a.name.localeCompare(b.name, "ar");
           break;
         case "pricePerHour":
-          cmp = a.pricePerHour - b.pricePerHour;
+          cmp = a.privatePricePerHour - b.privatePricePerHour;
           break;
         case "studentCount":
           cmp = a.studentCount - b.studentCount;

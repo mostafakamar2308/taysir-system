@@ -25,7 +25,7 @@ interface StatItem {
 }
 
 interface DashboardClientProps {
-  students: { id: number; name: string | null }[];
+  students: { id: number; name: string; balance: number }[];
   tutors: { id: number; name: string | null }[];
   plans: { id: number; title: string }[];
   costCenters: { id: number; title: string }[];
@@ -223,11 +223,7 @@ export default function DashboardClient(props: DashboardClientProps) {
               <Plus className="h-4 w-4 ml-2" /> {t("addTutor")}
             </Button>
           </AddTutorDialog>
-          <AddSessionDialog
-            tutors={props.tutors}
-            students={props.students}
-            academyId={props.academyId}
-          >
+          <AddSessionDialog tutors={props.tutors} students={props.students}>
             <Button size="sm">
               <Plus className="h-4 w-4 ml-2" /> {t("addSession")}
             </Button>
@@ -477,7 +473,7 @@ export default function DashboardClient(props: DashboardClientProps) {
                   <ul className="space-y-2">
                     {props.attendanceSheet.map((item) => (
                       <li
-                        key={item.sessionId}
+                        key={`${item.sessionId}-${item.studentName}`}
                         className="flex items-center justify-between p-2 border rounded"
                       >
                         <div>

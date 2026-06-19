@@ -57,7 +57,7 @@ export async function createUser(formData: FormData) {
       password: hashedPassword,
       name: validated.name,
       role: validated.role,
-      timezone: "Africa/Cairo", // default
+      timezone: "Africa/Cairo",
     },
   });
 
@@ -74,7 +74,8 @@ export async function createUser(formData: FormData) {
       data: {
         userId: user.id,
         academyId: validated.academyId,
-        pricePerHour: 50,
+        privatePricePerHour: 50,
+        groupPricePerHour: 50,
         active: true,
         currencyId: validated.currencyId,
       },

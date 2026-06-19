@@ -2,7 +2,6 @@ import db from "@/lib/prisma";
 import { user } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Role } from "@/types/user";
-import { AttendanceStatus } from "@/types/session";
 import FinancesClient from "@/components/tutor/finances/viewer";
 import dayjs from "@/lib/dayjs";
 
@@ -13,13 +12,14 @@ export default async function TutorFinancesPage() {
   }
   const tutorId = currentUser.tutorId;
 
-  // Get tutor's price per session and currency
   const tutor = await db.tutor.findUnique({
     where: { id: tutorId },
     include: { currency: true },
   });
   if (!tutor) redirect("/login");
-  const pricePerHour = tutor.pricePerHour;
+
+  const privateRate = tutor.privatePricePerHour;
+  const groupRate = tutor.groupPricePerHour;
   const currency = tutor.currency.code;
 
   const now = dayjs.utc();
@@ -27,34 +27,41 @@ export default async function TutorFinancesPage() {
   const startOfMonth = now.startOf("month").toDate();
   const endOfMonth = now.endOf("month").toDate();
 
-  // Fetch sessions for current month that were completed and attended (by tutor)
+  // ---- current month sessions (non‑cancelled, already started) ----
   const monthSessions = await db.session.findMany({
     where: {
       tutorId,
       startTime: { gte: startOfMonth, lte: endOfMonth },
-      attendance: {
-        tutorAttendanceStatus: {
-          in: [AttendanceStatus.ATTENDED, AttendanceStatus.LATE],
-        },
-      },
+      cancelledBy: null,
+    },
+    include: {
+      participants: true,
     },
   });
-  const sessionCount = monthSessions.length;
-  const monthlyMinutes = monthSessions.reduce(
-    (prev, curr) => prev + curr.durationMinutes,
-    0,
-  );
-  const expectedEarnings = monthlyMinutes * pricePerHour;
 
-  // Fetch payments (expenses) for this tutor
+  let totalPrivateMinutes = 0;
+  let totalGroupMinutes = 0;
+  const sessionCount = monthSessions.length;
+
+  for (const session of monthSessions) {
+    const participantCount = session.participants.length;
+    if (participantCount <= 1) {
+      totalPrivateMinutes += session.durationMinutes;
+    } else {
+      totalGroupMinutes += session.durationMinutes;
+    }
+  }
+
+  const expectedEarnings =
+    (totalPrivateMinutes / 60) * privateRate +
+    (totalGroupMinutes / 60) * groupRate;
+
+  // ---- payments (expenses) ----
   const payments = await db.expense.findMany({
-    where: {
-      tutorId,
-    },
+    where: { tutorId },
     orderBy: { date: "desc" },
   });
 
-  // Calculate totals for current month
   const currentMonthPayments = payments.filter(
     (p) => p.salaryMonth === currentMonth,
   );
@@ -64,7 +71,6 @@ export default async function TutorFinancesPage() {
   );
   const remainingEarnings = expectedEarnings - paidThisMonth;
 
-  // Prepare payment history (last 12 months or all)
   const paymentHistory = payments.map((p) => ({
     id: p.id,
     month: p.salaryMonth,
@@ -74,26 +80,30 @@ export default async function TutorFinancesPage() {
     description: p.description,
   }));
 
-  // Compute earnings by month for chart (last 6 months)
+  // ---- monthly earnings for chart (last 6 months) ----
   const monthlyEarnings: { month: string; earnings: number }[] = [];
   for (let i = 5; i >= 0; i--) {
     const monthDate = now.subtract(i, "month");
+    const start = monthDate.startOf("month").toDate();
+    const end = monthDate.endOf("month").toDate();
+
     const sessionsForMonth = await db.session.findMany({
       where: {
         tutorId,
-        startTime: {
-          gte: monthDate.startOf("month").toDate(),
-          lte: monthDate.endOf("month").toDate(),
-        },
-        attendance: {
-          tutorAttendanceStatus: {
-            in: [AttendanceStatus.ATTENDED, AttendanceStatus.LATE],
-          },
-        },
+        startTime: { gte: start, lte: end },
+        cancelledBy: null,
       },
+      include: { participants: true },
     });
-    const count = sessionsForMonth.length;
-    const earnings = count * pricePerHour;
+
+    let privateMin = 0;
+    let groupMin = 0;
+    for (const s of sessionsForMonth) {
+      if (s.participants.length <= 1) privateMin += s.durationMinutes;
+      else groupMin += s.durationMinutes;
+    }
+    const earnings =
+      (privateMin / 60) * privateRate + (groupMin / 60) * groupRate;
     monthlyEarnings.push({
       month: monthDate.format("MMM YYYY"),
       earnings,

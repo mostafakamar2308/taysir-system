@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { utcToLocalDate } from "@/lib/dates";
-import { DashboardSession } from "@/types/session";
+import { AdminSessionClientData } from "@/types/session";
 import { SessionCard } from "@/components/dashboard/sessions/sessionCard";
 
 const timeSlots = Array.from({ length: 24 }, (_, i) => ({
@@ -12,10 +12,9 @@ const timeSlots = Array.from({ length: 24 }, (_, i) => ({
 
 type WeekViewProps = {
   weekDates: Date[];
-  sessions: DashboardSession[];
+  sessions: AdminSessionClientData[];
   onSlotClick: (date: Date, hour: number) => void;
-  onSessionClick: (session: DashboardSession) => void;
-  onMarkAttendance: (session: DashboardSession) => void;
+  onSessionClick: (session: AdminSessionClientData) => void;
 };
 
 export function WeekView({
@@ -23,13 +22,11 @@ export function WeekView({
   sessions,
   onSlotClick,
   onSessionClick,
-  onMarkAttendance,
 }: WeekViewProps) {
   const t = useTranslations("TutorSessions");
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Get day names from translations
   const dayNamesShort = [
     t("daySat"),
     t("daySun"),
@@ -90,8 +87,7 @@ export function WeekView({
                     utcToLocalDate(date) === utcToLocalDate(today);
                   const isPast =
                     date < today ||
-                    (utcToLocalDate(date) === utcToLocalDate(today) &&
-                      slot.hour < new Date().getHours());
+                    (isToday && slot.hour < new Date().getHours());
 
                   return (
                     <div
@@ -110,7 +106,6 @@ export function WeekView({
                             key={session.id}
                             session={session}
                             onClick={() => onSessionClick(session)}
-                            onMarkAttendance={onMarkAttendance}
                           />
                         ))}
                       </div>

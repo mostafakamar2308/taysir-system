@@ -13,7 +13,6 @@ import { getSessionStatus } from "@/lib/session";
 import { HistoryActionType, TargetType } from "@/types/history";
 import { PaymentMethod, PaymentStatus } from "@/types/payment";
 import { StudentStatus } from "@/types/student";
-import { SessionRecord } from "@/types/studentProfile";
 import { SubscriptionStatus } from "@/types/subscription";
 import { Role } from "@/types/user";
 import dayjs from "dayjs";
@@ -21,6 +20,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import bcrypt from "bcrypt";
 import { Plan } from "@/generated/prisma/browser";
+import { SessionRecord } from "@/types/studentProfile";
 
 const userSchema = z.object({
   name: z.string().min(1, "الاسم مطلوب"),
@@ -36,9 +36,6 @@ const studentDataSchema = z.object({
   country: z.string().optional().nullable(),
   status: z.number().default(0),
   source: z.string().optional().nullable(),
-  currentProgram: z.string().optional().nullable(),
-  emergencyContactName: z.string().optional().nullable(),
-  emergencyContactPhone: z.string().optional().nullable(),
   tutorId: z.number().optional().nullable(),
   currencyId: z.number(),
   planId: z.number().optional().nullable(),
@@ -66,9 +63,6 @@ export async function createStudent(formData: FormData) {
       ? parseInt(formData.get("status") as string)
       : 0,
     source: formData.get("source") || null,
-    currentProgram: formData.get("currentProgram") || null,
-    emergencyContactName: formData.get("emergencyContactName") || null,
-    emergencyContactPhone: formData.get("emergencyContactPhone") || null,
     tutorId:
       formData.get("tutorId") && formData.get("tutorId") !== "none"
         ? parseInt(formData.get("tutorId") as string)
@@ -123,9 +117,6 @@ export async function createStudent(formData: FormData) {
         status: validatedStudent.status,
         currencyId: validatedStudent.currencyId,
         source: validatedStudent.source,
-        currentProgram: validatedStudent.currentProgram,
-        emergencyContactName: validatedStudent.emergencyContactName,
-        emergencyContactPhone: validatedStudent.emergencyContactPhone,
         tutorId: validatedStudent.tutorId,
         planId: validatedStudent.planId,
       },
@@ -239,9 +230,6 @@ const studentUpdateSchema = z.object({
   age: z.number().min(1, "العمر مطلوب"),
   country: z.string().optional().nullable(),
   source: z.string().optional().nullable(),
-  currentProgram: z.string().optional().nullable(),
-  emergencyContactName: z.string().optional().nullable(),
-  emergencyContactPhone: z.string().optional().nullable(),
   tutorId: z.number().optional().nullable(),
   // status, currencyId, planId are not updated from this dialog
 });
@@ -274,9 +262,6 @@ export async function updateStudent(id: number, formData: FormData) {
       : undefined,
     country: formData.get("country") || null,
     source: formData.get("source") || null,
-    currentProgram: formData.get("currentProgram") || null,
-    emergencyContactName: formData.get("emergencyContactName") || null,
-    emergencyContactPhone: formData.get("emergencyContactPhone") || null,
     tutorId:
       formData.get("tutorId") && formData.get("tutorId") !== "none"
         ? parseInt(formData.get("tutorId") as string)
@@ -305,11 +290,7 @@ export async function updateStudent(id: number, formData: FormData) {
         age: validatedStudent.age,
         country: validatedStudent.country,
         source: validatedStudent.source,
-        currentProgram: validatedStudent.currentProgram,
-        emergencyContactName: validatedStudent.emergencyContactName,
-        emergencyContactPhone: validatedStudent.emergencyContactPhone,
         tutorId: validatedStudent.tutorId,
-        // Note: status, currencyId, planId are NOT updated here
       },
     });
 
@@ -326,6 +307,16 @@ export async function updateStudent(id: number, formData: FormData) {
         });
         if (!existingTutor)
           throw new Error("المعلم المسجل غير موجود: Shouldn't Happen");
+        const existingChatRoom = await tx.chatRoom.findUnique({
+          where: {
+            tutorUserId_studentUserId: {
+              tutorUserId: existingTutor?.userId,
+              studentUserId: existingStudent.userId,
+            },
+          },
+        });
+        if (!existingChatRoom)
+          throw new Error("لا يوجد محادثة: Shouldn't Happen");
         await tx.chatRoom.update({
           where: {
             tutorUserId_studentUserId: {
@@ -347,11 +338,20 @@ export async function updateStudent(id: number, formData: FormData) {
         },
       });
       if (!tutor) throw new Error("المعلم غير موجود");
-      await tx.chatRoom.create({
-        data: {
+      await tx.chatRoom.upsert({
+        create: {
           studentUserId: existingStudent.userId,
           tutorUserId: tutor.userId,
           academyId: currentUser.academyId!,
+        },
+        where: {
+          tutorUserId_studentUserId: {
+            tutorUserId: tutor.userId,
+            studentUserId: existingStudent.userId,
+          },
+        },
+        update: {
+          isClosed: false,
         },
       });
     }
@@ -835,47 +835,49 @@ export async function getStudentSessionsForMonth(
   const start = dayjs.utc(monthStart).startOf("month").toDate();
   const end = dayjs.utc(monthStart).endOf("month").toDate();
 
-  const sessions = await db.session.findMany({
+  // Fetch sessions where the student participates
+  const participants = await db.sessionParticipant.findMany({
     where: {
       studentId,
-      startTime: { gte: start, lte: end },
+      session: {
+        startTime: { gte: start, lte: end },
+      },
     },
     include: {
-      tutor: { include: { user: true } },
-      attendance: true,
-      sessionReport: true,
+      session: {
+        include: {
+          tutor: { include: { user: { select: { name: true } } } },
+        },
+      },
+      report: true,
     },
-    orderBy: { startTime: "desc" },
+    orderBy: { session: { startTime: "desc" } },
   });
 
-  return sessions.map((s) => ({
-    id: s.id,
-    startTime: s.startTime.toISOString(),
-    endTime: s.endTime.toISOString(),
-    durationMinutes: s.durationMinutes,
-    status: getSessionStatus(s),
-    topic: s.topic,
-    notes: s.notes,
-    studentId: s.studentId,
-    studentName: "", // لا نحتاج اسم الطالب هنا لأنه ثابت
-    tutorId: s.tutorId,
-    tutorName: s.tutor.user.name ?? "",
-    attendance: s.attendance
+  return participants.map((p) => ({
+    id: p.session.id,
+    startTime: p.session.startTime.toISOString(),
+    endTime: p.session.endTime.toISOString(),
+    durationMinutes: p.session.durationMinutes,
+    status: getSessionStatus(p.session),
+    topic: p.session.topic,
+    notes: p.session.notes,
+    tutorId: p.session.tutorId,
+    tutorName: p.session.tutor.user.name ?? "",
+    attendance: {
+      id: p.id,
+      status: p.studentAttendanceStatus,
+      reason: p.reason,
+    },
+    report: p.report
       ? {
-          id: s.attendance.id,
-          status: s.attendance.studentAttendanceStatus,
-          reason: s.attendance.reason,
-        }
-      : undefined,
-    report: s.sessionReport
-      ? {
-          id: s.sessionReport.id,
-          rating: s.sessionReport.rating,
-          outcomes: s.sessionReport.outcomes,
-          strengths: s.sessionReport.strengths,
-          weaknesses: s.sessionReport.weaknesses,
-          nextGoals: s.sessionReport.nextGoals,
-          comments: s.sessionReport.comments,
+          id: p.report.id,
+          rating: p.report.rating,
+          outcomes: p.report.outcomes,
+          strengths: p.report.strengths,
+          weaknesses: p.report.weaknesses,
+          nextGoals: p.report.nextGoals,
+          comments: p.report.comments,
         }
       : null,
   }));

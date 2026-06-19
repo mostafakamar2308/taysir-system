@@ -163,11 +163,7 @@ model Student {
   user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   sessionsBalance       Int      @default(0)
   currentSubscriptionId Int?
-
   source                String?
-  currentProgram        String?
-  emergencyContactName  String?
-  emergencyContactPhone String?
 
   tutorId Int?
   tutor   Tutor? @relation(fields: [tutorId], references: [id])
@@ -178,11 +174,11 @@ model Student {
   planId Int?
   plan   Plan? @relation(fields: [planId], references: [id])
 
-  sessions              Session[]
   studentAvailabilities StudentAvailability[]
   notes                 Note[]
   payments              Revenue[]
   subscriptions         Subscription[]        @relation("StudentSubscriptions")
+  sessionParticipants   SessionParticipant[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -215,17 +211,18 @@ model Tutor {
   currency   Currency @relation(fields: [currencyId], references: [id])
   currencyId Int
 
-  pricePerHour      Float
-  active            Boolean?
-  bio               String?
-  qualifications    String?
-  imageUrl          String?
-  zoomAuthenticated Boolean   @default(false)
-  zoomUrl           String?
-  zoomAccessToken   String?
-  zoomRefreshToken  String?
-  zoomTokenExpiry   DateTime?
-  zoomUserId        String?
+  privatePricePerHour Float
+  groupPricePerHour   Float     @default(0)
+  active              Boolean?
+  bio                 String?
+  qualifications      String?
+  imageUrl            String?
+  zoomAuthenticated   Boolean   @default(false)
+  zoomUrl             String?
+  zoomAccessToken     String?
+  zoomRefreshToken    String?
+  zoomTokenExpiry     DateTime?
+  zoomUserId          String?
 
   specialities        Speciality[]
   students            Student[]
@@ -310,34 +307,40 @@ model Session {
   zoomStartUrl    String?
   zoomMeetingUuid String?
 
-  studentId Int
-  student   Student @relation(fields: [studentId], references: [id])
   tutorId   Int
   tutor     Tutor   @relation(fields: [tutorId], references: [id])
   academyId Int
   academy   Academy @relation(fields: [academyId], references: [id])
 
-  attendance    Attendance?
-  sessionReport SessionReport?
+  participants SessionParticipant[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([studentId])
   @@index([tutorId])
   @@index([isTrial])
 }
 
-model Attendance {
-  id                      Int     @id @default(autoincrement())
-  sessionId               Int     @unique
-  session                 Session @relation(fields: [sessionId], references: [id])
-  tutorAttendanceStatus   Int
-  studentAttendanceStatus Int
+model SessionParticipant {
+  id        Int     @id @default(autoincrement())
+  sessionId Int
+  session   Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  studentId Int
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  studentAttendanceStatus Int?
   reason                  String?
+  balanceDeducted         Boolean @default(false)
+  cancelledBy             Int?
+
+  report SessionReport?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@unique([sessionId, studentId])
+  @@index([sessionId])
+  @@index([studentId])
 }
 
 model TutorAvailability {
@@ -382,23 +385,22 @@ model Note {
 }
 
 model SessionReport {
-  id        Int     @id @default(autoincrement())
-  sessionId Int     @unique
-  session   Session @relation(fields: [sessionId], references: [id])
-  rating    Int? // 1-5
+  id            Int                @id @default(autoincrement())
+  participantId Int                @unique
+  participant   SessionParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
 
+  rating     Int?
   outcomes   String?
   strengths  String?
   weaknesses String?
   nextGoals  String?
   comments   String?
-  // Optional JSON for extra fields
   details    Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([sessionId])
+  @@index([participantId])
 }
 
 // ===================Finances=================

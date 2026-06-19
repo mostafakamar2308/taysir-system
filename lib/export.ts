@@ -1,5 +1,5 @@
+import { DashboardTutor } from "@/components/dashboard/tutors/viewer";
 import { DashboardStudent } from "@/types/student";
-import { DashboardTutor } from "@/types/tutor";
 
 export function exportTutorsToCSV(tutors: DashboardTutor[]) {
   const headers = [
@@ -18,7 +18,7 @@ export function exportTutorsToCSV(tutors: DashboardTutor[]) {
     t.name,
     t.status ? "نشط" : "غير نشط",
     t.specialities.join("، ") || "-",
-    t.pricePerHour.toString(),
+    t.privatePricePerHour.toString(),
     t.studentCount.toString(),
     t.timezone,
     new Date(t.createdAt).toLocaleDateString("ar-EG"),

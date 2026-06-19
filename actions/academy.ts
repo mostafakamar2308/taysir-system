@@ -13,7 +13,7 @@ const createAcademySchema = z.object({
   adminName: z.string().min(1),
   adminEmail: z.string().email(),
   adminPassword: z.string().min(6),
-  saasPlanId: z.number(),
+  saasPlanId: z.number().optional(),
   isFreeTrial: z.boolean().optional(),
 });
 

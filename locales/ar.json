@@ -434,7 +434,8 @@
       "riyadh": "الرياض",
       "dubai": "دبي"
     },
-    "pricePerHour": "سعر الساعة",
+    "privatePricePerHour": "سعر الساعة الخاصة",
+    "groupPricePerHour": "سعر الساعة الجماعية",
     "currency": "العملة",
     "currencyPlaceholder": "اختر العملة",
     "specialities": "التخصصات",
@@ -455,6 +456,10 @@
   },
   "AddSessionDialog": {
     "triggerLabel": "إضافة حصة",
+    "sessionsLeft": "جلسات متبقية",
+    "studentHint": "اختر طالبًا واحدًا أو أكثر. الطلاب الذين ليس لديهم رصيد غير متاحين ما لم تكن الجلسة تجريبية.",
+    "searchPlaceholder": "ابحث عن طالب...",
+    "students": "الطلاب",
     "title": "إضافة حصة جديدة",
     "student": "الطالب",
     "studentPlaceholder": "اختر الطالب",
@@ -485,7 +490,8 @@
     "add": "إضافة",
     "saving": "جاري الحفظ...",
     "validation": {
-      "required": "يرجى اختيار الطالب وإدخال التاريخ والوقت"
+      "required": "يرجى اختيار الطالب وإدخال التاريخ والوقت",
+      "noBalance": "الطلاب التاليون ليس لديهم رصيد كافٍ: {names}"
     },
     "toast": {
       "success": "تمت إضافة الحصة",
@@ -667,6 +673,9 @@
     "addSessionButton": "إضافة حصة",
     "calendarView": "تقويم",
     "tableView": "جدول",
+    "attendancePartial": "سجل جزئياً",
+    "attendanceRecorded": "سجل بالكامل",
+    "reportPartial": "تقرير جزئي",
     "today": "اليوم",
     "allStudents": "كل الطلاب",
     "statusPlaceholder": "الحالة",
@@ -684,7 +693,7 @@
     "table": {
       "date": "التاريخ",
       "time": "الوقت",
-      "student": "الطالب",
+      "student": "الطالب/الطلاب",
       "topic": "الموضوع",
       "status": "الحالة",
       "attendance": "الحضور",
@@ -699,6 +708,7 @@
     "reportCompleted": "مكتمل",
     "reportNeeded": "بحاجة تقرير"
   },
+
   "SessionDetail": {
     "title": "تفاصيل الحصة",
     "closeButton": "إغلاق",
@@ -706,7 +716,8 @@
       "zoom": "الرابط",
       "details": "التفاصيل",
       "attendance": "الحضور",
-      "report": "التقرير"
+      "report": "التقرير",
+      "participants": "الطلاب"
     },
     "zoom": {
       "title": "رابط زووم",
@@ -714,8 +725,14 @@
       "startUrlLabel": "رابط البدء للمعلم",
       "copyTitle": "نسخ الرابط",
       "openTitle": "فتح الرابط",
-      "helpText": "رابط الحضور يشارك مع الطالب، رابط البدء خاص بك (المعلم)."
+      "helpText": "رابط الحضور يشارك مع الطالب، رابط البدء خاص بك (المعلم).",
+      "editButton": "تعديل",
+      "saveButton": "حفظ",
+      "cancelButton": "إلغاء",
+      "noLinkInstructions": "لا يوجد رابط زووم حاليًا. يمكنك إضافة رابط الاجتماع هنا. تأكد من إضافة رابط الانضمام للطلاب ورابط البدء (للمعلم).",
+      "startUrlHelp": "رابط البدء مخصص للمضيف فقط. يمكنك تركه فارغًا إذا لم يكن لديك واحد."
     },
+
     "details": {
       "editButton": "تعديل",
       "student": "الطالب",
@@ -745,7 +762,10 @@
       "notAvailableYet": "لا يمكن تسجيل الحضور إلا بعد انتهاء الحصة"
     },
     "report": {
+      "title": "التقرير",
+      "completed": "مكتملة",
       "missingFieldsError": "يرجى ملء الحقول الأساسية للتقرير",
+      "notWritten": "غير مكتوب",
       "rating": "التقييم",
       "outcomes": "النتائج",
       "strengths": "نقاط القوة",
@@ -771,7 +791,8 @@
       "attendanceSaved": "تم تسجيل الحضور",
       "reportSaved": "تم حفظ التقرير",
       "copySuccess": "تم نسخ الرابط",
-      "error": "خطأ"
+      "error": "خطأ",
+      "zoomSaved": "تم حفظ روابط الزووم بنجاح"
     }
   },
   "AddSessionToTutorDialog": {
@@ -792,10 +813,16 @@
       "daysLabel": "أيام التكرار",
       "endDateLabel": "تاريخ الانتهاء (اختياري)"
     },
+    "sessionsLeft": "جلسات متبقية",
+    "studentHint": "اختر طالبًا واحدًا أو أكثر. الطلاب الذين ليس لديهم رصيد غير متاحين ما لم تكن الجلسة تجريبية.",
+    "trialLabel": "جلسة تجريبية (بدون خصم من الرصيد)",
+    "searchPlaceholder": "ابحث عن طالب...",
+
     "cancelButton": "إلغاء",
     "submitButton": "إضافة",
     "submittingButton": "جاري الحفظ...",
     "validation": {
+      "noBalance": "الطلاب التاليون ليس لديهم رصيد كافٍ: {names}",
       "missingFields": "يرجى اختيار الطالب وإدخال التاريخ والوقت"
     },
     "toast": {

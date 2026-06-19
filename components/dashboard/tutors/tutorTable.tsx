@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { DashboardTutor } from "@/types/tutor";
+import { DashboardTutor } from "./viewer";
 import { QuickActionsMenu } from "@/components/dashboard/tutors/quickActionsMenu";
 import { SortField, SortDir } from "@/types/lib";
 import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
@@ -99,11 +99,12 @@ export default function TutorTable({
             <TableHead className="text-right">التخصصات</TableHead>
             <SortableHead
               field="pricePerHour"
-              label="سعر الساعة"
+              label="سعر الساعة الفردية"
               current={sortField}
               dir={sortDir}
               onSort={onSort}
             />
+            <TableHead className="text-right">سعر الساعة الجماعية</TableHead>
             <TableHead className="text-right">المنطقة الزمنية</TableHead>
             <SortableHead
               field="studentCount"
@@ -155,7 +156,10 @@ export default function TutorTable({
                   </span>
                 </TableCell>
                 <TableCell>
-                  {tutor.pricePerHour} {tutor.currency}
+                  {tutor.privatePricePerHour} {tutor.currency}
+                </TableCell>
+                <TableCell>
+                  {tutor.groupPricePerHour} {tutor.currency}
                 </TableCell>
                 <TableCell className="text-muted-foreground text-xs">
                   {tutor.timezone}

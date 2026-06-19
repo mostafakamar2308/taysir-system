@@ -10,7 +10,6 @@ export type DashboardStudent = {
   status: StudentStatus;
   tutorName: string;
   tutorId?: number;
-  currentProgram?: string;
   plan?: number;
   planName?: string;
 };

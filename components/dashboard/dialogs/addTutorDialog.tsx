@@ -43,7 +43,9 @@ export default function AddTutorDialog({
   const t = useTranslations("AddTutorDialog");
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [specialitiesSelected, setSpecilitiesSelected] = useState<string[]>([]);
+  const [specialitiesSelected, setSpecialitiesSelected] = useState<string[]>(
+    [],
+  );
   const router = useRouter();
   const { toast } = useToast();
 
@@ -57,7 +59,7 @@ export default function AddTutorDialog({
       setOpen(false);
       router.refresh();
     } catch (error) {
-      console.log({ error });
+      console.error(error);
       toast({ title: t("toast.error"), variant: "destructive" });
     } finally {
       setLoading(false);
@@ -114,19 +116,36 @@ export default function AddTutorDialog({
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Two price inputs */}
             <div>
-              <Label htmlFor="pricePerHour">{t("pricePerHour")}</Label>
+              <Label htmlFor="privatePricePerHour">
+                {t("privatePricePerHour")} *
+              </Label>
               <Input
-                id="pricePerHour"
-                name="pricePerHour"
+                id="privatePricePerHour"
+                name="privatePricePerHour"
                 type="number"
                 step="0.01"
                 required
               />
             </div>
+            <div>
+              <Label htmlFor="groupPricePerHour">
+                {t("groupPricePerHour")} *
+              </Label>
+              <Input
+                id="groupPricePerHour"
+                name="groupPricePerHour"
+                type="number"
+                step="0.01"
+                required
+              />
+            </div>
+
             <div className="col-span-1">
               <Label htmlFor="currencyId">{t("currency")}</Label>
-              <Select name="currencyId">
+              <Select name="currencyId" required>
                 <SelectTrigger>
                   <SelectValue placeholder={t("currencyPlaceholder")} />
                 </SelectTrigger>
@@ -148,11 +167,12 @@ export default function AddTutorDialog({
                   label: s.title,
                 }))}
                 selected={specialitiesSelected}
-                onChange={setSpecilitiesSelected}
+                onChange={setSpecialitiesSelected}
                 placeholder={t("specialitiesPlaceholder")}
                 searchPlaceholder={t("searchSpecialities")}
               />
             </div>
+
             <div>
               <Label htmlFor="bio">{t("bio")}</Label>
               <Textarea id="bio" name="bio" />

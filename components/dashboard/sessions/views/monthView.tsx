@@ -1,15 +1,15 @@
 import { utcToLocalDate } from "@/lib/dates";
 import { sessionStatusColors } from "@/const/sessions";
 import dayjs from "@/lib/dayjs";
-import { DashboardSession, SessionStatus } from "@/types/session";
+import { AdminSessionClientData, SessionStatus } from "@/types/session";
 
 const daysOfWeek = ["سبت", "أحد", "اثنين", "ثلاثاء", "أربعاء", "خميس", "جمعة"];
 
 type MonthViewProps = {
   date: Date;
-  sessions: DashboardSession[];
+  sessions: AdminSessionClientData[];
   onDayClick: (date: Date) => void;
-  onSessionClick: (session: DashboardSession) => void;
+  onSessionClick: (session: AdminSessionClientData) => void;
 };
 
 export function MonthView({

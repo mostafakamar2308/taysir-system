@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import db from "@/lib/prisma";
 import { user } from "@/lib/auth";
-import { StudentDashboardClient } from "@/components/dashboard/student/viewer"; // تأكد من المسار الصحيح
+import { StudentDashboardClient } from "@/components/dashboard/student/viewer";
 import dayjs from "@/lib/dayjs";
 import { getSessionStatus } from "@/lib/session";
 import { SubscriptionStatus } from "@/types/subscription";
@@ -36,16 +36,19 @@ export default async function StudentDashboardPage() {
           payments: { include: { currency: { select: { code: true } } } },
         },
       },
-      sessions: {
+      sessionParticipants: {
         include: {
-          tutor: { include: { user: { select: { name: true } } } },
-          sessionReport: true,
-          attendance: true,
+          session: {
+            include: {
+              tutor: { include: { user: { select: { name: true } } } },
+            },
+          },
+          report: true,
         },
-        orderBy: { startTime: "desc" },
+        orderBy: { session: { startTime: "desc" } },
       },
       academy: {
-        include: { defaultCurrency: true }, // الإصلاح: استخدام include بدلاً من select الفارغ
+        include: { defaultCurrency: true },
       },
     },
   });
@@ -56,36 +59,46 @@ export default async function StudentDashboardPage() {
   const startOfMonth = dayjs.utc().startOf("month").toDate();
   const endOfMonth = dayjs.utc().endOf("month").toDate();
 
-  // الجلسة القادمة
-  const nextSession =
-    student.sessions
-      .filter((s) => s.startTime > now)
-      .sort((a, b) => a.startTime.getTime() - b.startTime.getTime())[0] ?? null;
+  // Next session – earliest session startTime > now
+  const futureParticipants = student.sessionParticipants
+    .filter((p) => p.session.startTime > now)
+    .sort(
+      (a, b) => a.session.startTime.getTime() - b.session.startTime.getTime(),
+    );
+  const nextParticipant = futureParticipants[0] ?? null;
+  const nextSession = nextParticipant?.session ?? null;
 
-  // آخر تقرير لجلسة
-  const lastReportSession =
-    student.sessions
-      .filter((s) => s.sessionReport)
-      .sort((a, b) => b.startTime.getTime() - a.startTime.getTime())[0] ?? null;
+  // Last report – most recent session with a report
+  const lastReportParticipant =
+    student.sessionParticipants
+      .filter((p) => p.report)
+      .sort(
+        (a, b) => b.session.startTime.getTime() - a.session.startTime.getTime(),
+      )[0] ?? null;
 
-  // التحليلات الشهرية
-  const allMonthlySessions = student.sessions.filter(
-    (s) => s.startTime >= startOfMonth && s.startTime <= endOfMonth,
+  // Monthly sessions: unique sessions within month
+  const monthParticipants = student.sessionParticipants.filter(
+    (p) =>
+      p.session.startTime >= startOfMonth && p.session.startTime <= endOfMonth,
   );
-  const totalMonthlySessions = allMonthlySessions.length;
-  const remainingMonthlySessions = allMonthlySessions.filter(
-    (s) => s.startTime > now,
+  const uniqueMonthSessions = new Set(
+    monthParticipants.map((p) => p.session.id),
+  );
+  const totalMonthlySessions = uniqueMonthSessions.size;
+  const remainingMonthlySessions = monthParticipants.filter(
+    (p) => p.session.startTime > now,
   ).length;
+
   const renewalDate = student.subscriptions[0]?.endDate ?? null;
 
-  // تجهيز الكائن المُرسَل إلى العميل مع ضمان عدم وجود قيم null غير متوقعة
+  // Build props for client
   const props = {
     student: {
       id: student.id,
       name: student.user.name ?? "طالب",
       timezone: student.user.timezone,
       imageUrl: student.user.imageUrl,
-      tutorName: student.tutor?.user.name ?? null, // يمكن أن يكون null
+      tutorName: student.tutor?.user.name ?? null,
       plan: student.plan
         ? {
             title: student.plan.title,
@@ -101,7 +114,7 @@ export default async function StudentDashboardPage() {
           id: nextSession.id,
           startTime: nextSession.startTime.toISOString(),
           endTime: nextSession.endTime.toISOString(),
-          tutorName: nextSession.tutor.user.name ?? "معلم", // ضمان string
+          tutorName: nextSession.tutor.user.name ?? "معلم",
           zoomJoinUrl: nextSession.zoomJoinUrl ?? null,
           topic: nextSession.topic,
         }
@@ -111,42 +124,40 @@ export default async function StudentDashboardPage() {
       remainingMonthlySessions,
       renewalDate: renewalDate?.toISOString() ?? null,
     },
-    lastReport: lastReportSession
+    lastReport: lastReportParticipant
       ? {
-          sessionDate: lastReportSession.startTime.toISOString(),
-          topic: lastReportSession.topic,
+          sessionDate: lastReportParticipant.session.startTime.toISOString(),
+          topic: lastReportParticipant.session.topic,
           report: {
-            rating: lastReportSession.sessionReport!.rating,
-            outcomes: lastReportSession.sessionReport!.outcomes,
-            strengths: lastReportSession.sessionReport!.strengths,
-            weaknesses: lastReportSession.sessionReport!.weaknesses,
-            nextGoals: lastReportSession.sessionReport!.nextGoals,
+            rating: lastReportParticipant.report!.rating,
+            outcomes: lastReportParticipant.report!.outcomes,
+            strengths: lastReportParticipant.report!.strengths,
+            weaknesses: lastReportParticipant.report!.weaknesses,
+            nextGoals: lastReportParticipant.report!.nextGoals,
           },
         }
       : null,
-    sessions: student.sessions.map((s) => ({
-      id: s.id,
-      startTime: s.startTime.toISOString(),
-      endTime: s.endTime.toISOString(),
-      topic: s.topic,
-      tutorName: s.tutor.user.name ?? "معلم", // ضمان string
-      status: getSessionStatus(s),
-      attendance: s.attendance
-        ? { studentStatus: s.attendance.studentAttendanceStatus }
-        : null,
-      hasReport: !!s.sessionReport,
-      reportId: s.sessionReport?.id || null,
+    sessions: student.sessionParticipants.map((p) => ({
+      id: p.session.id,
+      participantId: p.id,
+      startTime: p.session.startTime.toISOString(),
+      endTime: p.session.endTime.toISOString(),
+      topic: p.session.topic,
+      tutorName: p.session.tutor.user.name ?? "معلم",
+      status: getSessionStatus(p.session),
+      attendance: p.studentAttendanceStatus,
+      hasReport: !!p.report,
     })),
-    reports: student.sessions
-      .filter((s) => s.sessionReport)
-      .map((s) => ({
-        sessionDate: s.startTime.toISOString(),
-        topic: s.topic,
-        rating: s.sessionReport!.rating,
-        outcomes: s.sessionReport!.outcomes,
-        strengths: s.sessionReport!.strengths,
-        weaknesses: s.sessionReport!.weaknesses,
-        nextGoals: s.sessionReport!.nextGoals,
+    reports: student.sessionParticipants
+      .filter((p) => p.report)
+      .map((p) => ({
+        sessionDate: p.session.startTime.toISOString(),
+        topic: p.session.topic,
+        rating: p.report!.rating,
+        outcomes: p.report!.outcomes,
+        strengths: p.report!.strengths,
+        weaknesses: p.report!.weaknesses,
+        nextGoals: p.report!.nextGoals,
       })),
     activeSubscription: student.subscriptions[0]
       ? {
@@ -166,11 +177,10 @@ export default async function StudentDashboardPage() {
           })),
         }
       : null,
-    // defaultCurrency يجب ألا يكون null، وإلا نقدم قيمة افتراضية
     defaultCurrency: student.academy.defaultCurrency ?? {
-      code: "USD",
-      symbol: "$",
-      name: "US Dollar",
+      code: "EGP",
+      symbol: "L.E",
+      name: "جنيه مصري",
     },
   };
 

@@ -17,9 +17,14 @@ import PayTutorDialog from "@/components/dashboard/dialogs/payTutorDialog";
 interface PaymentsTabProps {
   tutor: TutorProfile;
   currencies: { id: number; name: string }[];
+  costCenters: { id: number; name: string }[];
 }
 
-export default function PaymentsTab({ tutor, currencies }: PaymentsTabProps) {
+export default function PaymentsTab({
+  tutor,
+  currencies,
+  costCenters,
+}: PaymentsTabProps) {
   const { totalEarnings, paid, pending } = tutor.monthlyStats;
 
   const formatDate = (d: string) =>
@@ -65,6 +70,7 @@ export default function PaymentsTab({ tutor, currencies }: PaymentsTabProps) {
           <CardTitle className="text-lg">سجل المدفوعات</CardTitle>
           <div className="flex gap-2">
             <PayTutorDialog
+              costCenters={costCenters}
               academyId={tutor.academyId}
               tutorId={tutor.id}
               tutorName={tutor.name}

@@ -1,7 +1,8 @@
 import cron from "node-cron";
 import db from "@/lib/prisma";
 import { whatsappQueue } from "@/lib/queue/whatsappQueue";
-import dayjs from "@/lib/dayjs"; // already extended with utc and timezone plugins
+import dayjs from "@/lib/dayjs";
+import { AttendanceStatus } from "@/types/session";
 
 function formatPhoneToJid(phone: string): string {
   const cleaned = phone.replace(/\D/g, "");
@@ -18,6 +19,7 @@ cron.schedule("0 20 * * *", async () => {
   await sendReportReminders();
 });
 
+// ---------- Session reminders (multi‑student) ----------
 async function sendSessionReminders() {
   const now = dayjs.utc();
   const nextHour = now.add(1, "hour");
@@ -35,9 +37,16 @@ async function sendSessionReminders() {
       where: {
         academyId: academy.id,
         startTime: { gte: now.toDate(), lte: nextHour.toDate() },
+        cancelledBy: null,
       },
       include: {
-        student: { select: { user: { select: { name: true, phone: true } } } },
+        participants: {
+          include: {
+            student: {
+              select: { user: { select: { name: true, phone: true } } },
+            },
+          },
+        },
         tutor: {
           select: {
             user: { select: { name: true, phone: true } },
@@ -47,34 +56,37 @@ async function sendSessionReminders() {
       },
     });
 
-    for (const session of sessions) {
-      const instanceName = academy.whatsappInstanceName!;
+    const instanceName = academy.whatsappInstanceName!;
 
-      // session.startTime is stored in UTC
+    for (const session of sessions) {
       const sessionStart = dayjs.utc(session.startTime);
       const diffMs = sessionStart.diff(now);
       const minutesUntil = Math.max(1, Math.round(diffMs / 60000));
-
       const timeText =
         minutesUntil === 1 ? "دقيقة واحدة" : `${minutesUntil} دقائق`;
       const startTimeStr = sessionStart.tz("Africa/Cairo").format("hh:mm A");
 
-      // Student message
-      if (session.student?.user?.phone) {
+      // Send to every participant (student)
+      for (const p of session.participants) {
+        const phone = p.student.user.phone;
+        if (!phone) continue;
         const studentMsg = `تذكير: لديك حصة "${session.topic || "حصتك"}" مع ${session.tutor?.user.name || "المعلم"} بعد ${timeText} (الساعة ${startTimeStr}). 
         ${session.zoomJoinUrl ? `لينك الحصة: ${session.zoomJoinUrl}` : ""}
         `;
         await whatsappQueue.add("session-reminder", {
           academyId: academy.id,
           instanceName,
-          recipientJid: formatPhoneToJid(session.student.user.phone),
+          recipientJid: formatPhoneToJid(phone),
           message: studentMsg,
         });
       }
 
-      // Tutor message
+      // Send to tutor
       if (session.tutor?.user.phone) {
-        const tutorMsg = `تذكير: لديك حصة "${session.topic || "حصتك"}" مع الطالب ${session.student?.user.name || "طالب"} بعد ${timeText} (الساعة ${startTimeStr}).
+        const studentNames = session.participants
+          .map((p) => p.student.user.name)
+          .join("، ");
+        const tutorMsg = `تذكير: لديك حصة "${session.topic || "حصتك"}" مع الطلاب: ${studentNames} بعد ${timeText} (الساعة ${startTimeStr}).
         ${session.zoomStartUrl ? `لينك الحصة: ${session.zoomStartUrl}` : ""}
         `;
         await whatsappQueue.add("session-reminder", {
@@ -88,12 +100,10 @@ async function sendSessionReminders() {
   }
 }
 
+// ---------- Report reminders (per participant) ----------
 async function sendReportReminders() {
-  // Get Cairo today boundaries
   const cairoTodayStart = dayjs().tz("Africa/Cairo").startOf("day");
   const cairoTodayEnd = dayjs().tz("Africa/Cairo").endOf("day");
-
-  // Convert to UTC for database query (DB stores UTC)
   const startOfDayUTC = cairoTodayStart.utc().toDate();
   const endOfDayUTC = cairoTodayEnd.utc().toDate();
 
@@ -106,45 +116,60 @@ async function sendReportReminders() {
   });
 
   for (const academy of academies) {
-    const sessionsWithoutReport = await db.session.findMany({
+    // Find participants who attended but have no report
+    const participantsMissingReport = await db.sessionParticipant.findMany({
       where: {
-        academyId: academy.id,
-        startTime: { gte: startOfDayUTC, lte: endOfDayUTC },
-        sessionReport: null,
+        session: {
+          academyId: academy.id,
+          startTime: { gte: startOfDayUTC, lte: endOfDayUTC },
+          cancelledBy: null,
+        },
+        studentAttendanceStatus: {
+          in: [AttendanceStatus.ATTENDED, AttendanceStatus.LATE],
+        },
+        report: null,
       },
-      include: {
-        student: { select: { user: { select: { name: true, phone: true } } } },
-        tutor: {
-          select: { id: true, user: { select: { name: true, phone: true } } },
+      select: {
+        student: { select: { user: { select: { name: true } } } },
+        session: {
+          select: {
+            tutor: {
+              select: {
+                id: true,
+                user: { select: { name: true, phone: true } },
+              },
+            },
+          },
         },
       },
     });
 
+    // Group by tutor → list of student names
     const tutorMap = new Map<
       number,
       { name: string | null; phone: string | null; students: Set<string> }
     >();
 
-    for (const session of sessionsWithoutReport) {
-      if (!session.tutor?.user.phone) continue;
-      const tutorId = session.tutor.id;
+    for (const p of participantsMissingReport) {
+      const tutorId = p.session.tutor.id;
       if (!tutorMap.has(tutorId)) {
         tutorMap.set(tutorId, {
-          name: session.tutor.user.name,
-          phone: session.tutor.user.phone,
+          name: p.session.tutor.user.name,
+          phone: p.session.tutor.user.phone,
           students: new Set(),
         });
       }
-      tutorMap.get(tutorId)!.students.add(session.student.user.name || "طالب");
+      tutorMap.get(tutorId)!.students.add(p.student.user.name || "طالب");
     }
 
     for (const [_, info] of tutorMap) {
+      if (!info.phone) continue;
       const studentList = Array.from(info.students).join("، ");
       const message = `تذكير: يرجى إضافة تقارير الحصص للطلاب التاليين:\n${studentList}`;
       await whatsappQueue.add("report-reminder", {
         academyId: academy.id,
         instanceName: academy.whatsappInstanceName!,
-        recipientJid: formatPhoneToJid(info.phone!),
+        recipientJid: formatPhoneToJid(info.phone),
         message,
       });
     }

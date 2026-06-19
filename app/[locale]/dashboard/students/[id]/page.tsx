@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import StudentProfileClient from "@/components/dashboard/studentProfile/viewer";
 import { user } from "@/lib/auth";
 import { getSessionStatus } from "@/lib/session";
-import { StudentProfile } from "@/types/studentProfile";
+import { StudentProfile, SessionRecord } from "@/types/studentProfile";
 import dayjs from "@/lib/dayjs";
 
 export default async function StudentProfilePage({
@@ -14,14 +14,11 @@ export default async function StudentProfilePage({
   const currentUser = await user();
   if (!currentUser) redirect("/login");
   const academy = await db.academy.findUnique({
-    where: {
-      id: currentUser.academyId,
-    },
-    include: {
-      defaultCurrency: true,
-    },
+    where: { id: currentUser.academyId },
+    include: { defaultCurrency: true },
   });
   if (!academy) redirect("/login");
+
   const id = parseInt((await params).id);
   if (isNaN(id)) notFound();
 
@@ -33,43 +30,64 @@ export default async function StudentProfilePage({
     include: {
       tutor: { include: { user: true } },
       user: true,
-      plan: {
-        include: {
-          currency: true,
-        },
-      },
+      plan: { include: { currency: true } },
       studentAvailabilities: true,
-      notes: {
-        include: { author: true },
-        orderBy: { createdAt: "desc" },
-      },
+      notes: { include: { author: true }, orderBy: { createdAt: "desc" } },
       subscriptions: {
-        include: {
-          plan: { include: { currency: true } },
-          payments: true,
-        },
+        include: { plan: { include: { currency: true } }, payments: true },
         orderBy: { startDate: "desc" },
       },
-      payments: {
-        include: {
-          currency: true,
-        },
-      },
-      sessions: {
+      payments: { include: { currency: true } },
+      // NEW: fetch sessions via participants
+      sessionParticipants: {
         where: {
-          startTime: { gte: startOfMonth, lte: endOfMonth },
+          session: {
+            startTime: { gte: startOfMonth, lte: endOfMonth },
+          },
         },
         include: {
-          tutor: { include: { user: true } },
-          attendance: true,
-          sessionReport: true,
+          session: {
+            include: {
+              tutor: { include: { user: true } },
+            },
+          },
+          report: true,
         },
-        orderBy: { startTime: "desc" },
+        orderBy: { session: { startTime: "desc" } },
       },
     },
   });
 
   if (!student) notFound();
+
+  // Transform sessions using participants
+  const sessions: SessionRecord[] = student.sessionParticipants.map((p) => ({
+    id: p.session.id,
+    startTime: p.session.startTime.toISOString(),
+    endTime: p.session.endTime.toISOString(),
+    durationMinutes: p.session.durationMinutes,
+    status: getSessionStatus(p.session),
+    topic: p.session.topic,
+    notes: p.session.notes,
+    tutorId: p.session.tutorId,
+    tutorName: p.session.tutor.user.name ?? "",
+    attendance: {
+      id: p.id,
+      status: p.studentAttendanceStatus,
+      reason: null, // use p.reason if field exists
+    },
+    report: p.report
+      ? {
+          id: p.report.id,
+          rating: p.report.rating,
+          outcomes: p.report.outcomes,
+          strengths: p.report.strengths,
+          weaknesses: p.report.weaknesses,
+          nextGoals: p.report.nextGoals,
+          comments: p.report.comments,
+        }
+      : null,
+  }));
 
   const transformed: StudentProfile = {
     id: student.id,
@@ -81,9 +99,6 @@ export default async function StudentProfilePage({
     timezone: student.user.timezone,
     status: student.status,
     source: student.source,
-    currentProgram: student.currentProgram,
-    emergencyContactName: student.emergencyContactName,
-    emergencyContactPhone: student.emergencyContactPhone,
     preferredLanguage: student.user.preferredLanguage,
     tutorId: student.tutorId,
     tutorName: student.tutor?.user.name ?? null,
@@ -99,20 +114,6 @@ export default async function StudentProfilePage({
           currency: student.plan.currency.code,
         }
       : null,
-    availabilities: student.studentAvailabilities.map((a) => ({
-      id: a.id,
-      dayOfWeek: a.dayOfWeek,
-      startTime: a.startTime.toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-      }),
-      endTime: a.endTime.toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-      }),
-    })),
     academyId: student.academyId,
     subscriptions: student.subscriptions.map((sub) => ({
       id: sub.id,
@@ -124,11 +125,11 @@ export default async function StudentProfilePage({
       startDate: sub.startDate.toISOString(),
       endDate: sub.endDate?.toISOString() ?? null,
       status: sub.status,
-      payments: sub.payments.map((p) => ({
-        id: p.id,
-        amount: p.amount,
-        date: p.dueDate.toISOString(),
-        status: p.status,
+      payments: sub.payments.map((pay) => ({
+        id: pay.id,
+        amount: pay.amount,
+        date: pay.dueDate.toISOString(),
+        status: pay.status,
       })),
       pricePerSession: sub.plan.price / (sub.plan.sessionsPerWeek * 4),
     })),
@@ -151,68 +152,23 @@ export default async function StudentProfilePage({
       planId: p.planId,
       invoiceUrl: p.invoiceUrl,
     })),
-    sessions: student.sessions.map((s) => ({
-      id: s.id,
-      startTime: s.startTime.toISOString(),
-      endTime: s.endTime.toISOString(),
-      durationMinutes: s.durationMinutes,
-      status: getSessionStatus(s),
-      topic: s.topic,
-      notes: s.notes,
-      studentId: s.studentId,
-      studentName: student.user.name || "",
-      tutorId: s.tutorId,
-      tutorName: s.tutor.user.name,
-      attendance: s.attendance
-        ? {
-            id: s.attendance.id,
-            status: s.attendance.studentAttendanceStatus,
-            reason: s.attendance.reason,
-          }
-        : undefined,
-      report: s.sessionReport
-        ? {
-            id: s.sessionReport.id,
-            rating: s.sessionReport.rating,
-            outcomes: s.sessionReport.outcomes,
-            strengths: s.sessionReport.strengths,
-            weaknesses: s.sessionReport.weaknesses,
-            nextGoals: s.sessionReport.nextGoals,
-            comments: s.sessionReport.comments,
-          }
-        : null,
-    })),
+    sessions,
   };
 
   const plans = await db.plan.findMany({
-    where: {
-      academyId: currentUser.academyId,
-    },
-    include: {
-      currency: {
-        select: { code: true },
-      },
-    },
+    where: { academyId: currentUser.academyId },
+    include: { currency: { select: { code: true } } },
   });
 
   const tutors = await db.tutor.findMany({
-    where: {
-      academyId: currentUser.academyId,
-    },
-    include: {
-      user: true,
-    },
+    where: { academyId: currentUser.academyId },
+    include: { user: true },
   });
 
   const currencyRates = await db.academyCurrencyRate.findMany({
-    where: {
-      academyId: academy.id,
-    },
-    include: {
-      currency: true,
-    },
+    where: { academyId: academy.id },
+    include: { currency: true },
   });
-
   const rateMap = Object.fromEntries(
     currencyRates.map((r) => [r.currency.code, r.rate]),
   );

@@ -30,3 +30,33 @@ export async function updateSessionDetails(
 
   revalidatePath("/tutor/sessions");
 }
+
+export async function updateSessionZoomLinks(
+  sessionId: number,
+  data: {
+    zoomJoinUrl?: string | null;
+    zoomStartUrl?: string | null;
+  },
+) {
+  const token = await getTokenFromCookie();
+  if (!token) throw new Error("غير مصرح");
+  const payload = verifyToken(token);
+  if (!payload || !payload.tutorId) throw new Error("غير مصرح");
+
+  const session = await db.session.findUnique({
+    where: { id: sessionId },
+    select: { tutorId: true },
+  });
+  if (!session) throw new Error("الحصة غير موجودة");
+  if (session.tutorId !== payload.tutorId) throw new Error("غير مصرح");
+
+  await db.session.update({
+    where: { id: sessionId },
+    data: {
+      zoomJoinUrl: data.zoomJoinUrl ?? undefined,
+      zoomStartUrl: data.zoomStartUrl ?? undefined,
+    },
+  });
+
+  revalidatePath("/ar/dashboard/tutor/sessions");
+}

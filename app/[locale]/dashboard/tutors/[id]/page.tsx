@@ -42,35 +42,33 @@ export default async function TutorProfilePage({
       currency: true,
       students: {
         include: {
-          user: {
-            select: {
-              name: true,
-              phone: true,
-            },
-          },
+          user: { select: { name: true, phone: true } },
           plan: true,
-          sessions: {
+          // student's next session – find via participants
+          sessionParticipants: {
             where: {
-              startTime: { gt: new Date() },
-              cancelledBy: {
-                not: null,
-              },
+              session: { startTime: { gt: new Date() }, cancelledBy: null },
             },
-            orderBy: { startTime: "asc" },
+            orderBy: { session: { startTime: "asc" } },
             take: 1,
+            include: { session: true },
           },
         },
       },
       sessions: {
         where: {
           startTime: { gte: startOfMonth, lte: endOfMonth },
+          cancelledBy: null,
         },
         include: {
-          student: {
-            include: { user: { select: { name: true } } },
+          participants: {
+            include: {
+              student: {
+                select: { id: true, user: { select: { name: true } } },
+              },
+              report: true,
+            },
           },
-          attendance: true,
-          sessionReport: true,
         },
         orderBy: { startTime: "desc" },
       },
@@ -88,30 +86,89 @@ export default async function TutorProfilePage({
 
   if (!tutor) notFound();
 
-  // Compute monthly payment stats
-  const attendedSessions = tutor.sessions.filter(
-    (s) =>
-      s.attendance?.tutorAttendanceStatus === AttendanceStatus.ATTENDED ||
-      s.attendance?.tutorAttendanceStatus === AttendanceStatus.LATE,
-  );
+  // ---- sessions as per‑participant rows ----
+  const allParticipants: TutorSession[] = [];
+  let totalPrivateMinutes = 0;
+  let totalGroupMinutes = 0;
+  let attendedSessions = 0;
+
+  for (const session of tutor.sessions) {
+    const participantCount = session.participants.length;
+    if (participantCount <= 1) totalPrivateMinutes += session.durationMinutes;
+    else totalGroupMinutes += session.durationMinutes;
+
+    let anyAttended = false;
+    for (const p of session.participants) {
+      if (p.studentAttendanceStatus !== null) anyAttended = true;
+      allParticipants.push({
+        sessionId: session.id,
+        participantId: p.id,
+        startTime: session.startTime.toISOString(),
+        endTime: session.endTime.toISOString(),
+        durationMinutes: session.durationMinutes,
+        status: getSessionStatus(session),
+        topic: session.topic,
+        studentId: p.studentId,
+        studentName: p.student.user.name || "",
+        attendance: {
+          status: p.studentAttendanceStatus,
+          reason: null, // if you have reason field, use p.reason
+        },
+        report: p.report
+          ? {
+              id: p.report.id,
+              rating: p.report.rating,
+              outcomes: p.report.outcomes,
+              strengths: p.report.strengths,
+              weaknesses: p.report.weaknesses,
+              nextGoals: p.report.nextGoals,
+              comments: p.report.comments,
+            }
+          : null,
+      });
+    }
+    if (anyAttended) attendedSessions++;
+  }
+
+  // ---- earnings ----
   const totalMonthlyEarnings =
-    attendedSessions.reduce((prev, curr) => prev + curr.durationMinutes, 0) *
-    tutor.pricePerHour;
+    (totalPrivateMinutes / 60) * tutor.privatePricePerHour +
+    (totalGroupMinutes / 60) * tutor.groupPricePerHour;
   const paidThisMonth = tutor.expenses.reduce((sum, e) => sum + e.amount, 0);
   const pendingThisMonth = totalMonthlyEarnings - paidThisMonth;
 
-  const lastMonthStudentIds = await db.session.findMany({
+  // ---- attendance rate ----
+  const totalParticipantsWithStatus = allParticipants.filter(
+    (p) => p.attendance.status !== null,
+  ).length;
+  const attendedParticipants = allParticipants.filter(
+    (p) =>
+      p.attendance.status !== null &&
+      [AttendanceStatus.ATTENDED, AttendanceStatus.LATE].includes(
+        p.attendance.status,
+      ),
+  ).length;
+  const attendanceRate =
+    totalParticipantsWithStatus > 0
+      ? (attendedParticipants / totalParticipantsWithStatus) * 100
+      : 0;
+
+  // ---- retention ----
+  const lastMonthStudentIds = await db.sessionParticipant.findMany({
     where: {
-      tutorId: id,
-      startTime: { gte: startOfLastMonth, lte: endOfLastMonth },
+      session: {
+        tutorId: id,
+        startTime: { gte: startOfLastMonth, lte: endOfLastMonth },
+        cancelledBy: null,
+      },
     },
-    distinct: ["studentId"],
     select: { studentId: true },
+    distinct: ["studentId"],
   });
   const lastMonthStudentSet = new Set(
     lastMonthStudentIds.map((s) => s.studentId),
   );
-  const currentMonthStudentIds = tutor.sessions.map((s) => s.studentId);
+  const currentMonthStudentIds = allParticipants.map((p) => p.studentId);
   const currentMonthStudentSet = new Set(currentMonthStudentIds);
   const retainedCount = [...lastMonthStudentSet].filter((sid) =>
     currentMonthStudentSet.has(sid),
@@ -121,44 +178,32 @@ export default async function TutorProfilePage({
       ? (retainedCount / lastMonthStudentSet.size) * 100
       : 100;
 
-  const totalCompletedSessions = tutor.sessions.filter(
-    (s) => !s.cancelledBy && dayjs(s.startTime).isBefore(dayjs()),
-  ).length;
-  const attendedStudentSessions = tutor.sessions.filter(
-    (s) =>
-      !s.cancelledBy &&
-      dayjs(s.startTime).isBefore(dayjs()) &&
-      (s.attendance?.studentAttendanceStatus === 0 ||
-        s.attendance?.studentAttendanceStatus === 3),
-  ).length;
-  const attendanceRate =
-    totalCompletedSessions > 0
-      ? (attendedStudentSessions / totalCompletedSessions) * 100
-      : 0;
-
-  // Report adherence and quality
-  const sessionsWithReport = tutor.sessions.filter(
-    (s) => s.sessionReport,
-  ).length;
+  // ---- report adherence & quality ----
+  const participantsWithAttendance = allParticipants.filter(
+    (p) =>
+      p.attendance.status !== null &&
+      [AttendanceStatus.ATTENDED, AttendanceStatus.LATE].includes(
+        p.attendance.status,
+      ),
+  );
+  const withReport = participantsWithAttendance.filter((p) => p.report).length;
   const reportAdherence =
-    tutor.sessions.length > 0
-      ? (sessionsWithReport / tutor.sessions.length) * 100
+    participantsWithAttendance.length > 0
+      ? (withReport / participantsWithAttendance.length) * 100
       : 0;
 
-  const highQualityReports = tutor.sessions.filter(
-    (s) =>
-      s.sessionReport &&
-      s.sessionReport.outcomes &&
-      s.sessionReport.strengths &&
-      s.sessionReport.weaknesses &&
-      s.sessionReport.nextGoals,
+  const highQualityReports = participantsWithAttendance.filter(
+    (p) =>
+      p.report &&
+      p.report.outcomes &&
+      p.report.strengths &&
+      p.report.weaknesses &&
+      p.report.nextGoals,
   ).length;
   const reportQuality =
-    sessionsWithReport > 0
-      ? (highQualityReports / sessionsWithReport) * 100
-      : 0;
+    withReport > 0 ? (highQualityReports / withReport) * 100 : 0;
 
-  // Weighted score
+  // ---- weighted score ----
   const weightedScore =
     attendanceRate * 0.4 +
     retentionRate * 0.3 +
@@ -181,7 +226,7 @@ export default async function TutorProfilePage({
     scoreColor = "text-red-600";
   }
 
-  // Transform other data
+  // ---- students ----
   const transformedStudents: AssignedStudent[] = tutor.students.map((s) => ({
     id: s.id,
     name: s.user.name || "",
@@ -189,39 +234,11 @@ export default async function TutorProfilePage({
     status: s.status,
     phone: s.user.phone || "",
     planTitle: s.plan?.title ?? null,
-    nextSessionDate: s.sessions[0]?.startTime.toISOString() ?? null,
+    nextSessionDate:
+      s.sessionParticipants[0]?.session.startTime.toISOString() ?? null,
   }));
 
-  const transformedSessions: TutorSession[] = tutor.sessions.map((s) => ({
-    id: s.id,
-    startTime: s.startTime.toISOString(),
-    endTime: s.endTime.toISOString(),
-    durationMinutes: s.durationMinutes,
-    status: getSessionStatus(s),
-    topic: s.topic,
-    studentId: s.studentId,
-    studentName: s.student.user.name || "",
-    attendance: s.attendance
-      ? {
-          id: s.attendance.id,
-          tutorAttendance: s.attendance.tutorAttendanceStatus,
-          studentAttendance: s.attendance.studentAttendanceStatus,
-          reason: s.attendance.reason,
-        }
-      : undefined,
-    report: s.sessionReport
-      ? {
-          id: s.sessionReport.id,
-          outcomes: s.sessionReport.outcomes,
-          strengths: s.sessionReport.strengths,
-          weaknesses: s.sessionReport.weaknesses,
-          nextGoals: s.sessionReport.nextGoals,
-          comments: s.sessionReport.comments,
-          rating: s.sessionReport.rating,
-        }
-      : undefined,
-  }));
-
+  // notes, payments, availabilities unchanged
   const transformedNotes: TutorNote[] = tutor.notes.map((n) => ({
     id: n.id,
     content: n.content,
@@ -271,7 +288,8 @@ export default async function TutorProfilePage({
           select: { name: true },
         })
       )?.name ?? "",
-    pricePerHour: tutor.pricePerHour,
+    privatePricePerHour: tutor.privatePricePerHour,
+    groupPricePerHour: tutor.groupPricePerHour,
     specialities: tutor.specialities.map((s) => s.title),
     active: tutor.active ?? false,
     bio: tutor.bio,
@@ -281,12 +299,12 @@ export default async function TutorProfilePage({
     zoomAuthenticated: tutor.zoomAuthenticated,
     availabilities: transformedAvailabilities,
     students: transformedStudents,
-    sessions: transformedSessions,
+    sessions: allParticipants,
     notes: transformedNotes,
     payments: transformedPayments,
     monthlyStats: {
       totalSessions: tutor.sessions.length,
-      attendedSessions: attendedSessions.length,
+      attendedSessions,
       attendanceRate,
       totalEarnings: totalMonthlyEarnings,
       paid: paidThisMonth,
@@ -304,6 +322,14 @@ export default async function TutorProfilePage({
   };
 
   const currencies = await db.currency.findMany({});
+  const costCenters = await db.costCenter.findMany({});
+  console.log({ costCenters });
 
-  return <TutorProfileClient currencies={currencies} tutor={transformed} />;
+  return (
+    <TutorProfileClient
+      costCenters={costCenters.map((c) => ({ id: c.id, name: c.title }))}
+      currencies={currencies}
+      tutor={transformed}
+    />
+  );
 }

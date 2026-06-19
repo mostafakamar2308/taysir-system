@@ -2,7 +2,7 @@
 
 import { utcToLocalTime } from "@/lib/dates";
 import { sessionStatusColors } from "@/const/sessions";
-import { CheckCircle2, StickyNote, Video } from "lucide-react";
+import { StickyNote, Video } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -10,19 +10,16 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
-import { DashboardSession, SessionStatus } from "@/types/session";
+import { AdminSessionClientData, SessionStatus } from "@/types/session";
 
 type SessionCardProps = {
-  session: DashboardSession;
+  session: AdminSessionClientData;
   onClick: () => void;
-  onMarkAttendance: (session: DashboardSession) => void;
 };
 
-export function SessionCard({
-  session,
-  onClick,
-  onMarkAttendance,
-}: SessionCardProps) {
+export function SessionCard({ session, onClick }: SessionCardProps) {
+  console.log({ session });
+
   const hasNotes = session.notes && session.notes.trim().length > 0;
 
   return (
@@ -57,21 +54,8 @@ export function SessionCard({
           )}
         </div>
       </button>
-      {session.status === SessionStatus.COMPLETED && !session.attendance && (
-        <div className="absolute top-2 left-1 -mt-1 -ml-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-5 w-5 rounded-full bg-white shadow-sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              onMarkAttendance(session);
-            }}
-          >
-            <CheckCircle2 className="h-3 w-3 text-primary" />
-          </Button>
-        </div>
-      )}
+
+      {/* Zoom button – shown for incomplete sessions with start URL */}
       {session.zoomStartUrl && session.status !== SessionStatus.COMPLETED && (
         <div className="absolute top-2 left-1 -mt-1 -ml-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <Button

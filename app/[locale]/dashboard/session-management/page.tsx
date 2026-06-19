@@ -3,6 +3,7 @@ import { user } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import dayjs from "@/lib/dayjs";
 import SessionsManagementClient from "@/components/dashboard/sessionManagement/viewer";
+import { AttendanceStatus } from "@/types/session";
 
 export default async function SessionsManagementPage() {
   const currentUser = await user();
@@ -13,7 +14,7 @@ export default async function SessionsManagementPage() {
   const todayStart = now.startOf("day").toDate();
   const todayEnd = now.endOf("day").toDate();
 
-  // 1. Basic session stats
+  // --- 1. Basic stats ---
   const totalSessions = await db.session.count({ where: { academyId } });
   const completedSessions = await db.session.count({
     where: { academyId, startTime: { lte: now.toDate() }, cancelledBy: null },
@@ -26,7 +27,7 @@ export default async function SessionsManagementPage() {
     where: { academyId, active: true },
   });
 
-  // Cancellation analysis: group by cancelledBy (assuming enum: 0=tutor,1=student, etc.)
+  // --- Cancellation analysis ---
   const cancellationsBy = await db.session.groupBy({
     by: ["cancelledBy"],
     where: { academyId, cancelledBy: { not: null } },
@@ -36,17 +37,24 @@ export default async function SessionsManagementPage() {
     cancellationsBy.map((c) => [c.cancelledBy ?? "unknown", c._count]),
   );
 
-  // Absence rate: sessions with attendance where student absent
+  // --- Absence rate (new: per participant) ---
+  const absentStatuses = [
+    AttendanceStatus.ABSENT_EXCUSED,
+    AttendanceStatus.ABSENT_UNEXCUSED,
+  ];
   const sessionsWithAttendance = await db.session.count({
-    where: { academyId, attendance: { isNot: null } },
+    where: {
+      academyId,
+      participants: {
+        some: { studentAttendanceStatus: { not: null } },
+      },
+    },
   });
   const absentSessions = await db.session.count({
     where: {
       academyId,
-      attendance: {
-        studentAttendanceStatus: {
-          in: [1, 2], // ABSENT_EXCUSED = 1, ABSENT_UNEXCUSED = 2 (adjust based on your enum)
-        },
+      participants: {
+        some: { studentAttendanceStatus: { in: absentStatuses } },
       },
     },
   });
@@ -55,25 +63,26 @@ export default async function SessionsManagementPage() {
       ? (absentSessions / sessionsWithAttendance) * 100
       : 0;
 
-  // 2. Patterns: volume per day of week & per hour (last 30 days)
+  // --- 2. Patterns (unchanged) ---
   const recentSessions = await db.session.findMany({
     where: { academyId, startTime: { gte: now.subtract(30, "day").toDate() } },
     select: { startTime: true },
     orderBy: { startTime: "asc" },
   });
-
   const dayOfWeekCounts = new Array(7).fill(0);
   const hourCounts = new Array(24).fill(0);
   recentSessions.forEach((s) => {
     const d = dayjs.utc(s.startTime);
-    dayOfWeekCounts[d.day()]++; // 0=Sun, 1=Mon, ... 6=Sat
+    dayOfWeekCounts[d.day()]++; // 0=Sun … 6=Sat
     hourCounts[d.hour()]++;
   });
 
-  // 3. Quality
+  // --- 3. Quality (ratings now from SessionReport linked via participant) ---
   const reportRatings = await db.sessionReport.groupBy({
     by: ["rating"],
-    where: { session: { academyId } },
+    where: {
+      participant: { session: { academyId } },
+    },
     _count: true,
   });
   const ratingDistribution: Record<number, number> = {};
@@ -82,11 +91,14 @@ export default async function SessionsManagementPage() {
   });
   const avgRatingResult = await db.sessionReport.aggregate({
     _avg: { rating: true },
-    where: { session: { academyId }, rating: { not: null } },
+    where: {
+      participant: { session: { academyId } },
+      rating: { not: null },
+    },
   });
   const avgRating = avgRatingResult._avg.rating ?? 0;
 
-  // 4. Current running sessions
+  // --- 4. Running sessions ---
   const runningSessions = await db.session.findMany({
     where: {
       academyId,
@@ -95,58 +107,58 @@ export default async function SessionsManagementPage() {
       cancelledBy: null,
     },
     include: {
-      student: { select: { user: { select: { name: true } } } },
+      participants: {
+        include: {
+          student: { select: { user: { select: { name: true } } } },
+        },
+      },
       tutor: { include: { user: { select: { name: true } } } },
     },
     orderBy: { startTime: "asc" },
   });
 
-  // 5. Today's sessions grouped by tutor
+  // --- 5. Today's sessions grouped by tutor ---
   const todaySessions = await db.session.findMany({
     where: {
       academyId,
       startTime: { gte: todayStart, lte: todayEnd },
     },
     include: {
-      student: { select: { user: { select: { name: true, phone: true } } } },
-      tutor: { include: { user: { select: { name: true, phone: true } } } },
-      attendance: {
-        select: {
-          studentAttendanceStatus: true,
-          tutorAttendanceStatus: true,
-          reason: true,
+      participants: {
+        include: {
+          student: {
+            select: { user: { select: { name: true, phone: true } } },
+          },
+          report: { select: { rating: true, outcomes: true } },
         },
       },
-      sessionReport: { select: { rating: true, outcomes: true } },
+      tutor: { include: { user: { select: { name: true, phone: true } } } },
     },
     orderBy: { startTime: "asc" },
   });
 
   // Group by tutor
-  const groupedByTutor = todaySessions.reduce(
-    (acc, s) => {
-      const tutorId = s.tutorId;
-      if (!acc[tutorId]) {
-        acc[tutorId] = {
-          tutorName: s.tutor.user.name ?? "غير معروف",
-          tutorPhone: s.tutor.user.phone,
-          sessions: [],
-        };
-      }
-      acc[tutorId].sessions.push(s);
-      return acc;
-    },
-    {} as Record<
-      number,
-      {
-        tutorName: string;
-        tutorPhone: string | null;
-        sessions: typeof todaySessions;
-      }
-    >,
-  );
+  const groupedByTutor: Record<
+    number,
+    {
+      tutorName: string;
+      tutorPhone: string | null;
+      sessions: typeof todaySessions;
+    }
+  > = {};
+  todaySessions.forEach((s) => {
+    const tid = s.tutorId;
+    if (!groupedByTutor[tid]) {
+      groupedByTutor[tid] = {
+        tutorName: s.tutor.user.name ?? "غير معروف",
+        tutorPhone: s.tutor.user.phone,
+        sessions: [],
+      };
+    }
+    groupedByTutor[tid].sessions.push(s);
+  });
 
-  // Transform for client
+  // --- Transformations for client ---
   const stats = {
     totalSessions,
     avgPerStudent:
@@ -165,10 +177,62 @@ export default async function SessionsManagementPage() {
   };
 
   const cancellationAnalysis = {
-    byTutor: cancellationMap[0] ?? 0, // assuming 0 = tutor
-    byStudent: cancellationMap[1] ?? 0, // assuming 1 = student
+    byTutor: cancellationMap[0] ?? 0,
+    byStudent: cancellationMap[1] ?? 0,
     other: cancellationMap[2] ?? 0,
   };
+
+  // Running sessions client data
+  const clientRunningSessions = runningSessions.map((s) => ({
+    id: s.id,
+    startTime: s.startTime.toISOString(),
+    endTime: s.endTime.toISOString(),
+    studentName:
+      s.participants.map((p) => p.student.user.name).join("، ") || "",
+    tutorName: s.tutor.user.name ?? "",
+    topic: s.topic,
+  }));
+
+  // Today's sessions client data
+  const clientTodayGroupedByTutor = Object.entries(groupedByTutor).map(
+    ([tutorId, data]) => ({
+      tutorId: parseInt(tutorId),
+      tutorName: data.tutorName,
+      tutorPhone: data.tutorPhone,
+      sessions: data.sessions.map((s) => {
+        const firstParticipant = s.participants[0];
+        const joinedNames = s.participants
+          .map((p) => p.student.user.name || "")
+          .join("، ");
+        const hasAttendance = s.participants.some(
+          (p) => p.studentAttendanceStatus !== null,
+        );
+        const attendanceStatus =
+          firstParticipant?.studentAttendanceStatus ?? null;
+        const hasReport = s.participants.some((p) => p.report !== null);
+        const reportRating = firstParticipant?.report?.rating ?? null;
+
+        return {
+          id: s.id,
+          startTime: s.startTime.toISOString(),
+          endTime: s.endTime.toISOString(),
+          studentName: joinedNames || "",
+          studentPhone: firstParticipant?.student.user.phone || null,
+          topic: s.topic,
+          status: s.cancelledBy ? 2 : s.startTime > now.toDate() ? 0 : 1, // 0 scheduled, 1 completed, 2 cancelled
+          attendance: hasAttendance
+            ? {
+                studentStatus: attendanceStatus,
+                tutorStatus: null, // no global tutor attendance
+                reason: null,
+              }
+            : null,
+          hasReport,
+          reportRating,
+        };
+      }),
+    }),
+  );
 
   return (
     <SessionsManagementClient
@@ -178,39 +242,8 @@ export default async function SessionsManagementPage() {
       hourCounts={hourCounts}
       avgRating={avgRating}
       ratingDistribution={ratingDistribution}
-      runningSessions={runningSessions.map((s) => ({
-        id: s.id,
-        startTime: s.startTime.toISOString(),
-        endTime: s.endTime.toISOString(),
-        studentName: s.student.user.name || "",
-        tutorName: s.tutor.user.name ?? "",
-        topic: s.topic,
-      }))}
-      todayGroupedByTutor={Object.entries(groupedByTutor).map(
-        ([tutorId, data]) => ({
-          tutorId: parseInt(tutorId),
-          tutorName: data.tutorName,
-          tutorPhone: data.tutorPhone,
-          sessions: data.sessions.map((s) => ({
-            id: s.id,
-            startTime: s.startTime.toISOString(),
-            endTime: s.endTime.toISOString(),
-            studentName: s.student.user.name || "",
-            studentPhone: s.student.user.phone || "",
-            topic: s.topic,
-            status: s.cancelledBy ? 2 : s.startTime > now.toDate() ? 0 : 1, // simplified status
-            attendance: s.attendance
-              ? {
-                  studentStatus: s.attendance.studentAttendanceStatus,
-                  tutorStatus: s.attendance.tutorAttendanceStatus,
-                  reason: s.attendance.reason,
-                }
-              : null,
-            hasReport: !!s.sessionReport,
-            reportRating: s.sessionReport?.rating || null,
-          })),
-        }),
-      )}
+      runningSessions={clientRunningSessions}
+      todayGroupedByTutor={clientTodayGroupedByTutor}
     />
   );
 }

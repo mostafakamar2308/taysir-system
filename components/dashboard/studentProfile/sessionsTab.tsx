@@ -43,7 +43,6 @@ import {
   attendanceStatusLabels,
 } from "@/lib/enums";
 import { useToast } from "@/hooks/use-toast";
-import AttendanceDialog from "@/components/dashboard/studentProfile/dialogs/attendanceDialog";
 import EditSessionDialog from "@/components/dashboard/studentProfile/dialogs/editSessionDialog";
 import DeleteSessionDialog from "@/components/dashboard/studentProfile/dialogs/deleteSessionDialog";
 import ViewReportDialog from "@/components/dashboard/studentProfile/dialogs/viewReportDialog";
@@ -69,12 +68,7 @@ export default function SessionsTab({ student, tutors }: SessionsTabProps) {
   const [sessionFilter, setSessionFilter] = useState<string>("all");
   const [sessionSearch, setSessionSearch] = useState("");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [attendanceDialog, setAttendanceDialog] = useState<{
-    open: boolean;
-    sessionId: number;
-    currentStatus?: number;
-    currentReason?: string | null;
-  }>({ open: false, sessionId: 0 });
+
   const [editDialog, setEditDialog] = useState<{
     open: boolean;
     session: SessionRecord | null;
@@ -94,6 +88,8 @@ export default function SessionsTab({ student, tutors }: SessionsTabProps) {
     setLoading(true);
     try {
       const data = await getStudentSessionsForMonth(student.id, newMonthStart);
+      console.log({ data });
+
       setSessions(data);
       setMonthStart(newMonthStart);
     } catch (error) {
@@ -164,15 +160,6 @@ export default function SessionsTab({ student, tutors }: SessionsTabProps) {
 
   const handleDelete = (sessionId: number) => {
     setDeleteDialog({ open: true, sessionId });
-  };
-
-  const handleMarkAttendance = (session: SessionRecord) => {
-    setAttendanceDialog({
-      open: true,
-      sessionId: session.id,
-      currentStatus: session.attendance?.status,
-      currentReason: session.attendance?.reason,
-    });
   };
 
   return (
@@ -263,7 +250,7 @@ export default function SessionsTab({ student, tutors }: SessionsTabProps) {
                   const sessionStatusColor =
                     sessionStatusColors[s.status as SessionStatus];
                   let attendanceCell;
-                  if (s.attendance) {
+                  if (s.attendance?.status) {
                     attendanceCell = (
                       <Badge
                         className={
@@ -278,19 +265,6 @@ export default function SessionsTab({ student, tutors }: SessionsTabProps) {
                           ]
                         }
                       </Badge>
-                    );
-                  } else if (s.status === SessionStatus.COMPLETED) {
-                    attendanceCell = (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleMarkAttendance(s);
-                        }}
-                      >
-                        تسجيل
-                      </Button>
                     );
                   } else {
                     attendanceCell = "—";
@@ -364,15 +338,6 @@ export default function SessionsTab({ student, tutors }: SessionsTabProps) {
                             >
                               حذف الحصة
                             </DropdownMenuItem>
-                            {s.status === SessionStatus.COMPLETED && (
-                              <DropdownMenuItem
-                                onClick={() => handleMarkAttendance(s)}
-                              >
-                                {s.attendance?.status
-                                  ? "تعديل الحضور"
-                                  : "تسجيل الحضور"}
-                              </DropdownMenuItem>
-                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -392,16 +357,6 @@ export default function SessionsTab({ student, tutors }: SessionsTabProps) {
         tutors={tutors}
         academyId={student.academyId}
         currentTutorId={student.tutorId}
-      />
-
-      <AttendanceDialog
-        open={attendanceDialog.open}
-        onOpenChange={(open) =>
-          setAttendanceDialog({ ...attendanceDialog, open })
-        }
-        sessionId={attendanceDialog.sessionId}
-        currentStatus={attendanceDialog.currentStatus}
-        currentReason={attendanceDialog.currentReason}
       />
 
       {editDialog.session && (

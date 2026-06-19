@@ -2,7 +2,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Users, UserCheck } from "lucide-react";
-import { DashboardTutor } from "@/types/tutor";
+import { DashboardTutor } from "./viewer";
 
 interface StatsCardsProps {
   tutors: DashboardTutor[];
@@ -10,7 +10,7 @@ interface StatsCardsProps {
 
 export default function StatsCards({ tutors }: StatsCardsProps) {
   const total = tutors.length;
-  const active = tutors.filter((t) => t.status).length;
+  const active = tutors.filter((t) => t.active).length;
   const totalStudents = tutors.reduce((sum, t) => sum + t.studentCount, 0);
 
   const stats = [

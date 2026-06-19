@@ -10,6 +10,7 @@ import {
   Plus,
 } from "lucide-react";
 import dayjs from "@/lib/dayjs";
+import AddSessionDialog from "../dialogs/addSessionDialog";
 
 interface WeekNavigationProps {
   viewMode: "day" | "week" | "month";
@@ -21,7 +22,8 @@ interface WeekNavigationProps {
   showFilters: boolean;
   onToggleFilters: () => void;
   activeFilterCount: number;
-  onAdd: () => void;
+  students: { id: number; name: string; balance: number }[];
+  tutors: { id: number; name: string | null }[];
 }
 
 export function WeekNavigation({
@@ -30,10 +32,11 @@ export function WeekNavigation({
   onNavigate,
   onToday,
   searchQuery,
+  students,
+  tutors,
   onSearchChange,
   showFilters,
   onToggleFilters,
-  onAdd,
   activeFilterCount,
 }: WeekNavigationProps) {
   const formatTitle = () => {
@@ -50,10 +53,12 @@ export function WeekNavigation({
 
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-border bg-card p-4">
-      <Button onClick={onAdd} className="gap-2">
-        <Plus className="h-4 w-4" />
-        إضافة حصة
-      </Button>
+      <AddSessionDialog students={students} tutors={tutors}>
+        <Button className="gap-2">
+          <Plus className="h-4 w-4" />
+          إضافة حصة
+        </Button>
+      </AddSessionDialog>
       <div className="flex items-center gap-2">
         <Button variant="outline" size="icon" onClick={() => onNavigate(-1)}>
           <ChevronRight className="h-4 w-4" />

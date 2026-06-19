@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,8 +16,7 @@ import {
   Cell,
 } from "recharts";
 import { Eye } from "lucide-react";
-import { useState } from "react";
-import SessionDetailPanel from "@/components/dashboard/sessionManagement/sessionDetailPanel";
+import SessionManagementDetailPanel from "./sessionDetailPanel"; // updated import
 
 interface Stats {
   totalSessions: number;
@@ -51,8 +51,8 @@ interface TodaySession {
   topic: string | null;
   status: number; // 0 scheduled, 1 completed, 2 cancelled
   attendance: {
-    studentStatus: number;
-    tutorStatus: number;
+    studentStatus: number | null;
+    tutorStatus: number | null;
     reason: string | null;
   } | null;
   hasReport: boolean;
@@ -351,7 +351,7 @@ export default function SessionsManagementClient(props: Props) {
                           </Badge>
                         </td>
                         <td className="p-2">
-                          {s.attendance ? (
+                          {s.attendance?.studentStatus != null ? (
                             <Badge
                               className={attendanceBadge(
                                 s.attendance.studentStatus,
@@ -405,12 +405,12 @@ export default function SessionsManagementClient(props: Props) {
 
       {/* لوحة تفاصيل الجلسة */}
       {selectedSessionId && (
-        <SessionDetailPanel
+        <SessionManagementDetailPanel
+          sessionId={selectedSessionId}
           open={!!selectedSessionId}
           onOpenChange={(open) => {
             if (!open) setSelectedSessionId(null);
           }}
-          sessionId={selectedSessionId}
         />
       )}
     </div>
@@ -418,7 +418,7 @@ export default function SessionsManagementClient(props: Props) {
 }
 
 // مساعدات للحضور
-function attendanceBadge(status?: number) {
+function attendanceBadge(status: number): string {
   switch (status) {
     case 0:
       return "bg-green-100 text-green-700"; // ATTENDED
@@ -433,7 +433,7 @@ function attendanceBadge(status?: number) {
   }
 }
 
-function attendanceLabel(status?: number) {
+function attendanceLabel(status: number): string {
   switch (status) {
     case 0:
       return "حاضر";

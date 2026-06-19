@@ -11,8 +11,7 @@ export enum AttendanceStatus {
   LATE,
   CANCELLED,
 }
-
-export type DashboardSession = {
+export interface AdminSessionClientData {
   id: number;
   startTime: string;
   endTime: string;
@@ -20,23 +19,24 @@ export type DashboardSession = {
   status: number;
   topic: string | null;
   notes: string | null;
-  studentId: number;
-  studentName: string;
   tutorId: number;
-  isTrial: boolean;
   tutorName: string | null;
-  zoomMeetingId?: string | null;
-  zoomJoinUrl?: string | null;
-  zoomStartUrl?: string | null;
-  attendance:
-    | {
-        id: number;
-        tutorAttendance: number;
-        studentAttendance: number;
-        reason: string | null;
-      }
-    | undefined;
+  isTrial: boolean;
+  studentId: number | null; // first participant's ID (backward compat)
+  studentName: string; // joined names
+  studentPhone: string | null;
+  zoomMeetingId: string | null;
+  zoomJoinUrl: string | null;
+  zoomStartUrl: string | null;
+  attendance?: {
+    // first participant's attendance (backward compat)
+    id: number;
+    tutorAttendance: number | null;
+    studentAttendance: number | null;
+    reason: string | null;
+  };
   report?: {
+    // first participant's report (backward compat)
     id: number;
     rating: number | null;
     outcomes: string | null;
@@ -45,4 +45,20 @@ export type DashboardSession = {
     nextGoals: string | null;
     comments: string | null;
   };
-};
+  participants: {
+    participantId: number;
+    studentId: number;
+    studentName: string;
+    studentPhone: string | null;
+    attendanceStatus: number | null;
+    report: {
+      id: number;
+      rating: number | null;
+      outcomes: string | null;
+      strengths: string | null;
+      weaknesses: string | null;
+      nextGoals: string | null;
+      comments: string | null;
+    } | null;
+  }[];
+}

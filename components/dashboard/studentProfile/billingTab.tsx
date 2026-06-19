@@ -347,29 +347,6 @@ export default function BillingTab({
         </CardContent>
       </Card>
 
-      {/* Outstanding Payments (if any) */}
-      {totalPending > 0 && (
-        <Card className="border-amber-300 bg-amber-50/50 dark:bg-amber-900/10">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <AlertCircle className="h-5 w-5 text-amber-600" />
-              <div>
-                <p className="font-medium text-amber-800 dark:text-amber-300">
-                  مبالغ مستحقة
-                </p>
-                <p className="text-sm text-amber-700 dark:text-amber-400">
-                  {formatAmount(totalPending, defaultCurrency.code)} بانتظار
-                  الدفع
-                </p>
-              </div>
-            </div>
-            <Button size="sm" onClick={() => setRecordPaymentOpen(true)}>
-              تسجيل دفعة
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Payment History */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">

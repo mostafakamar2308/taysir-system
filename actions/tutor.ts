@@ -15,7 +15,12 @@ const createTutorSchema = z.object({
   email: z.string().email("بريد إلكتروني غير صالح"),
   phone: z.string().min(1, "رقم الهاتف مطلوب"),
   timezone: z.string().min(1, "المنطقة الزمنية مطلوبة"),
-  pricePerHour: z.number().min(0, "السعر يجب أن يكون 0 أو أكثر"),
+  privatePricePerHour: z
+    .number()
+    .min(0, "سعر الحصة الفردية يجب أن يكون 0 أو أكثر"),
+  groupPricePerHour: z
+    .number()
+    .min(0, "سعر الحصة الجماعية يجب أن يكون 0 أو أكثر"),
   specialities: z.array(z.number()).optional(),
   active: z.boolean().default(true),
   bio: z.string().optional().nullable(),
@@ -41,8 +46,11 @@ export async function createTutor(formData: FormData) {
     email: formData.get("email"),
     phone: formData.get("phone"),
     timezone: formData.get("timezone"),
-    pricePerHour: formData.get("pricePerHour")
-      ? parseFloat(formData.get("pricePerHour") as string)
+    privatePricePerHour: formData.get("privatePricePerHour")
+      ? parseFloat(formData.get("privatePricePerHour") as string)
+      : undefined,
+    groupPricePerHour: formData.get("groupPricePerHour")
+      ? parseFloat(formData.get("groupPricePerHour") as string)
       : undefined,
     specialities,
     active: formData.get("active") === "on",
@@ -79,7 +87,8 @@ export async function createTutor(formData: FormData) {
       data: {
         userId: user.id,
         academyId: payload.academyId!,
-        pricePerHour: validated.pricePerHour,
+        privatePricePerHour: validated.privatePricePerHour,
+        groupPricePerHour: validated.groupPricePerHour,
         active: validated.active,
         bio: validated.bio,
         qualifications: validated.qualifications,
@@ -101,7 +110,8 @@ const updateTutorSchema = z.object({
   email: z.string().email("بريد إلكتروني غير صالح"),
   phone: z.string().optional().nullable(),
   timezone: z.string().min(1, "المنطقة الزمنية مطلوبة"),
-  pricePerHour: z.number().positive("سعر الحصة يجب أن يكون أكبر من 0"),
+  privatePricePerHour: z.number().positive("يجب أن يكون أكبر من 0"),
+  groupPricePerHour: z.number().positive("يجب أن يكون أكبر من 0"),
   bio: z.string().optional().nullable(),
   qualifications: z.string().optional().nullable(),
   active: z.boolean(),
@@ -120,7 +130,12 @@ export async function updateTutor(id: number, formData: FormData) {
     email: formData.get("email"),
     phone: formData.get("phone") || null,
     timezone: formData.get("timezone"),
-    pricePerHour: parseFloat(formData.get("pricePerHour") as string),
+    privatePricePerHour: formData.get("privatePricePerHour")
+      ? parseFloat(formData.get("privatePricePerHour") as string)
+      : undefined,
+    groupPricePerHour: formData.get("groupPricePerHour")
+      ? parseFloat(formData.get("groupPricePerHour") as string)
+      : undefined,
     bio: formData.get("bio") || null,
     qualifications: formData.get("qualifications") || null,
     active: formData.get("active") === "true",
@@ -148,7 +163,8 @@ export async function updateTutor(id: number, formData: FormData) {
     db.tutor.update({
       where: { id },
       data: {
-        pricePerHour: validated.pricePerHour,
+        privatePricePerHour: validated.privatePricePerHour,
+        groupPricePerHour: validated.groupPricePerHour,
         bio: validated.bio,
         qualifications: validated.qualifications,
         active: validated.active,
@@ -194,48 +210,43 @@ export async function getTutorSessionsForMonth(
       startTime: { gte: start, lte: end },
     },
     include: {
-      student: {
+      participants: {
         include: {
-          user: {
-            select: {
-              name: true,
-            },
-          },
+          student: { include: { user: { select: { name: true } } } },
+          report: true,
         },
       },
-      attendance: true,
-      sessionReport: true,
     },
-    orderBy: { startTime: "desc" },
+    orderBy: { startTime: "desc", createdAt: "desc" },
   });
 
-  return sessions.map((s) => ({
-    id: s.id,
-    startTime: s.startTime.toISOString(),
-    endTime: s.endTime.toISOString(),
-    durationMinutes: s.durationMinutes,
-    status: getSessionStatus(s),
-    topic: s.topic,
-    studentId: s.studentId,
-    studentName: s.student.user.name || "",
-    attendance: s.attendance
-      ? {
-          id: s.attendance.id,
-          tutorAttendance: s.attendance.tutorAttendanceStatus,
-          studentAttendance: s.attendance.studentAttendanceStatus,
-          reason: s.attendance.reason,
-        }
-      : undefined,
-    report: s.sessionReport
-      ? {
-          id: s.sessionReport.id,
-          outcomes: s.sessionReport.outcomes,
-          strengths: s.sessionReport.strengths,
-          weaknesses: s.sessionReport.weaknesses,
-          nextGoals: s.sessionReport.nextGoals,
-          comments: s.sessionReport.comments,
-          rating: s.sessionReport.rating,
-        }
-      : undefined,
-  }));
+  // Flatten: one row per student per session
+  return sessions.flatMap((s) =>
+    s.participants.map((p) => ({
+      sessionId: s.id,
+      participantId: p.id,
+      startTime: s.startTime.toISOString(),
+      endTime: s.endTime.toISOString(),
+      durationMinutes: s.durationMinutes,
+      status: getSessionStatus(s),
+      topic: s.topic,
+      studentId: p.studentId,
+      studentName: p.student.user.name ?? "",
+      attendance: {
+        status: p.studentAttendanceStatus,
+        reason: p.reason ?? null,
+      },
+      report: p.report
+        ? {
+            id: p.report.id,
+            rating: p.report.rating,
+            outcomes: p.report.outcomes,
+            strengths: p.report.strengths,
+            weaknesses: p.report.weaknesses,
+            nextGoals: p.report.nextGoals,
+            comments: p.report.comments,
+          }
+        : null,
+    })),
+  );
 }

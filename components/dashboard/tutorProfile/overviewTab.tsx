@@ -99,7 +99,7 @@ export default function OverviewTab({ tutor }: OverviewTabProps) {
             <div className="space-y-3">
               {todaySessions.map((s) => (
                 <div
-                  key={s.id}
+                  key={s.sessionId}
                   className="flex items-center justify-between p-3 rounded-lg border"
                 >
                   <div>

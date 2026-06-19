@@ -2,33 +2,10 @@ import { PaymentMethod, PaymentStatus } from "@/types/payment";
 import { AttendanceStatus, SessionStatus } from "@/types/session";
 import { StudentStatus } from "@/types/student";
 
-export interface DashboardTutor {
-  id: number;
-  name: string;
-  email: string;
-  phone: string;
-  status: boolean; // active
-  specialities: string[];
-  pricePerHour: number;
-  timezone: string;
-  createdAt: Date;
-  studentCount: number;
-  qualifications: string;
-  bio: string;
-  currency: string;
-  zoomAuthenticated: boolean;
-  active: boolean;
-  timetable: {
-    day: string; // day of week (0-6) or name
-    from: string;
-    to: string;
-  }[];
-}
-
 export interface TutorAvailability {
   id: number;
   dayOfWeek: number;
-  startTime: string; // HH:mm
+  startTime: string;
   endTime: string;
 }
 
@@ -37,34 +14,6 @@ export interface TutorNote {
   content: string;
   authorName: string;
   createdAt: string;
-}
-
-export interface TutorSession {
-  id: number;
-  startTime: string;
-  endTime: string;
-  durationMinutes: number;
-  status: SessionStatus;
-  topic: string | null;
-  studentId: number;
-  studentName: string;
-  attendance?: {
-    id: number;
-    tutorAttendance: AttendanceStatus;
-    studentAttendance: AttendanceStatus;
-    reason: string | null;
-  };
-  report?: TutorSessionReport;
-}
-
-export interface TutorSessionReport {
-  id: number;
-  outcomes: string | null;
-  strengths: string | null;
-  weaknesses: string | null;
-  nextGoals: string | null;
-  comments: string | null;
-  rating: number | null;
 }
 
 export interface TutorPayment {
@@ -97,6 +46,33 @@ export interface PerformanceMetrics {
   scoreColor: string;
 }
 
+// ---------- NEW: one row = one student in a session ----------
+export interface TutorSession {
+  sessionId: number;
+  participantId: number;
+  startTime: string;
+  endTime: string;
+  durationMinutes: number;
+  status: SessionStatus;
+  topic: string | null;
+  studentId: number;
+  studentName: string;
+  attendance: {
+    status: AttendanceStatus | null;
+    reason: string | null;
+  };
+  report: {
+    id: number;
+    rating: number | null;
+    outcomes: string | null;
+    strengths: string | null;
+    weaknesses: string | null;
+    nextGoals: string | null;
+    comments: string | null;
+  } | null;
+}
+
+// ---------- TutorProfile ----------
 export interface TutorProfile {
   id: number;
   name: string;
@@ -109,7 +85,8 @@ export interface TutorProfile {
   zoomUrl: string | null;
   zoomAuthenticated: boolean;
   academyName: string;
-  pricePerHour: number;
+  privatePricePerHour: number;
+  groupPricePerHour: number;
   specialities: string[];
   active: boolean;
   bio: string | null;
@@ -117,12 +94,12 @@ export interface TutorProfile {
   imageUrl: string | null;
   availabilities: TutorAvailability[];
   students: AssignedStudent[];
-  sessions: TutorSession[];
+  sessions: TutorSession[]; // flattened per‑student rows
   notes: TutorNote[];
   payments: TutorPayment[];
   monthlyStats: {
     totalSessions: number;
-    attendedSessions: number;
+    attendedSessions: number; // sessions where at least one student attended (or tutor? we'll keep old logic)
     attendanceRate: number;
     totalEarnings: number;
     paid: number;

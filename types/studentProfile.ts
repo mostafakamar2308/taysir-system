@@ -25,22 +25,29 @@ export interface Note {
 
 export interface SessionRecord {
   id: number;
-  startTime: string; // ISO string
+  startTime: string;
   endTime: string;
   durationMinutes: number;
-  status: number; // SessionStatus enum int
+  status: number;
   topic: string | null;
   notes: string | null;
-  studentId: number;
-  studentName: string;
   tutorId: number;
-  tutorName: string | null;
+  tutorName: string;
+  // One session per student – their own attendance & report
   attendance?: {
-    id: number;
-    status: number; // AttendanceStatus enum int
+    id: number; // participant id
+    status: number | null;
     reason: string | null;
   };
-  report: Report;
+  report?: {
+    id: number;
+    rating: number | null;
+    outcomes: string | null;
+    strengths: string | null;
+    weaknesses: string | null;
+    nextGoals: string | null;
+    comments: string | null;
+  } | null;
 }
 
 export interface Payment {
@@ -68,16 +75,12 @@ export interface StudentProfile {
   status: StudentStatus;
   sessionsBalance: number;
   source: string | null;
-  currentProgram: string | null;
-  emergencyContactName: string | null;
   academyId: number;
-  emergencyContactPhone: string | null;
   preferredLanguage: string | null;
   tutorId: number | null;
   tutorName: string | null;
   planId: number | null;
   plan: Plan | null;
-  availabilities: Availability[];
   notes: Note[];
   payments: Payment[];
   subscriptions: Subscription[];

@@ -5,8 +5,6 @@ import {
   getSalaryData,
   payTutor,
   getDefaultCurrencyId,
-  SalaryMonthData,
-  TutorSalaryInfo,
 } from "@/actions/finances";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -45,6 +43,37 @@ interface SalariesTabProps {
   academyId: number;
   defaultCurrency: { code: string; symbol: string };
   tutors: { id: number; name: string }[];
+}
+
+export interface SalaryMonthData {
+  totalPaidSalaries: number;
+  highestPaidTutors: { tutorId: number; name: string; totalPaid: number }[];
+  avgSessionsPerTutor: number;
+  avgRevenuePerTutor: number;
+  tutors: {
+    tutorId: number;
+    tutorName: string;
+    privatePricePerHour: number;
+    groupPricePerHour: number;
+    completedSessions: number;
+    totalMinutes: number;
+    expectedSalary: number;
+    paidAmount: number;
+    outstanding: number;
+  }[];
+  revenuePerTutor: { tutorId: number; name: string; totalRevenue: number }[];
+}
+
+export interface TutorSalaryInfo {
+  tutorId: number;
+  tutorName: string;
+  privatePricePerHour: number;
+  groupPricePerHour: number;
+  completedSessions: number;
+  totalMinutes: number;
+  expectedSalary: number;
+  paidAmount: number;
+  outstanding: number;
 }
 
 export default function SalariesTab({
@@ -316,7 +345,8 @@ export default function SalariesTab({
                 <TableHeader>
                   <TableRow>
                     <TableHead>المعلم</TableHead>
-                    <TableHead>سعر الساعة</TableHead>
+                    <TableHead>سعر الساعة الفردية</TableHead>
+                    <TableHead>سعر الساعة الجماعية</TableHead>
                     <TableHead>الجلسات المكتملة</TableHead>
                     <TableHead>الراتب المتوقع</TableHead>
                     <TableHead>المدفوع</TableHead>
@@ -330,7 +360,13 @@ export default function SalariesTab({
                       <TableCell>{tutor.tutorName}</TableCell>
                       <TableCell>
                         {formatCurrency(
-                          tutor.pricePerHour,
+                          tutor.privatePricePerHour,
+                          defaultCurrency.symbol,
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {formatCurrency(
+                          tutor.groupPricePerHour,
                           defaultCurrency.symbol,
                         )}
                       </TableCell>

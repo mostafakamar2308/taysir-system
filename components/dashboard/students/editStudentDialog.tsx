@@ -164,29 +164,6 @@ export default function EditStudentDialog({
                   defaultValue={student.source || ""}
                 />
               </div>
-              <div>
-                <Label htmlFor="currentProgram">البرنامج</Label>
-                <Input
-                  id="currentProgram"
-                  name="currentProgram"
-                  defaultValue={student.currentProgram || ""}
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>جهة اتصال الطوارئ</Label>
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  name="emergencyContactName"
-                  placeholder="الاسم"
-                  defaultValue={student.emergencyContactName || ""}
-                />
-                <Input
-                  name="emergencyContactPhone"
-                  placeholder="الهاتف"
-                  defaultValue={student.emergencyContactPhone || ""}
-                />
-              </div>
             </div>
             <div>
               <Label htmlFor="tutorId">المعلم</Label>

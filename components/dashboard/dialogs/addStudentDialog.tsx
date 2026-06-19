@@ -140,10 +140,6 @@ export default function AddStudentDialog({
                 <Label htmlFor="source">{t("source")}</Label>
                 <Input id="source" name="source" />
               </div>
-              <div>
-                <Label htmlFor="currentProgram">{t("currentProgram")}</Label>
-                <Input id="currentProgram" name="currentProgram" />
-              </div>
             </div>
           </div>
 

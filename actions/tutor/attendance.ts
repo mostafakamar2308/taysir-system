@@ -7,7 +7,7 @@ import { AttendanceStatus, SessionStatus } from "@/types/session";
 import { getSessionStatus } from "@/lib/session";
 
 export async function markStudentAttendanceByTutor(
-  sessionId: number,
+  participantId: number,
   status: AttendanceStatus,
   reason?: string,
 ) {
@@ -16,25 +16,22 @@ export async function markStudentAttendanceByTutor(
   const payload = verifyToken(token);
   if (!payload || !payload.tutorId) throw new Error("غير مصرح");
 
-  const session = await db.session.findUnique({
-    where: { id: sessionId },
+  const participant = await db.sessionParticipant.findUnique({
+    where: { id: participantId },
+    include: { session: true },
   });
-  if (!session) throw new Error("الحصة غير موجودة");
-  if (session.tutorId !== payload.tutorId) throw new Error("غير مصرح");
-  if (getSessionStatus(session) !== SessionStatus.COMPLETED) {
+  if (!participant) throw new Error("المشارك غير موجود");
+  if (participant.session.tutorId !== payload.tutorId)
+    throw new Error("غير مصرح");
+
+  // Ensure session is completed (optional, as per your old logic)
+  if (getSessionStatus(participant.session) !== SessionStatus.COMPLETED) {
     throw new Error("لا يمكن تسجيل الحضور إلا بعد انتهاء الحصة");
   }
 
-  await db.attendance.upsert({
-    where: { sessionId },
-    update: {
-      studentAttendanceStatus: status,
-      tutorAttendanceStatus: AttendanceStatus.ATTENDED,
-      reason: reason ?? null,
-    },
-    create: {
-      sessionId,
-      tutorAttendanceStatus: AttendanceStatus.ATTENDED,
+  await db.sessionParticipant.update({
+    where: { id: participantId },
+    data: {
       studentAttendanceStatus: status,
       reason: reason ?? null,
     },

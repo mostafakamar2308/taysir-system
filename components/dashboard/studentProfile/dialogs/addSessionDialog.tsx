@@ -77,11 +77,11 @@ export default function AddSessionDialog({
     setLoading(true);
     try {
       const input = {
-        studentId,
+        studentIds: [studentId],
         tutorId: parseInt(tutorId),
         academyId,
         date,
-        startTime: dayjs(`${date}T${startTime}`).toISOString(),
+        startTime: dayjs(`${date}T${startTime}`).utc().toISOString(),
         duration: parseInt(duration),
         topic: topic || undefined,
         notes: notes || undefined,

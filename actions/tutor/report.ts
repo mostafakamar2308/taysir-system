@@ -7,7 +7,7 @@ import dayjs from "@/lib/dayjs";
 import { sendSingleMessage } from "./sendMessage";
 
 export async function upsertSessionReport(
-  sessionId: number,
+  participantId: number,
   data: {
     rating?: number;
     outcomes?: string | null;
@@ -22,37 +22,41 @@ export async function upsertSessionReport(
   const payload = verifyToken(token);
   if (!payload || !payload.tutorId) throw new Error("غير مصرح");
 
-  const session = await db.session.findUnique({
-    where: { id: sessionId },
+  const participant = await db.sessionParticipant.findUnique({
+    where: { id: participantId },
     include: {
-      student: {
-        select: { user: { select: { name: true, phone: true } } },
-      },
+      session: { include: { tutor: true } },
+      student: { include: { user: true } },
     },
   });
-  if (!session) throw new Error("الحصة غير موجودة");
-  if (session.tutorId !== payload.tutorId) throw new Error("غير مصرح");
+  if (!participant) throw new Error("المشارك غير موجود");
+  if (participant.session.tutorId !== payload.tutorId)
+    throw new Error("غير مصرح");
 
+  // Upsert report linked to this participant
   await db.sessionReport.upsert({
-    where: { sessionId },
+    where: { participantId },
     update: data,
-    create: { sessionId, ...data },
+    create: { participantId, ...data },
   });
 
-  if (session.student.user.phone) {
+  // Send WhatsApp report if phone exists
+  if (participant.student.user.phone) {
+    const studentName = participant.student.user.name ?? "";
+    const sessionStart = dayjs(participant.session.startTime);
     const message = {
-      phoneNumber: session.student.user.phone,
-      content: `السلام عليكم، ${session.student.user.name ? `والد الطالب ${session.student.user.name}` : ""}
-هذا تقرير حصة يوم ${dayjs(session.startTime).format("dddd")}:
+      phoneNumber: participant.student.user.phone,
+      content: `السلام عليكم، ${studentName ? `والد الطالب ${studentName}` : ""}
+هذا تقرير حصة يوم ${sessionStart.format("dddd")}:
 ${data.rating ? `تقييم الحصة: ${data.rating}` : ""}
 ${data.outcomes ? `نتائج الحصة: ${data.outcomes}` : ""}
 ${data.strengths ? `نقاط القوة: ${data.strengths}` : ""}
 ${data.weaknesses ? `نقاط الضعف: ${data.weaknesses}` : ""}
-${data.nextGoals ? `أهداف الحصة القادمة: ${data.nextGoals}` : ""}
-      `,
+${data.nextGoals ? `أهداف الحصة القادمة: ${data.nextGoals}` : ""}`,
     };
 
     await sendSingleMessage(message.phoneNumber, message.content);
   }
+
   revalidatePath("/ar/dashboard/tutor/sessions");
 }

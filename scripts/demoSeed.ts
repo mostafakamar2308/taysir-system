@@ -12,7 +12,7 @@ import { faker } from "@faker-js/faker/locale/ar";
 const NOW = dayjs();
 const ACADEMY_NAME = "أكاديمية النمو";
 const START_DATE = dayjs().startOf("year");
-const MONTHS = 5;
+const MONTHS = 6;
 
 // Plans in EGP
 const PLANS = [
@@ -22,11 +22,15 @@ const PLANS = [
 ];
 
 const TUTORS_INITIAL = 10;
-const TUTORS_ADDED_MONTH3 = 2;
+const TUTORS_ADDED_MONTH3 = 5;
 
-const LEADS_BASE = [50, 65, 80, 95, 110];
-const TRIALS_BASE = [30, 40, 50, 60, 70];
-const CONVERSIONS_BASE = [10, 15, 20, 25, 30];
+const LEADS_BASE = [50, 65, 80, 95, 110, 130];
+const TRIALS_BASE = [30, 40, 50, 60, 70, 80];
+const CONVERSIONS_BASE = [10, 15, 20, 25, 30, 35];
+
+// Group sessions: probability each month to have a few
+const GROUP_SESSION_PROBABILITY = 0.6;
+const MAX_GROUP_SESSIONS_PER_MONTH = 16;
 
 const randomInt = (min: number, max: number) =>
   Math.floor(Math.random() * (max - min + 1)) + min;
@@ -39,128 +43,33 @@ function pickRandom<T>(arr: T[], count: number): T[] {
 async function cleanup() {
   console.log("🧹 Starting database cleanup...");
 
-  // 1. Delete chat messages (no FK to other seeded entities that we'll keep)
   await db.chatMessage.deleteMany();
-  console.log("  ✅ Chat messages deleted");
-
-  // 2. Delete chat rooms
   await db.chatRoom.deleteMany();
-  console.log("  ✅ Chat rooms deleted");
-
-  // 3. Delete push subscriptions
   await db.pushSubscription.deleteMany();
-  console.log("  ✅ Push subscriptions deleted");
-
-  // 4. Delete notes
   await db.note.deleteMany();
-  console.log("  ✅ Notes deleted");
 
-  // 5. Delete session reports (FK to sessions)
   await db.sessionReport.deleteMany();
   console.log("  ✅ Session reports deleted");
-
-  // 6. Delete attendance
-  await db.attendance.deleteMany();
-  console.log("  ✅ Attendance records deleted");
-
-  // 7. Delete sessions
+  await db.sessionParticipant.deleteMany();
+  console.log("  ✅ Session participants deleted");
   await db.session.deleteMany();
   console.log("  ✅ Sessions deleted");
 
-  // 8. Delete revenues (FK to students, plans, subscriptions)
   await db.revenue.deleteMany();
-  console.log("  ✅ Revenues deleted");
-
-  // 9. Delete expenses (FK to tutors, cost centers)
   await db.expense.deleteMany();
-  console.log("  ✅ Expenses deleted");
-
-  // 10. Delete subscriptions
   await db.subscription.deleteMany();
-  console.log("  ✅ Subscriptions deleted");
-
-  // 11. Delete plans (we'll recreate them in seed)
   await db.plan.deleteMany();
-  console.log("  ✅ Plans deleted");
-
-  // 12. Delete students (FK to users)
   await db.student.deleteMany();
-  console.log("  ✅ Students deleted");
-
-  // 13. Delete tutors
   await db.tutor.deleteMany();
-  console.log("  ✅ Tutors deleted");
-
-  // 14. Delete supervisors
   await db.supervisor.deleteMany();
-  console.log("  ✅ Supervisors deleted");
-
-  // 15. Delete admin
   await db.admin.deleteMany();
-  console.log("  ✅ Admins deleted");
-
-  // 16. Delete superAdmin
   await db.superAdmin.deleteMany();
-  console.log("  ✅ Super admins deleted");
-
-  // 17. Delete users (except maybe the super admin? We'll delete all)
-  // Be careful: if you want to keep the super admin, skip this.
   await db.user.deleteMany();
-  console.log("  ✅ Users deleted");
-
   await db.currency.deleteMany();
-  console.log("  ✅ Currencies deleted");
-
-  // 18. Delete academy (optional – remove if you have multiple academies)
+  await db.history.deleteMany();
   await db.academy.deleteMany();
-  console.log("  ✅ Academy deleted");
-
-  // 19. Keep currencies, specialities, cost centers (they are reference data)
-  console.log(
-    "💾 Skipping deletion of reference data: currencies, specialities, cost centers.",
-  );
 
   console.log("🎉 Cleanup complete!");
-}
-
-async function generateSessions(
-  studentId: number,
-  tutorId: number,
-  academyId: number,
-  plan: { sessionsPerWeek: number },
-  start: dayjs.Dayjs,
-  end: dayjs.Dayjs,
-  isTrial = false,
-) {
-  // Pick random distinct weekdays for the sessions
-  const daysOfWeek = pickRandom([0, 1, 2, 3, 4, 5, 6], plan.sessionsPerWeek);
-
-  // Generate all occurrences in the interval [start, end]
-  let current = start.startOf("day");
-  const sessions = [];
-
-  while (current.isBefore(end) || current.isSame(end, "day")) {
-    if (daysOfWeek.includes(current.day())) {
-      const sessionDate = current.hour(16).minute(0).second(0);
-      if (sessionDate.isAfter(start) && sessionDate.isBefore(end, "day")) {
-        const session = await db.session.create({
-          data: {
-            startTime: sessionDate.toDate(),
-            endTime: sessionDate.add(60, "minute").toDate(),
-            durationMinutes: 60,
-            topic: faker.lorem.words(3),
-            isTrial,
-            studentId,
-            tutorId,
-            academyId,
-          },
-        });
-        sessions.push(session);
-      }
-    }
-    current = current.add(1, "day");
-  }
-  return sessions;
 }
 
 const SPECIALITIES = [
@@ -171,37 +80,149 @@ const SPECIALITIES = [
   "Arabic Language",
 ];
 
-// ========= Main seed function ==========
+// Helper to create a session with participants, attendance, and reports
+async function createSessionWithParticipants(
+  studentIds: number[],
+  tutorId: number,
+  academyId: number,
+  startTime: dayjs.Dayjs,
+  durationMinutes: number,
+  isTrial: boolean,
+  topic?: string,
+) {
+  // Create the session
+  const session = await db.session.create({
+    data: {
+      startTime: startTime.toDate(),
+      endTime: startTime.add(durationMinutes, "minute").toDate(),
+      durationMinutes,
+      topic: topic || faker.lorem.words(3),
+      isTrial,
+      tutorId,
+      academyId,
+    },
+  });
+
+  // Create participants and optionally their attendance + report
+  for (const studentId of studentIds) {
+    const participant = await db.sessionParticipant.create({
+      data: {
+        sessionId: session.id,
+        studentId,
+        balanceDeducted: !isTrial,
+      },
+    });
+
+    // If session is in the past, add student attendance & maybe report
+    if (startTime.isBefore(NOW)) {
+      const attended = Math.random() < 0.9; // 90% attendance
+      await db.sessionParticipant.update({
+        where: { id: participant.id },
+        data: {
+          studentAttendanceStatus: attended
+            ? AttendanceStatus.ATTENDED
+            : AttendanceStatus.ABSENT_UNEXCUSED,
+        },
+      });
+
+      if (attended && Math.random() < 0.8) {
+        await db.sessionReport.create({
+          data: {
+            participantId: participant.id,
+            rating: randomInt(2, 5),
+            outcomes: faker.lorem.sentence(),
+            strengths: faker.lorem.sentence(),
+            weaknesses:
+              Math.random() > 0.5 ? faker.lorem.sentence() : undefined,
+            nextGoals: faker.lorem.sentence(),
+            comments: faker.lorem.paragraph(),
+          },
+        });
+      }
+    }
+  }
+
+  return session;
+}
+
+// Original generateSessions now uses the above for single student (private)
+async function generateSessions(
+  studentId: number,
+  tutorId: number,
+  academyId: number,
+  plan: { sessionsPerWeek: number },
+  start: dayjs.Dayjs,
+  end: dayjs.Dayjs,
+  isTrial = false,
+) {
+  const daysOfWeek = pickRandom([0, 1, 2, 3, 4, 5, 6], plan.sessionsPerWeek);
+  let current = start.startOf("day");
+  const sessions = [];
+
+  while (current.isBefore(end) || current.isSame(end, "day")) {
+    if (daysOfWeek.includes(current.day())) {
+      const sessionDate = current.hour(16).minute(0).second(0);
+      if (sessionDate.isAfter(start) && sessionDate.isBefore(end, "day")) {
+        const session = await createSessionWithParticipants(
+          [studentId],
+          tutorId,
+          academyId,
+          sessionDate,
+          60,
+          isTrial,
+        );
+        sessions.push(session);
+      }
+    }
+    current = current.add(1, "day");
+  }
+  return sessions;
+}
+
+// Generate a single group session with random subscribed students
+async function generateGroupSession(
+  academyId: number,
+  monthStart: dayjs.Dayjs,
+  monthEnd: dayjs.Dayjs,
+  tutors: number[],
+  subscribedStudents: { id: number }[],
+) {
+  if (subscribedStudents.length < 2) return;
+
+  const studentCount = randomInt(2, Math.min(4, subscribedStudents.length));
+  const groupStudents = pickRandom(subscribedStudents, studentCount).map(
+    (s) => s.id,
+  );
+  const tutorId = tutors[randomInt(0, tutors.length - 1)];
+  const sessionDay = randomInt(1, monthEnd.date());
+  const sessionDate = monthStart.date(sessionDay).hour(14).minute(0).second(0); // different time
+  const topic = faker.lorem.words(3) + " (مجموعة)";
+
+  await createSessionWithParticipants(
+    groupStudents,
+    tutorId,
+    academyId,
+    sessionDate,
+    90,
+    false,
+    topic,
+  );
+}
+
 async function seedDemoAcademy() {
   const password = await bcrypt.hash("24689110134", 10);
-
   console.log("🌱 Seeding started...");
 
+  // Cost centers, currencies, specialities – unchanged
   const costCenters = await Promise.all([
-    db.costCenter.create({
-      data: { title: "مرتبات المعلمين" },
-    }),
-    db.costCenter.create({
-      data: { title: "مرتبات الموظفين (غير المعلمين)" },
-    }),
-    db.costCenter.create({
-      data: { title: "الإعلانات" },
-    }),
-    db.costCenter.create({
-      data: { title: "تصوير المحتوى" },
-    }),
-    db.costCenter.create({
-      data: { title: "إشتراكات برامج" },
-    }),
-    db.costCenter.create({
-      data: { title: "ضرائب" },
-    }),
-    db.costCenter.create({
-      data: { title: "حوافز" },
-    }),
-    db.costCenter.create({
-      data: { title: "أخرى" },
-    }),
+    db.costCenter.create({ data: { title: "مرتبات المعلمين" } }),
+    db.costCenter.create({ data: { title: "مرتبات الموظفين (غير المعلمين)" } }),
+    db.costCenter.create({ data: { title: "الإعلانات" } }),
+    db.costCenter.create({ data: { title: "تصوير المحتوى" } }),
+    db.costCenter.create({ data: { title: "إشتراكات برامج" } }),
+    db.costCenter.create({ data: { title: "ضرائب" } }),
+    db.costCenter.create({ data: { title: "حوافز" } }),
+    db.costCenter.create({ data: { title: "أخرى" } }),
   ]);
 
   await Promise.all([
@@ -215,14 +236,48 @@ async function seedDemoAcademy() {
       data: { code: "EGP", name: "جنيه مصري", symbol: "ج.م" },
     }),
   ]);
-  console.log("✅ Created currencies");
+  console.log("✅ Currencies created");
+
+  await Promise.all([
+    db.saasPlan.create({
+      data: {
+        billingPeriod: 30,
+        dollarPrice: 15,
+        egyptianPrice: 30,
+        maxStudents: 200,
+        maxTutors: 200,
+        name: "الخطة الأولي",
+      },
+    }),
+    db.saasPlan.create({
+      data: {
+        billingPeriod: 30,
+        dollarPrice: 15,
+        egyptianPrice: 30,
+        maxStudents: 200,
+        maxTutors: 200,
+        name: "الخطة الثانية",
+      },
+    }),
+    db.saasPlan.create({
+      data: {
+        billingPeriod: 30,
+        dollarPrice: 15,
+        egyptianPrice: 30,
+        maxStudents: 200,
+        maxTutors: 200,
+        name: "الخطة الثالثة",
+      },
+    }),
+  ]);
+  console.log("✅ Saas Plan created");
 
   await Promise.all(
     SPECIALITIES.map((title) => db.speciality.create({ data: { title } })),
   );
-  console.log("✅ Created specialities");
+  console.log("✅ Specialities created");
 
-  // Create super admin
+  // Super admin
   const superAdminUser = await db.user.create({
     data: {
       email: "mostafakamar.dev@gmail.com",
@@ -233,20 +288,13 @@ async function seedDemoAcademy() {
     },
   });
   await db.superAdmin.create({ data: { userId: superAdminUser.id } });
-  console.log("✅ Created super admin");
+  console.log("✅ Super admin created");
 
-  console.log("🌱 Seeding demo academy...");
-
-  // 1. Fetch currencies, specialities, super admin, etc.
   const eurCurrency = await db.currency.findUnique({ where: { code: "EGP" } });
-  if (!eurCurrency)
-    throw new Error("EGP currency not found; run the initial seed first.");
-
+  if (!eurCurrency) throw new Error("EGP currency not found");
   const specialities = await db.speciality.findMany();
-  if (specialities.length === 0)
-    throw new Error("No specialities; run initial seed first.");
 
-  // 2. Create the demo academy
+  // Academy
   const academy = await db.academy.create({
     data: {
       name: ACADEMY_NAME,
@@ -256,9 +304,9 @@ async function seedDemoAcademy() {
       defaultCurrencyId: eurCurrency.id,
     },
   });
-  console.log(`✅ Academy created: ${academy.name}`);
+  console.log(`✅ Academy: ${academy.name}`);
 
-  // 3. Create the 3 EGP plans
+  // Plans
   const plans = await Promise.all(
     PLANS.map((p) =>
       db.plan.create({
@@ -271,9 +319,8 @@ async function seedDemoAcademy() {
       }),
     ),
   );
-  console.log("✅ Plans created");
 
-  // 4. Create admin user & admin for this academy
+  // Admin
   const adminUser = await db.user.create({
     data: {
       email: "demo.admin@academy.com",
@@ -286,9 +333,8 @@ async function seedDemoAcademy() {
   await db.admin.create({
     data: { userId: adminUser.id, academyId: academy.id },
   });
-  console.log("✅ Admin created");
 
-  // 5. Create tutor users & tutors (12 total)
+  // Create tutors with both rates
   const tutorRecords = [];
   for (let i = 0; i < TUTORS_INITIAL + TUTORS_ADDED_MONTH3; i++) {
     const user = await db.user.create({
@@ -300,18 +346,21 @@ async function seedDemoAcademy() {
         phone: `+201018303125`,
       },
     });
+    const privateRate = randomInt(60, 80);
+    const groupRate = randomInt(40, 55);
     const tutor = await db.tutor.create({
       data: {
         userId: user.id,
         academyId: academy.id,
         currencyId: eurCurrency.id,
-        pricePerHour: randomInt(60, 80),
+        privatePricePerHour: privateRate,
+        groupPricePerHour: groupRate,
         active: true,
         bio: faker.lorem.sentence(),
         qualifications: faker.lorem.words(3),
         specialities: {
           connect: pickRandom(specialities, randomInt(1, 3)).map((s) => ({
-            id: s?.id,
+            id: s.id,
           })),
         },
       },
@@ -320,31 +369,20 @@ async function seedDemoAcademy() {
   }
   const initialTutors = tutorRecords.slice(0, TUTORS_INITIAL).map((t) => t.id);
   const allTutors = tutorRecords.map((t) => t.id);
-  console.log(
-    `✅ Created ${tutorRecords.length} tutors (${TUTORS_INITIAL} initial, 2 added later)`,
-  );
+  console.log(`✅ ${tutorRecords.length} tutors`);
 
-  // 6. Track students per phase
-  interface StudentEntry {
-    id: number;
-    status: StudentStatus;
-    planId?: number;
-    subscriptionId?: number;
-    conversionDate?: dayjs.Dayjs;
-  }
-  const monthLeads: StudentEntry[][] = [[], [], [], []];
-  const monthTrials: StudentEntry[][] = [[], [], [], []];
-  const monthSubscribed: StudentEntry[][] = [[], [], [], []];
+  // Month-by-month simulation
+  const monthLeads: { id: number }[][] = [];
+  const monthTrials: { id: number }[][] = [];
+  const monthSubscribed: { id: number }[][] = [];
 
-  // 7. Month-by-month simulation
   for (let m = 0; m < MONTHS; m++) {
     const monthStart = START_DATE.add(m, "month");
     const monthEnd = monthStart.endOf("month");
     const isFirstMonth = m === 0;
-
     console.log(`\n--- Month ${m + 1}: ${monthStart.format("YYYY-MM")} ---`);
 
-    // ---- 7.1 Renew existing subscriptions (not month 1) ----
+    // Renew existing subscriptions (unchanged logic, but sessions created later)
     if (!isFirstMonth) {
       const subscribedStudents = await db.student.findMany({
         where: { academyId: academy.id, status: StudentStatus.subscribed },
@@ -353,12 +391,10 @@ async function seedDemoAcademy() {
           plan: true,
         },
       });
-
       for (const student of subscribedStudents) {
         const lastSub = student.subscriptions[0];
         if (!lastSub) continue;
 
-        // Revoke previous subscription
         await db.subscription.update({
           where: { id: lastSub.id },
           data: {
@@ -367,7 +403,6 @@ async function seedDemoAcademy() {
           },
         });
 
-        // Create new full-month subscription
         const newSub = await db.subscription.create({
           data: {
             studentId: student.id,
@@ -383,14 +418,12 @@ async function seedDemoAcademy() {
           where: { id: student.id },
           data: {
             sessionsBalance: {
-              increment: student.plan?.sessionsPerWeek
-                ? student.plan.sessionsPerWeek * 4
-                : 0,
+              increment: (student.plan?.sessionsPerWeek ?? 0) * 4,
             },
           },
         });
 
-        // Create monthly payment
+        // Payment
         const plan = plans.find((p) => p.id === lastSub.planId);
         await db.revenue.create({
           data: {
@@ -416,12 +449,12 @@ async function seedDemoAcademy() {
           },
         });
 
-        // Generate weekly sessions for this month (all relevant tutors)
+        // Generate sessions for this student
         const tutorId =
           allTutors[
             randomInt(0, (m < 2 ? initialTutors.length : allTutors.length) - 1)
           ];
-        const sessions = await generateSessions(
+        await generateSessions(
           student.id,
           tutorId,
           academy.id,
@@ -429,42 +462,13 @@ async function seedDemoAcademy() {
           monthStart,
           monthEnd,
         );
-
-        // Add attendance & reports for past sessions
-        for (const session of sessions) {
-          if (dayjs(session.startTime).isBefore(NOW)) {
-            if (Math.random() < 0.9) {
-              await db.attendance.create({
-                data: {
-                  sessionId: session.id,
-                  tutorAttendanceStatus: AttendanceStatus.ATTENDED,
-                  studentAttendanceStatus: AttendanceStatus.ATTENDED,
-                },
-              });
-              if (Math.random() < 0.8) {
-                await db.sessionReport.create({
-                  data: {
-                    sessionId: session.id,
-                    rating: randomInt(2, 5),
-                    outcomes: faker.lorem.sentence(),
-                    strengths: faker.lorem.sentence(),
-                    weaknesses:
-                      Math.random() > 0.5 ? faker.lorem.sentence() : undefined,
-                    nextGoals: faker.lorem.sentence(),
-                    comments: faker.lorem.paragraph(),
-                  },
-                });
-              }
-            }
-          }
-        }
       }
       console.log(`  Renewed ${subscribedStudents.length} subscriptions`);
     }
 
-    // ---- 7.2 Generate new leads ----
+    // Leads
     const leadCount = LEADS_BASE[m];
-    const leads: StudentEntry[] = [];
+    const leads = [];
     for (let i = 0; i < leadCount; i++) {
       const creationDay = randomInt(1, monthEnd.date());
       const createdAt = monthStart
@@ -481,7 +485,6 @@ async function seedDemoAcademy() {
           phone: `+201018303125`,
         },
       });
-
       const student = await db.student.create({
         data: {
           status: StudentStatus.lead,
@@ -491,8 +494,6 @@ async function seedDemoAcademy() {
           userId: studentUser.id,
         },
       });
-
-      // History: LeadCreated
       await db.history.create({
         data: {
           targetType: TargetType.Student,
@@ -504,27 +505,25 @@ async function seedDemoAcademy() {
           createdAt: createdAt.toDate(),
         },
       });
-      leads.push({ id: student.id, status: StudentStatus.lead });
+      leads.push({ id: student.id });
     }
     monthLeads[m] = leads;
     console.log(`  Created ${leadCount} leads`);
 
-    // ---- 7.3 Convert some leads to trials ----
+    // Trials
     const trialCount = TRIALS_BASE[m];
     const trialsToCreate = pickRandom(leads, trialCount);
-    const trials: StudentEntry[] = [];
+    const trials = [];
     for (const lead of trialsToCreate) {
-      // a few days after lead creation
       const trialDate = dayjs(
         (await db.student.findUnique({ where: { id: lead.id } }))!.createdAt,
       ).add(randomInt(1, 5), "day");
-      // keep within month
       const finalTrialDate = trialDate.isBefore(monthEnd)
         ? trialDate
         : monthEnd;
       const tutorPool = m < 2 ? initialTutors : allTutors;
       const tutorId = tutorPool[randomInt(0, tutorPool.length - 1)];
-      // Update status
+
       await db.student.update({
         where: { id: lead.id },
         data: {
@@ -533,8 +532,6 @@ async function seedDemoAcademy() {
           tutorId,
         },
       });
-
-      // History: LeadToTrial
       await db.history.create({
         data: {
           targetType: TargetType.Student,
@@ -552,72 +549,35 @@ async function seedDemoAcademy() {
         },
       });
 
-      // Create trial session (isTrial = true)
-
+      // Create trial session (single)
       const trialSessionDate = finalTrialDate.add(1, "day").hour(16);
-      const trialSession = await db.session.create({
-        data: {
-          startTime: trialSessionDate.toDate(),
-          endTime: trialSessionDate.add(60, "minute").toDate(),
-          durationMinutes: 60,
-          topic: "جلسة تجريبية",
-          isTrial: true,
-          studentId: lead.id,
-          tutorId,
-          academyId: academy.id,
-        },
-      });
-
-      // If session is in the past, add attendance and possibly report
-      if (trialSessionDate.isBefore(NOW)) {
-        if (Math.random() < 0.9) {
-          await db.attendance.create({
-            data: {
-              sessionId: trialSession.id,
-              tutorAttendanceStatus: AttendanceStatus.ATTENDED,
-              studentAttendanceStatus: AttendanceStatus.ATTENDED,
-            },
-          });
-          if (Math.random() < 0.8) {
-            await db.sessionReport.create({
-              data: {
-                sessionId: trialSession.id,
-                rating: randomInt(3, 5),
-                outcomes: faker.lorem.sentence(),
-                strengths: faker.lorem.sentence(),
-                weaknesses: faker.lorem.sentence(),
-                nextGoals: faker.lorem.sentence(),
-                comments: faker.lorem.paragraph(),
-              },
-            });
-          }
-        }
-      }
-
-      trials.push({
-        id: lead.id,
-        status: StudentStatus.trial,
-        planId: undefined,
-      });
+      await createSessionWithParticipants(
+        [lead.id],
+        tutorId,
+        academy.id,
+        trialSessionDate,
+        60,
+        true,
+        "جلسة تجريبية",
+      );
+      trials.push({ id: lead.id });
     }
     monthTrials[m] = trials;
     console.log(`  Converted ${trialCount} leads to trial`);
 
-    // ---- 7.4 Convert some trials to paid subscriptions ----
+    // Conversions
     const convCount = CONVERSIONS_BASE[m];
     const conversionsToCreate = pickRandom(trials, convCount);
-    const subscribedThisMonth: StudentEntry[] = [];
+    const subscribedThisMonth = [];
     for (const trial of conversionsToCreate) {
-      // choose a random plan
       const plan = plans[randomInt(0, plans.length - 1)];
       const conversionDate = dayjs(
         (await db.student.findUnique({ where: { id: trial.id } }))!.updatedAt,
-      ).add(randomInt(1, 4), "day"); // after trial
+      ).add(randomInt(1, 4), "day");
       const finalConvDate = conversionDate.isBefore(monthEnd)
         ? conversionDate
         : monthEnd;
 
-      // Update status to subscribed
       await db.student.update({
         where: { id: trial.id },
         data: {
@@ -627,8 +587,6 @@ async function seedDemoAcademy() {
           updatedAt: finalConvDate.toDate(),
         },
       });
-
-      // History: TrialToSubscription
       await db.history.create({
         data: {
           targetType: TargetType.Student,
@@ -646,7 +604,6 @@ async function seedDemoAcademy() {
         },
       });
 
-      // Create initial subscription (until end of month)
       const subscription = await db.subscription.create({
         data: {
           studentId: trial.id,
@@ -658,7 +615,6 @@ async function seedDemoAcademy() {
         },
       });
 
-      // Create payment for the initial (prorated? full price for simplicity)
       await db.revenue.create({
         data: {
           amount: plan.price,
@@ -683,10 +639,9 @@ async function seedDemoAcademy() {
         },
       });
 
-      // Generate weekly sessions from conversion date to end of month
       const tutorPool = m < 2 ? initialTutors : allTutors;
       const tutorId = tutorPool[randomInt(0, tutorPool.length - 1)];
-      const sessions = await generateSessions(
+      await generateSessions(
         trial.id,
         tutorId,
         academy.id,
@@ -695,90 +650,86 @@ async function seedDemoAcademy() {
         monthEnd,
       );
 
-      // Add attendance & reports for past sessions
-      for (const session of sessions) {
-        if (dayjs(session.startTime).isBefore(NOW)) {
-          await db.attendance.create({
-            data: {
-              sessionId: session.id,
-              tutorAttendanceStatus: AttendanceStatus.ATTENDED,
-              studentAttendanceStatus: AttendanceStatus.ATTENDED,
-            },
-          });
-          if (Math.random() < 0.8) {
-            await db.sessionReport.create({
-              data: {
-                sessionId: session.id,
-                rating: randomInt(2, 5),
-                outcomes: faker.lorem.sentence(),
-                strengths: faker.lorem.sentence(),
-                weaknesses:
-                  Math.random() > 0.5 ? faker.lorem.sentence() : undefined,
-                nextGoals: faker.lorem.sentence(),
-                comments: faker.lorem.paragraph(),
-              },
-            });
-          }
-        }
-      }
-
-      subscribedThisMonth.push({
-        id: trial.id,
-        status: StudentStatus.subscribed,
-        planId: plan.id,
-        subscriptionId: subscription.id,
-        conversionDate: finalConvDate,
-      });
+      subscribedThisMonth.push({ id: trial.id });
     }
     monthSubscribed[m] = subscribedThisMonth;
     console.log(`  Converted ${convCount} trials to subscribed`);
 
-    // ---- 7.5 Generate tutor payments for the month ----
+    // Generate some group sessions this month (using subscribed students from this month)
+    if (Math.random() < GROUP_SESSION_PROBABILITY) {
+      const subscribedStudents = await db.student.findMany({
+        where: {
+          academyId: academy.id,
+          status: StudentStatus.subscribed,
+          id: { in: subscribedThisMonth.map((s) => s.id) },
+        },
+        select: { id: true },
+      });
+      if (subscribedStudents.length >= 2) {
+        const groupCount = randomInt(1, MAX_GROUP_SESSIONS_PER_MONTH);
+        for (let g = 0; g < groupCount; g++) {
+          await generateGroupSession(
+            academy.id,
+            monthStart,
+            monthEnd,
+            allTutors,
+            subscribedStudents,
+          );
+        }
+        console.log(`  Generated ${groupCount} group sessions`);
+      }
+    }
+
+    // Tutor payments for the month: compute private and group minutes separately
     const monthSessions = await db.session.findMany({
       where: {
         academyId: academy.id,
         startTime: { gte: monthStart.toDate(), lte: monthEnd.toDate() },
-        attendance: {
-          tutorAttendanceStatus: {
-            in: [AttendanceStatus.ATTENDED],
-          },
-        },
       },
-      include: { tutor: true },
+      include: { participants: true, tutor: true },
     });
 
-    // Group by tutor
-    const tutorSessionsMap: Record<number, number> = {};
+    // Calculate per tutor
+    const tutorStats: Record<number, { privateMin: number; groupMin: number }> =
+      {};
     for (const s of monthSessions) {
-      tutorSessionsMap[s.tutorId] = (tutorSessionsMap[s.tutorId] || 0) + 1;
+      const tid = s.tutorId;
+      if (!tutorStats[tid]) tutorStats[tid] = { privateMin: 0, groupMin: 0 };
+      const count = s.participants.length;
+      if (count <= 1) {
+        tutorStats[tid].privateMin += s.durationMinutes;
+      } else {
+        tutorStats[tid].groupMin += s.durationMinutes;
+      }
     }
 
-    for (const [tutorId, count] of Object.entries(tutorSessionsMap)) {
+    for (const [tutorId, stats] of Object.entries(tutorStats)) {
       const tutor = await db.tutor.findUnique({
         where: { id: Number(tutorId) },
       });
       if (!tutor) continue;
+      const expectedSalary =
+        (stats.privateMin / 60) * tutor.privatePricePerHour +
+        (stats.groupMin / 60) * tutor.groupPricePerHour;
       await db.expense.create({
         data: {
           date: monthEnd.toDate(),
-          description: `راتب شهر ${monthStart.format("M")}`,
+          description: `راتب شهر ${monthStart.format("M")} (خاص: ${stats.privateMin}د، مجموعة: ${stats.groupMin}د)`,
           costCenterId: costCenters[0].id,
-          amount: count * tutor.pricePerHour,
+          amount: expectedSalary,
           currencyId: eurCurrency.id,
           method: PaymentMethod.BANK_TRANSFER,
           status: PaymentStatus.PAID,
-          tutorId: tutor.id,
+          tutorId: Number(tutorId),
           salaryMonth: monthStart.format("YYYY-MM"),
           academyId: academy.id,
           recordedBy: adminUser.id,
         },
       });
     }
-    console.log(
-      `  Paid salaries for ${Object.keys(tutorSessionsMap).length} tutors`,
-    );
+    console.log(`  Paid salaries for ${Object.keys(tutorStats).length} tutors`);
 
-    // ---- 7.6 Random notes for some students ----
+    // Notes, chat rooms (unchanged)
     const allStudentsThisMonth = [...leads, ...trials, ...subscribedThisMonth];
     const noteStudents = pickRandom(
       allStudentsThisMonth,
@@ -796,88 +747,57 @@ async function seedDemoAcademy() {
       });
     }
 
-    // ---- 8 Creating Chat Rooms with messages ----
-    console.log("\n💬 Creating chat rooms and messages...");
-
+    // Chat rooms (unchanged)
     const studentsWithTutor = await db.student.findMany({
       where: {
         academyId: academy.id,
         tutorId: { not: null },
         status: { in: [StudentStatus.trial, StudentStatus.subscribed] },
       },
-      select: { id: true, tutor: true, userId: true, createdAt: true },
+      select: { id: true, tutor: { select: { userId: true } }, userId: true },
     });
-
     for (const s of studentsWithTutor) {
-      if (!s.tutor) continue;
       await db.chatRoom.upsert({
         where: {
           tutorUserId_studentUserId: {
-            tutorUserId: s.tutor.userId,
+            tutorUserId: s.tutor!.userId,
             studentUserId: s.userId,
           },
         },
         update: {},
         create: {
-          tutorUserId: s.tutor.userId,
+          tutorUserId: s.tutor!.userId,
           studentUserId: s.userId,
           academyId: academy.id,
         },
       });
     }
-    console.log(`  ✅ ${studentsWithTutor.length} tutor–student chat rooms`);
+  }
 
-    async function generateChatMessages(
-      roomId: number,
-      participantUserIds: [number, number], // [userA, userB]
-      startDate: Date,
-      countPerUser: number,
-    ) {
-      const messages: {
-        roomId: number;
-        senderId: number;
-        content: string;
-        createdAt: Date;
-        updatedAt: Date;
-      }[] = [];
-
-      for (let i = 0; i < countPerUser * 2; i++) {
-        const senderId = participantUserIds[i % 2];
-        const createdAt = faker.date.between({
-          from: startDate,
-          to: dayjs().toDate(),
-        });
-        messages.push({
-          roomId,
-          senderId,
-          content: faker.lorem.sentence(),
-          createdAt,
-          updatedAt: createdAt,
-        });
-      }
-
-      // Sort chronologically
-      messages.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
-
-      // Batch insert
-      await db.chatMessage.createMany({ data: messages });
+  // Generate messages for all rooms (unchanged, omitted for brevity)
+  const allRooms = await db.chatRoom.findMany({
+    where: { academyId: academy.id },
+  });
+  for (const room of allRooms) {
+    const participantIds: [number, number] = [
+      room.tutorUserId,
+      room.studentUserId,
+    ];
+    const startDate = room.createdAt;
+    const messages = [];
+    for (let i = 0; i < 100; i++) {
+      const senderId = participantIds[i % 2];
+      const createdAt = faker.date.between({ from: startDate, to: new Date() });
+      messages.push({
+        roomId: room.id,
+        senderId,
+        content: faker.lorem.sentence(),
+        createdAt,
+        updatedAt: createdAt,
+      });
     }
-
-    const allRooms = await db.chatRoom.findMany({
-      where: { academyId: academy.id },
-    });
-
-    for (const room of allRooms) {
-      const participantIds: [number, number] | null = [
-        room.tutorUserId,
-        room.studentUserId,
-      ];
-      if (participantIds) {
-        const startDate = room.createdAt;
-        await generateChatMessages(room.id, participantIds, startDate, 50);
-      }
-    }
-    console.log(`  ✅ Messages generated for all chat rooms`);
+    messages.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+    await db.chatMessage.createMany({ data: messages });
   }
 
   console.log("\n🎉 Demo academy seeded successfully!");

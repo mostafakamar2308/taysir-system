@@ -17,7 +17,7 @@ import {
   Clock,
   ArrowLeft,
 } from "lucide-react";
-import type { TutorProfile, TutorSession } from "@/types/tutor";
+import type { TutorProfile } from "@/types/tutor";
 import { addTutorNote } from "@/actions/tutor";
 import OverviewTab from "@/components/dashboard/tutorProfile/overviewTab";
 import StudentsTab from "@/components/dashboard/tutorProfile/studentsTab";
@@ -25,27 +25,40 @@ import SessionsTab from "@/components/dashboard/tutorProfile/sessionsTab";
 import PaymentsTab from "@/components/dashboard/tutorProfile/paymentsTab";
 import CommunicationTab from "@/components/dashboard/tutorProfile/communicationTab";
 import EditTutorDialog from "@/components/dashboard/tutorProfile/editTutorDialog";
-import SessionDetailPanel from "@/components/dashboard/tutorProfile/sessionDetailsPanel";
 import ReportsTab from "@/components/dashboard/tutorProfile/reportsTab";
+import { SessionDetailPanel } from "../sessions/sessionDetailPanel";
+import { AdminSessionClientData } from "@/types/session";
+import { getSessionDetailsForManagement } from "@/actions/sessions";
 
 interface TutorProfileClientProps {
   tutor: TutorProfile;
   currencies: { id: number; code: string; name: string }[];
+  costCenters: { id: number; name: string }[];
 }
 
 export default function TutorProfileClient({
   tutor,
   currencies,
+  costCenters,
 }: TutorProfileClientProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("overview");
 
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [selectedSession, setSelectedSession] = useState<TutorSession | null>(
-    null,
-  );
-  const [sessionDetailOpen, setSessionDetailOpen] = useState(false);
+  const [selectedSession, setSelectedSession] =
+    useState<AdminSessionClientData | null>(null);
+
+  const handleSessionClick = async (sessionId: number) => {
+    try {
+      const data = await getSessionDetailsForManagement(sessionId);
+      setSelectedSession(data);
+    } catch (error) {
+      console.log({ error });
+
+      if (error) toast({ title: "حدث خطأ", variant: "destructive" });
+    }
+  };
 
   const handleAddNote = async (content: string) => {
     try {
@@ -104,9 +117,19 @@ export default function TutorProfileClient({
               </div>
               <div className="flex flex-wrap gap-4 text-sm">
                 <div>
-                  <span className="text-muted-foreground">سعر الساعة: </span>
+                  <span className="text-muted-foreground">
+                    سعر الساعة (خاص):{" "}
+                  </span>
                   <span className="font-bold">
-                    {tutor.pricePerHour} {tutor.currency}
+                    {tutor.privatePricePerHour} {tutor.currency}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">
+                    سعر الساعة (مجموعة):{" "}
+                  </span>
+                  <span className="font-bold">
+                    {tutor.groupPricePerHour} {tutor.currency}
                   </span>
                 </div>
                 <div>
@@ -185,15 +208,16 @@ export default function TutorProfileClient({
         <TabsContent value="sessions">
           <SessionsTab
             tutor={tutor}
-            onSessionClick={(session) => {
-              setSelectedSession(session);
-              setSessionDetailOpen(true);
-            }}
+            onSessionClick={(session) => handleSessionClick(session)}
           />
         </TabsContent>
 
         <TabsContent value="payments">
-          <PaymentsTab tutor={tutor} currencies={currencies} />
+          <PaymentsTab
+            tutor={tutor}
+            costCenters={costCenters}
+            currencies={currencies}
+          />
         </TabsContent>
         <TabsContent value="reports">
           <ReportsTab tutor={tutor} />
@@ -213,12 +237,9 @@ export default function TutorProfileClient({
       {selectedSession && (
         <SessionDetailPanel
           session={selectedSession}
-          open={sessionDetailOpen}
-          onOpenChange={(open) => {
-            if (!open) setSelectedSession(null);
-            setSessionDetailOpen(open);
+          onClose={() => {
+            setSelectedSession(null);
           }}
-          onDeleted={() => setSelectedSession(null)}
         />
       )}
     </div>

@@ -8,6 +8,28 @@ import dayjs from "@/lib/dayjs";
 import { getSessionStatus } from "@/lib/session";
 import { AttendanceStatus } from "@/types/session";
 
+// New return type for the client
+export interface SessionParticipantSummary {
+  id: number; // participant id
+  studentId: number;
+  studentName: string;
+  studentPhone?: string | null;
+  attendanceStatus: number | null; // null = not yet marked
+  hasReport: boolean;
+}
+
+export interface SessionSummary {
+  id: number;
+  startTime: string;
+  endTime: string;
+  topic: string | null;
+  status: number;
+  participants: SessionParticipantSummary[];
+  hasAnyAttendanceMissing: boolean; // any participant not yet marked
+  hasAnyReportMissing: boolean; // any participant attended/late but no report
+  meetingLink?: string | null;
+}
+
 export default async function TutorDashboardPage() {
   const currentUser = await user();
   if (!currentUser || currentUser.role !== Role.Tutor || !currentUser.id) {
@@ -16,12 +38,8 @@ export default async function TutorDashboardPage() {
   const userId = currentUser.id;
 
   const tutor = await db.tutor.findUnique({
-    where: {
-      userId,
-    },
-    include: {
-      currency: true,
-    },
+    where: { userId },
+    include: { currency: true },
   });
 
   if (!tutor) redirect("/login");
@@ -31,43 +49,82 @@ export default async function TutorDashboardPage() {
   const todayStart = now.startOf("day").toDate();
   const todayEnd = now.endOf("day").toDate();
 
-  // Fetch all sessions for this tutor
+  // Fetch all sessions for this tutor with participants and their reports
   const sessions = await db.session.findMany({
     where: {
       tutorId,
       startTime: {
-        lte: dayjs().endOf("month").toDate(),
+        lte: now.endOf("month").toDate(),
       },
+      cancelledBy: null,
     },
     include: {
-      student: {
-        select: { id: true, user: { select: { name: true, phone: true } } },
+      participants: {
+        include: {
+          student: {
+            select: { id: true, user: { select: { name: true, phone: true } } },
+          },
+          report: true,
+        },
       },
-      attendance: true,
-      sessionReport: true,
     },
-    orderBy: { startTime: "asc" },
+    orderBy: { startTime: "desc" },
   });
 
-  // Separate into today, upcoming, and pending
-  const todaySessions = sessions.filter(
-    (s) => s.startTime >= todayStart && s.startTime <= todayEnd,
-  );
-  const upcomingSessions = sessions.filter((s) => s.startTime > todayEnd);
-  const pendingAttendance = sessions.filter(
-    (s) => s.startTime <= now.toDate() && !s.attendance,
-  );
-  const pendingReports = sessions.filter(
+  console.log({ sessions });
+
+  // Helper to map raw session to SessionSummary
+  const toSessionSummary = (s: (typeof sessions)[0]): SessionSummary => ({
+    id: s.id,
+    startTime: s.startTime.toISOString(),
+    endTime: s.endTime.toISOString(),
+    topic: s.topic,
+    status: getSessionStatus(s),
+    participants: s.participants.map((p) => ({
+      id: p.id,
+      studentId: p.studentId,
+      studentName: p.student.user.name || "",
+      studentPhone: p.student.user.phone,
+      attendanceStatus: p.studentAttendanceStatus,
+      hasReport: !!p.report,
+    })),
+    hasAnyAttendanceMissing: s.participants.some(
+      (p) => p.studentAttendanceStatus === null,
+    ),
+    hasAnyReportMissing: s.participants.some(
+      (p) =>
+        p.studentAttendanceStatus !== null &&
+        [AttendanceStatus.ATTENDED, AttendanceStatus.LATE].includes(
+          p.studentAttendanceStatus,
+        ) &&
+        !p.report,
+    ),
+    meetingLink: s.zoomStartUrl || null,
+  });
+
+  // All sessions as summaries
+  const allSummaries = sessions.map(toSessionSummary);
+
+  // Filter categories
+  const todaySessions = allSummaries.filter(
     (s) =>
-      s.startTime <= now.toDate() &&
-      s.attendance &&
-      [AttendanceStatus.ATTENDED, AttendanceStatus.LATE].includes(
-        s.attendance.studentAttendanceStatus,
-      ) &&
-      !s.sessionReport,
+      new Date(s.startTime) >= todayStart && new Date(s.startTime) <= todayEnd,
+  );
+  const upcomingSessions = allSummaries.filter(
+    (s) => new Date(s.startTime) > todayEnd,
   );
 
-  // Financial summary for the current month
+  const nowDate = now.toDate();
+  // Pending attendance: sessions that have started (or completed) and any participant missing attendance
+  const pendingAttendance = allSummaries.filter(
+    (s) => new Date(s.startTime) <= nowDate && s.hasAnyAttendanceMissing,
+  );
+  // Pending reports: sessions that have started and any participant attended/late but report missing
+  const pendingReports = allSummaries.filter(
+    (s) => new Date(s.startTime) <= nowDate && s.hasAnyReportMissing,
+  );
+
+  // Financial summary – differentiate private vs group sessions
   const startOfMonth = now.startOf("month").toDate();
   const endOfMonth = now.endOf("month").toDate();
 
@@ -75,13 +132,26 @@ export default async function TutorDashboardPage() {
     (s) => s.startTime >= startOfMonth && s.startTime <= endOfMonth,
   );
 
-  const totalMinutes = monthSessions.reduce(
-    (prev, curr) => prev + curr.durationMinutes,
-    0,
+  let totalPrivateMinutes = 0;
+  let totalGroupMinutes = 0;
+  const completedMonthSessions = monthSessions.filter(
+    (s) => s.cancelledBy === null,
   );
-  const expectedEarnings = totalMinutes * (tutor?.pricePerHour || 0);
 
-  // Get already paid expenses for this tutor this month
+  for (const s of completedMonthSessions) {
+    const participantCount = s.participants.length;
+    if (participantCount <= 1) {
+      totalPrivateMinutes += s.durationMinutes;
+    } else {
+      totalGroupMinutes += s.durationMinutes;
+    }
+  }
+
+  const expectedEarnings =
+    (totalPrivateMinutes / 60) * tutor.privatePricePerHour +
+    (totalGroupMinutes / 60) * tutor.groupPricePerHour;
+
+  // Paid expenses this month
   const paidExpenses = await db.expense.findMany({
     where: {
       tutorId,
@@ -92,32 +162,18 @@ export default async function TutorDashboardPage() {
   const paidThisMonth = paidExpenses.reduce((sum, e) => sum + e.amount, 0);
   const remainingEarnings = expectedEarnings - paidThisMonth;
 
-  const formatSession = (s: (typeof sessions)[0]) => ({
-    id: s.id,
-    startTime: s.startTime.toISOString(),
-    endTime: s.endTime.toISOString(),
-    topic: s.topic,
-    studentId: s.studentId,
-    studentName: s.student.user.name || "",
-    studentPhone: s.student.user.phone,
-    status: getSessionStatus(s),
-    hasAttendance: !!s.attendance,
-    hasReport: !!s.sessionReport,
-    meetingLink: s.zoomStartUrl || null,
-  });
-
   return (
     <DashboardClient
-      todaySessions={todaySessions.map(formatSession)}
-      upcomingSessions={upcomingSessions.map(formatSession)}
-      pendingAttendance={pendingAttendance.map(formatSession)}
-      pendingReports={pendingReports.map(formatSession)}
+      todaySessions={todaySessions}
+      upcomingSessions={upcomingSessions}
+      pendingAttendance={pendingAttendance}
+      pendingReports={pendingReports}
       financialSummary={{
         totalSessions: monthSessions.length,
         expectedEarnings,
         paidThisMonth,
         remainingEarnings,
-        currency: tutor?.currency?.code || "SAR",
+        currency: tutor.currency?.code || "SAR",
       }}
       zoomEnabled={!!tutor.zoomAuthenticated}
     />

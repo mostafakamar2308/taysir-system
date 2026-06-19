@@ -14,76 +14,88 @@ export default async function StudentAnalyticsPage({
 
   const student = await db.student.findUnique({
     where: { id: studentId },
-    include: {
-      tutor: { include: { user: true } },
-      user: {
-        select: { name: true },
+    select: {
+      id: true,
+      status: true,
+      user: { select: { name: true } },
+    },
+  });
+  if (!student) notFound();
+
+  const now = dayjs().toDate();
+
+  // All participations in past non‑cancelled sessions
+  const participants = await db.sessionParticipant.findMany({
+    where: {
+      studentId,
+      session: {
+        cancelledBy: null,
+        startTime: { lte: now },
       },
-      sessions: {
-        where: {
-          startTime: {
-            lte: dayjs().toDate(),
-          },
-        },
-        include: { attendance: true },
-        orderBy: { startTime: "desc" },
-      },
+    },
+    select: {
+      sessionId: true,
+      studentAttendanceStatus: true,
+      session: { select: { startTime: true } },
     },
   });
 
-  if (!student) notFound();
+  // Distinct sessions the student was in
+  const allSessionIds = new Set(participants.map((p) => p.sessionId));
+  const totalSessions = allSessionIds.size;
 
-  // Compute summary stats
-  const totalSessions = student.sessions.length;
-  const attendedSessions = student.sessions.filter(
-    (s) =>
-      dayjs(s.startTime).isBefore(dayjs()) &&
-      s.attendance?.studentAttendanceStatus !== undefined &&
-      [AttendanceStatus.ATTENDED, AttendanceStatus.LATE].includes(
-        s.attendance.studentAttendanceStatus,
-      ),
-  ).length;
+  // Sessions where the student actually attended
+  const attendedSessionIds = new Set(
+    participants
+      .filter(
+        (p) =>
+          p.studentAttendanceStatus !== null &&
+          [AttendanceStatus.ATTENDED, AttendanceStatus.LATE].includes(
+            p.studentAttendanceStatus,
+          ),
+      )
+      .map((p) => p.sessionId),
+  );
+  const attendedSessions = attendedSessionIds.size;
   const attendanceRate =
     totalSessions > 0
       ? Math.round((attendedSessions / totalSessions) * 100)
       : 0;
 
-  // Monthly topic progress (last 6 months)
+  // Monthly trend (last 6 months)
   const months = Array.from({ length: 6 }, (_, i) => {
     const d = new Date();
     d.setMonth(d.getMonth() - i);
     return {
-      monthKey: d.toISOString().slice(0, 7),
       label: d.toLocaleDateString("ar-EG", { month: "short" }),
+      start: new Date(d.getFullYear(), d.getMonth(), 1),
+      end: new Date(d.getFullYear(), d.getMonth() + 1, 1),
     };
   }).reverse();
 
-  // Monthly attendance trend
-  const attendanceTrend = await Promise.all(
-    months.map(async ({ monthKey, label }) => {
-      const start = new Date(monthKey + "-01");
-      const end = new Date(start);
-      end.setMonth(end.getMonth() + 1);
-
-      const monthSessions = student.sessions.filter(
-        (s) => s.startTime >= start && s.startTime < end,
-      );
-
-      const monthAttended = monthSessions.filter(
-        (s) =>
-          dayjs(s.startTime).isBefore(dayjs()) &&
-          s.attendance?.studentAttendanceStatus !== undefined &&
-          [AttendanceStatus.ATTENDED, AttendanceStatus.LATE].includes(
-            s.attendance.studentAttendanceStatus,
-          ),
-      ).length;
-      const rate =
-        monthSessions.length > 0
-          ? Math.round((monthAttended / monthSessions.length) * 100)
-          : 0;
-      return { month: monthKey, label, value: rate };
-    }),
-  );
+  const attendanceTrend = months.map(({ label, start, end }) => {
+    const monthParticipants = participants.filter((p) => {
+      const t = p.session.startTime;
+      return t >= start && t < end;
+    });
+    const monthSessionIds = new Set(monthParticipants.map((p) => p.sessionId));
+    const monthAttendedIds = new Set(
+      monthParticipants
+        .filter(
+          (p) =>
+            p.studentAttendanceStatus !== null &&
+            [AttendanceStatus.ATTENDED, AttendanceStatus.LATE].includes(
+              p.studentAttendanceStatus,
+            ),
+        )
+        .map((p) => p.sessionId),
+    );
+    const monthTotal = monthSessionIds.size;
+    const monthAttended = monthAttendedIds.size;
+    const rate =
+      monthTotal > 0 ? Math.round((monthAttended / monthTotal) * 100) : 0;
+    return { month: label, label, value: rate };
+  });
 
   return (
     <StudentAnalyticsClient

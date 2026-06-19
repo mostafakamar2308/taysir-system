@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -22,24 +22,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { createSession } from "@/actions/sessions";
+import { MultiSelect } from "@/components/ui/multi-select";
 import { Plus } from "lucide-react";
 import dayjs from "@/lib/dayjs";
 
+interface StudentOption {
+  id: number;
+  name: string;
+  balance: number;
+}
+
 interface AddSessionDialogProps {
   tutorId: number;
-  studentOptions: { id: number; name: string }[];
-  academyId: number;
+  studentOptions: StudentOption[];
   children?: React.ReactNode;
 }
 
 export default function AddSessionDialog({
   tutorId,
   studentOptions,
-  academyId,
   children,
 }: AddSessionDialogProps) {
   const t = useTranslations("AddSessionToTutorDialog");
@@ -47,64 +51,97 @@ export default function AddSessionDialog({
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [studentId, setStudentId] = useState("");
+
+  // Form state
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [startTime, setStartTime] = useState("09:00");
   const [duration, setDuration] = useState("60");
   const [topic, setTopic] = useState("");
   const [notes, setNotes] = useState("");
-  const [isRecurring, setIsRecurring] = useState(false);
-  const [recurDays, setRecurDays] = useState<number[]>([]);
-  const [recurEndDate, setRecurEndDate] = useState("");
+  const [isTrial, setIsTrial] = useState(false); // trial sessions skip balance check
 
-  const dayOptions = [
-    { value: 0, label: t("daySun") },
-    { value: 1, label: t("dayMon") },
-    { value: 2, label: t("dayTue") },
-    { value: 3, label: t("dayWed") },
-    { value: 4, label: t("dayThu") },
-    { value: 5, label: t("dayFri") },
-    { value: 6, label: t("daySat") },
-  ];
+  // Build the options for MultiSelect, marking students with low balance
+  const multiSelectOptions = useMemo(() => {
+    return studentOptions.map((s) => ({
+      value: String(s.id),
+      label: `${s.name} (${s.balance} ${t("sessionsLeft")})`,
+      disabled: !isTrial && s.balance < 1, // can't select if not trial and no balance
+      balance: s.balance,
+    }));
+  }, [studentOptions, isTrial, t]);
 
-  const toggleRecurDay = (day: number) => {
-    setRecurDays((prev) =>
-      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day],
-    );
+  // Filter out disabled options when trial mode changes, clear selection if necessary
+  const availableIds = useMemo(
+    () =>
+      isTrial
+        ? studentOptions.map((s) => String(s.id))
+        : studentOptions.filter((s) => s.balance >= 1).map((s) => String(s.id)),
+    [isTrial, studentOptions],
+  );
+
+  // When trial mode changes, remove any invalid selections
+  const handleTrialToggle = (checked: boolean) => {
+    setIsTrial(checked);
+    // Remove selected students who no longer qualify
+    if (!checked) {
+      setSelectedStudentIds((prev) =>
+        prev.filter((id) => availableIds.includes(id)),
+      );
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!studentId || !date || !startTime) {
-      toast({
-        title: t("validation.missingFields"),
-        variant: "destructive",
-      });
+
+    if (selectedStudentIds.length === 0 || !date || !startTime) {
+      toast({ title: t("validation.missingFields"), variant: "destructive" });
       return;
     }
+
+    // Extra balance check (defensive)
+    if (!isTrial) {
+      const selected = studentOptions.filter((s) =>
+        selectedStudentIds.includes(String(s.id)),
+      );
+      const lowBalance = selected.filter((s) => s.balance < 1);
+      if (lowBalance.length > 0) {
+        toast({
+          title: t("validation.noBalance", {
+            names: lowBalance.map((s) => s.name).join("، "),
+          }),
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     setLoading(true);
     try {
-      const input = {
-        studentId: parseInt(studentId),
+      const start = dayjs(`${date}T${startTime}`).utc();
+      await createSession({
+        studentIds: selectedStudentIds.map(Number),
         tutorId,
-        academyId,
         date,
-        startTime,
+        startTime: start.toISOString(),
         duration: parseInt(duration),
         topic: topic || undefined,
         notes: notes || undefined,
-        isRecurring,
-        recurDays: isRecurring ? recurDays : undefined,
-        recurEndDate: isRecurring ? recurEndDate : undefined,
-      };
-      await createSession({
-        ...input,
-        startTime: dayjs(`${input.date}T${input.startTime}`).toISOString(),
+        isTrial,
       });
+
       toast({ title: t("toast.success") });
       router.refresh();
+      setOpen(false);
+      // Reset form
+      setSelectedStudentIds([]);
+      setDate(new Date().toISOString().split("T")[0]);
+      setStartTime("09:00");
+      setDuration("60");
+      setTopic("");
+      setNotes("");
+      setIsTrial(false);
     } catch (error) {
-      console.log(error);
       if (error instanceof Error)
         toast({
           title: t("toast.error"),
@@ -113,7 +150,6 @@ export default function AddSessionDialog({
         });
     } finally {
       setLoading(false);
-      setOpen(false);
     }
   };
 
@@ -134,20 +170,25 @@ export default function AddSessionDialog({
           <DialogTitle>{t("title")}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Student selection – multi */}
           <div className="space-y-2">
             <Label>{t("studentLabel")} *</Label>
-            <Select value={studentId} onValueChange={setStudentId}>
-              <SelectTrigger>
-                <SelectValue placeholder={t("studentPlaceholder")} />
-              </SelectTrigger>
-              <SelectContent>
-                {studentOptions.map((s) => (
-                  <SelectItem key={s.id} value={String(s.id)}>
-                    {s.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <MultiSelect
+              options={multiSelectOptions}
+              selected={selectedStudentIds}
+              onChange={setSelectedStudentIds}
+              placeholder={t("studentPlaceholder")}
+              searchPlaceholder={t("searchPlaceholder")}
+            />
+            <p className="text-xs text-muted-foreground">{t("studentHint")}</p>
+          </div>
+
+          {/* Trial switch */}
+          <div className="flex items-center justify-between rounded-lg border p-3">
+            <Label className="flex items-center gap-2 text-sm">
+              {t("trialLabel")}
+            </Label>
+            <Switch checked={isTrial} onCheckedChange={handleTrialToggle} />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -202,49 +243,6 @@ export default function AddSessionDialog({
               placeholder={t("notesPlaceholder")}
               rows={2}
             />
-          </div>
-
-          {/* Recurring */}
-          <div className="space-y-3 rounded-lg border border-border p-4">
-            <div className="flex items-center justify-between">
-              <Label className="flex items-center gap-2">
-                {t("recurring.label")}
-              </Label>
-              <Switch checked={isRecurring} onCheckedChange={setIsRecurring} />
-            </div>
-            {isRecurring && (
-              <div className="space-y-3 pt-2">
-                <div>
-                  <Label className="text-xs text-muted-foreground">
-                    {t("recurring.daysLabel")}
-                  </Label>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {dayOptions.map((d) => (
-                      <Badge
-                        key={d.value}
-                        variant={
-                          recurDays.includes(d.value) ? "default" : "outline"
-                        }
-                        className="cursor-pointer"
-                        onClick={() => toggleRecurDay(d.value)}
-                      >
-                        {d.label}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">
-                    {t("recurring.endDateLabel")}
-                  </Label>
-                  <Input
-                    type="date"
-                    value={recurEndDate}
-                    onChange={(e) => setRecurEndDate(e.target.value)}
-                  />
-                </div>
-              </div>
-            )}
           </div>
 
           <DialogFooter>

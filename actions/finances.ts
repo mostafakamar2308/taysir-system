@@ -5,7 +5,6 @@ import dayjs from "@/lib/dayjs";
 import { PaymentMethod, PaymentStatus } from "@/types/payment";
 import { SubscriptionStatus } from "@/types/subscription";
 import { StudentStatus } from "@/types/student";
-import { AttendanceStatus } from "@/types/session";
 import { addSessionsFromPayment } from "@/lib/balance";
 import { revalidatePath } from "next/cache";
 import { Role } from "@/types/user";
@@ -1431,41 +1430,12 @@ export async function updateExpense(
   });
 }
 
-export interface SalaryMonthData {
-  totalPaidSalaries: number;
-  highestPaidTutors: { tutorId: number; name: string; totalPaid: number }[];
-  avgSessionsPerTutor: number;
-  avgRevenuePerTutor: number;
-  tutors: TutorSalaryInfo[];
-  revenuePerTutor: { tutorId: number; name: string; totalRevenue: number }[];
-}
-
-export interface SalaryMonthData {
-  totalPaidSalaries: number;
-  highestPaidTutors: { tutorId: number; name: string; totalPaid: number }[];
-  avgSessionsPerTutor: number;
-  avgRevenuePerTutor: number;
-  tutors: TutorSalaryInfo[];
-  revenuePerTutor: { tutorId: number; name: string; totalRevenue: number }[];
-}
-
-export interface TutorSalaryInfo {
-  tutorId: number;
-  tutorName: string;
-  pricePerHour: number;
-  completedSessions: number;
-  totalMinutes: number;
-  expectedSalary: number;
-  paidAmount: number;
-  outstanding: number;
-}
-
 export async function getSalaryData(
   academyId: number,
   year: number,
   month: number,
   tutorId?: number,
-): Promise<SalaryMonthData> {
+) {
   const { defaultCurrencyId, rateMap } = await getConversion(academyId);
 
   const startOfMonth = new Date(year, month - 1, 1);
@@ -1477,37 +1447,37 @@ export async function getSalaryData(
       academyId,
       ...(tutorId ? { id: tutorId } : {}),
     },
-    include: {
-      user: { select: { name: true } },
-    },
+    include: { user: { select: { name: true } } },
   });
 
-  // 2. Count completed sessions AND total minutes per tutor
-  const sessionStats = await db.session.groupBy({
-    by: ["tutorId"],
-    _count: { id: true },
-    _sum: { durationMinutes: true },
+  // 2. Completed sessions (attended or late, not cancelled)
+  const sessions = await db.session.findMany({
     where: {
       academyId,
       cancelledBy: null,
-      attendance: {
-        tutorAttendanceStatus: {
-          in: [AttendanceStatus.ATTENDED, AttendanceStatus.LATE],
-        },
-      },
       startTime: { gte: startOfMonth, lt: endOfMonth },
       tutorId: tutorId ? tutorId : { in: tutors.map((t) => t.id) },
     },
+    include: { participants: true },
   });
 
+  const privateMinutesMap = new Map<number, number>();
+  const groupMinutesMap = new Map<number, number>();
   const sessionCountMap = new Map<number, number>();
-  const minutesMap = new Map<number, number>();
-  sessionStats.forEach((g) => {
-    sessionCountMap.set(g.tutorId, g._count.id);
-    minutesMap.set(g.tutorId, g._sum.durationMinutes || 0);
-  });
 
-  // 3. Sum paid salary expenses for each tutor
+  for (const s of sessions) {
+    const tid = s.tutorId;
+    const count = s.participants.length;
+    const dur = s.durationMinutes;
+    sessionCountMap.set(tid, (sessionCountMap.get(tid) || 0) + 1);
+    if (count <= 1) {
+      privateMinutesMap.set(tid, (privateMinutesMap.get(tid) || 0) + dur);
+    } else {
+      groupMinutesMap.set(tid, (groupMinutesMap.get(tid) || 0) + dur);
+    }
+  }
+
+  // 3. Paid salary expenses
   const paidExpenses = await db.expense.groupBy({
     by: ["tutorId"],
     _sum: { amount: true },
@@ -1523,33 +1493,34 @@ export async function getSalaryData(
     if (g.tutorId) paidAmountMap.set(g.tutorId, g._sum.amount || 0);
   });
 
-  // 4. Compute expected salary = (total minutes / 60) * pricePerHour
-  const tutorSalaries: TutorSalaryInfo[] = tutors.map((t) => {
-    const completed = sessionCountMap.get(t.id) || 0;
-    const totalMinutes = minutesMap.get(t.id) || 0;
-    const hours = totalMinutes / 60;
-    const expected = hours * t.pricePerHour;
+  // 4. Compute expected salaries
+  const tutorSalaries = tutors.map((t) => {
+    const privateMin = privateMinutesMap.get(t.id) || 0;
+    const groupMin = groupMinutesMap.get(t.id) || 0;
+    const expected =
+      (privateMin / 60) * t.privatePricePerHour +
+      (groupMin / 60) * t.groupPricePerHour;
     const paid = paidAmountMap.get(t.id) || 0;
     const outstanding = Math.max(expected - paid, 0);
     return {
       tutorId: t.id,
       tutorName: t.user.name || "غير معروف",
-      pricePerHour: t.pricePerHour,
-      completedSessions: completed,
-      totalMinutes,
+      privatePricePerHour: t.privatePricePerHour,
+      groupPricePerHour: t.groupPricePerHour,
+      completedSessions: sessionCountMap.get(t.id) || 0,
+      totalMinutes: privateMin + groupMin,
       expectedSalary: expected,
       paidAmount: paid,
       outstanding,
     };
   });
 
-  // 5. Total paid salaries
   const totalPaid = Array.from(paidAmountMap.values()).reduce(
     (a, b) => a + b,
     0,
   );
 
-  // 6. Highest paid tutors
+  // 5. Highest paid tutors
   const highestPaidTutors = tutorSalaries
     .filter((ts) => ts.paidAmount > 0)
     .sort((a, b) => b.paidAmount - a.paidAmount)
@@ -1560,7 +1531,7 @@ export async function getSalaryData(
       totalPaid: ts.paidAmount,
     }));
 
-  // 7. Avg sessions per tutor (for those with at least one session)
+  // 6. Avg sessions per tutor
   const tutorsWithSessions = tutorSalaries.filter(
     (ts) => ts.completedSessions > 0,
   );
@@ -1570,7 +1541,7 @@ export async function getSalaryData(
         tutorsWithSessions.length
       : 0;
 
-  // 8. Avg revenue per tutor (unchanged)
+  // 7. Avg revenue per tutor (using old reliable student.tutorId)
   const revenues = await db.revenue.findMany({
     where: {
       academyId,
@@ -1606,13 +1577,12 @@ export async function getSalaryData(
     },
   );
 
-  const tutorsWithRevenue = revenuePerTutor.length;
   const totalRevenue = revenuePerTutor.reduce(
     (sum, t) => sum + t.totalRevenue,
     0,
   );
   const avgRevenuePerTutor =
-    tutorsWithRevenue > 0 ? totalRevenue / tutorsWithRevenue : 0;
+    revenuePerTutor.length > 0 ? totalRevenue / revenuePerTutor.length : 0;
 
   return {
     totalPaidSalaries: totalPaid,
@@ -1633,7 +1603,7 @@ export async function payTutor(
 ) {
   const costCenter = await db.costCenter.findFirst({
     where: {
-      title: "مرتبات",
+      title: "مرتبات المعلمين",
     },
   });
   await db.expense.create({

@@ -131,6 +131,13 @@ export default function StudentProfileClient({
                     </Link>
                   </div>
                 )}
+                <div>
+                  <span className="text-muted-foreground">
+                    البريد الإلكتروني:{" "}
+                  </span>
+                  <span className="font-medium">{student.email}</span>
+                </div>
+
                 {student.plan && (
                   <div>
                     <span className="text-muted-foreground">الخطة: </span>

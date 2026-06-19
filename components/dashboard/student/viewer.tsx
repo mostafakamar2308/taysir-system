@@ -33,82 +33,98 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+interface SessionItem {
+  id: number;
+  participantId: number;
+  startTime: string;
+  endTime: string;
+  topic: string | null;
+  tutorName: string;
+  status: number;
+  attendance: number | null;
+  hasReport: boolean;
+}
+
+interface NextSession {
+  id: number;
+  startTime: string;
+  endTime: string;
+  tutorName: string;
+  zoomJoinUrl: string | null;
+  topic: string | null;
+}
+
+interface MonthlyAnalytics {
+  totalMonthlySessions: number;
+  remainingMonthlySessions: number;
+  renewalDate: string | null;
+}
+
+interface ReportData {
+  rating: number | null;
+  outcomes: string | null;
+  strengths: string | null;
+  weaknesses: string | null;
+  nextGoals: string | null;
+}
+
+interface LastReport {
+  sessionDate: string;
+  topic: string | null;
+  report: ReportData;
+}
+
+interface StudentInfo {
+  id: number;
+  name: string;
+  timezone: string;
+  imageUrl: string | null;
+  tutorName: string | null;
+  plan: {
+    title: string;
+    sessionsPerWeek: number;
+    price: number;
+    currency: string;
+    billingPeriod: number;
+  } | null;
+}
+
+interface PaymentRecord {
+  amount: number;
+  currency: string;
+  status: number;
+  date: string;
+  method: number | null;
+}
+
+interface ActiveSubscription {
+  id: number;
+  planTitle: string;
+  planSessionsPerWeek: number;
+  planPrice: number;
+  planCurrency: string;
+  startDate: string;
+  endDate: string | null;
+  payments: PaymentRecord[];
+}
+
 interface StudentDashboardProps {
-  student: {
-    id: number;
-    name: string;
-    timezone: string;
-    imageUrl: string | null;
-    tutorName: string | null;
-    plan: {
-      title: string;
-      sessionsPerWeek: number;
-      price: number;
-      currency: string;
-      billingPeriod: number;
-    } | null;
-  };
-  nextSession: {
-    id: number;
-    startTime: string;
-    endTime: string;
-    tutorName: string;
-    zoomJoinUrl: string | null;
-    topic: string | null;
-  } | null;
-  monthlyAnalytics: {
-    totalMonthlySessions: number;
-    remainingMonthlySessions: number;
-    renewalDate: string | null;
-  };
-  lastReport: {
-    sessionDate: string;
-    topic?: string | null;
-    report: {
-      rating: number | null;
-      outcomes: string | null;
-      strengths: string | null;
-      weaknesses: string | null;
-      nextGoals: string | null;
-    };
-  } | null;
-  sessions: {
-    id: number;
-    startTime: string;
-    endTime: string;
-    topic: string | null;
-    tutorName: string;
-    status: number;
-    attendance: { studentStatus: number } | null;
-    hasReport: boolean;
-    reportId: number | null;
-  }[];
+  student: StudentInfo;
+  nextSession: NextSession | null;
+  monthlyAnalytics: MonthlyAnalytics;
+  lastReport: LastReport | null;
+  sessions: SessionItem[];
   reports: {
     sessionDate: string;
-    topic?: string | null;
+    topic: string | null;
     rating: number | null;
     outcomes: string | null;
     strengths: string | null;
     weaknesses: string | null;
     nextGoals: string | null;
   }[];
-  activeSubscription: {
-    id: number;
-    planTitle: string;
-    planSessionsPerWeek: number;
-    planPrice: number;
-    planCurrency: string;
-    startDate: string;
-    endDate: string | null;
-    payments: {
-      amount: number;
-      currency: string;
-      status: number;
-      date: string;
-      method: number | null;
-    }[];
-  } | null;
-  defaultCurrency: { code: string; symbol: string };
+  activeSubscription: ActiveSubscription | null;
+  defaultCurrency: { code: string; symbol: string; name: string };
 }
 
 export function StudentDashboardClient(props: StudentDashboardProps) {

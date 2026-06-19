@@ -71,7 +71,7 @@ export default function ReportsTab({ tutor }: ReportsTabProps) {
                 </TableHeader>
                 <TableBody>
                   {sessionsWithReports.map((s) => (
-                    <TableRow key={s.id}>
+                    <TableRow key={s.sessionId}>
                       <TableCell>{formatDate(s.startTime)}</TableCell>
                       <TableCell>{s.studentName}</TableCell>
                       <TableCell>{s.topic || "—"}</TableCell>

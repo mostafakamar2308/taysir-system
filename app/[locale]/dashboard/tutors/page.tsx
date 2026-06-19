@@ -1,5 +1,4 @@
 import db from "@/lib/prisma";
-import { DashboardTutor } from "@/types/tutor";
 import TutorsViewer from "@/components/dashboard/tutors/viewer";
 import { user } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -29,14 +28,15 @@ const TutorsPage = async () => {
     where: {},
   });
 
-  const transformed: DashboardTutor[] = tutors.map((t) => ({
+  const transformed = tutors.map((t) => ({
     id: t.id,
     name: t.user.name ?? "",
     email: t.user.email,
     phone: t.user.phone ?? "",
     status: t.active ?? false,
     specialities: t.specialities.map((s) => s.title),
-    pricePerHour: t.pricePerHour,
+    privatePricePerHour: t.privatePricePerHour,
+    groupPricePerHour: t.groupPricePerHour,
     timezone: t.user.timezone,
     createdAt: t.createdAt,
     currency: t.currency.name,

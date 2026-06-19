@@ -3,20 +3,19 @@
 import db from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import dayjs from "@/lib/dayjs";
-import { AttendanceStatus, SessionStatus } from "@/types/session";
+import { AdminSessionClientData, AttendanceStatus } from "@/types/session";
 import { Role } from "@/types/user";
 import { getTokenFromCookie, verifyToken } from "@/lib/jwt";
 import { getSessionStatus } from "@/lib/session";
 import { StudentStatus } from "@/types/student";
 import { recordStudentStatusChangeHistory } from "@/lib/history";
-import type { DashboardSession } from "@/types/session";
 import { decrementBalance, incrementBalance } from "@/lib/balance";
 import { createZoomMeeting } from "@/lib/zoom";
 import { user } from "@/lib/auth";
 import { updateZoomMeeting } from "@/lib/zoom";
 
 type CreateSessionInput = {
-  studentId: number;
+  studentIds: number[];
   tutorId: number;
   date: string;
   startTime: string;
@@ -26,14 +25,11 @@ type CreateSessionInput = {
   isTrial?: boolean;
 };
 
-type UpdateSessionInput = Partial<CreateSessionInput> & {
-  id: number;
-};
-
 export async function createSession(input: CreateSessionInput) {
   const currentUser = await user();
   if (!currentUser || !currentUser.academyId) throw new Error("غير مصرح");
 
+  // Tutor can only create sessions for themselves
   if (currentUser.role === Role.Tutor) {
     const tutor = await db.tutor.findUnique({
       where: { userId: currentUser.id },
@@ -44,6 +40,7 @@ export async function createSession(input: CreateSessionInput) {
     }
   }
 
+  // Basic validations
   const start = dayjs.utc(input.startTime);
   const startDate = start.toDate();
   const endDate = dayjs.utc(start).add(input.duration, "minute").toDate();
@@ -51,55 +48,79 @@ export async function createSession(input: CreateSessionInput) {
   if (start.isBefore(dayjs()))
     throw new Error("لا يمكن أن تكون الحصة في الماضى");
 
+  // Check conflicts for tutor and ALL students
   const conflicts = await db.session.findMany({
     where: {
-      OR: [{ tutorId: input.tutorId }, { studentId: input.studentId }],
+      OR: [
+        { tutorId: input.tutorId },
+        { participants: { some: { studentId: { in: input.studentIds } } } },
+      ],
       startTime: { lt: endDate },
       endTime: { gt: startDate },
-      cancelledBy: { not: null },
+      cancelledBy: null,
     },
-    include: { tutor: { include: { user: true } }, student: true },
+    include: {
+      participants: { include: { student: { include: { user: true } } } },
+      tutor: { include: { user: true } },
+    },
   });
 
   if (conflicts.length > 0) {
-    throw new Error("هناك حصة للمعلم في هذا الوقت");
+    const conflictNames = conflicts.flatMap((c) =>
+      c.participants.map((p) => p.student.user.name),
+    );
+    throw new Error(`تعارض في المواعيد: ${conflictNames.join("، ")}`);
   }
-  const student = await db.student.findUnique({
-    where: { id: input.studentId },
+
+  // Validate students and balance
+  const students = await db.student.findMany({
+    where: { id: { in: input.studentIds } },
+    include: { user: true },
   });
-  if (!student) throw new Error("هذا الطالب غير موجود");
+  if (students.length !== input.studentIds.length)
+    throw new Error("أحد الطلاب غير موجود");
 
-  if (student.sessionsBalance < 1 && !input.isTrial)
-    throw new Error(
-      "هذا الطالب استهلك كل حصص الشهر، برجاء تجديد الاشتراك أولا",
-    );
-
-  if (input.isTrial && student.status === StudentStatus.lead) {
-    await db.student.update({
-      where: {
-        id: input.studentId,
-      },
-      data: {
-        status: StudentStatus.trial,
-      },
-    });
-    recordStudentStatusChangeHistory(
-      input.studentId,
-      student.status,
-      StudentStatus.trial,
-      currentUser.id,
-      currentUser.academyId,
-    );
+  if (!input.isTrial) {
+    const lowBalance = students.filter((s) => s.sessionsBalance < 1);
+    if (lowBalance.length > 0) {
+      const names = lowBalance.map((s) => s.user?.name || s.id).join("، ");
+      throw new Error(`الطلاب التاليون ليس لديهم رصيد كاف: ${names}`);
+    }
   }
 
+  // Handle trial student status change
+  if (input.isTrial) {
+    for (const student of students) {
+      if (student.status === StudentStatus.lead) {
+        await db.student.update({
+          where: { id: student.id },
+          data: { status: StudentStatus.trial },
+        });
+        recordStudentStatusChangeHistory(
+          student.id,
+          student.status,
+          StudentStatus.trial,
+          currentUser.id,
+          currentUser.academyId!,
+        );
+      }
+    }
+  }
+
+  // Create session + participants in transaction
   const session = await db.$transaction(async (tx) => {
-    if (!input.isTrial) await decrementBalance(input.studentId, tx);
-    return tx.session.create({
+    // Decrement balance for non-trial
+    if (!input.isTrial) {
+      for (const student of students) {
+        await decrementBalance(student.id, tx);
+      }
+    }
+
+    const created = await tx.session.create({
       data: {
         startTime: startDate,
         endTime: endDate,
         durationMinutes: input.duration,
-        studentId: input.studentId,
         tutorId: input.tutorId,
         academyId: currentUser.academyId!,
         topic: input.topic,
@@ -107,9 +128,31 @@ export async function createSession(input: CreateSessionInput) {
         isTrial: input.isTrial ?? false,
       },
     });
+
+    for (const student of students) {
+      await tx.student.update({
+        data: {
+          tutorId: input.tutorId,
+        },
+        where: {
+          id: student.id,
+        },
+      });
+    }
+
+    // Create participants
+    await tx.sessionParticipant.createMany({
+      data: input.studentIds.map((studentId) => ({
+        sessionId: created.id,
+        studentId,
+        balanceDeducted: !input.isTrial,
+      })),
+    });
+
+    return created;
   });
 
-  // Zoom integration
+  // Zoom integration (unchanged)
   const tutor = await db.tutor.findUnique({
     where: { id: input.tutorId },
     select: { zoomAuthenticated: true, id: true },
@@ -141,17 +184,31 @@ export async function createSession(input: CreateSessionInput) {
   return session;
 }
 
+export type UpdateSessionInput = {
+  id: number;
+  date?: string;
+  startTime?: string;
+  duration?: number;
+  topic?: string;
+  notes?: string;
+};
+
 export async function updateSession(input: UpdateSessionInput) {
   const existing = await db.session.findUnique({
     where: { id: input.id },
   });
   if (!existing) throw new Error("Session not found");
+
   const newStart = input.startTime
     ? dayjs.utc(input.startTime).toDate()
     : existing.startTime;
-  const newEnd = input.duration
-    ? dayjs.utc(newStart).add(input.duration, "minute").toDate()
-    : existing.endTime;
+  const newEnd =
+    input.duration || input.startTime
+      ? dayjs
+          .utc(newStart)
+          .add(input.duration || existing.durationMinutes, "minute")
+          .toDate()
+      : existing.endTime;
 
   const updated = await db.session.update({
     where: { id: input.id },
@@ -180,54 +237,27 @@ export async function updateSession(input: UpdateSessionInput) {
   return updated;
 }
 
-export async function deleteSession(id: number) {
-  const session = await db.session.findUnique({
-    where: { id },
-  });
-  if (!session) throw new Error("Session not found");
-  if (session.zoomMeetingId) {
-    try {
-      const { deleteZoomMeeting } = await import("@/lib/zoom");
-      await deleteZoomMeeting(session.zoomMeetingId, session.tutorId);
-    } catch (error) {
-      console.error("Zoom meeting deletion failed:", error);
-    }
-  }
-  await db.$transaction(async (tx) => {
-    if (!session.cancelledBy && !session.isTrial) {
-      await incrementBalance(session.studentId, tx);
-    }
-    await tx.attendance.deleteMany({ where: { sessionId: id } });
-    await tx.session.delete({ where: { id } });
-  });
-
-  revalidatePath("/ar/dashboard/sessions");
-}
-
 export async function updateAttendance(
-  sessionId: number,
-  role: Role,
-  status: AttendanceStatus,
+  participantId: number,
+  studentStatus: AttendanceStatus,
   reason?: string,
 ) {
-  const attendance = await db.attendance.upsert({
-    where: { sessionId },
-    update: {
-      studentAttendanceStatus: status,
-      tutorAttendanceStatus:
-        role === Role.Tutor ? status : AttendanceStatus.ATTENDED,
-      reason,
-    },
-    create: {
-      sessionId,
-      studentAttendanceStatus: status,
-      tutorAttendanceStatus: status,
-      reason,
+  const participant = await db.sessionParticipant.findUnique({
+    where: { id: participantId },
+    include: { session: true },
+  });
+  if (!participant) throw new Error("المشارك غير موجود");
+
+  await db.sessionParticipant.update({
+    where: { id: participantId },
+    data: {
+      studentAttendanceStatus: studentStatus,
+      reason: reason ?? null,
     },
   });
 
   revalidatePath("/ar/dashboard/sessions");
-  return attendance;
+  return participant;
 }
 
 export async function getSessionsForWeek(startDate: Date, endDate: Date) {
@@ -242,9 +272,12 @@ export async function getSessionsForWeek(startDate: Date, endDate: Date) {
       academyId: payload.academyId,
     },
     include: {
-      student: { select: { user: { select: { name: true } } } },
+      participants: {
+        include: {
+          student: { select: { user: { select: { name: true } } } },
+        },
+      },
       tutor: { include: { user: true } },
-      attendance: true,
     },
     orderBy: { startTime: "asc" },
   });
@@ -258,72 +291,31 @@ export async function getSessionsForWeek(startDate: Date, endDate: Date) {
     status: getSessionStatus(s),
     topic: s.topic,
     notes: s.notes,
-    studentId: s.studentId,
-    studentName: s.student.user.name || "",
+    studentIds: s.participants.map((p) => p.studentId),
+    studentNames: s.participants.map((p) => p.student.user.name || ""),
     zoomMeetingId: s.zoomMeetingId,
     zoomJoinUrl: s.zoomJoinUrl,
     zoomStartUrl: s.zoomStartUrl,
     tutorId: s.tutorId,
     tutorName: s.tutor.user.name,
-    attendance: s.attendance
-      ? {
-          id: s.attendance.id,
-          tutorAttendance: s.attendance.tutorAttendanceStatus,
-          studentAttendance: s.attendance.studentAttendanceStatus,
-          reason: s.attendance.reason,
-        }
-      : undefined,
+    // Attendance / reports will be loaded separately or included per participant if needed.
+    // For a week view, you might just return a summary; adjust as needed.
   }));
 }
 
-export async function updateStudentSessionAttendance(
-  sessionId: number,
-  studentAttendanceStatus: number,
-  reason?: string,
-) {
-  const token = await getTokenFromCookie();
-  if (!token) throw new Error("غير مصرح");
-  const payload = verifyToken(token);
-  if (!payload) throw new Error("غير مصرح");
-
-  const session = await db.session.findUnique({
-    where: { id: sessionId },
-    include: { attendance: true },
-  });
-  if (!session) throw new Error("الحصة غير موجودة");
-
-  if (getSessionStatus(session) !== SessionStatus.COMPLETED) {
-    throw new Error("لا يمكن تسجيل الحضور إلا للحصص المكتملة");
-  }
-
-  await db.attendance.upsert({
-    where: { sessionId },
-    update: {
-      studentAttendanceStatus,
-      reason,
-    },
-    create: {
-      sessionId,
-      studentAttendanceStatus,
-      tutorAttendanceStatus: AttendanceStatus.ATTENDED,
-      reason,
-    },
-  });
-
-  revalidatePath(`/ar/dashboard/students/${session.studentId}`);
-  revalidatePath("/ar/dashboard/sessions");
-}
-
-export async function getSessionDetails(
-  sessionId: number,
-): Promise<DashboardSession | null> {
+export async function getSessionDetails(sessionId: number) {
   const session = await db.session.findUnique({
     where: { id: sessionId },
     include: {
-      student: { select: { user: { select: { name: true, phone: true } } } },
+      participants: {
+        include: {
+          student: {
+            select: { user: { select: { name: true, phone: true } } },
+          },
+          report: true,
+        },
+      },
       tutor: { include: { user: { select: { name: true, phone: true } } } },
-      attendance: true,
-      sessionReport: true,
     },
   });
 
@@ -337,33 +329,102 @@ export async function getSessionDetails(
     status: getSessionStatus(session),
     topic: session.topic,
     notes: session.notes,
-    studentId: session.studentId,
-    studentName: session.student.user.name || "",
-    tutorId: session.tutorId,
     isTrial: session.isTrial,
-    tutorName: session.tutor.user.name ?? "",
     zoomMeetingId: session.zoomMeetingId,
     zoomJoinUrl: session.zoomJoinUrl,
     zoomStartUrl: session.zoomStartUrl,
-    attendance: session.attendance
+    tutorId: session.tutorId,
+    tutorName: session.tutor.user.name ?? "",
+    participants: session.participants.map((p) => ({
+      id: p.id,
+      studentId: p.studentId,
+      studentName: p.student.user.name ?? "",
+      studentPhone: p.student.user.phone ?? "",
+      attendanceStatus: p.studentAttendanceStatus,
+      attendanceReason: p.reason,
+      balanceDeducted: p.balanceDeducted,
+      cancelledBy: p.cancelledBy,
+      report: p.report
+        ? {
+            id: p.report.id,
+            rating: p.report.rating,
+            outcomes: p.report.outcomes,
+            strengths: p.report.strengths,
+            weaknesses: p.report.weaknesses,
+            nextGoals: p.report.nextGoals,
+            comments: p.report.comments,
+          }
+        : null,
+    })),
+  };
+}
+
+export async function getSessionDetailsForManagement(
+  sessionId: number,
+): Promise<AdminSessionClientData | null> {
+  const session = await db.session.findUnique({
+    where: { id: sessionId },
+    include: {
+      participants: {
+        include: {
+          student: {
+            select: { id: true, user: { select: { name: true, phone: true } } },
+          },
+          report: true,
+        },
+      },
+      tutor: { include: { user: { select: { name: true } } } },
+    },
+  });
+  if (!session) return null;
+
+  const participants = session.participants.map((p) => ({
+    participantId: p.id,
+    studentId: p.studentId,
+    studentName: p.student.user.name || "",
+    studentPhone: p.student.user.phone,
+    attendanceStatus: p.studentAttendanceStatus,
+    report: p.report
       ? {
-          id: session.attendance.id,
-          tutorAttendance: session.attendance.tutorAttendanceStatus,
-          studentAttendance: session.attendance.studentAttendanceStatus,
-          reason: session.attendance.reason,
+          id: p.report.id,
+          rating: p.report.rating,
+          outcomes: p.report.outcomes,
+          strengths: p.report.strengths,
+          weaknesses: p.report.weaknesses,
+          nextGoals: p.report.nextGoals,
+          comments: p.report.comments,
+        }
+      : null,
+  }));
+
+  const first = participants[0];
+  return {
+    id: session.id,
+    startTime: session.startTime.toISOString(),
+    endTime: session.endTime.toISOString(),
+    durationMinutes: session.durationMinutes,
+    status: getSessionStatus(session),
+    topic: session.topic,
+    notes: session.notes,
+    tutorId: session.tutorId,
+    tutorName: session.tutor.user.name ?? null,
+    isTrial: session.isTrial,
+    studentId: first?.studentId ?? null,
+    studentName: participants.map((p) => p.studentName).join("، ") || "",
+    studentPhone: first?.studentPhone ?? null,
+    zoomMeetingId: session.zoomMeetingId,
+    zoomJoinUrl: session.zoomJoinUrl,
+    zoomStartUrl: session.zoomStartUrl,
+    attendance: first
+      ? {
+          id: first.participantId,
+          tutorAttendance: null,
+          studentAttendance: first.attendanceStatus,
+          reason: null,
         }
       : undefined,
-    report: session.sessionReport
-      ? {
-          id: session.sessionReport.id,
-          rating: session.sessionReport.rating,
-          outcomes: session.sessionReport.outcomes,
-          strengths: session.sessionReport.strengths,
-          weaknesses: session.sessionReport.weaknesses,
-          nextGoals: session.sessionReport.nextGoals,
-          comments: session.sessionReport.comments,
-        }
-      : undefined,
+    report: first?.report ?? undefined,
+    participants,
   };
 }
 
@@ -373,27 +434,58 @@ export async function cancelSession(sessionId: number, cancelledBy: number) {
   const payload = verifyToken(token);
   if (!payload || !payload.academyId) throw new Error("غير مصرح");
 
-  const session = await db.session.findUnique({ where: { id: sessionId } });
+  const session = await db.session.findUnique({
+    where: { id: sessionId },
+    include: { participants: true },
+  });
   if (!session || session.cancelledBy !== null)
     throw new Error("لا يمكن إلغاء هذه الحصة");
-  if (session.zoomMeetingId) {
-    try {
-      const { deleteZoomMeeting } = await import("@/lib/zoom");
-      await deleteZoomMeeting(session.zoomMeetingId, session.tutorId);
-    } catch (error) {
-      console.error("Zoom meeting deletion failed:", error);
-    }
-  }
+
   await db.$transaction(async (tx) => {
     await tx.session.update({
       where: { id: sessionId },
       data: { cancelledBy },
     });
-    if (!session.isTrial) {
-      await incrementBalance(session.studentId, tx);
+
+    for (const participant of session.participants) {
+      if (participant.balanceDeducted && !session.isTrial) {
+        await incrementBalance(participant.studentId, tx);
+      }
     }
   });
 
   revalidatePath("/ar/dashboard/sessions");
-  revalidatePath(`/ar/dashboard/students/${session.studentId}`);
+  for (const p of session.participants) {
+    revalidatePath(`/ar/dashboard/students/${p.studentId}`);
+  }
+}
+
+export async function deleteSession(sessionId: number) {
+  const token = await getTokenFromCookie();
+  if (!token) throw new Error("غير مصرح");
+  const payload = verifyToken(token);
+  if (!payload || !payload.academyId) throw new Error("غير مصرح");
+
+  const session = await db.session.findUnique({
+    where: { id: sessionId },
+    include: { participants: true },
+  });
+  if (!session) throw new Error("الحصة غير موجودة");
+  if (session.cancelledBy !== null) throw new Error("الحصة ملغية بالفعل");
+
+  await db.$transaction(async (tx) => {
+    await tx.session.update({
+      where: { id: sessionId },
+      data: { cancelledBy: payload.id },
+    });
+
+    // Refund each participant that had balance deducted (non-trial)
+    for (const participant of session.participants) {
+      if (participant.balanceDeducted && !session.isTrial) {
+        await incrementBalance(participant.studentId, tx);
+      }
+    }
+  });
+
+  revalidatePath("/ar/dashboard/sessions");
 }

@@ -28,10 +28,10 @@ import {
   sessionStatusLabels,
 } from "@/const/sessions";
 import type { TutorSession } from "@/types/tutor";
-import AddSessionDialog from "../dialogs/addSessionToTutorDialog";
 import { ChevronRight, ChevronLeft } from "lucide-react";
 import dayjs from "@/lib/dayjs";
 import { getTutorSessionsForMonth } from "@/actions/tutor";
+import { SessionStatus } from "@/types/session";
 
 interface SessionsTabProps {
   tutor: {
@@ -40,7 +40,7 @@ interface SessionsTabProps {
     sessions: TutorSession[];
     students: { id: number; name: string }[];
   };
-  onSessionClick: (session: TutorSession) => void;
+  onSessionClick: (sessionId: number) => void;
 }
 
 export default function SessionsTab({
@@ -55,7 +55,6 @@ export default function SessionsTab({
   const [sessionFilter, setSessionFilter] = useState("all");
   const [sessionSearch, setSessionSearch] = useState("");
 
-  // دالة تحديث الجلسات عند تغيير الشهر
   const fetchMonth = async (newMonthStart: string) => {
     setLoading(true);
     try {
@@ -113,7 +112,6 @@ export default function SessionsTab({
 
   return (
     <div className="space-y-4 mt-4">
-      {/* صف الفلاتر والتنقل الشهري */}
       <div className="flex flex-wrap gap-3 items-center justify-between">
         <div className="flex gap-3 flex-wrap items-center">
           <Input
@@ -135,9 +133,7 @@ export default function SessionsTab({
           </Select>
         </div>
 
-        {/* التنقل بين الأشهر */}
         <div className="flex items-center gap-2">
-          {" "}
           <Button
             variant="outline"
             size="icon"
@@ -158,15 +154,6 @@ export default function SessionsTab({
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
-
-        <AddSessionDialog
-          tutorId={tutor.id}
-          academyId={tutor.academyId}
-          studentOptions={tutor.students.map((s) => ({
-            id: s.id,
-            name: s.name,
-          }))}
-        />
       </div>
 
       {loading ? (
@@ -199,9 +186,9 @@ export default function SessionsTab({
                 <TableBody>
                   {filteredSessions.map((s) => (
                     <TableRow
-                      key={s.id}
+                      key={s.participantId}
                       className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => onSessionClick(s)}
+                      onClick={() => onSessionClick(s.sessionId)}
                     >
                       <TableCell className="whitespace-nowrap">
                         {formatDate(s.startTime)}
@@ -225,20 +212,18 @@ export default function SessionsTab({
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {s.attendance ? (
+                        {s.attendance.status !== null ? (
                           <Badge
                             className={
-                              attendanceStatusColors[
-                                s.attendance.tutorAttendance
-                              ]
+                              attendanceStatusColors[s.attendance.status]
                             }
                           >
-                            {
-                              attendanceStatusLabels[
-                                s.attendance.tutorAttendance
-                              ]
-                            }
+                            {attendanceStatusLabels[s.attendance.status]}
                           </Badge>
+                        ) : s.status === SessionStatus.COMPLETED ? (
+                          <span className="text-amber-600 text-xs">
+                            غير مسجل
+                          </span>
                         ) : (
                           "—"
                         )}

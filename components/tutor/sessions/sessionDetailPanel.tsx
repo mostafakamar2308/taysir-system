@@ -29,16 +29,14 @@ import { markStudentAttendanceByTutor } from "@/actions/tutor/attendance";
 import { upsertSessionReport } from "@/actions/tutor/report";
 import { formatDate, formatTime } from "@/lib/dates";
 import { sessionStatusLabels, sessionStatusColors } from "@/const/sessions";
-import {
-  AttendanceStatus,
-  DashboardSession,
-  SessionStatus,
-} from "@/types/session";
+import { AttendanceStatus, SessionStatus } from "@/types/session";
+import { SessionClientData } from "@/types/tutor/session";
 import { Copy, ExternalLink, Video } from "lucide-react";
 import dayjs from "@/lib/dayjs";
+import { updateSessionZoomLinks } from "@/actions/tutor/session";
 
 interface SessionDetailPanelProps {
-  session: DashboardSession;
+  session: SessionClientData;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUpdate: () => void;
@@ -54,10 +52,10 @@ export default function SessionDetailPanel({
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState("zoom");
+  const [activeTab, setActiveTab] = useState("details");
   const [editMode, setEditMode] = useState(false);
 
-  // edit fields – only used when !isPast
+  // ––– session‑level edit fields –––
   const [editDate, setEditDate] = useState(
     dayjs(session.startTime).format("YYYY-MM-DD"),
   );
@@ -68,25 +66,63 @@ export default function SessionDetailPanel({
   const [topic, setTopic] = useState(session.topic || "");
   const [notes, setNotes] = useState(session.notes || "");
 
-  const [attendanceStatus, setAttendanceStatus] = useState<string>(
-    session.attendance?.tutorAttendance?.toString() || "",
-  );
-  const [attendanceReason, setAttendanceReason] = useState(
-    session.attendance?.reason || "",
-  );
-  const [reportData, setReportData] = useState({
-    rating: session.report?.rating?.toString() || "",
-    outcomes: session.report?.outcomes || "",
-    strengths: session.report?.strengths || "",
-    weaknesses: session.report?.weaknesses || "",
-    nextGoals: session.report?.nextGoals || "",
-    comments: session.report?.comments || "",
+  const isPast = new Date(session.startTime) < new Date();
+  const isCompleted = session.status === SessionStatus.COMPLETED;
+
+  // ––– per‑participant editing states –––
+  // attendance: participantId -> { status: string; reason: string }
+  const [attendanceForms, setAttendanceForms] = useState<
+    Record<number, { status: string; reason: string }>
+  >(() => {
+    const init: Record<number, { status: string; reason: string }> = {};
+    session.participants.forEach((p) => {
+      init[p.participantId] = {
+        status: p.attendanceStatus?.toString() || "",
+        reason: "",
+      };
+    });
+    return init;
   });
 
-  const isPast = new Date(session.startTime) < new Date();
-  const canMarkAttendance =
-    isPast && session.status === SessionStatus.COMPLETED && !session.attendance;
+  // report: participantId -> { rating, outcomes, strengths, weaknesses, nextGoals, comments }
+  const [reportForms, setReportForms] = useState<
+    Record<
+      number,
+      {
+        rating: string;
+        outcomes: string;
+        strengths: string;
+        weaknesses: string;
+        nextGoals: string;
+        comments: string;
+      }
+    >
+  >(() => {
+    const init: Record<
+      number,
+      {
+        rating: string;
+        outcomes: string;
+        strengths: string;
+        weaknesses: string;
+        nextGoals: string;
+        comments: string;
+      }
+    > = {};
+    session.participants.forEach((p) => {
+      init[p.participantId] = {
+        rating: p.report?.rating?.toString() || "",
+        outcomes: p.report?.outcomes || "",
+        strengths: p.report?.strengths || "",
+        weaknesses: p.report?.weaknesses || "",
+        nextGoals: p.report?.nextGoals || "",
+        comments: p.report?.comments || "",
+      };
+    });
+    return init;
+  });
 
+  // ––– session update handler –––
   const handleEnterEditMode = () => {
     if (!isPast) {
       setEditDate(dayjs(session.startTime).format("YYYY-MM-DD"));
@@ -111,7 +147,6 @@ export default function SessionDetailPanel({
         id: session.id,
         topic: topic,
       };
-
       if (!isPast) {
         const startTimeISO = dayjs(
           `${editDate}T${editStartTime}:00`,
@@ -120,7 +155,6 @@ export default function SessionDetailPanel({
         payload.startTime = startTimeISO;
         payload.duration = editDuration;
       }
-
       await updateSession(payload);
       toast({ title: t("toast.updateSuccess") });
       setEditMode(false);
@@ -135,23 +169,25 @@ export default function SessionDetailPanel({
     }
   };
 
-  const handleMarkAttendance = async () => {
-    if (!attendanceStatus) {
-      toast({
-        title: t("attendance.selectStatusError"),
-        variant: "destructive",
-      });
-      return;
-    }
+  const [zoomEditMode, setZoomEditMode] = useState(false);
+  const [zoomJoinUrlInput, setZoomJoinUrlInput] = useState(
+    session.zoomJoinUrl || "",
+  );
+  const [zoomStartUrlInput, setZoomStartUrlInput] = useState(
+    session.zoomStartUrl || "",
+  );
+
+  // Add handler for saving zoom links
+  const handleSaveZoomLinks = async () => {
     setLoading(true);
     try {
-      await markStudentAttendanceByTutor(
-        session.id,
-        parseInt(attendanceStatus) as AttendanceStatus,
-        attendanceReason || undefined,
-      );
-      toast({ title: t("toast.attendanceSaved") });
-      onUpdate?.();
+      await updateSessionZoomLinks(session.id, {
+        zoomJoinUrl: zoomJoinUrlInput || null,
+        zoomStartUrl: zoomStartUrlInput || null,
+      });
+      toast({ title: t("toast.zoomSaved") });
+      setZoomEditMode(false);
+      onUpdate();
       router.refresh();
     } catch (error) {
       if (error instanceof Error)
@@ -165,31 +201,25 @@ export default function SessionDetailPanel({
     }
   };
 
-  const handleSubmitReport = async () => {
-    if (
-      !reportData.outcomes &&
-      !reportData.strengths &&
-      !reportData.weaknesses &&
-      !reportData.nextGoals
-    ) {
+  // ––– attendance per participant –––
+  const handleMarkAttendance = async (participantId: number) => {
+    const form = attendanceForms[participantId];
+    if (!form || !form.status) {
       toast({
-        title: t("report.missingFieldsError"),
+        title: t("attendance.selectStatusError"),
         variant: "destructive",
       });
       return;
     }
     setLoading(true);
     try {
-      await upsertSessionReport(session.id, {
-        rating: reportData.rating ? parseInt(reportData.rating) : undefined,
-        outcomes: reportData.outcomes || null,
-        strengths: reportData.strengths || null,
-        weaknesses: reportData.weaknesses || null,
-        nextGoals: reportData.nextGoals || null,
-        comments: reportData.comments || null,
-      });
-      toast({ title: t("toast.reportSaved") });
-      onUpdate?.();
+      await markStudentAttendanceByTutor(
+        participantId,
+        parseInt(form.status) as AttendanceStatus,
+        form.reason || undefined,
+      );
+      toast({ title: t("toast.attendanceSaved") });
+      onUpdate();
       router.refresh();
     } catch (error) {
       if (error instanceof Error)
@@ -201,6 +231,102 @@ export default function SessionDetailPanel({
     } finally {
       setLoading(false);
     }
+  };
+
+  // ––– report per participant –––
+  const handleSubmitReport = async (participantId: number) => {
+    const form = reportForms[participantId];
+    if (
+      !form ||
+      (!form.outcomes && !form.strengths && !form.weaknesses && !form.nextGoals)
+    ) {
+      toast({ title: t("report.missingFieldsError"), variant: "destructive" });
+      return;
+    }
+    setLoading(true);
+    try {
+      await upsertSessionReport(participantId, {
+        rating: form.rating ? parseInt(form.rating) : undefined,
+        outcomes: form.outcomes || null,
+        strengths: form.strengths || null,
+        weaknesses: form.weaknesses || null,
+        nextGoals: form.nextGoals || null,
+        comments: form.comments || null,
+      });
+      toast({ title: t("toast.reportSaved") });
+      onUpdate();
+      router.refresh();
+    } catch (error) {
+      if (error instanceof Error)
+        toast({
+          title: t("toast.error"),
+          description: error.message,
+          variant: "destructive",
+        });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Helper: attendance badge for a participant
+  const attendanceBadge = (p: SessionClientData["participants"][number]) => {
+    if (p.attendanceStatus === null) {
+      return isCompleted ? (
+        <Badge
+          variant="outline"
+          className="border-amber-300 text-amber-700 bg-amber-50"
+        >
+          {t("attendance.notRecorded")}
+        </Badge>
+      ) : (
+        <span className="text-xs text-muted-foreground">—</span>
+      );
+    }
+    const labels: Record<number, string> = {
+      [AttendanceStatus.ATTENDED]: t("attendance.statusPresent"),
+      [AttendanceStatus.LATE]: t("attendance.statusLate"),
+      [AttendanceStatus.ABSENT_EXCUSED]: t("attendance.statusAbsentExcused"),
+      [AttendanceStatus.ABSENT_UNEXCUSED]: t(
+        "attendance.statusAbsentUnexcused",
+      ),
+    };
+    const variant =
+      p.attendanceStatus === AttendanceStatus.ATTENDED
+        ? "bg-green-100 text-green-700"
+        : p.attendanceStatus === AttendanceStatus.LATE
+          ? "bg-orange-100 text-orange-700"
+          : "bg-red-100 text-red-700";
+    return (
+      <Badge className={variant}>{labels[p.attendanceStatus] || "?"}</Badge>
+    );
+  };
+
+  // Helper: report badge for a participant
+  const reportBadge = (p: SessionClientData["participants"][number]) => {
+    if (
+      p.attendanceStatus !== null &&
+      [AttendanceStatus.ATTENDED, AttendanceStatus.LATE].includes(
+        p.attendanceStatus,
+      ) &&
+      !p.report
+    ) {
+      return (
+        <Badge
+          variant="outline"
+          className="border-blue-300 text-blue-700 bg-blue-50"
+        >
+          {t("report.notWritten")}
+        </Badge>
+      );
+    }
+    if (p.report) {
+      return (
+        <Badge variant="outline" className="bg-primary/10 text-primary">
+          {t("report.completed")}
+        </Badge>
+      );
+    }
+    return null;
   };
 
   return (
@@ -215,104 +341,12 @@ export default function SessionDetailPanel({
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="flex w-full *:grow">
-            {session.zoomJoinUrl && (
-              <TabsTrigger value="zoom">{t("tabs.zoom")}</TabsTrigger>
-            )}
             <TabsTrigger value="details">{t("tabs.details")}</TabsTrigger>
-            <TabsTrigger value="attendance">{t("tabs.attendance")}</TabsTrigger>
-            {session.attendance &&
-            [AttendanceStatus.ATTENDED, AttendanceStatus.LATE].includes(
-              session.attendance.studentAttendance,
-            ) ? (
-              <TabsTrigger value="report">{t("tabs.report")}</TabsTrigger>
-            ) : null}
+            <TabsTrigger value="participants">
+              {t("tabs.participants")}
+            </TabsTrigger>
+            <TabsTrigger value="zoom">{t("tabs.zoom")}</TabsTrigger>
           </TabsList>
-
-          {/* Zoom Links Tab */}
-          <TabsContent value="zoom" className="space-y-4 mt-4">
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 text-primary">
-                <Video className="h-5 w-5" />
-                <span className="font-semibold">{t("zoom.title")}</span>
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-sm text-muted-foreground">
-                  {t("zoom.joinUrlLabel")}
-                </Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={session.zoomJoinUrl || ""}
-                    readOnly
-                    className="font-mono text-sm"
-                    dir="ltr"
-                  />
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    title={t("zoom.copyTitle")}
-                    onClick={() => {
-                      navigator.clipboard.writeText(session.zoomJoinUrl || "");
-                      toast({ title: t("toast.copySuccess") });
-                    }}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    title={t("zoom.openTitle")}
-                    onClick={() => window.open(session.zoomJoinUrl!, "_blank")}
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-
-              {session.zoomStartUrl && (
-                <div className="space-y-1">
-                  <Label className="text-sm text-muted-foreground">
-                    {t("zoom.startUrlLabel")}
-                  </Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      value={session.zoomStartUrl || ""}
-                      readOnly
-                      className="font-mono text-sm bg-muted/50"
-                      dir="ltr"
-                    />
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      title={t("zoom.copyTitle")}
-                      onClick={() => {
-                        navigator.clipboard.writeText(
-                          session.zoomStartUrl || "",
-                        );
-                        toast({ title: t("toast.copySuccess") });
-                      }}
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      title={t("zoom.openTitle")}
-                      onClick={() =>
-                        window.open(session.zoomStartUrl!, "_blank")
-                      }
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              <p className="text-xs text-muted-foreground">
-                {t("zoom.helpText")}
-              </p>
-            </div>
-          </TabsContent>
 
           {/* Details Tab */}
           <TabsContent value="details" className="space-y-4 mt-4">
@@ -436,234 +470,438 @@ export default function SessionDetailPanel({
             </div>
           </TabsContent>
 
-          {/* Attendance Tab */}
-          <TabsContent value="attendance" className="space-y-4 mt-4">
-            {canMarkAttendance ? (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>{t("attendance.statusLabel")}</Label>
-                  <Select
-                    value={attendanceStatus}
-                    onValueChange={setAttendanceStatus}
-                  >
-                    <SelectTrigger>
-                      <SelectValue
-                        placeholder={t("attendance.selectPlaceholder")}
+          {/* Participants Tab */}
+          <TabsContent value="participants" className="space-y-6 mt-4">
+            {session.participants.map((p) => (
+              <div
+                key={p.participantId}
+                className="border rounded-lg p-4 space-y-4"
+              >
+                <div className="flex items-center justify-between">
+                  <h4 className="font-semibold">{p.studentName}</h4>
+                  <div className="flex gap-2">
+                    {attendanceBadge(p)}
+                    {reportBadge(p)}
+                  </div>
+                </div>
+
+                {/* Attendance form for this participant */}
+                {isCompleted && p.attendanceStatus === null && (
+                  <div className="space-y-2 border-t pt-3">
+                    <Label>{t("attendance.statusLabel")}</Label>
+                    <Select
+                      value={attendanceForms[p.participantId]?.status || ""}
+                      onValueChange={(value) =>
+                        setAttendanceForms((prev) => ({
+                          ...prev,
+                          [p.participantId]: {
+                            ...prev[p.participantId],
+                            status: value,
+                          },
+                        }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue
+                          placeholder={t("attendance.selectPlaceholder")}
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem
+                          value={AttendanceStatus.ATTENDED.toString()}
+                        >
+                          {t("attendance.statusPresent")}
+                        </SelectItem>
+                        <SelectItem value={AttendanceStatus.LATE.toString()}>
+                          {t("attendance.statusLate")}
+                        </SelectItem>
+                        <SelectItem
+                          value={AttendanceStatus.ABSENT_EXCUSED.toString()}
+                        >
+                          {t("attendance.statusAbsentExcused")}
+                        </SelectItem>
+                        <SelectItem
+                          value={AttendanceStatus.ABSENT_UNEXCUSED.toString()}
+                        >
+                          {t("attendance.statusAbsentUnexcused")}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <div className="space-y-2">
+                      <Label>{t("attendance.reasonLabel")}</Label>
+                      <Textarea
+                        value={attendanceForms[p.participantId]?.reason || ""}
+                        onChange={(e) =>
+                          setAttendanceForms((prev) => ({
+                            ...prev,
+                            [p.participantId]: {
+                              ...prev[p.participantId],
+                              reason: e.target.value,
+                            },
+                          }))
+                        }
+                        rows={2}
+                        placeholder={t("attendance.reasonPlaceholder")}
                       />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={AttendanceStatus.ATTENDED.toString()}>
-                        {t("attendance.statusPresent")}
-                      </SelectItem>
-                      <SelectItem value={AttendanceStatus.LATE.toString()}>
-                        {t("attendance.statusLate")}
-                      </SelectItem>
-                      <SelectItem
-                        value={AttendanceStatus.ABSENT_EXCUSED.toString()}
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => handleMarkAttendance(p.participantId)}
+                      disabled={loading}
+                    >
+                      {t("attendance.submitButton")}
+                    </Button>
+                  </div>
+                )}
+
+                {p.attendanceStatus !== null && (
+                  <div className="text-sm text-muted-foreground">
+                    {t("attendance.alreadyRecorded")} {attendanceBadge(p)}
+                  </div>
+                )}
+
+                {/* Report form for this participant */}
+                {isCompleted &&
+                  p.attendanceStatus !== null &&
+                  [AttendanceStatus.ATTENDED, AttendanceStatus.LATE].includes(
+                    p.attendanceStatus,
+                  ) &&
+                  !p.report && (
+                    <div className="space-y-2 border-t pt-3">
+                      <h5 className="text-sm font-medium">
+                        {t("report.title")}
+                      </h5>
+                      <div className="space-y-2">
+                        <Label>{t("report.ratingLabel")}</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          max="5"
+                          value={reportForms[p.participantId]?.rating || ""}
+                          onChange={(e) =>
+                            setReportForms((prev) => ({
+                              ...prev,
+                              [p.participantId]: {
+                                ...prev[p.participantId],
+                                rating: e.target.value,
+                              },
+                            }))
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>{t("report.outcomesLabel")} *</Label>
+                        <Textarea
+                          value={reportForms[p.participantId]?.outcomes || ""}
+                          onChange={(e) =>
+                            setReportForms((prev) => ({
+                              ...prev,
+                              [p.participantId]: {
+                                ...prev[p.participantId],
+                                outcomes: e.target.value,
+                              },
+                            }))
+                          }
+                          rows={2}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>{t("report.strengthsLabel")}</Label>
+                        <Textarea
+                          value={reportForms[p.participantId]?.strengths || ""}
+                          onChange={(e) =>
+                            setReportForms((prev) => ({
+                              ...prev,
+                              [p.participantId]: {
+                                ...prev[p.participantId],
+                                strengths: e.target.value,
+                              },
+                            }))
+                          }
+                          rows={2}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>{t("report.weaknessesLabel")}</Label>
+                        <Textarea
+                          value={reportForms[p.participantId]?.weaknesses || ""}
+                          onChange={(e) =>
+                            setReportForms((prev) => ({
+                              ...prev,
+                              [p.participantId]: {
+                                ...prev[p.participantId],
+                                weaknesses: e.target.value,
+                              },
+                            }))
+                          }
+                          rows={2}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>{t("report.nextGoalsLabel")} *</Label>
+                        <Textarea
+                          value={reportForms[p.participantId]?.nextGoals || ""}
+                          onChange={(e) =>
+                            setReportForms((prev) => ({
+                              ...prev,
+                              [p.participantId]: {
+                                ...prev[p.participantId],
+                                nextGoals: e.target.value,
+                              },
+                            }))
+                          }
+                          rows={2}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>{t("report.commentsLabel")}</Label>
+                        <Textarea
+                          value={reportForms[p.participantId]?.comments || ""}
+                          onChange={(e) =>
+                            setReportForms((prev) => ({
+                              ...prev,
+                              [p.participantId]: {
+                                ...prev[p.participantId],
+                                comments: e.target.value,
+                              },
+                            }))
+                          }
+                          rows={2}
+                        />
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => handleSubmitReport(p.participantId)}
+                        disabled={loading}
                       >
-                        {t("attendance.statusAbsentExcused")}
-                      </SelectItem>
-                      <SelectItem
-                        value={AttendanceStatus.ABSENT_UNEXCUSED.toString()}
-                      >
-                        {t("attendance.statusAbsentUnexcused")}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>{t("attendance.reasonLabel")}</Label>
-                  <Textarea
-                    value={attendanceReason}
-                    onChange={(e) => setAttendanceReason(e.target.value)}
-                    rows={2}
-                    placeholder={t("attendance.reasonPlaceholder")}
-                  />
-                </div>
-                <Button onClick={handleMarkAttendance} disabled={loading}>
-                  {t("attendance.submitButton")}
-                </Button>
-              </div>
-            ) : session.attendance ? (
-              <div>
-                <p className="text-sm text-muted-foreground">
-                  {t("attendance.alreadyRecorded")}
-                </p>
-                <Badge
-                  className={
-                    session.attendance.tutorAttendance ===
-                    AttendanceStatus.ATTENDED
-                      ? "bg-green-100 text-green-700"
-                      : session.attendance.tutorAttendance ===
-                          AttendanceStatus.LATE
-                        ? "bg-orange-100 text-orange-700"
-                        : "bg-red-100 text-red-700"
-                  }
-                >
-                  {session.attendance.tutorAttendance ===
-                  AttendanceStatus.ATTENDED
-                    ? t("attendance.statusPresent")
-                    : session.attendance.tutorAttendance ===
-                        AttendanceStatus.LATE
-                      ? t("attendance.statusLate")
-                      : t("attendance.statusAbsent")}
-                </Badge>
-                {session.attendance.reason && (
-                  <p className="mt-2 text-sm">
-                    {t("attendance.reasonPrefix")} {session.attendance.reason}
-                  </p>
+                        {t("report.submitButton")}
+                      </Button>
+                    </div>
+                  )}
+
+                {p.report && (
+                  <div className="text-sm space-y-2 border-t pt-3">
+                    <h5 className="font-medium">{t("report.title")}</h5>
+                    {p.report.rating && (
+                      <p>
+                        {t("report.rating")}: {p.report.rating}/5
+                      </p>
+                    )}
+                    {p.report.outcomes && (
+                      <p>
+                        {t("report.outcomes")}: {p.report.outcomes}
+                      </p>
+                    )}
+                    {p.report.strengths && (
+                      <p>
+                        {t("report.strengths")}: {p.report.strengths}
+                      </p>
+                    )}
+                    {p.report.weaknesses && (
+                      <p>
+                        {t("report.weaknesses")}: {p.report.weaknesses}
+                      </p>
+                    )}
+                    {p.report.nextGoals && (
+                      <p>
+                        {t("report.nextGoals")}: {p.report.nextGoals}
+                      </p>
+                    )}
+                    {p.report.comments && (
+                      <p>
+                        {t("report.comments")}: {p.report.comments}
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
-            ) : (
-              <p className="text-muted-foreground">
-                {t("attendance.notAvailableYet")}
-              </p>
-            )}
+            ))}
           </TabsContent>
 
-          {/* Report Tab */}
-          <TabsContent value="report" className="space-y-4 mt-4">
-            {session.report ? (
-              <div className="space-y-3">
-                {session.report.rating && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">
-                      {t("report.rating")}
-                    </p>
-                    <p>{session.report.rating} / 5</p>
-                  </div>
-                )}
-                {session.report.outcomes && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">
-                      {t("report.outcomes")}
-                    </p>
-                    <p>{session.report.outcomes}</p>
-                  </div>
-                )}
-                {session.report.strengths && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">
-                      {t("report.strengths")}
-                    </p>
-                    <p>{session.report.strengths}</p>
-                  </div>
-                )}
-                {session.report.weaknesses && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">
-                      {t("report.weaknesses")}
-                    </p>
-                    <p>{session.report.weaknesses}</p>
-                  </div>
-                )}
-                {session.report.nextGoals && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">
-                      {t("report.nextGoals")}
-                    </p>
-                    <p>{session.report.nextGoals}</p>
-                  </div>
-                )}
-                {session.report.comments && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">
-                      {t("report.comments")}
-                    </p>
-                    <p>{session.report.comments}</p>
-                  </div>
-                )}
-              </div>
-            ) : (
+          {/* Zoom Tab */}
+          {session.zoomJoinUrl || zoomEditMode ? (
+            <TabsContent value="zoom" className="space-y-4 mt-4">
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>{t("report.ratingLabel")}</Label>
-                  <Input
-                    type="number"
-                    min="1"
-                    max="5"
-                    value={reportData.rating}
-                    onChange={(e) =>
-                      setReportData({ ...reportData, rating: e.target.value })
-                    }
-                  />
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-primary">
+                    <Video className="h-5 w-5" />
+                    <span className="font-semibold">{t("zoom.title")}</span>
+                  </div>
+                  {session.zoomJoinUrl && !zoomEditMode && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setZoomEditMode(true)}
+                    >
+                      {t("zoom.editButton")}
+                    </Button>
+                  )}
                 </div>
-                <div className="space-y-2">
-                  <Label>{t("report.outcomesLabel")} *</Label>
-                  <Textarea
-                    value={reportData.outcomes}
-                    onChange={(e) =>
-                      setReportData({
-                        ...reportData,
-                        outcomes: e.target.value,
-                      })
-                    }
-                    rows={2}
-                    placeholder={t("report.outcomesPlaceholder")}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>{t("report.strengthsLabel")}</Label>
-                  <Textarea
-                    value={reportData.strengths}
-                    onChange={(e) =>
-                      setReportData({
-                        ...reportData,
-                        strengths: e.target.value,
-                      })
-                    }
-                    rows={2}
-                    placeholder={t("report.strengthsPlaceholder")}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>{t("report.weaknessesLabel")}</Label>
-                  <Textarea
-                    value={reportData.weaknesses}
-                    onChange={(e) =>
-                      setReportData({
-                        ...reportData,
-                        weaknesses: e.target.value,
-                      })
-                    }
-                    rows={2}
-                    placeholder={t("report.weaknessesPlaceholder")}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>{t("report.nextGoalsLabel")} *</Label>
-                  <Textarea
-                    value={reportData.nextGoals}
-                    onChange={(e) =>
-                      setReportData({
-                        ...reportData,
-                        nextGoals: e.target.value,
-                      })
-                    }
-                    rows={2}
-                    placeholder={t("report.nextGoalsPlaceholder")}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>{t("report.commentsLabel")}</Label>
-                  <Textarea
-                    value={reportData.comments}
-                    onChange={(e) =>
-                      setReportData({
-                        ...reportData,
-                        comments: e.target.value,
-                      })
-                    }
-                    rows={2}
-                    placeholder={t("report.commentsPlaceholder")}
-                  />
-                </div>
-                <Button onClick={handleSubmitReport} disabled={loading}>
-                  {t("report.submitButton")}
-                </Button>
+
+                {zoomEditMode ? (
+                  <div className="space-y-4 border rounded-lg p-4">
+                    <div className="space-y-2">
+                      <Label>{t("zoom.joinUrlLabel")}</Label>
+                      <Input
+                        value={zoomJoinUrlInput}
+                        onChange={(e) => setZoomJoinUrlInput(e.target.value)}
+                        placeholder="https://zoom.us/j/..."
+                        dir="ltr"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>{t("zoom.startUrlLabel")}</Label>
+                      <Input
+                        value={zoomStartUrlInput}
+                        onChange={(e) => setZoomStartUrlInput(e.target.value)}
+                        placeholder="https://zoom.us/s/..."
+                        dir="ltr"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        {t("zoom.startUrlHelp")}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button onClick={handleSaveZoomLinks} disabled={loading}>
+                        {t("zoom.saveButton")}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setZoomEditMode(false);
+                          setZoomJoinUrlInput(session.zoomJoinUrl || "");
+                          setZoomStartUrlInput(session.zoomStartUrl || "");
+                        }}
+                      >
+                        {t("zoom.cancelButton")}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {session.zoomJoinUrl && (
+                      <div className="space-y-1">
+                        <Label className="text-sm text-muted-foreground">
+                          {t("zoom.joinUrlLabel")}
+                        </Label>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={session.zoomJoinUrl}
+                            readOnly
+                            className="font-mono text-sm"
+                            dir="ltr"
+                          />
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            title={t("zoom.copyTitle")}
+                            onClick={() => {
+                              navigator.clipboard.writeText(
+                                session.zoomJoinUrl || "",
+                              );
+                              toast({ title: t("toast.copySuccess") });
+                            }}
+                          >
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            title={t("zoom.openTitle")}
+                            onClick={() =>
+                              window.open(session.zoomJoinUrl!, "_blank")
+                            }
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    {session.zoomStartUrl && (
+                      <div className="space-y-1">
+                        <Label className="text-sm text-muted-foreground">
+                          {t("zoom.startUrlLabel")}
+                        </Label>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={session.zoomStartUrl}
+                            readOnly
+                            className="font-mono text-sm bg-muted/50"
+                            dir="ltr"
+                          />
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            title={t("zoom.copyTitle")}
+                            onClick={() => {
+                              navigator.clipboard.writeText(
+                                session.zoomStartUrl || "",
+                              );
+                              toast({ title: t("toast.copySuccess") });
+                            }}
+                          >
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            title={t("zoom.openTitle")}
+                            onClick={() =>
+                              window.open(session.zoomStartUrl!, "_blank")
+                            }
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      {t("zoom.helpText")}
+                    </p>
+                  </>
+                )}
               </div>
-            )}
-          </TabsContent>
+            </TabsContent>
+          ) : (
+            /* No Zoom link yet, show initial setup form */
+            <TabsContent value="zoom" className="space-y-4 mt-4">
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-primary">
+                  <Video className="h-5 w-5" />
+                  <span className="font-semibold">{t("zoom.title")}</span>
+                </div>
+                <div className="border rounded-lg p-4 space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    {t("zoom.noLinkInstructions")}
+                  </p>
+                  <div className="space-y-2">
+                    <Label>{t("zoom.joinUrlLabel")}</Label>
+                    <Input
+                      value={zoomJoinUrlInput}
+                      onChange={(e) => setZoomJoinUrlInput(e.target.value)}
+                      placeholder="https://zoom.us/j/..."
+                      dir="ltr"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{t("zoom.startUrlLabel")}</Label>
+                    <Input
+                      value={zoomStartUrlInput}
+                      onChange={(e) => setZoomStartUrlInput(e.target.value)}
+                      placeholder="https://zoom.us/s/..."
+                      dir="ltr"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {t("zoom.startUrlHelp")}
+                    </p>
+                  </div>
+                  <Button onClick={handleSaveZoomLinks} disabled={loading}>
+                    {t("zoom.saveButton")}
+                  </Button>
+                </div>
+              </div>
+            </TabsContent>
+          )}
         </Tabs>
 
         <DialogFooter>

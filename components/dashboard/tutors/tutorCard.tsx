@@ -3,7 +3,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Phone, Mail, Clock, BookOpen, DollarSign, Globe } from "lucide-react";
-import { DashboardTutor } from "@/types/tutor";
+import { DashboardTutor } from "./viewer";
 import { QuickActionsMenu } from "@/components/dashboard/tutors/quickActionsMenu";
 import Link from "next/link";
 
@@ -76,7 +76,13 @@ export default function TutorCard({
           <div className="flex items-center gap-2 text-muted-foreground">
             <DollarSign className="h-3.5 w-3.5 shrink-0" />
             <span>
-              {tutor.pricePerHour} {tutor.currency} / ساعة
+              {tutor.privatePricePerHour} {tutor.currency} / ساعة (فردي)
+            </span>
+          </div>
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <DollarSign className="h-3.5 w-3.5 shrink-0" />
+            <span>
+              {tutor.groupPricePerHour} {tutor.currency} / ساعة (جماعي)
             </span>
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">

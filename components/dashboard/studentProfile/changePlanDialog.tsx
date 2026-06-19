@@ -81,7 +81,7 @@ export default function ChangePlanDialog({
                     {p.sessionsPerWeek} حصص/أسبوع
                   </p>
                 </div>
-                <p className="font-bold text-lg">{p.price} ر.س</p>
+                <p className="font-bold text-lg">{p.price} جنيه مصري</p>
               </div>
             </div>
           ))}

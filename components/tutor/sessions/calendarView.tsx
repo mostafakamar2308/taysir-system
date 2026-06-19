@@ -1,16 +1,15 @@
 "use client";
 
-import { DashboardSession } from "@/types/session";
 import { WeekView } from "@/components/dashboard/sessions/views/weekView";
 import { getWeekDates } from "@/lib/dates";
 import dayjs from "@/lib/dayjs";
+import { AdminSessionClientData } from "@/types/session";
 
 interface CalendarViewProps {
   currentWeekStart: string;
-  sessions: DashboardSession[];
+  sessions: AdminSessionClientData[];
   onSlotClick: () => void;
-  onSessionClick: (session: DashboardSession) => void;
-  onMarkAttendance: () => void;
+  onSessionClick: (session: AdminSessionClientData) => void;
 }
 
 export default function CalendarView({
@@ -18,7 +17,6 @@ export default function CalendarView({
   sessions,
   onSlotClick,
   onSessionClick,
-  onMarkAttendance,
 }: CalendarViewProps) {
   const weekDates = getWeekDates(dayjs(currentWeekStart).toDate());
 
@@ -28,7 +26,6 @@ export default function CalendarView({
       sessions={sessions}
       onSlotClick={onSlotClick}
       onSessionClick={onSessionClick}
-      onMarkAttendance={onMarkAttendance}
     />
   );
 }

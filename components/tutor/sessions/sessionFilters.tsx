@@ -10,14 +10,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Calendar, List, ArrowRight, ArrowLeft } from "lucide-react";
+import { ArrowRight, ArrowLeft } from "lucide-react";
 import dayjs from "@/lib/dayjs";
 import { getWeekDates } from "@/lib/dates";
 
 interface SessionsFiltersProps {
   students: { id: number; name: string }[];
   currentWeekStart: string;
-  view: string;
   studentId?: string;
   status?: string;
 }
@@ -25,7 +24,6 @@ interface SessionsFiltersProps {
 export default function SessionsFilters({
   students,
   currentWeekStart,
-  view,
   studentId,
   status,
 }: SessionsFiltersProps) {
@@ -58,25 +56,6 @@ export default function SessionsFilters({
 
   return (
     <div className="flex flex-wrap justify-between gap-3 items-center mb-4">
-      <div className="flex gap-1">
-        <Button
-          variant={view === "calendar" ? "default" : "outline"}
-          size="sm"
-          onClick={() => updateParams("view", "calendar")}
-        >
-          <Calendar className="h-4 w-4 ml-1" />
-          {t("calendarView")}
-        </Button>
-        <Button
-          variant={view === "table" ? "default" : "outline"}
-          size="sm"
-          onClick={() => updateParams("view", "table")}
-        >
-          <List className="h-4 w-4 ml-1" />
-          {t("tableView")}
-        </Button>
-      </div>
-
       <div className="flex grow justify-center items-center gap-3">
         <Button variant="outline" size="icon" onClick={() => navigateWeek(-1)}>
           <ArrowRight className="h-4 w-4" />

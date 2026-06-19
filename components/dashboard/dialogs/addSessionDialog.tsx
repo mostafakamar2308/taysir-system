@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -21,26 +22,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { MultiSelect } from "@/components/ui/multi-select";
 import { useToast } from "@/hooks/use-toast";
 import { createSession } from "@/actions/sessions";
 import { Plus } from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
 import dayjs from "@/lib/dayjs";
-import { useTranslations } from "next-intl";
+
+interface StudentOption {
+  id: number;
+  name: string;
+  balance: number;
+}
 
 interface AddSessionDialogProps {
   tutors: { id: number; name: string | null }[];
-  students: { id: number; name: string | null }[];
-  academyId: number;
+  students: StudentOption[];
   children?: React.ReactNode;
 }
 
 export default function AddSessionDialog({
   tutors,
   students,
-  academyId,
   children,
 }: AddSessionDialogProps) {
   const t = useTranslations("AddSessionDialog");
@@ -48,65 +51,91 @@ export default function AddSessionDialog({
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [studentId, setStudentId] = useState(0);
-  const [tutorId, setTutorId] = useState(0);
+
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+  const [tutorId, setTutorId] = useState<number>(0);
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [startTime, setStartTime] = useState("09:00");
   const [duration, setDuration] = useState("60");
   const [topic, setTopic] = useState("");
   const [notes, setNotes] = useState("");
   const [isTrial, setIsTrial] = useState(false);
-  const [isRecurring, setIsRecurring] = useState(false);
-  const [recurDays, setRecurDays] = useState<number[]>([]);
-  const [recurEndDate, setRecurEndDate] = useState("");
 
-  const dayOptions = [
-    { value: 0, label: t("days.sunday") },
-    { value: 1, label: t("days.monday") },
-    { value: 2, label: t("days.tuesday") },
-    { value: 3, label: t("days.wednesday") },
-    { value: 4, label: t("days.thursday") },
-    { value: 5, label: t("days.friday") },
-    { value: 6, label: t("days.saturday") },
-  ];
+  // Build multi-select options, disable students with no balance unless trial
+  const multiSelectOptions = useMemo(() => {
+    return students.map((s) => ({
+      value: String(s.id),
+      label: `${s.name} (${s.balance} ${t("sessionsLeft")})`,
+      disabled: !isTrial && s.balance < 1,
+      balance: s.balance,
+    }));
+  }, [students, isTrial, t]);
 
-  const toggleRecurDay = (day: number) => {
-    setRecurDays((prev) =>
-      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day],
-    );
+  // When trial toggles, remove invalid selections
+  const handleTrialToggle = (checked: boolean) => {
+    setIsTrial(checked);
+    if (!checked) {
+      setSelectedStudentIds((prev) =>
+        prev.filter((id) => {
+          const student = students.find((s) => String(s.id) === id);
+          return student && student.balance >= 1;
+        }),
+      );
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!studentId || !date || !startTime) {
-      toast({
-        title: t("validation.required"),
-        variant: "destructive",
-      });
+
+    if (selectedStudentIds.length === 0 || !tutorId || !date || !startTime) {
+      toast({ title: t("validation.required"), variant: "destructive" });
       return;
     }
+
+    // Balance check (defensive)
+    if (!isTrial) {
+      const selected = students.filter((s) =>
+        selectedStudentIds.includes(String(s.id)),
+      );
+      const lowBalance = selected.filter((s) => s.balance < 1);
+      if (lowBalance.length > 0) {
+        toast({
+          title: t("validation.noBalance", {
+            names: lowBalance.map((s) => s.name).join("، "),
+          }),
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     setLoading(true);
     try {
-      const input = {
-        studentId,
+      const start = dayjs(`${date}T${startTime}`).utc();
+      await createSession({
+        studentIds: selectedStudentIds.map(Number),
         tutorId,
-        academyId,
         date,
-        startTime: dayjs(`${date}T${startTime}`).toISOString(),
+        startTime: start.toISOString(),
         duration: parseInt(duration),
         topic: topic || undefined,
         notes: notes || undefined,
         isTrial,
-        isRecurring,
-        recurDays: isRecurring ? recurDays : undefined,
-        recurEndDate: isRecurring ? recurEndDate : undefined,
-      };
-      await createSession(input);
+      });
+
       toast({ title: t("toast.success") });
       router.refresh();
       setOpen(false);
+      // Reset form
+      setSelectedStudentIds([]);
+      setTutorId(0);
+      setDate(new Date().toISOString().split("T")[0]);
+      setStartTime("09:00");
+      setDuration("60");
+      setTopic("");
+      setNotes("");
+      setIsTrial(false);
     } catch (error) {
-      console.log(error);
       if (error instanceof Error)
         toast({
           title: t("toast.error"),
@@ -135,41 +164,43 @@ export default function AddSessionDialog({
           <DialogTitle>{t("title")}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Student selection – multi */}
           <div className="space-y-2">
-            <Label>{t("student")} *</Label>
-            <Select
-              value={studentId.toString()}
-              onValueChange={(val) => setStudentId(parseInt(val))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={t("studentPlaceholder")} />
-              </SelectTrigger>
-              <SelectContent>
-                {students.map((s) => (
-                  <SelectItem key={s.id} value={String(s.id)}>
-                    {s.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>{t("students")} *</Label>
+            <MultiSelect
+              options={multiSelectOptions}
+              selected={selectedStudentIds}
+              onChange={setSelectedStudentIds}
+              placeholder={t("studentPlaceholder")}
+              searchPlaceholder={t("searchPlaceholder")}
+            />
+            <p className="text-xs text-muted-foreground">{t("studentHint")}</p>
           </div>
+
+          {/* Tutor selection */}
           <div className="space-y-2">
             <Label>{t("tutor")} *</Label>
             <Select
-              value={tutorId.toString()}
+              value={tutorId ? String(tutorId) : ""}
               onValueChange={(val) => setTutorId(parseInt(val))}
             >
               <SelectTrigger>
                 <SelectValue placeholder={t("tutorPlaceholder")} />
               </SelectTrigger>
               <SelectContent>
-                {tutors.map((s) => (
-                  <SelectItem key={s.id} value={String(s.id)}>
-                    {s.name}
+                {tutors.map((tut) => (
+                  <SelectItem key={tut.id} value={String(tut.id)}>
+                    {tut.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Trial toggle */}
+          <div className="flex items-center justify-between rounded-lg border p-3">
+            <Label className="text-sm">{t("trialSession")}</Label>
+            <Switch checked={isTrial} onCheckedChange={handleTrialToggle} />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -224,62 +255,6 @@ export default function AddSessionDialog({
               placeholder={t("notesPlaceholder")}
               rows={2}
             />
-          </div>
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="trial"
-              checked={isTrial}
-              onCheckedChange={(v) => setIsTrial(v === true)}
-            />
-            <Label
-              htmlFor="trial"
-              className="text-sm font-normal cursor-pointer"
-            >
-              {t("trialSession")}
-            </Label>
-          </div>
-
-          {/* Recurring */}
-          <div className="space-y-3 rounded-lg border border-border p-4">
-            <div className="flex items-center justify-between">
-              <Label className="flex items-center gap-2">
-                {t("recurringSession")}
-              </Label>
-              <Switch checked={isRecurring} onCheckedChange={setIsRecurring} />
-            </div>
-            {isRecurring && (
-              <div className="space-y-3 pt-2">
-                <div>
-                  <Label className="text-xs text-muted-foreground">
-                    {t("recurringDays")}
-                  </Label>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {dayOptions.map((d) => (
-                      <Badge
-                        key={d.value}
-                        variant={
-                          recurDays.includes(d.value) ? "default" : "outline"
-                        }
-                        className="cursor-pointer"
-                        onClick={() => toggleRecurDay(d.value)}
-                      >
-                        {d.label}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">
-                    {t("recurringEndDate")}
-                  </Label>
-                  <Input
-                    type="date"
-                    value={recurEndDate}
-                    onChange={(e) => setRecurEndDate(e.target.value)}
-                  />
-                </div>
-              </div>
-            )}
           </div>
 
           <DialogFooter>

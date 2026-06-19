@@ -32,36 +32,24 @@ export default async function DashboardPage() {
     include: { defaultCurrency: true },
   });
 
-  if (!academy) {
-    redirect("/login");
-  }
+  if (!academy || !academy.defaultCurrency) redirect("/login");
 
-  if (!academy.defaultCurrency) {
-    throw new Error("Academy default currency not set");
-  }
   const defaultCurrencyId = academy.defaultCurrencyId!;
   const defaultCurrencyCode = academy.defaultCurrency.code;
 
-  // Get conversion rates for this academy
-  const rates = await db.academyCurrencyRate.findMany({
-    where: { academyId },
-  });
+  const rates = await db.academyCurrencyRate.findMany({ where: { academyId } });
   const rateMap = new Map<number, number>();
   rates.forEach((r) => rateMap.set(r.currencyId, r.rate));
-
   const convertToDefault = (amount: number, currencyId: number) => {
     if (currencyId === defaultCurrencyId) return amount;
     const rate = rateMap.get(currencyId);
-    if (!rate) {
-      console.warn(
-        `No conversion rate for currency ${currencyId}, using amount as is`,
-      );
-      return amount;
-    }
+    if (!rate) return amount;
     return amount * rate;
   };
 
   const costCenters = await db.costCenter.findMany();
+
+  // ---- Stats (unchanged queries work because they don't touch attendance) ----
   const [
     totalStudents,
     totalStudentsPrev,
@@ -137,9 +125,7 @@ export default async function DashboardPage() {
     }),
   ]);
 
-  const thirtyDaysAgo = now.subtract(30, "day");
-  const sixtyDaysAgo = now.subtract(60, "day");
-
+  // Revenues & Expenses (unchanged)
   const revenuesThisMonth = await db.revenue.findMany({
     where: {
       student: { academyId },
@@ -152,7 +138,6 @@ export default async function DashboardPage() {
     (sum, r) => sum + convertToDefault(r.amount, r.currencyId),
     0,
   );
-
   const revenuesPrevMonth = await db.revenue.findMany({
     where: {
       student: { academyId },
@@ -168,8 +153,6 @@ export default async function DashboardPage() {
     (sum, r) => sum + convertToDefault(r.amount, r.currencyId),
     0,
   );
-
-  // Expenses (convert to default currency)
   const expensesThisMonth = await db.expense.findMany({
     where: {
       academyId,
@@ -182,7 +165,6 @@ export default async function DashboardPage() {
     (sum, e) => sum + convertToDefault(e.amount, e.currencyId),
     0,
   );
-
   const expensesPrevMonth = await db.expense.findMany({
     where: {
       academyId,
@@ -196,8 +178,15 @@ export default async function DashboardPage() {
     0,
   );
 
-  // Get numerators (same as before)
-  const [leadToTrialCount, leadToTrialCountPrev] = await Promise.all([
+  // Conversion rates (unchanged)
+  const thirtyDaysAgo = now.subtract(30, "day");
+  const sixtyDaysAgo = now.subtract(60, "day");
+  const [
+    leadToTrialCount,
+    leadToTrialCountPrev,
+    trialToSubscribedCount,
+    trialToSubscribedCountPrev,
+  ] = await Promise.all([
     db.history.count({
       where: {
         academyId,
@@ -212,27 +201,21 @@ export default async function DashboardPage() {
         createdAt: { gte: sixtyDaysAgo.toDate(), lt: thirtyDaysAgo.toDate() },
       },
     }),
+    db.history.count({
+      where: {
+        academyId,
+        action: HistoryActionType.TrialToSubscription,
+        createdAt: { gte: thirtyDaysAgo.toDate(), lt: now.toDate() },
+      },
+    }),
+    db.history.count({
+      where: {
+        academyId,
+        action: HistoryActionType.TrialToSubscription,
+        createdAt: { gte: sixtyDaysAgo.toDate(), lt: thirtyDaysAgo.toDate() },
+      },
+    }),
   ]);
-
-  const [trialToSubscribedCount, trialToSubscribedCountPrev] =
-    await Promise.all([
-      db.history.count({
-        where: {
-          academyId,
-          action: HistoryActionType.TrialToSubscription,
-          createdAt: { gte: thirtyDaysAgo.toDate(), lt: now.toDate() },
-        },
-      }),
-      db.history.count({
-        where: {
-          academyId,
-          action: HistoryActionType.TrialToSubscription,
-          createdAt: { gte: sixtyDaysAgo.toDate(), lt: thirtyDaysAgo.toDate() },
-        },
-      }),
-    ]);
-
-  // Get denominators
   const totalLeadsLast30 = await countActiveInPeriod(
     academyId,
     thirtyDaysAgo.toDate(),
@@ -240,7 +223,6 @@ export default async function DashboardPage() {
     HistoryActionType.LeadCreated,
     [HistoryActionType.LeadToTrial, HistoryActionType.LeadToSubscription],
   );
-
   const totalLeadsPrev30 = await countActiveInPeriod(
     academyId,
     sixtyDaysAgo.toDate(),
@@ -262,8 +244,6 @@ export default async function DashboardPage() {
     HistoryActionType.LeadToTrial,
     [HistoryActionType.TrialToSubscription],
   );
-
-  // Calculate rates
   const leadToTrialRate =
     totalLeadsLast30 > 0 ? (leadToTrialCount / totalLeadsLast30) * 100 : 0;
   const leadToTrialRatePrev =
@@ -277,57 +257,113 @@ export default async function DashboardPage() {
       ? (trialToSubscribedCountPrev / totalTrialsPrev30) * 100
       : 0;
 
+  // ---- At-risk students (adapted to SessionParticipant) ----
   const atRiskStudents = await db.$queryRaw<
-    {
-      id: number;
-      name: string;
-      phone: string | null;
-      reason: string;
-    }[]
+    { id: number; name: string; phone: string | null; reason: string }[]
   >`
-SELECT s.id, u.name, u.phone, 'غياب بدون عذر' as reason
-FROM "Student" s
-JOIN "User" u ON s."userId" = u.id
-JOIN "Session" sess ON sess."studentId" = s.id
-JOIN "Attendance" a ON a."sessionId" = sess.id
-WHERE s."academyId" = ${academyId}
-  AND s.status = ${StudentStatus.subscribed}
-  AND a."studentAttendanceStatus" = ${AttendanceStatus.ABSENT_UNEXCUSED}
-  AND sess."startTime" = (
-    SELECT MAX("startTime") FROM "Session"
-    WHERE "studentId" = s.id AND "startTime" <= NOW()
-  )
-LIMIT 100;
-`;
+    SELECT s.id, u.name, u.phone, 'غياب بدون عذر' as reason
+    FROM "Student" s
+    JOIN "User" u ON s."userId" = u.id
+    JOIN "SessionParticipant" sp ON sp."studentId" = s.id
+    JOIN "Session" sess ON sess.id = sp."sessionId"
+    WHERE s."academyId" = ${academyId}
+      AND s.status = ${StudentStatus.subscribed}
+      AND sp."studentAttendanceStatus" = ${AttendanceStatus.ABSENT_UNEXCUSED}
+      AND sess."startTime" = (
+        SELECT MAX(sess2."startTime")
+        FROM "Session" sess2
+        JOIN "SessionParticipant" sp2 ON sp2."sessionId" = sess2.id
+        WHERE sp2."studentId" = s.id AND sess2."startTime" <= NOW()
+      )
+    LIMIT 100;
+  `;
 
-  // ---------- Attendance Sheet ----------
-  const todaySessions = await db.session.findMany({
+  // ---- Today's sessions for attendance/report sheets ----
+  const todayStart = today.toDate();
+  const todayEnd = today.add(1, "day").toDate();
+
+  const todaySessionsRaw = await db.session.findMany({
     where: {
       academyId,
-      startTime: { gte: today.toDate(), lt: today.add(1, "day").toDate() },
-      attendance: null,
+      startTime: { gte: todayStart, lt: todayEnd },
+      cancelledBy: null,
     },
     include: {
-      student: {
-        select: { id: true, user: { select: { name: true, phone: true } } },
+      participants: {
+        include: {
+          student: {
+            select: { id: true, user: { select: { name: true, phone: true } } },
+          },
+          report: true,
+        },
       },
       tutor: {
-        select: {
-          id: true,
-          user: {
-            select: { name: true, phone: true },
-          },
-        },
+        select: { id: true, user: { select: { name: true, phone: true } } },
       },
     },
   });
 
-  // ---------- Reconciliation ----------
+  // Flatten: sessions missing attendance for any participant
+  const attendanceSheet = todaySessionsRaw.flatMap((sess) =>
+    sess.participants
+      .filter((p) => p.studentAttendanceStatus === null)
+      .map((p) => ({
+        sessionId: sess.id,
+        studentId: p.studentId,
+        studentName: p.student.user.name || "",
+        studentPhone: p.student.user.phone,
+        tutorName: sess.tutor.user.name || "",
+        tutorPhone: sess.tutor.user.phone,
+        startTime: sess.startTime.toISOString(),
+      })),
+  );
+
+  // Absent participants today
+  const absentSessions = todaySessionsRaw.flatMap((sess) =>
+    sess.participants
+      .filter(
+        (p) =>
+          p.studentAttendanceStatus !== null &&
+          [
+            AttendanceStatus.ABSENT_EXCUSED,
+            AttendanceStatus.ABSENT_UNEXCUSED,
+          ].includes(p.studentAttendanceStatus),
+      )
+      .map((p) => ({
+        sessionId: sess.id,
+        studentId: p.studentId,
+        studentName: p.student.user.name || "",
+        studentPhone: p.student.user.phone,
+        tutorName: sess.tutor.user.name || "",
+        tutorPhone: sess.tutor.user.phone,
+        startTime: sess.startTime.toISOString(),
+      })),
+  );
+
+  // Reports sheet: participants who attended but have no report
+  const sessionsWithoutReport = todaySessionsRaw.flatMap((sess) =>
+    sess.participants
+      .filter(
+        (p) =>
+          p.studentAttendanceStatus !== null &&
+          [AttendanceStatus.ATTENDED, AttendanceStatus.LATE].includes(
+            p.studentAttendanceStatus,
+          ) &&
+          !p.report,
+      )
+      .map((p) => ({
+        sessionId: sess.id,
+        tutorId: sess.tutor.id,
+        tutorName: sess.tutor.user.name || "",
+        tutorPhone: sess.tutor.user.phone,
+        studentName: p.student.user.name || "",
+        startTime: sess.startTime.toISOString(),
+      })),
+  );
+
+  // ---- Reconciliation (unchanged) ----
   const activeSubscriptions = await db.subscription.findMany({
-    where: {
-      student: { academyId },
-      status: SubscriptionStatus.active,
-    },
+    where: { student: { academyId }, status: SubscriptionStatus.active },
     include: {
       student: {
         select: { id: true, user: { select: { name: true, phone: true } } },
@@ -364,51 +400,16 @@ LIMIT 100;
       studentName: sub.student.user.name || "",
       phone: sub.student.user.phone || "",
       planTitle: sub.plan.title,
-      endDate: (
-        dayjs(sub.endDate) || dayjs(sub.startDate).add(30, "day")
-      ).format("YYYY-MM-DD"),
+      endDate: dayjs(sub.endDate || dayjs(sub.startDate).add(30, "day")).format(
+        "YYYY-MM-DD",
+      ),
       daysLeft: dayjs(sub.endDate || dayjs(sub.startDate).add(30, "day")).diff(
         now,
         "day",
       ),
     }));
 
-  const todayEnd = today.add(1, "day").toDate();
-  const absentSessions = await db.session.findMany({
-    where: {
-      academyId,
-      startTime: { gte: today.toDate(), lt: todayEnd },
-      attendance: {
-        studentAttendanceStatus: {
-          in: [
-            AttendanceStatus.ABSENT_EXCUSED,
-            AttendanceStatus.ABSENT_UNEXCUSED,
-          ],
-        },
-      },
-    },
-    include: {
-      student: {
-        select: { id: true, user: { select: { name: true, phone: true } } },
-      },
-      tutor: { include: { user: { select: { name: true, phone: true } } } },
-    },
-  });
-
-  // ---------- Reports Sheet ----------
-  const sessionsWithoutReport = await db.session.findMany({
-    where: {
-      academyId,
-      startTime: { gte: today.toDate(), lt: today.add(1, "day").toDate() },
-      sessionReport: null,
-    },
-    include: {
-      student: { select: { user: { select: { name: true } } } },
-      tutor: { include: { user: { select: { name: true, phone: true } } } },
-    },
-  });
-
-  // Helper to compute percent change
+  // ---- Helper & stats ----
   const calcPercentChange = (current: number, previous: number) => {
     if (previous === 0) return current > 0 ? 100 : 0;
     return ((current - previous) / previous) * 100;
@@ -461,22 +462,17 @@ LIMIT 100;
     },
   };
 
+  // ---- Additional data for modals ----
   const tutors = await db.tutor.findMany({
     where: { academyId, active: true },
-    include: {
-      user: true,
-    },
+    include: { user: true },
   });
   const currencies = await db.currency.findMany();
   const specialities = await db.speciality.findMany();
   const plans = await db.plan.findMany({ where: { academyId } });
   const allStudents = await db.student.findMany({
     where: { academyId },
-    include: {
-      user: {
-        select: { name: true },
-      },
-    },
+    include: { user: { select: { name: true } } },
   });
 
   return (
@@ -484,39 +480,20 @@ LIMIT 100;
       costCenters={costCenters}
       stats={stats}
       atRiskStudents={atRiskStudents}
-      attendanceSheet={todaySessions.map((s) => ({
-        sessionId: s.id,
-        studentId: s.student.id,
-        studentName: s.student.user.name || "",
-        studentPhone: s.student.user.phone,
-        tutorName: s.tutor.user.name || "",
-        tutorPhone: s.tutor.user.phone,
-        startTime: s.startTime.toISOString(),
-      }))}
-      absentSessions={absentSessions.map((s) => ({
-        sessionId: s.id,
-        studentId: s.student.id,
-        studentName: s.student.user.name || "",
-        studentPhone: s.student.user.phone,
-        tutorName: s.tutor.user.name || "",
-        tutorPhone: s.tutor.user.phone,
-        startTime: s.startTime.toISOString(),
-      }))}
+      attendanceSheet={attendanceSheet}
+      absentSessions={absentSessions}
       latePayments={latePayments}
       nearEndSubscriptions={nearEndSubscriptions}
-      reportsSheet={sessionsWithoutReport.map((s) => ({
-        sessionId: s.id,
-        tutorId: s.tutor.id,
-        tutorName: s.tutor.user.name || "",
-        tutorPhone: s.tutor.user.phone,
-        studentName: s.student.user.name || "",
-        startTime: s.startTime.toISOString(),
-      }))}
+      reportsSheet={sessionsWithoutReport}
       academyId={academyId}
       plans={plans.map((p) => ({ id: p.id, title: p.title }))}
       currencies={currencies.map((c) => ({ id: c.id, name: c.name }))}
       tutors={tutors.map((t) => ({ id: t.id, name: t.user.name }))}
-      students={allStudents.map((t) => ({ id: t.id, name: t.user.name }))}
+      students={allStudents.map((s) => ({
+        id: s.id,
+        name: s.user.name || "",
+        balance: s.sessionsBalance,
+      }))}
       specialities={specialities.map((s) => ({ id: s.id, title: s.title }))}
       defaultCurrency={{
         code: defaultCurrencyCode,

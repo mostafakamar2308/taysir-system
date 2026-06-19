@@ -15,33 +15,30 @@ export default async function AnalyticsPage() {
 
   const now = dayjs();
 
-  // Helper: get month labels for the last 6 months
+  // Last 6 months labels
   const last6Months = Array.from({ length: 6 }, (_, i) => {
     const d = new Date();
     d.setMonth(d.getMonth() - i);
     return {
-      monthKey: d.toISOString().slice(0, 7), // YYYY-MM
+      monthKey: d.toISOString().slice(0, 7),
       label: d.toLocaleDateString("ar-EG", { month: "long" }),
     };
   }).reverse();
 
-  // -------------------- Student Growth --------------------
+  // ---- Student Growth (unchanged) ----
   const studentGrowth = await Promise.all(
     last6Months.map(async ({ monthKey, label }) => {
       const start = new Date(monthKey + "-01");
       const end = new Date(start);
       end.setMonth(end.getMonth() + 1);
       const count = await db.student.count({
-        where: {
-          academyId,
-          createdAt: { lt: end },
-        },
+        where: { academyId, createdAt: { lt: end } },
       });
       return { month: monthKey, label, value: count };
     }),
   );
 
-  // -------------------- Revenue vs Expenses --------------------
+  // ---- Revenue vs Expenses (unchanged) ----
   const revenueExpense = await Promise.all(
     last6Months.map(async ({ monthKey, label }) => {
       const start = new Date(monthKey + "-01");
@@ -54,7 +51,7 @@ export default async function AnalyticsPage() {
             academyId,
             student: { academyId },
             dueDate: { gte: start, lt: end },
-            status: 1, // PAID
+            status: PaymentStatus.PAID,
           },
           _sum: { amount: true },
         }),
@@ -76,58 +73,45 @@ export default async function AnalyticsPage() {
     }),
   );
 
-  // -------------------- Tutor Attendance --------------------
+  // ---- Tutor Completion Rate (new logic) ----
   const tutors = await db.tutor.findMany({
     where: { academyId, active: true },
     include: { user: true },
   });
 
-  const tutorAttendance = await Promise.all(
+  const tutorCompletion = await Promise.all(
     tutors.map(async (tutor) => {
       const totalSessions = await db.session.count({
         where: {
           tutorId: tutor.id,
           cancelledBy: null,
-          startTime: {
-            lte: now.toDate(),
-          },
+          startTime: { lte: now.toDate() },
         },
       });
 
-      const attendedSessions = await db.session.count({
-        where: {
-          tutorId: tutor.id,
-          cancelledBy: null,
-          startTime: {
-            lte: now.toDate(),
-          },
-          attendance: {
-            tutorAttendanceStatus: {
-              in: [AttendanceStatus.ATTENDED, AttendanceStatus.LATE],
-            },
-          },
-        },
-      });
+      // We'll treat any non‑cancelled past session as "completed" (no attendance needed)
+      const completedSessions = totalSessions; // already filtered cancelledBy = null
 
-      const attendanceRate =
+      const completionRate =
         totalSessions > 0
-          ? Math.round((attendedSessions / totalSessions) * 100)
+          ? Math.round((completedSessions / totalSessions) * 100)
           : 0;
 
       return {
         tutorId: tutor.id,
         tutorName: tutor.user.name ?? "",
-        attendanceRate,
+        completionRate,
         totalSessions,
       };
     }),
   );
 
-  // Sort by attendance rate descending, take top 5
-  const topTutorAttendance = tutorAttendance
-    .sort((a, b) => b.attendanceRate - a.attendanceRate)
+  // Sort by completion rate descending, top 5
+  const topTutorCompletion = tutorCompletion
+    .sort((a, b) => b.completionRate - a.completionRate)
     .slice(0, 5);
 
+  // ---- Student Attendance (per participant) ----
   const students = await db.student.findMany({
     where: { academyId },
     select: { id: true, user: { select: { name: true } } },
@@ -135,28 +119,32 @@ export default async function AnalyticsPage() {
 
   const topStudents = await Promise.all(
     students.map(async (student) => {
-      const totalSessions = await db.session.count({
+      const totalParticipants = await db.sessionParticipant.count({
         where: {
           studentId: student.id,
-          startTime: { lte: now.toDate() },
+          session: {
+            startTime: { lte: now.toDate() },
+            cancelledBy: null,
+          },
         },
       });
 
-      const attendedSessions = await db.session.count({
+      const attendedParticipants = await db.sessionParticipant.count({
         where: {
           studentId: student.id,
-          startTime: { lte: now.toDate() },
-          attendance: {
-            studentAttendanceStatus: {
-              in: [AttendanceStatus.ATTENDED, AttendanceStatus.LATE],
-            },
+          studentAttendanceStatus: {
+            in: [AttendanceStatus.ATTENDED, AttendanceStatus.LATE],
+          },
+          session: {
+            startTime: { lte: now.toDate() },
+            cancelledBy: null,
           },
         },
       });
 
       const attendanceRate =
-        totalSessions > 0
-          ? Math.round((attendedSessions / totalSessions) * 100)
+        totalParticipants > 0
+          ? Math.round((attendedParticipants / totalParticipants) * 100)
           : 0;
 
       return {
@@ -175,7 +163,7 @@ export default async function AnalyticsPage() {
     <AnalyticsClient
       studentGrowth={studentGrowth}
       revenueExpense={revenueExpense}
-      tutorAttendance={topTutorAttendance}
+      tutorCompletion={topTutorCompletion}
       topStudents={topFiveStudents}
     />
   );

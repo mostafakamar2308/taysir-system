@@ -1,6 +1,8 @@
+"use client";
+
 import { utcToLocalDate } from "@/lib/dates";
 import { SessionCard } from "@/components/dashboard/sessions/sessionCard";
-import { DashboardSession } from "@/types/session";
+import { AdminSessionClientData } from "@/types/session";
 
 const timeSlots = Array.from({ length: 24 }, (_, i) => ({
   hour: i,
@@ -9,10 +11,9 @@ const timeSlots = Array.from({ length: 24 }, (_, i) => ({
 
 type DayViewProps = {
   date: Date;
-  sessions: DashboardSession[];
+  sessions: AdminSessionClientData[];
   onSlotClick: (date: Date, hour: number) => void;
-  onSessionClick: (session: DashboardSession) => void;
-  onMarkAttendance: (session: DashboardSession) => void;
+  onSessionClick: (session: AdminSessionClientData) => void;
 };
 
 export function DayView({
@@ -20,7 +21,6 @@ export function DayView({
   sessions,
   onSlotClick,
   onSessionClick,
-  onMarkAttendance,
 }: DayViewProps) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -76,7 +76,6 @@ export function DayView({
                     key={session.id}
                     session={session}
                     onClick={() => onSessionClick(session)}
-                    onMarkAttendance={onMarkAttendance}
                   />
                 ))}
               </div>

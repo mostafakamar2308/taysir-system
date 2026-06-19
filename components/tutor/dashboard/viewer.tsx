@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Link } from "@/i18n/navigation"; // i18n‑aware Link
+import { Link } from "@/i18n/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,25 +20,34 @@ import {
 import { formatCurrency } from "@/lib/finances";
 import { formatDate, formatTime } from "@/lib/dates";
 
-interface SessionData {
+// ---------- new types (mirror server return) ----------
+export interface SessionParticipantSummary {
+  id: number; // participant id
+  studentId: number;
+  studentName: string;
+  studentPhone?: string | null;
+  attendanceStatus: number | null;
+  hasReport: boolean;
+}
+
+export interface SessionSummary {
   id: number;
   startTime: string;
   endTime: string;
   topic: string | null;
-  studentId: number;
-  studentName: string;
-  studentPhone: string | null;
   status: number;
-  hasAttendance: boolean;
-  hasReport: boolean;
+  participants: SessionParticipantSummary[];
+  hasAnyAttendanceMissing: boolean;
+  hasAnyReportMissing: boolean;
   meetingLink?: string | null;
 }
 
+// ---------- props ----------
 interface DashboardClientProps {
-  todaySessions: SessionData[];
-  upcomingSessions: SessionData[];
-  pendingAttendance: SessionData[];
-  pendingReports: SessionData[];
+  todaySessions: SessionSummary[];
+  upcomingSessions: SessionSummary[];
+  pendingAttendance: SessionSummary[];
+  pendingReports: SessionSummary[];
   financialSummary: {
     totalSessions: number;
     expectedEarnings: number;
@@ -49,6 +58,7 @@ interface DashboardClientProps {
   zoomEnabled: boolean;
 }
 
+// ---------- component ----------
 export default function DashboardClient({
   todaySessions,
   upcomingSessions,
@@ -372,18 +382,22 @@ export default function DashboardClient({
   );
 }
 
-// Session Item Component
+// ---------- Session Item (updated) ----------
 function SessionItem({
   session,
   t,
 }: {
-  session: SessionData;
+  session: SessionSummary;
   t: ReturnType<typeof useTranslations<"TutorDashboard">>;
 }) {
+  const studentNames = session.participants
+    .map((p) => p.studentName)
+    .join("، ");
+
   return (
     <div className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
       <div>
-        <p className="font-medium text-sm">{session.studentName}</p>
+        <p className="font-medium text-sm">{studentNames}</p>
         <p className="text-xs text-muted-foreground">
           {formatDate(session.startTime)} • {formatTime(session.startTime)} –{" "}
           {formatTime(session.endTime)}
@@ -393,7 +407,7 @@ function SessionItem({
         )}
       </div>
       <div className="flex gap-2">
-        {!session.hasAttendance && (
+        {session.hasAnyAttendanceMissing && (
           <Badge
             variant="outline"
             className="bg-amber-50 text-amber-700 border-amber-200"
@@ -401,7 +415,7 @@ function SessionItem({
             {t("sessionItem.noAttendance")}
           </Badge>
         )}
-        {!session.hasReport && (
+        {session.hasAnyReportMissing && (
           <Badge
             variant="outline"
             className="bg-blue-50 text-blue-700 border-blue-200"

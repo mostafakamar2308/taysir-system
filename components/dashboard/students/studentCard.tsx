@@ -2,7 +2,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { DashboardStudent, StudentStatus } from "@/types/student";
-import { Phone, Mail, Clock, BookOpen, Book, AppWindow } from "lucide-react";
+import { Phone, Mail, Clock, Book, AppWindow, User2 } from "lucide-react";
 import { QuickActionsMenu } from "./quickActionsMenu";
 import Link from "next/link";
 
@@ -63,7 +63,7 @@ const StudentCard = ({ student, plans, tutors }: StudentCardProps) => {
         {/* Details Grid */}
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div className="flex items-center gap-2 text-muted-foreground">
-            <BookOpen className="h-3.5 w-3.5 shrink-0" />
+            <User2 className="h-3.5 w-3.5 shrink-0" />
             <span className="truncate">{student.tutorName}</span>
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
@@ -72,14 +72,12 @@ const StudentCard = ({ student, plans, tutors }: StudentCardProps) => {
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
             <AppWindow className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate">
-              {student.currentProgram || "لا يوجد برنامج"}
-            </span>
+            <span className="truncate">{student.email}</span>
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
             <Book className="h-3.5 w-3.5 shrink-0" />
             <span className="truncate">
-              {student.planName || "لا يوجد خطة"}
+              {student.planName || "لم يختر خطة"}
             </span>
           </div>
         </div>

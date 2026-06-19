@@ -7,261 +7,402 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { updateAttendance } from "@/actions/sessions";
-import {
-  User,
-  GraduationCap,
-  Clock,
-  BookOpen,
-  Edit,
-  Trash2,
-  CheckCircle2,
-  CalendarDays,
-  StickyNote,
-} from "lucide-react";
-import {
-  SessionStatus,
-  AttendanceStatus,
-  DashboardSession,
-} from "@/types/session";
-import {
-  sessionStatusLabels,
-  sessionStatusColors,
-  attendanceStatusLabels,
-  attendanceStatusColors,
-} from "@/const/sessions";
-import { formatDateArabic, utcToLocalTime } from "@/lib/dates";
-import { Role } from "@/types/user";
+import { updateSession } from "@/actions/sessions";
+import { formatDate, formatTime } from "@/lib/dates";
+import { sessionStatusLabels, sessionStatusColors } from "@/const/sessions";
+import { AttendanceStatus, SessionStatus } from "@/types/session";
+import { AdminSessionClientData } from "@/types/session";
+import { UpdateSessionInput } from "@/actions/sessions";
+import { Copy, ExternalLink, Video, Trash2 } from "lucide-react";
+import dayjs from "@/lib/dayjs";
 
-interface Props {
-  session: DashboardSession;
+interface SessionDetailPanelProps {
+  session: AdminSessionClientData;
   onClose: () => void;
-  onEdit: (session: DashboardSession) => void;
-  onDelete: (session: DashboardSession) => void;
+  onDelete?: (session: AdminSessionClientData) => void;
 }
 
 export function SessionDetailPanel({
   session,
   onClose,
-  onEdit,
   onDelete,
-}: Props) {
+}: SessionDetailPanelProps) {
   const router = useRouter();
   const { toast } = useToast();
-  const [studentAttendanceStatus, setStudentAttendanceStatus] = useState<
-    AttendanceStatus | ""
-  >(session.attendance?.studentAttendance || "");
-  const [absenceReason, setAbsenceReason] = useState(
-    session.attendance?.reason || "",
+  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("details");
+  const [editMode, setEditMode] = useState(false);
+
+  const [editDate, setEditDate] = useState(
+    dayjs(session.startTime).format("YYYY-MM-DD"),
   );
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editStartTime, setEditStartTime] = useState(
+    dayjs(session.startTime).format("HH:mm"),
+  );
+  const [editDuration, setEditDuration] = useState(session.durationMinutes);
+  const [topic, setTopic] = useState(session.topic || "");
+  const [notes, setNotes] = useState(session.notes || "");
 
   const isPast = new Date(session.startTime) < new Date();
-  const startDate = new Date(session.startTime);
-  const endDate = new Date(session.endTime);
+  const isCompleted = session.status === SessionStatus.COMPLETED;
 
-  const handleAttendanceSave = async () => {
-    if (studentAttendanceStatus === "") return;
-    setIsSubmitting(true);
-    try {
-      await updateAttendance(
-        session.id,
-        Role.SuperAdmin,
-        studentAttendanceStatus as AttendanceStatus,
-        absenceReason || undefined,
+  const attendanceBadge = (
+    p: AdminSessionClientData["participants"][number],
+  ) => {
+    if (p.attendanceStatus === null) {
+      return isCompleted ? (
+        <Badge
+          variant="outline"
+          className="border-amber-300 text-amber-700 bg-amber-50"
+        >
+          غير مسجل
+        </Badge>
+      ) : (
+        <span className="text-xs text-muted-foreground">—</span>
       );
-      toast({ title: "تم تحديث الحضور" });
-      router.refresh();
-      onClose();
-    } catch (error) {
-      console.log({ error });
+    }
+    const labels: Record<number, string> = {
+      [AttendanceStatus.ATTENDED]: "حاضر",
+      [AttendanceStatus.LATE]: "متأخر",
+      [AttendanceStatus.ABSENT_EXCUSED]: "غائب بعذر",
+      [AttendanceStatus.ABSENT_UNEXCUSED]: "غائب بدون عذر",
+    };
+    const variant =
+      p.attendanceStatus === AttendanceStatus.ATTENDED
+        ? "bg-green-100 text-green-700"
+        : p.attendanceStatus === AttendanceStatus.LATE
+          ? "bg-orange-100 text-orange-700"
+          : "bg-red-100 text-red-700";
+    return (
+      <Badge className={variant}>{labels[p.attendanceStatus] || "?"}</Badge>
+    );
+  };
 
-      toast({ title: "حدث خطأ", variant: "destructive" });
+  const reportBadge = (p: AdminSessionClientData["participants"][number]) => {
+    if (
+      p.attendanceStatus !== null &&
+      [AttendanceStatus.ATTENDED, AttendanceStatus.LATE].includes(
+        p.attendanceStatus,
+      ) &&
+      !p.report
+    ) {
+      return (
+        <Badge
+          variant="outline"
+          className="border-blue-300 text-blue-700 bg-blue-50"
+        >
+          تقرير غير مكتوب
+        </Badge>
+      );
+    }
+    if (p.report) {
+      return (
+        <Badge variant="outline" className="bg-primary/10 text-primary">
+          تقرير مكتمل
+        </Badge>
+      );
+    }
+    return null;
+  };
+
+  const handleUpdateFullDetails = async () => {
+    setLoading(true);
+    try {
+      const payload: UpdateSessionInput = { id: session.id, topic, notes };
+      if (!isPast) {
+        const startTimeISO = dayjs(
+          `${editDate}T${editStartTime}:00`,
+        ).toISOString();
+        payload.date = editDate;
+        payload.startTime = startTimeISO;
+        payload.duration = editDuration;
+      }
+      await updateSession(payload);
+      toast({ title: "تم التحديث" });
+      setEditMode(false);
+      router.refresh();
+    } catch (error) {
+      toast({
+        title: "خطأ",
+        description: error instanceof Error ? error.message : "",
+        variant: "destructive",
+      });
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
   };
 
   return (
-    <Dialog open={true} onOpenChange={() => onClose()}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent
+        className="sm:max-w-2xl max-h-[90vh] overflow-y-auto"
+        dir="rtl"
+      >
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <CalendarDays className="h-5 w-5 text-primary" />
-            تفاصيل الحصة
-          </DialogTitle>
+          <DialogTitle>تفاصيل الحصة</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
-          {/* Status & Recurring badge */}
-          <div className="flex items-center gap-2">
-            <Badge
-              className={sessionStatusColors[session.status as SessionStatus]}
-            >
-              {sessionStatusLabels[session.status as SessionStatus]}
-            </Badge>
-          </div>
-
-          {/* Info grid */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <GraduationCap className="h-4 w-4 text-muted-foreground shrink-0" />
-              <div>
-                <p className="text-xs text-muted-foreground">الطالب</p>
-                <p className="text-sm font-medium">{session.studentName}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <User className="h-4 w-4 text-muted-foreground shrink-0" />
-              <div>
-                <p className="text-xs text-muted-foreground">المعلم</p>
-                <p className="text-sm font-medium">{session.tutorName}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
-              <div>
-                <p className="text-xs text-muted-foreground">الوقت</p>
-                <p className="text-sm font-medium">
-                  {formatDateArabic(startDate)}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {utcToLocalTime(startDate)} – {utcToLocalTime(endDate)} (
-                  {session.durationMinutes} دقيقة)
-                </p>
-              </div>
-            </div>
-            {session.topic && (
-              <div className="flex items-center gap-3">
-                <BookOpen className="h-4 w-4 text-muted-foreground shrink-0" />
-                <div>
-                  <p className="text-xs text-muted-foreground">الموضوع</p>
-                  <p className="text-sm font-medium">{session.topic}</p>
-                </div>
-              </div>
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="flex w-full *:grow">
+            <TabsTrigger value="details">التفاصيل</TabsTrigger>
+            <TabsTrigger value="participants">الطلاب</TabsTrigger>
+            {session.zoomJoinUrl && (
+              <TabsTrigger value="zoom">زووم</TabsTrigger>
             )}
-            {session.notes && (
-              <div className="flex items-center gap-3">
-                <StickyNote className="h-4 w-4 text-muted-foreground shrink-0" />
-                <div>
-                  <p className="text-xs text-muted-foreground">ملاحظات</p>
-                  <p className="text-sm">{session.notes}</p>
-                </div>
-              </div>
-            )}
-          </div>
+          </TabsList>
 
-          {/* Attendance section */}
-          {isPast && (
-            <>
-              <Separator />
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-primary" />
-                  <Label className="font-semibold">تسجيل الحضور</Label>
-                </div>
-
-                {session.attendance?.studentAttendance ? (
-                  <Badge
-                    className={
-                      attendanceStatusColors[
-                        session.attendance.studentAttendance as SessionStatus
-                      ]
-                    }
-                  >
-                    {
-                      attendanceStatusLabels[
-                        session.attendance.studentAttendance as SessionStatus
-                      ]
-                    }
-                    {session.attendance.reason &&
-                      ` – ${session.attendance.reason}`}
-                  </Badge>
-                ) : null}
-
-                <Select
-                  value={String(studentAttendanceStatus)}
-                  onValueChange={(v) =>
-                    setStudentAttendanceStatus(Number(v) as AttendanceStatus)
+          {/* Details Tab */}
+          <TabsContent value="details" className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <Badge
+                  className={
+                    sessionStatusColors[session.status as SessionStatus]
                   }
                 >
-                  <SelectTrigger className="h-9">
-                    <SelectValue placeholder="اختر الحالة" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(attendanceStatusLabels).map(
-                      ([value, label]) => (
-                        <SelectItem key={value} value={value}>
-                          {label}
-                        </SelectItem>
-                      ),
-                    )}
-                  </SelectContent>
-                </Select>
-
-                {studentAttendanceStatus &&
-                [
-                  AttendanceStatus.ABSENT_UNEXCUSED,
-                  AttendanceStatus.ABSENT_EXCUSED,
-                ].includes(studentAttendanceStatus) ? (
-                  <Input
-                    placeholder="سبب الغياب..."
-                    value={absenceReason}
-                    onChange={(e) => setAbsenceReason(e.target.value)}
-                    className="h-9"
-                  />
-                ) : null}
-
-                {studentAttendanceStatus !== "" ? (
+                  {sessionStatusLabels[session.status as SessionStatus]}
+                </Badge>
+                {!editMode && (
                   <Button
+                    variant="ghost"
                     size="sm"
-                    onClick={handleAttendanceSave}
-                    disabled={isSubmitting}
-                    className="w-full"
+                    onClick={() => setEditMode(true)}
                   >
-                    {isSubmitting ? "جاري الحفظ..." : "حفظ الحضور"}
+                    تعديل
                   </Button>
-                ) : null}
+                )}
               </div>
-            </>
+              <div>
+                <p className="text-sm text-muted-foreground">الطلاب</p>
+                <p className="font-medium">{session.studentName}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">المعلم</p>
+                <p className="font-medium">{session.tutorName}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">الوقت</p>
+                <p>
+                  {formatDate(session.startTime)} •{" "}
+                  {formatTime(session.startTime)} –{" "}
+                  {formatTime(session.endTime)}
+                </p>
+              </div>
+              {editMode ? (
+                <>
+                  {!isPast && (
+                    <>
+                      <div className="space-y-2">
+                        <Label>التاريخ</Label>
+                        <Input
+                          type="date"
+                          value={editDate}
+                          onChange={(e) => setEditDate(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>وقت البداية</Label>
+                        <Input
+                          type="time"
+                          value={editStartTime}
+                          onChange={(e) => setEditStartTime(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>المدة (دقائق)</Label>
+                        <Input
+                          type="number"
+                          value={editDuration}
+                          onChange={(e) =>
+                            setEditDuration(parseInt(e.target.value))
+                          }
+                        />
+                      </div>
+                    </>
+                  )}
+                  <div className="space-y-2">
+                    <Label>الموضوع</Label>
+                    <Input
+                      value={topic}
+                      onChange={(e) => setTopic(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>ملاحظات</Label>
+                    <Input
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleUpdateFullDetails}
+                      disabled={loading}
+                    >
+                      حفظ
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setEditMode(false)}
+                    >
+                      إلغاء
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {session.topic && (
+                    <p>
+                      <span className="text-muted-foreground">الموضوع:</span>{" "}
+                      {session.topic}
+                    </p>
+                  )}
+                  {session.notes && (
+                    <p>
+                      <span className="text-muted-foreground">ملاحظات:</span>{" "}
+                      {session.notes}
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* Participants Tab – read only */}
+          <TabsContent value="participants" className="space-y-6 mt-4">
+            {session.participants.map((p) => (
+              <div
+                key={p.participantId}
+                className="border rounded-lg p-4 space-y-2"
+              >
+                <div className="flex items-center justify-between">
+                  <h4 className="font-semibold">{p.studentName}</h4>
+                  <div className="flex gap-2">
+                    {attendanceBadge(p)}
+                    {reportBadge(p)}
+                  </div>
+                </div>
+                {p.report && (
+                  <div className="text-sm space-y-1 border-t pt-2">
+                    {p.report.rating && <p>التقييم: {p.report.rating}/5</p>}
+                    {p.report.outcomes && <p>النتائج: {p.report.outcomes}</p>}
+                    {p.report.strengths && (
+                      <p>نقاط القوة: {p.report.strengths}</p>
+                    )}
+                    {p.report.weaknesses && (
+                      <p>نقاط الضعف: {p.report.weaknesses}</p>
+                    )}
+                    {p.report.nextGoals && (
+                      <p>الأهداف القادمة: {p.report.nextGoals}</p>
+                    )}
+                    {p.report.comments && <p>ملاحظات: {p.report.comments}</p>}
+                  </div>
+                )}
+              </div>
+            ))}
+          </TabsContent>
+
+          {/* Zoom Tab – read only */}
+          {session.zoomJoinUrl && (
+            <TabsContent value="zoom" className="space-y-4 mt-4">
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-primary">
+                  <Video className="h-5 w-5" />
+                  <span className="font-semibold">زووم</span>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-sm text-muted-foreground">
+                    رابط الانضمام
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={session.zoomJoinUrl || ""}
+                      readOnly
+                      className="font-mono text-sm"
+                      dir="ltr"
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => {
+                        navigator.clipboard.writeText(session.zoomJoinUrl!);
+                        toast({ title: "تم النسخ" });
+                      }}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() =>
+                        window.open(session.zoomJoinUrl!, "_blank")
+                      }
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                {session.zoomStartUrl && (
+                  <div className="space-y-1">
+                    <Label className="text-sm text-muted-foreground">
+                      رابط البدء
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={session.zoomStartUrl || ""}
+                        readOnly
+                        className="font-mono text-sm bg-muted/50"
+                        dir="ltr"
+                      />
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => {
+                          navigator.clipboard.writeText(session.zoomStartUrl!);
+                          toast({ title: "تم النسخ" });
+                        }}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() =>
+                          window.open(session.zoomStartUrl!, "_blank")
+                        }
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
           )}
+        </Tabs>
 
-          <Separator />
-
-          {/* Actions */}
-          <div className="flex gap-2">
+        <DialogFooter className="flex gap-2 justify-between">
+          {onDelete ? (
             <Button
               variant="outline"
-              className="flex-1 gap-2"
-              onClick={() => onEdit(session)}
-            >
-              <Edit className="h-4 w-4" />
-              تعديل
-            </Button>
-            <Button
-              variant="outline"
-              className="flex-1 gap-2 text-destructive hover:text-destructive"
               onClick={() => onDelete(session)}
+              className="gap-2 text-destructive"
             >
-              <Trash2 className="h-4 w-4" />
-              حذف
+              <Trash2 className="h-4 w-4" /> حذف
             </Button>
-          </div>
-        </div>
+          ) : null}
+          <Button variant="outline" onClick={onClose}>
+            إغلاق
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

@@ -24,7 +24,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { createExpense } from "@/actions/expense";
-import { PaymentMethod } from "@/types/payment";
+import { PaymentMethod, PaymentStatus } from "@/types/payment";
 import { paymentMethodLabels } from "@/lib/enums";
 import { Plus } from "lucide-react";
 
@@ -34,6 +34,7 @@ interface AddExpenseDialogProps {
   currencyId?: number;
   currencies?: { id: number; name: string }[];
   academyId: number;
+  costCenters: { id: number; name: string }[];
 }
 
 export default function AddExpenseDialog({
@@ -42,17 +43,22 @@ export default function AddExpenseDialog({
   currencyId: optionalCurrencyId,
   currencies,
   academyId,
+  costCenters,
 }: AddExpenseDialogProps) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  console.log({ costCenters });
+
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split("T")[0],
     amount: "",
     description: "",
     currencyId: optionalCurrencyId,
-    costCenter: "رواتب",
+    costCenterId: String(
+      costCenters?.find((c) => c.name === "مرتبات المعلمين")?.id || 1,
+    ),
     paymentMethod: "",
     paid: false,
     invoiceUrl: "",
@@ -73,12 +79,15 @@ export default function AddExpenseDialog({
         "description",
         `راتب ${tutorName} - ${formData.description || "شهر"}`,
       );
-      form.append("costCenter", formData.costCenter);
+      form.append("costCenterId", formData.costCenterId);
       form.append("amount", formData.amount);
-      form.append("currency", formData.currencyId.toString());
+      form.append("currencyId", formData.currencyId.toString());
       if (formData.paymentMethod)
         form.append("paymentMethod", formData.paymentMethod);
-      form.append("paid", String(formData.paid));
+      form.append(
+        "status",
+        String(formData.paid ? PaymentStatus.PAID : PaymentStatus.PENDING),
+      );
       if (formData.invoiceUrl) form.append("invoiceUrl", formData.invoiceUrl);
       if (formData.notes) form.append("notes", formData.notes);
       form.append("tutorId", String(tutorId));

@@ -7,7 +7,7 @@ export interface MonthlyData {
 export interface TutorAttendanceData {
   tutorId: number;
   tutorName: string;
-  attendanceRate: number;
+  completionRate: number;
   totalSessions: number;
 }
 

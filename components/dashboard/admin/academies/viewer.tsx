@@ -144,10 +144,6 @@ export default function AcademiesClient({
       toast({ title: "يرجى إدخال بيانات المشرف", variant: "destructive" });
       return;
     }
-    if (!formData.saasPlanId) {
-      toast({ title: "يرجى اختيار الخطة", variant: "destructive" });
-      return;
-    }
     setLoading(true);
     try {
       const payload = {
@@ -155,7 +151,7 @@ export default function AcademiesClient({
         adminName: formData.adminName,
         adminEmail: formData.adminEmail,
         adminPassword: formData.adminPassword,
-        saasPlanId: parseInt(formData.saasPlanId),
+        saasPlanId: parseInt(formData.saasPlanId) || undefined,
         isFreeTrial: formData.isFreeTrial,
       };
       if (editingAcademy) {

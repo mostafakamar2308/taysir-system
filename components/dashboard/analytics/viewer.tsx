@@ -40,26 +40,25 @@ interface TopStudent {
 interface AnalyticsClientProps {
   studentGrowth: MonthlyData[];
   revenueExpense: RevenueExpenseData[];
-  tutorAttendance: TutorAttendanceData[];
+  tutorCompletion: TutorAttendanceData[]; // renamed prop
   topStudents: TopStudent[];
 }
 
 export default function AnalyticsClient({
   studentGrowth,
   revenueExpense,
-  tutorAttendance,
+  tutorCompletion,
   topStudents,
 }: AnalyticsClientProps) {
   const router = useRouter();
 
-  // Compute summary stats
   const totalActiveStudents =
     studentGrowth.length > 0
       ? studentGrowth[studentGrowth.length - 1].value
       : 0;
 
-  const topTutor = tutorAttendance[0]?.tutorName ?? "—";
-  const topTutorRate = tutorAttendance[0]?.attendanceRate ?? 0;
+  const topTutor = tutorCompletion[0]?.tutorName ?? "—";
+  const topTutorRate = tutorCompletion[0]?.completionRate ?? 0;
 
   const summaryCards = [
     {
@@ -69,7 +68,7 @@ export default function AnalyticsClient({
       color: "text-primary",
     },
     {
-      title: "المعلمون الأعلى حضوراً",
+      title: "أعلى نسبة إكمال حصص",
       value: topTutor,
       subtitle: `${topTutorRate}%`,
       icon: GraduationCap,
@@ -138,11 +137,13 @@ export default function AnalyticsClient({
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">نسبة الحضور حسب المعلم</CardTitle>
+            <CardTitle className="text-base">
+              نسبة إكمال الحصص حسب المعلم
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={tutorAttendance} layout="vertical">
+              <BarChart data={tutorCompletion} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis
                   type="number"
@@ -157,10 +158,10 @@ export default function AnalyticsClient({
                 />
                 <Tooltip contentStyle={{ direction: "rtl" }} />
                 <Bar
-                  dataKey="attendanceRate"
+                  dataKey="completionRate"
                   fill="#10b981"
                   radius={[0, 4, 4, 0]}
-                  name="نسبة الحضور %"
+                  name="نسبة الإكمال %"
                 />
               </BarChart>
             </ResponsiveContainer>
@@ -205,10 +206,10 @@ export default function AnalyticsClient({
           </CardContent>
         </Card>
 
-        {/* Tutor Attendance with Analytics Links */}
+        {/* Tutor Completion Table */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">أداء المعلمين</CardTitle>
+            <CardTitle className="text-base">أداء المعلمين (الإكمال)</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
@@ -216,13 +217,13 @@ export default function AnalyticsClient({
                 <TableHeader>
                   <TableRow>
                     <TableHead className="text-right">المعلم</TableHead>
-                    <TableHead className="text-right">نسبة الحضور</TableHead>
+                    <TableHead className="text-right">نسبة الإكمال</TableHead>
                     <TableHead className="text-right">إجمالي الحصص</TableHead>
                     <TableHead className="text-right w-20">التحليلات</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {tutorAttendance.map((tutor) => (
+                  {tutorCompletion.map((tutor) => (
                     <TableRow key={tutor.tutorId}>
                       <TableCell className="font-medium">
                         {tutor.tutorName}
@@ -230,15 +231,15 @@ export default function AnalyticsClient({
                       <TableCell>
                         <Badge
                           variant={
-                            tutor.attendanceRate >= 85 ? "default" : "secondary"
+                            tutor.completionRate >= 85 ? "default" : "secondary"
                           }
                           className={
-                            tutor.attendanceRate >= 85
+                            tutor.completionRate >= 85
                               ? "bg-primary/10 text-primary"
                               : ""
                           }
                         >
-                          {tutor.attendanceRate}%
+                          {tutor.completionRate}%
                         </Badge>
                       </TableCell>
                       <TableCell>{tutor.totalSessions}</TableCell>
@@ -263,7 +264,8 @@ export default function AnalyticsClient({
             </div>
           </CardContent>
         </Card>
-        {/* Top Students Section */}
+
+        {/* Top Students */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">أفضل الطلاب حضوراً</CardTitle>

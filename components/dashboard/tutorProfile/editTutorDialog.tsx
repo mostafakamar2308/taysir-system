@@ -31,7 +31,8 @@ interface EditTutorDialogProps {
     email: string;
     phone: string | null;
     timezone: string;
-    pricePerHour: number;
+    privatePricePerHour: number;
+    groupPricePerHour: number;
     currency: string;
     bio?: string | null;
     qualifications?: string | null;
@@ -56,10 +57,11 @@ export default function EditTutorDialog({
     email: tutor.email,
     phone: tutor.phone || "",
     timezone: tutor.timezone,
-    pricePerHour: String(tutor.pricePerHour),
+    privatePricePerHour: String(tutor.privatePricePerHour),
+    groupPricePerHour: String(tutor.groupPricePerHour),
     bio: tutor.bio || "",
     qualifications: tutor.qualifications || "",
-    active: tutor.active,
+    active: tutor.active ?? true,
     zoomAuthenticated: tutor.zoomAuthenticated || false,
     zoomUrl: tutor.zoomUrl || "",
   });
@@ -81,9 +83,7 @@ export default function EditTutorDialog({
       onOpenChange(false);
       router.refresh();
     } catch (error) {
-      console.log(error);
-
-      toast({ title: "حدث خطأ", variant: "destructive" });
+      if (error) toast({ title: "حدث خطأ", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -141,14 +141,29 @@ export default function EditTutorDialog({
               </Select>
             </div>
           </div>
-          <div className="space-y-2">
-            <Label>سعر الساعة ({tutor.currency})</Label>
-            <Input
-              type="number"
-              value={formData.pricePerHour}
-              onChange={(e) => handleChange("pricePerHour", e.target.value)}
-              required
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>سعر الساعة (خاص)</Label>
+              <Input
+                type="number"
+                value={formData.privatePricePerHour}
+                onChange={(e) =>
+                  handleChange("privatePricePerHour", e.target.value)
+                }
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>سعر الساعة (مجموعة)</Label>
+              <Input
+                type="number"
+                value={formData.groupPricePerHour}
+                onChange={(e) =>
+                  handleChange("groupPricePerHour", e.target.value)
+                }
+                required
+              />
+            </div>
           </div>
           <div className="space-y-2">
             <Label>النبذة التعريفية</Label>
