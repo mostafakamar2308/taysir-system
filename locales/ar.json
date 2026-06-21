@@ -698,6 +698,7 @@
       "status": "الحالة",
       "attendance": "الحضور",
       "report": "التقرير",
+      "homework": "الواجب",
       "actions": "إجراءات",
       "noSessions": "لا توجد حصص"
     },
@@ -708,7 +709,6 @@
     "reportCompleted": "مكتمل",
     "reportNeeded": "بحاجة تقرير"
   },
-
   "SessionDetail": {
     "title": "تفاصيل الحصة",
     "closeButton": "إغلاق",
@@ -717,7 +717,8 @@
       "details": "التفاصيل",
       "attendance": "الحضور",
       "report": "التقرير",
-      "participants": "الطلاب"
+      "participants": "الطلاب",
+      "homework": "الواجب"
     },
     "zoom": {
       "title": "رابط زووم",
@@ -732,7 +733,6 @@
       "noLinkInstructions": "لا يوجد رابط زووم حاليًا. يمكنك إضافة رابط الاجتماع هنا. تأكد من إضافة رابط الانضمام للطلاب ورابط البدء (للمعلم).",
       "startUrlHelp": "رابط البدء مخصص للمضيف فقط. يمكنك تركه فارغًا إذا لم يكن لديك واحد."
     },
-
     "details": {
       "editButton": "تعديل",
       "student": "الطالب",
@@ -747,6 +747,7 @@
     },
     "attendance": {
       "selectStatusError": "يرجى اختيار حالة الحضور",
+      "notRecorded": "لم يسجل",
       "statusLabel": "حالة الحضور",
       "selectPlaceholder": "اختر الحالة",
       "statusPresent": "حاضر",
@@ -785,6 +786,37 @@
       "commentsPlaceholder": "أي ملاحظات أخرى",
       "submitButton": "حفظ التقرير"
     },
+    "homework": {
+      "title": "العنوان",
+      "description": "الوصف",
+      "maxScore": "الدرجة الكاملة",
+      "deadline": "اخر ميعاد للتسليم",
+      "file": "الملف",
+      "noAssignment": "لا يوجد واجب لهذه الحصة بعد",
+      "uploadForm": {
+        "titleLabel": "عنوان الواجب",
+        "descriptionLabel": "وصف الواجب",
+        "maxScoreLabel": "الدرجة القصوى",
+        "deadlineLabel": "آخر موعد للتسليم",
+        "fileLabel": "ملف الواجب",
+        "fileHint": "PDF أو Word (حد أقصى 5 ميجابايت)",
+        "submitButton": "رفع الواجب",
+        "submitting": "جاري الرفع..."
+      },
+      "deleteButton": "حذف الواجب",
+      "downloadAssignment": "تحميل ملف الواجب",
+      "participantStatus": {
+        "notUploaded": "لم يرفع بعد",
+        "uploadedNotGraded": "تم الرفع – بانتظار التصحيح",
+        "graded": "تم التصحيح",
+        "score": "الدرجة",
+        "feedback": "ملاحظات"
+      },
+      "actions": {
+        "downloadSolution": "تحميل الحل",
+        "grade": "تصحيح"
+      }
+    },
     "toast": {
       "updateSuccess": "تم تحديث الحصة",
       "updateError": "حدث خطأ",
@@ -792,7 +824,10 @@
       "reportSaved": "تم حفظ التقرير",
       "copySuccess": "تم نسخ الرابط",
       "error": "خطأ",
-      "zoomSaved": "تم حفظ روابط الزووم بنجاح"
+      "zoomSaved": "تم حفظ روابط الزووم بنجاح",
+      "assignmentUploaded": "تم رفع الواجب بنجاح",
+      "assignmentDeleted": "تم حذف الواجب",
+      "gradeSaved": "تم حفظ التصحيح"
     }
   },
   "AddSessionToTutorDialog": {

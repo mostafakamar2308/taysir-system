@@ -29,4 +29,10 @@ export interface SessionClientData {
       comments: string | null;
     } | null;
   }[];
+  assignmentStats?: {
+    hasAssignment: boolean;
+    uploadedCount: number;
+    gradedCount: number;
+    totalParticipants: number;
+  };
 }

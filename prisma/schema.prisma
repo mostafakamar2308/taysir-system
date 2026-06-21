@@ -313,6 +313,7 @@ model Session {
   academy   Academy @relation(fields: [academyId], references: [id])
 
   participants SessionParticipant[]
+  assignment   Assignment?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -333,7 +334,8 @@ model SessionParticipant {
   balanceDeducted         Boolean @default(false)
   cancelledBy             Int?
 
-  report SessionReport?
+  report            SessionReport?
+  homeworkSolutions HomeworkSolution[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -592,4 +594,52 @@ model PushSubscription {
   updatedAt DateTime @updatedAt
 
   @@index([userId])
+}
+
+// =================== Homework / Assignment ==================
+
+model Assignment {
+  id        Int     @id @default(autoincrement())
+  sessionId Int     @unique
+  session   Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  title       String?
+  description String?
+  deadline    DateTime? // optional deadline for submission
+  maxScore    Int       @default(10)
+
+  filePath         String // path to stored file on disk
+  originalFileName String
+  fileSize         Int
+  mimeType         String
+
+  solutions HomeworkSolution[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model HomeworkSolution {
+  id            Int                @id @default(autoincrement())
+  assignmentId  Int
+  assignment    Assignment         @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  participantId Int
+  participant   SessionParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  filePath         String
+  originalFileName String
+  fileSize         Int
+  mimeType         String
+
+  score    Int?
+  feedback String?
+
+  submittedAt DateTime  @default(now())
+  gradedAt    DateTime?
+  gradedBy    Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([assignmentId, participantId]) // one solution per student per assignment
 }

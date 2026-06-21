@@ -86,6 +86,7 @@ export default function TableView({
             <TableHead>{t("table.status")}</TableHead>
             <TableHead>{t("table.attendance")}</TableHead>
             <TableHead>{t("table.report")}</TableHead>
+            <TableHead>{t("table.homework")}</TableHead>
             <TableHead>{t("table.actions")}</TableHead>
           </TableRow>
         </TableHeader>
@@ -159,6 +160,26 @@ export default function TableView({
                       >
                         {reportSummary.label}
                       </Badge>
+                    ) : (
+                      "—"
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {s.assignmentStats?.hasAssignment ? (
+                      <div className="flex items-center gap-1">
+                        <Badge variant="secondary" className="text-xs">
+                          واجب
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {s.assignmentStats.uploadedCount}/
+                          {s.assignmentStats.totalParticipants} رفع
+                        </span>
+                        {s.assignmentStats.gradedCount > 0 && (
+                          <span className="text-xs text-green-600">
+                            ({s.assignmentStats.gradedCount} تم تصحيحه)
+                          </span>
+                        )}
+                      </div>
                     ) : (
                       "—"
                     )}

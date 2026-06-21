@@ -87,6 +87,7 @@
     "timezone": "link:dayjs/plugins/timezone",
     "tsconfig-paths": "^4.2.0",
     "utc": "link:dayjs/plugins/utc",
+    "uuid": "^14.0.1",
     "vaul": "^1.1.2",
     "web-push": "^3.6.7",
     "zod": "^4.3.6"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -34,6 +34,14 @@ import { SessionClientData } from "@/types/tutor/session";
 import { Copy, ExternalLink, Video } from "lucide-react";
 import dayjs from "@/lib/dayjs";
 import { updateSessionZoomLinks } from "@/actions/tutor/session";
+import {
+  AssignmentWithSolutions,
+  deleteAssignment,
+  getAssignmentForSession,
+  uploadAssignment,
+} from "@/actions/assignments";
+import UploadAssignmentForm from "@/components/dashboard/common/uploadAssignmentForm";
+import { gradeSolution } from "@/actions/homeworkSolution";
 
 interface SessionDetailPanelProps {
   session: SessionClientData;
@@ -121,6 +129,12 @@ export default function SessionDetailPanel({
     });
     return init;
   });
+
+  const [assignment, setAssignment] = useState<AssignmentWithSolutions | null>(
+    null,
+  );
+  const [assignmentLoading, setAssignmentLoading] = useState(false);
+  const [hwActive, setHwActive] = useState(false);
 
   // ––– session update handler –––
   const handleEnterEditMode = () => {
@@ -329,6 +343,38 @@ export default function SessionDetailPanel({
     return null;
   };
 
+  useEffect(() => {
+    if (activeTab === "homework" && !hwActive) {
+      setHwActive(true);
+      setAssignmentLoading(true);
+      getAssignmentForSession(session.id)
+        .then(setAssignment)
+        .catch(() =>
+          toast({ title: "خطأ في تحميل الواجب", variant: "destructive" }),
+        )
+        .finally(() => setAssignmentLoading(false));
+    }
+  }, [activeTab, hwActive, toast, session.id]);
+
+  const handleUploadAssignment = async (formData: FormData) => {
+    setLoading(true);
+    try {
+      await uploadAssignment(session.id, formData);
+      toast({ title: "تم رفع الواجب" });
+      // Refresh assignment data
+      const updated = await getAssignmentForSession(session.id);
+      setAssignment(updated);
+      onUpdate();
+    } catch (err) {
+      toast({
+        title: err instanceof Error ? err.message : "خطأ",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -346,6 +392,7 @@ export default function SessionDetailPanel({
               {t("tabs.participants")}
             </TabsTrigger>
             <TabsTrigger value="zoom">{t("tabs.zoom")}</TabsTrigger>
+            <TabsTrigger value="homework">{t("tabs.homework")}</TabsTrigger>
           </TabsList>
 
           {/* Details Tab */}
@@ -716,6 +763,146 @@ export default function SessionDetailPanel({
                 )}
               </div>
             ))}
+          </TabsContent>
+
+          <TabsContent value="homework" className="space-y-6 mt-4">
+            {assignmentLoading ? (
+              <div className="text-center py-8">جاري التحميل...</div>
+            ) : !assignment ? (
+              /* State 1: No assignment – show upload form */
+              <div className="border rounded-lg p-4 space-y-4">
+                <h4 className="font-semibold">إضافة واجب</h4>
+                <UploadAssignmentForm
+                  onSubmit={handleUploadAssignment}
+                  loading={loading}
+                />
+              </div>
+            ) : (
+              /* Assignment exists */
+              <div className="space-y-6">
+                {/* Assignment details */}
+                <div className="border rounded-lg p-4 space-y-2">
+                  <h4 className="font-semibold">
+                    {assignment.title || "واجب بدون عنوان"}
+                  </h4>
+                  {assignment.description && (
+                    <p className="text-sm text-muted-foreground">
+                      {assignment.description}
+                    </p>
+                  )}
+                  <div className="flex gap-4 text-sm">
+                    <span>الدرجة القصوى: {assignment.maxScore}</span>
+                    {assignment.deadline && (
+                      <span>
+                        آخر موعد:{" "}
+                        {dayjs(assignment.deadline).format("YYYY/MM/DD")}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    <a
+                      href={`/api/file/assignment/${assignment.id}`}
+                      className="text-primary underline text-sm"
+                      download
+                    >
+                      <Button>تحميل ملف الواجب</Button>
+                    </a>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={async () => {
+                        if (confirm("حذف الواجب؟")) {
+                          await deleteAssignment(session.id);
+                          setAssignment(null);
+                          onUpdate();
+                        }
+                      }}
+                    >
+                      حذف الواجب
+                    </Button>
+                  </div>
+                </div>
+
+                {/* List of participants and their solutions */}
+                {session.participants.map((p) => {
+                  const sol = assignment.solutions.find(
+                    (s) => s.participantId === p.participantId,
+                  );
+                  return (
+                    <div
+                      key={p.participantId}
+                      className="border rounded-lg p-4 flex items-center justify-between"
+                    >
+                      <div>
+                        <p className="font-medium">{p.studentName}</p>
+                        {!sol ? (
+                          <span className="text-sm text-amber-600">
+                            لم يرفع بعد
+                          </span>
+                        ) : sol.score !== null ? (
+                          <div className="text-sm space-y-1">
+                            <Badge variant="secondary">تم التصحيح</Badge>
+                            <p>
+                              الدرجة: {sol.score}/{assignment.maxScore}
+                            </p>
+                            {sol.feedback && (
+                              <p className="text-muted-foreground">
+                                ملاحظات: {sol.feedback}
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-sm text-blue-600">
+                            تم الرفع – بانتظار التصحيح
+                          </span>
+                        )}
+                      </div>
+                      {sol && (
+                        <div className="flex gap-2 items-center">
+                          <a
+                            href={`/api/file/solution/${sol.id}`}
+                            download
+                            className="text-xs underline"
+                          >
+                            تحميل الحل
+                          </a>
+                          {sol.score === null && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                // open grading dialog
+                                const grade = prompt(
+                                  "أدخل الدرجة (من " +
+                                    assignment.maxScore +
+                                    ")",
+                                );
+                                if (grade) {
+                                  const feedback =
+                                    prompt("ملاحظات (اختياري)") || "";
+                                  gradeSolution(
+                                    sol.id,
+                                    parseInt(grade),
+                                    feedback,
+                                  ).then(() => {
+                                    getAssignmentForSession(session.id).then(
+                                      setAssignment,
+                                    );
+                                    onUpdate();
+                                  });
+                                }
+                              }}
+                            >
+                              تصحيح
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </TabsContent>
 
           {/* Zoom Tab */}
