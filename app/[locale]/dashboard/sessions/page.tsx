@@ -108,14 +108,6 @@ export default async function SessionsPage({
     include: { user: { select: { name: true } } },
   });
 
-  console.log({
-    sessions: transformedSessions.filter(
-      (s) =>
-        dayjs.utc(s.startTime).isAfter(dayjs.utc()) &&
-        dayjs.utc(s.startTime).isBefore(dayjs.utc().add(20, "hours")),
-    ),
-  });
-
   return (
     <SessionViewer
       initialSessions={transformedSessions}

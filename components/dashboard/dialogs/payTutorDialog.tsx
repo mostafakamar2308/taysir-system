@@ -49,7 +49,6 @@ export default function AddExpenseDialog({
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  console.log({ costCenters });
 
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split("T")[0],

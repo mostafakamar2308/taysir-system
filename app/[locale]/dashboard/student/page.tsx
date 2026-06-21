@@ -3,8 +3,8 @@ import db from "@/lib/prisma";
 import { user } from "@/lib/auth";
 import { StudentDashboardClient } from "@/components/dashboard/student/viewer";
 import dayjs from "@/lib/dayjs";
-import { getSessionStatus } from "@/lib/session";
 import { SubscriptionStatus } from "@/types/subscription";
+import { computeHomeworkData } from "@/lib/homework";
 
 export default async function StudentDashboardPage() {
   const currentUser = await user();
@@ -41,6 +41,11 @@ export default async function StudentDashboardPage() {
           session: {
             include: {
               tutor: { include: { user: { select: { name: true } } } },
+              assignment: {
+                include: {
+                  solutions: true, // load all solutions, we'll filter by participantId
+                },
+              },
             },
           },
           report: true,
@@ -91,6 +96,9 @@ export default async function StudentDashboardPage() {
 
   const renewalDate = student.subscriptions[0]?.endDate ?? null;
 
+  const { pendingAssignments, lastAssignmentData, sessionsWithAssignment } =
+    computeHomeworkData(student.sessionParticipants);
+
   // Build props for client
   const props = {
     student: {
@@ -137,17 +145,7 @@ export default async function StudentDashboardPage() {
           },
         }
       : null,
-    sessions: student.sessionParticipants.map((p) => ({
-      id: p.session.id,
-      participantId: p.id,
-      startTime: p.session.startTime.toISOString(),
-      endTime: p.session.endTime.toISOString(),
-      topic: p.session.topic,
-      tutorName: p.session.tutor.user.name ?? "معلم",
-      status: getSessionStatus(p.session),
-      attendance: p.studentAttendanceStatus,
-      hasReport: !!p.report,
-    })),
+    sessions: sessionsWithAssignment,
     reports: student.sessionParticipants
       .filter((p) => p.report)
       .map((p) => ({
@@ -182,6 +180,8 @@ export default async function StudentDashboardPage() {
       symbol: "L.E",
       name: "جنيه مصري",
     },
+    pendingAssignmentsCount: pendingAssignments.length,
+    lastAssignment: lastAssignmentData,
   };
 
   return <StudentDashboardClient {...props} />;

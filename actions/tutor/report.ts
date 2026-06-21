@@ -40,22 +40,26 @@ export async function upsertSessionReport(
     create: { participantId, ...data },
   });
 
-  // Send WhatsApp report if phone exists
   if (participant.student.user.phone) {
-    const studentName = participant.student.user.name ?? "";
-    const sessionStart = dayjs(participant.session.startTime);
-    const message = {
-      phoneNumber: participant.student.user.phone,
-      content: `السلام عليكم، ${studentName ? `والد الطالب ${studentName}` : ""}
+    try {
+      const studentName = participant.student.user.name ?? "";
+      const sessionStart = dayjs(participant.session.startTime);
+      const message = {
+        phoneNumber: participant.student.user.phone,
+        content: `السلام عليكم، ${studentName ? `والد الطالب ${studentName}` : ""}
 هذا تقرير حصة يوم ${sessionStart.format("dddd")}:
 ${data.rating ? `تقييم الحصة: ${data.rating}` : ""}
 ${data.outcomes ? `نتائج الحصة: ${data.outcomes}` : ""}
 ${data.strengths ? `نقاط القوة: ${data.strengths}` : ""}
 ${data.weaknesses ? `نقاط الضعف: ${data.weaknesses}` : ""}
 ${data.nextGoals ? `أهداف الحصة القادمة: ${data.nextGoals}` : ""}`,
-    };
+      };
 
-    await sendSingleMessage(message.phoneNumber, message.content);
+      await sendSingleMessage(message.phoneNumber, message.content);
+    } catch (error) {
+      // Silently fail – report already saved, WhatsApp is not critical
+      console.error("Failed to send WhatsApp report:", error);
+    }
   }
 
   revalidatePath("/ar/dashboard/tutor/sessions");

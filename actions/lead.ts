@@ -45,8 +45,6 @@ export async function registerLead(data: unknown) {
   const qualificationStatus = tier === "C" ? "rejected" : "qualified";
 
   try {
-    console.log({ leadData });
-
     // Save lead to DB
     const lead = await db.lead.create({
       data: {

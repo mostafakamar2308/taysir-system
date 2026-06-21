@@ -20,6 +20,7 @@ import {
   Calendar,
   FileText,
   DollarSign,
+  Download,
 } from "lucide-react";
 import { SessionReportCard } from "./sessionReportCard";
 import { SessionStatus } from "@/types/session";
@@ -32,100 +33,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-
-interface SessionItem {
-  id: number;
-  participantId: number;
-  startTime: string;
-  endTime: string;
-  topic: string | null;
-  tutorName: string;
-  status: number;
-  attendance: number | null;
-  hasReport: boolean;
-}
-
-interface NextSession {
-  id: number;
-  startTime: string;
-  endTime: string;
-  tutorName: string;
-  zoomJoinUrl: string | null;
-  topic: string | null;
-}
-
-interface MonthlyAnalytics {
-  totalMonthlySessions: number;
-  remainingMonthlySessions: number;
-  renewalDate: string | null;
-}
-
-interface ReportData {
-  rating: number | null;
-  outcomes: string | null;
-  strengths: string | null;
-  weaknesses: string | null;
-  nextGoals: string | null;
-}
-
-interface LastReport {
-  sessionDate: string;
-  topic: string | null;
-  report: ReportData;
-}
-
-interface StudentInfo {
-  id: number;
-  name: string;
-  timezone: string;
-  imageUrl: string | null;
-  tutorName: string | null;
-  plan: {
-    title: string;
-    sessionsPerWeek: number;
-    price: number;
-    currency: string;
-    billingPeriod: number;
-  } | null;
-}
-
-interface PaymentRecord {
-  amount: number;
-  currency: string;
-  status: number;
-  date: string;
-  method: number | null;
-}
-
-interface ActiveSubscription {
-  id: number;
-  planTitle: string;
-  planSessionsPerWeek: number;
-  planPrice: number;
-  planCurrency: string;
-  startDate: string;
-  endDate: string | null;
-  payments: PaymentRecord[];
-}
-
-interface StudentDashboardProps {
-  student: StudentInfo;
-  nextSession: NextSession | null;
-  monthlyAnalytics: MonthlyAnalytics;
-  lastReport: LastReport | null;
-  sessions: SessionItem[];
-  reports: {
-    sessionDate: string;
-    topic: string | null;
-    rating: number | null;
-    outcomes: string | null;
-    strengths: string | null;
-    weaknesses: string | null;
-    nextGoals: string | null;
-  }[];
-  activeSubscription: ActiveSubscription | null;
-  defaultCurrency: { code: string; symbol: string; name: string };
-}
+import { StudentDashboardProps } from "@/types/student/types";
+import { UploadSolutionDialog } from "../common/uploadSolutionDialog";
+import { useRouter } from "next/navigation";
 
 export function StudentDashboardClient(props: StudentDashboardProps) {
   const t = useTranslations("StudentDashboard");
@@ -137,7 +47,10 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
     sessions,
     reports,
     activeSubscription,
+    lastAssignment,
+    pendingAssignmentsCount,
   } = props;
+  const router = useRouter();
 
   const [timeToNextSession, setTimeToNextSession] = useState<string | null>(
     null,
@@ -209,7 +122,7 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
     <div className="min-h-screen pb-10 relative" dir="rtl">
       {/* Top banner */}
       {hasUpcomingSession && (
-        <div className="bg-primary text-primary-foreground shadow-lg p-3 flex items-center justify-between">
+        <div className="bg-primary border text-white p-3 rounded-lg shadow-sm">
           <div className="flex items-center gap-2">
             <Clock className="h-5 w-5" />
             <span>
@@ -233,7 +146,16 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
           )}
         </div>
       )}
-
+      {pendingAssignmentsCount > 0 && (
+        <div className="bg-amber-50 mt-2 border border-amber-300 text-amber-800 p-3 rounded-lg shadow-sm">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-amber-600" />
+            <span>
+              لديك {pendingAssignmentsCount} واجبات معلقة لم يتم تسليمها بعد
+            </span>
+          </div>
+        </div>
+      )}
       <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-6 pt-14">
         {/* Welcome Card */}
         <Card>
@@ -300,9 +222,97 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
           </Card>
         </div>
 
+        {lastAssignment && (
+          <Card className="col-span-2">
+            <CardContent className="p-4">
+              <h3 className="text-lg font-semibold mb-2">
+                آخر واجب –{" "}
+                {dayjs
+                  .utc(lastAssignment.sessionDate)
+                  .format("DD/MM/YYYY HH:mm")}
+                {lastAssignment.topic && (
+                  <span className="text-sm font-normal">
+                    {" "}
+                    ({lastAssignment.topic})
+                  </span>
+                )}
+              </h3>
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  {lastAssignment.assignment.title || "واجب"}
+                </p>
+                {lastAssignment.assignment.description && (
+                  <p className="text-sm">
+                    {lastAssignment.assignment.description}
+                  </p>
+                )}
+                <div className="flex gap-4 text-sm">
+                  <span>
+                    الدرجة القصوى: {lastAssignment.assignment.maxScore}
+                  </span>
+                  {lastAssignment.assignment.deadline && (
+                    <span>
+                      آخر موعد:{" "}
+                      {dayjs
+                        .utc(lastAssignment.assignment.deadline)
+                        .format("DD/MM/YYYY")}
+                    </span>
+                  )}
+                </div>
+                <div>
+                  {lastAssignment.solution ? (
+                    lastAssignment.solution.score !== null ? (
+                      <Badge
+                        variant="secondary"
+                        className="bg-green-100 text-green-700"
+                      >
+                        تم التصحيح – {lastAssignment.solution.score}/
+                        {lastAssignment.assignment.maxScore}
+                      </Badge>
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className="border-blue-300 text-blue-700"
+                      >
+                        تم الرفع – بانتظار التصحيح
+                      </Badge>
+                    )
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Badge variant="destructive">لم يتم الرفع بعد</Badge>
+                      <UploadSolutionDialog
+                        participantId={lastAssignment.participantId}
+                        onSuccess={() => router.refresh()}
+                      />
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <a
+                    href={`/api/file/assignment/${lastAssignment.assignment.id}`}
+                    download
+                    className="text-primary underline text-sm"
+                  >
+                    تحميل ملف الواجب
+                  </a>
+                  {lastAssignment.solution && (
+                    <a
+                      href={`/api/file/solution/${lastAssignment.solution.id}`}
+                      download
+                      className="text-primary underline text-sm"
+                    >
+                      تحميل حلي
+                    </a>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {lastReport && (
-          <div className="flex flex-wrap gap-4">
-            <Card className="grow-3">
+          <div className="grid grid-cols-1 md:grid-cols-4 flex-wrap gap-4">
+            <Card className="col-span-2">
               <CardContent className="p-4">
                 <h3 className="text-lg font-semibold mb-2">
                   {t("lastReport.title", {
@@ -320,7 +330,7 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
                 />
               </CardContent>
             </Card>
-            <div className="grow">
+            <div className="col-span-2">
               <RatingChart ratings={chartData} />
             </div>
           </div>
@@ -331,6 +341,9 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
           <TabsList dir="rtl" className="w-full">
             <TabsTrigger value="sessions" className="flex-1">
               {t("tabs.sessions")}
+            </TabsTrigger>
+            <TabsTrigger value="homework" className="flex-1">
+              {t("tabs.homework")}
             </TabsTrigger>
             <TabsTrigger value="reports" className="flex-1">
               {t("tabs.reports")}
@@ -406,6 +419,83 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
                   })}
                 </TableBody>
               </Table>
+            </div>
+          </TabsContent>
+          <TabsContent value="homework">
+            <div className="space-y-4">
+              {sessions.filter((s) => s.assignment).length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">
+                  لا توجد واجبات بعد
+                </p>
+              ) : (
+                sessions
+                  .filter((s) => s.assignment)
+                  .map((s) => (
+                    <Card key={s.id}>
+                      <CardContent className="p-4 space-y-3">
+                        <div className="flex justify-between">
+                          <div>
+                            <h4 className="font-semibold">
+                              {s.assignment!.title || "واجب"}
+                            </h4>
+                            <p className="text-sm text-muted-foreground">
+                              {dayjs
+                                .utc(s.startTime)
+                                .format("DD/MM/YYYY HH:mm")}{" "}
+                              – {s.tutorName}
+                            </p>
+                          </div>
+                          {s.solution ? (
+                            s.solution.score !== null ? (
+                              <Badge
+                                variant="secondary"
+                                className="bg-green-100 text-green-700"
+                              >
+                                {s.solution.score}/{s.assignment!.maxScore}
+                              </Badge>
+                            ) : (
+                              <Badge
+                                variant="outline"
+                                className="border-blue-300 text-blue-700"
+                              >
+                                بانتظار التصحيح
+                              </Badge>
+                            )
+                          ) : (
+                            <Badge variant="destructive">لم ترفع</Badge>
+                          )}
+                        </div>
+                        {s.assignment!.description && (
+                          <p className="text-sm">{s.assignment!.description}</p>
+                        )}
+                        <div className="flex gap-3 items-center flex-wrap">
+                          <a
+                            href={`/api/file/assignment/${s.assignment!.id}`}
+                            download
+                            className="text-primary underline text-sm flex items-center gap-1"
+                          >
+                            <Download className="h-4 w-4" /> تحميل ملف الواجب
+                          </a>
+                          {s.solution && (
+                            <a
+                              href={`/api/file/solution/${s.solution.id}`}
+                              download
+                              className="text-primary underline text-sm flex items-center gap-1"
+                            >
+                              <Download className="h-4 w-4" /> تحميل حلي
+                            </a>
+                          )}
+                          {!s.solution && (
+                            <UploadSolutionDialog
+                              participantId={s.participantId}
+                              onSuccess={() => router.refresh()}
+                            />
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+              )}
             </div>
           </TabsContent>
 

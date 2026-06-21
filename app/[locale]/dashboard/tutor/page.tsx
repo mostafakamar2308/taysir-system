@@ -71,8 +71,6 @@ export default async function TutorDashboardPage() {
     orderBy: { startTime: "desc" },
   });
 
-  console.log({ sessions });
-
   // Helper to map raw session to SessionSummary
   const toSessionSummary = (s: (typeof sessions)[0]): SessionSummary => ({
     id: s.id,

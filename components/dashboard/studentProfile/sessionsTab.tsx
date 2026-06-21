@@ -88,7 +88,6 @@ export default function SessionsTab({ student, tutors }: SessionsTabProps) {
     setLoading(true);
     try {
       const data = await getStudentSessionsForMonth(student.id, newMonthStart);
-      console.log({ data });
 
       setSessions(data);
       setMonthStart(newMonthStart);

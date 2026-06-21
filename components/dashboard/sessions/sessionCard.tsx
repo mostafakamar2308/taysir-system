@@ -18,8 +18,6 @@ type SessionCardProps = {
 };
 
 export function SessionCard({ session, onClick }: SessionCardProps) {
-  console.log({ session });
-
   const hasNotes = session.notes && session.notes.trim().length > 0;
 
   return (

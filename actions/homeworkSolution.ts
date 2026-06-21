@@ -6,6 +6,7 @@ import { user } from "@/lib/auth";
 import { Role } from "@/types/user";
 import { uploadFile } from "@/lib/uploadFile";
 import { unlink } from "fs/promises";
+import { sendSingleMessage } from "./tutor/sendMessage";
 
 // ─── Student uploads solution ───────────────────────────────
 export async function uploadSolution(
@@ -18,8 +19,15 @@ export async function uploadSolution(
   const participant = await db.sessionParticipant.findUnique({
     where: { id: participantId },
     include: {
-      student: true,
-      session: { include: { assignment: true } },
+      student: {
+        include: { user: true },
+      },
+      session: {
+        include: {
+          assignment: true,
+          tutor: { select: { user: { select: { phone: true } } } },
+        },
+      },
     },
   });
 
@@ -57,6 +65,17 @@ export async function uploadSolution(
       mimeType: upload.mimeType,
     },
   });
+
+  if (participant.session.tutor?.user?.phone) {
+    const studentName = participant.student.user.name ?? "طالب";
+    const assignmentTitle = participant.session.assignment?.title || "الواجب";
+    const message = `السلام عليكم، قام الطالب ${studentName} برفع حل لواجب "${assignmentTitle}". يرجى المراجعة.`;
+    try {
+      await sendSingleMessage(participant.session.tutor.user.phone, message);
+    } catch (e) {
+      console.error("Failed to notify tutor about solution upload:", e);
+    }
+  }
 
   revalidatePath(`/ar/dashboard/students/${participant.studentId}`);
   return solution;
@@ -99,6 +118,35 @@ export async function gradeSolution(
       gradedBy: currentUser.id,
     },
   });
+
+  const solutionWithStudent = await db.homeworkSolution.findUnique({
+    where: { id: solutionId },
+    include: {
+      participant: {
+        include: {
+          student: {
+            select: { user: { select: { phone: true, name: true } } },
+          },
+        },
+      },
+      assignment: { select: { title: true, maxScore: true } },
+    },
+  });
+
+  if (solutionWithStudent?.participant.student.user.phone) {
+    const studentName =
+      solutionWithStudent.participant.student.user.name ?? "طالب";
+    const assignmentTitle = solutionWithStudent.assignment?.title || "الواجب";
+    const message = `السلام عليكم ${studentName}، تم تصحيح واجب "${assignmentTitle}". نتيجتك: ${score}/${solutionWithStudent.assignment.maxScore}. ${feedback ? `ملاحظات: ${feedback}` : ""}`;
+    try {
+      await sendSingleMessage(
+        solutionWithStudent.participant.student.user.phone,
+        message,
+      );
+    } catch (e) {
+      console.error("Failed to notify student about graded solution:", e);
+    }
+  }
 
   revalidatePath("/ar/dashboard/tutor/sessions");
 }

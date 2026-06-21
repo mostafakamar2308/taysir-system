@@ -982,7 +982,18 @@
     "tabs": {
       "sessions": "الحصص",
       "reports": "التقارير",
+      "homework": "الواجبات",
       "billing": "الفوترة"
+    },
+    "pendingAssignmentsBanner": "لديك {count} واجبات معلقة لم يتم تسليمها بعد",
+    "homework": {
+      "noAssignments": "لا توجد واجبات بعد",
+      "assignmentFile": "تحميل ملف الواجب",
+      "solutionFile": "تحميل حلي",
+      "uploadSolution": "رفع الحل",
+      "notUploaded": "لم ترفع",
+      "pendingGrading": "بانتظار التصحيح",
+      "graded": "تم التصحيح"
     },
     "sessionsTable": {
       "date": "التاريخ",

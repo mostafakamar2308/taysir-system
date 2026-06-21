@@ -118,11 +118,14 @@ export default async function TutorSessionsPage({
           }
         : null,
     })),
-    totalParticipants: s.participants.length,
-    hasAssignemnt: !!s.assignment,
-    uploadedCount: s.assignment?.solutions?.length ?? 0,
-    gradedCount:
-      s.assignment?.solutions?.filter((sol) => sol.score !== null).length ?? 0,
+    assignmentStats: {
+      totalParticipants: s.participants.length,
+      hasAssignment: !!s.assignment,
+      uploadedCount: s.assignment?.solutions?.length ?? 0,
+      gradedCount:
+        s.assignment?.solutions?.filter((sol) => sol.score !== null).length ??
+        0,
+    },
   }));
 
   // Apply pending_reports filter (post‑processing)

@@ -323,7 +323,6 @@ export default async function TutorProfilePage({
 
   const currencies = await db.currency.findMany({});
   const costCenters = await db.costCenter.findMany({});
-  console.log({ costCenters });
 
   return (
     <TutorProfileClient

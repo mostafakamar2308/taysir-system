@@ -6,6 +6,7 @@ import { user } from "@/lib/auth";
 import { Role } from "@/types/user";
 import { uploadFile } from "@/lib/uploadFile";
 import { unlink } from "fs/promises";
+import { sendSingleMessage } from "./tutor/sendMessage";
 
 // ─── Tutor/Admin upload assignment ──────────────────────────
 export async function uploadAssignment(sessionId: number, formData: FormData) {
@@ -53,6 +54,25 @@ export async function uploadAssignment(sessionId: number, formData: FormData) {
       mimeType: upload.mimeType,
     },
   });
+
+  const participants = await db.sessionParticipant.findMany({
+    where: { sessionId },
+    include: {
+      student: { select: { user: { select: { phone: true, name: true } } } },
+    },
+  });
+
+  for (const p of participants) {
+    const phone = p.student.user.phone;
+    if (!phone) continue;
+    const studentName = p.student.user.name ?? "طالب";
+    const message = `السلام عليكم ${studentName}، تم رفع واجب جديد لحصتك بعنوان "${title || "بدون عنوان"}". يمكنك رفع الحل من حسابك.`;
+    try {
+      await sendSingleMessage(phone, message);
+    } catch (e) {
+      console.error("Failed to notify student about new assignment:", e);
+    }
+  }
 
   revalidatePath("/ar/dashboard/sessions");
 }
