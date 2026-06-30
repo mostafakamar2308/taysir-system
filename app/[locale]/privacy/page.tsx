@@ -2,7 +2,6 @@ import Footer from "@/components/landing/Footer";
 import Navbar from "@/components/landing/Navbar";
 import { getTranslations } from "next-intl/server";
 
-// You can also generate metadata dynamically
 export async function generateMetadata({
   params,
 }: {
@@ -24,25 +23,29 @@ export default async function PrivacyPolicyPage({
   const { locale } = await params;
   const isRTL = locale === "ar";
 
+  // ===== ENGLISH SECTIONS =====
   const englishSections = [
     {
       title: "1. Our Role in Data Processing",
       content: (
         <>
           <p className="my-2">
-            Our Service provides management tools for educational academies. In
-            this context:
+            Academiyati System provides integrated management tools for online
+            educational academies. In this context:
           </p>
           <ul className="list-disc pl-6 my-2 space-y-1">
             <li className="text-muted-foreground">
-              <strong>The Academy (Our Client):</strong> Acts as the &quot;Data
-              Controller.&quot; They decide what student and tutor data to
-              collect and how to use it.
+              <strong>The Academy (our client):</strong> Is considered the
+              actual owner of the student and teacher data. It is the entity
+              that determines what data is collected, why it is collected, and
+              how it is used. Legally, it is referred to as the{" "}
+              <strong>Data Controller</strong>.
             </li>
             <li className="text-muted-foreground">
-              <strong>Academiyati System:</strong> Acts as the &quot;Data
-              Processor.&quot; We only process student and tutor data on behalf
-              of the Academy to provide our Service.
+              <strong>Academiyati System:</strong> We provide the technical
+              infrastructure to manage this data, processing it only on behalf
+              of the Academy to deliver the service. Legally, we are referred to
+              as the <strong>Data Processor</strong>.
             </li>
           </ul>
         </>
@@ -53,159 +56,260 @@ export default async function PrivacyPolicyPage({
       content: (
         <>
           <p className="my-2">
-            We collect information directly from you, automatically through your
-            use of the Service, and from third-party integrations.
-          </p>
-
-          <p className="font-semibold mt-4">
-            A. Information Provided by Academy Admins:
+            We may collect information from three main sources:
           </p>
           <ul className="list-disc pl-6 my-2 space-y-1">
             <li className="text-muted-foreground">
-              <strong>Account Data:</strong> Name, email address, phone number,
-              and billing information.
+              Information you provide directly to us
             </li>
             <li className="text-muted-foreground">
-              <strong>Platform Data:</strong> Data you input regarding your
-              operations, including financial metrics, salaries, and scheduling
-              information.
+              Information entered into the platform
+            </li>
+            <li className="text-muted-foreground">
+              Technical data generated from using the service
             </li>
           </ul>
 
           <p className="font-semibold mt-4">
-            B. Information Collected from Tutors and Students:
+            A. Information of Academy Administrators:
           </p>
           <ul className="list-disc pl-6 my-2 space-y-1">
             <li className="text-muted-foreground">
-              <strong>Profile Data:</strong> Names, email addresses, and contact
-              details provided by the Academy or the user.
+              <strong>Identity and contact:</strong> Name, email, phone number,
+              billing and payment data, academy settings data.
             </li>
             <li className="text-muted-foreground">
-              <strong>Educational Data:</strong> Attendance records, performance
-              reports, session history, and subscription statuses.
-            </li>
-            <li className="text-muted-foreground">
-              <strong>Communications:</strong> Messages sent through our
-              internal student portal and communication systems.
+              <strong>Operational data:</strong> Schedules, subscriptions,
+              salaries, financial reports, class settings, and other
+              administrative inputs.
             </li>
           </ul>
 
-          <p className="font-semibold mt-4">C. Automatically Collected Data:</p>
-          <ul className="list-disc pl-6 my-2 space-y-1">
-            <li className="text-muted-foreground">
-              <strong>Device and Usage Data:</strong> IP addresses, browser
-              types, operating systems, and interaction metrics (e.g., time
-              spent on pages, clicks) to help us improve the platform.
-            </li>
-          </ul>
-        </>
-      ),
-    },
-    {
-      title: "3. Third-Party Integrations (Zoom)",
-      content: (
-        <>
-          <p className="my-2">
-            To facilitate online learning, our Service integrates with
-            third-party applications like Zoom.
+          <p className="font-semibold mt-4">
+            B. Information of Students and Teachers:
           </p>
           <ul className="list-disc pl-6 my-2 space-y-1">
             <li className="text-muted-foreground">
-              We collect and process Zoom meeting links.
+              <strong>Account data:</strong> Name, email, phone or social media
+              contact details.
             </li>
             <li className="text-muted-foreground">
-              We do not record video or audio of Zoom sessions on our servers
-              unless explicitly configured by the Academy through Zoom&apos;s
-              native recording features. Your use of Zoom is also governed by
-              Zoom&apos;s Privacy Policy.
+              <strong>Educational data:</strong> Attendance records, performance
+              reports, session logs, subscriptions, packages.
+            </li>
+            <li className="text-muted-foreground">
+              <strong>Communications:</strong> Messages, notifications, and
+              communications made through the system or through supported
+              integration channels.
             </li>
           </ul>
+
+          <p className="font-semibold mt-4">C. Technical and Usage Data:</p>
+          <ul className="list-disc pl-6 my-2 space-y-1">
+            <li className="text-muted-foreground">
+              <strong>Automatically collected:</strong> IP address, browser
+              type, operating system, error logs, performance data, and usage
+              patterns within the platform.
+            </li>
+          </ul>
+          <p className="my-2">
+            This data is used to improve performance, security, and user
+            experience.
+          </p>
         </>
       ),
     },
     {
-      title: "4. How We Use Your Information",
+      title: "3. Integration with External Systems",
       content: (
         <>
           <p className="my-2">
-            We use the collected information strictly to operate and improve the
-            Service:
+            Academiyati System may integrate with external services to
+            facilitate the educational process, including:
           </p>
           <ul className="list-disc pl-6 my-2 space-y-1">
+            <li className="text-muted-foreground">Zoom</li>
+            <li className="text-muted-foreground">Notification services</li>
+            <li className="text-muted-foreground">Messaging services</li>
+          </ul>
+          <p className="font-semibold mt-4">For Zoom integration:</p>
+          <ul className="list-disc pl-6 my-2 space-y-1">
             <li className="text-muted-foreground">
-              To create and manage your accounts.
+              We may collect and process meeting links and session information
+              necessary to operate the service.
             </li>
             <li className="text-muted-foreground">
-              To facilitate scheduling, salary calculations, and financial
-              reporting.
-            </li>
-            <li className="text-muted-foreground">
-              To power the internal communication portal between students and
-              tutors.
-            </li>
-            <li className="text-muted-foreground">
-              To send administrative information, such as reminders, invoices,
-              and security alerts.
-            </li>
-            <li className="text-muted-foreground">
-              To identify and prevent fraudulent activity or unauthorized
-              bypassing of the Academy&apos;s systems (e.g., monitoring
-              communication logs for platform integrity).
+              We do not record audio or video on our servers by default. Any
+              recordings made through Zoom are also subject to Zoom’s own
+              policies.
             </li>
           </ul>
+          <p className="my-2">
+            Your use of external services is also governed by the privacy
+            policies of those service providers.
+          </p>
         </>
       ),
     },
     {
-      title: "5. How We Share Your Information",
+      title: "4. How We Use the Information",
       content: (
         <>
           <p className="my-2">
-            We do not sell, rent, or trade your personal information. We only
-            share information in the following circumstances:
+            We use data only to operate and improve the system. This includes:
           </p>
           <ul className="list-disc pl-6 my-2 space-y-1">
             <li className="text-muted-foreground">
-              <strong>With the Academy:</strong> Tutors and students should be
-              aware that the Academy (the Admin) has full access to their
-              profiles, session history, and platform communications.
+              Creating and managing accounts
             </li>
             <li className="text-muted-foreground">
-              <strong>Service Providers:</strong> We may share data with trusted
-              third-party vendors who assist us in operating the platform (e.g.,
-              cloud hosting providers) under strict confidentiality agreements.
+              Managing schedules and classes
             </li>
             <li className="text-muted-foreground">
-              <strong>Legal Compliance:</strong> If required by law, court
-              order, or governmental request, we may disclose your data to
-              comply with legal obligations.
+              Calculating subscriptions and finances
+            </li>
+            <li className="text-muted-foreground">Calculating salaries</li>
+            <li className="text-muted-foreground">Generating reports</li>
+            <li className="text-muted-foreground">
+              Sending reminders and notifications
+            </li>
+            <li className="text-muted-foreground">
+              Operating internal communication portals
+            </li>
+            <li className="text-muted-foreground">
+              Improving performance and user experience
+            </li>
+            <li className="text-muted-foreground">
+              Detecting fraudulent or unauthorised activities
             </li>
           </ul>
         </>
       ),
     },
     {
-      title: "6. Data Security",
+      title: "5. How We Share Information",
       content: (
-        <p className="my-2">
-          We implement robust administrative, technical, and physical security
-          measures to protect your personal information. This includes encrypted
-          communications, secure database architecture, and restricted access
-          protocols. However, no electronic transmission over the internet or
-          information storage technology can be guaranteed to be 100% secure.
-        </p>
+        <>
+          <p className="my-2">
+            We do not sell, rent, or trade your personal data. Data may be
+            shared only in the following cases:
+          </p>
+          <ul className="list-disc pl-6 my-2 space-y-1">
+            <li className="text-muted-foreground">
+              <strong>With the Academy:</strong> Students and teachers should be
+              aware that the academy administration has access to data
+              associated with the academy, including profiles, attendance,
+              classes, reports, and subscriptions.
+            </li>
+            <li className="text-muted-foreground">
+              <strong>With Service Providers:</strong> We may engage trusted
+              service providers to help operate the system, such as cloud
+              hosting, backup, and notification services, under appropriate
+              contractual and security controls.
+            </li>
+            <li className="text-muted-foreground">
+              <strong>Legal Compliance:</strong> We may disclose data if
+              required by law, such as court orders, regulatory obligations, or
+              official government requests.
+            </li>
+          </ul>
+        </>
+      ),
+    },
+    {
+      title: "6. Data Security and Protection",
+      content: (
+        <>
+          <p className="my-2">
+            We consider protecting academy data a fundamental responsibility.
+            Therefore, we implement multiple technical and administrative
+            controls to minimise the risk of data loss or unauthorised access.
+          </p>
+          <p className="font-semibold mt-4">A. Secure Hosting</p>
+          <ul className="list-disc pl-6 my-2 space-y-1">
+            <li className="text-muted-foreground">
+              System data is stored on secure VPS servers within a hardened
+              operating environment, with regular security updates and
+              maintenance.
+            </li>
+          </ul>
+          <p className="font-semibold mt-4">B. Data Isolation</p>
+          <ul className="list-disc pl-6 my-2 space-y-1">
+            <li className="text-muted-foreground">
+              Each academy’s data is logically isolated within the system so
+              that no academy can access another academy’s data.
+            </li>
+          </ul>
+          <p className="font-semibold mt-4">C. Access Control</p>
+          <ul className="list-disc pl-6 my-2 space-y-1">
+            <li className="text-muted-foreground">
+              Access to data within the system is governed by specific
+              permissions based on the user’s role (e.g., academy admin,
+              supervisor, teacher, student).
+            </li>
+            <li className="text-muted-foreground">
+              Within the Academiyati System team, access to operational data is
+              restricted to the minimum necessary.
+            </li>
+            <li className="text-muted-foreground">
+              The system owner may have general administrative privileges to
+              monitor system health and diagnose faults, but these privileges
+              are not used to access sensitive detailed data except for
+              legitimate technical necessity.
+            </li>
+          </ul>
+          <p className="font-semibold mt-4">D. Encryption of Sensitive Data</p>
+          <ul className="list-disc pl-6 my-2 space-y-1">
+            <li className="text-muted-foreground">
+              We encrypt sensitive data where appropriate, especially data that
+              could affect user privacy (such as sensitive contact details).
+            </li>
+            <li className="text-muted-foreground">
+              Data transmission is secured using encrypted communication
+              protocols such as HTTPS and TLS.
+            </li>
+          </ul>
+          <p className="font-semibold mt-4">E. Backup</p>
+          <ul className="list-disc pl-6 my-2 space-y-1">
+            <li className="text-muted-foreground">
+              We create weekly backups to minimise the risk of data loss due to
+              failures or unexpected incidents. Backups are used only for
+              disaster recovery purposes.
+            </li>
+          </ul>
+          <p className="font-semibold mt-4">F. System Monitoring</p>
+          <ul className="list-disc pl-6 my-2 space-y-1">
+            <li className="text-muted-foreground">
+              We monitor system logs and operational activities to detect
+              unauthorised access attempts, abnormal activities, and potential
+              security breaches.
+            </li>
+          </ul>
+          <p className="font-semibold mt-4">G. Security Incident Reporting</p>
+          <ul className="list-disc pl-6 my-2 space-y-1">
+            <li className="text-muted-foreground">
+              In the event of a security incident that materially affects the
+              confidentiality or integrity of data, we will endeavour to notify
+              the affected academy within a reasonable time after detection.
+            </li>
+          </ul>
+        </>
       ),
     },
     {
       title: "7. Data Retention",
       content: (
-        <p className="my-2">
-          We retain personal information only for as long as necessary to
-          fulfill the purposes outlined in this Privacy Policy or as required by
-          law. When an Academy terminates its account, we will delete or
-          anonymize the associated data within 30 days, subject to our legal
-          obligations.
-        </p>
+        <>
+          <p className="my-2">
+            We retain data only for as long as necessary to provide the service
+            or to comply with legal requirements.
+          </p>
+          <p className="my-2">
+            If an academy cancels its account, the associated data will be
+            either deleted or anonymised, typically within 30 days of account
+            termination, unless legal obligations require longer retention.
+          </p>
+        </>
       ),
     },
     {
@@ -213,77 +317,116 @@ export default async function PrivacyPolicyPage({
       content: (
         <>
           <p className="my-2">
-            Depending on your location, you may have rights regarding your
-            personal data, including the right to access, correct, or delete
-            your information.
+            Depending on the laws applicable in your geographic area, you may
+            have certain rights regarding your data, such as:
           </p>
           <ul className="list-disc pl-6 my-2 space-y-1">
+            <li className="text-muted-foreground">Access to your data</li>
+            <li className="text-muted-foreground">Modification</li>
+            <li className="text-muted-foreground">Correction</li>
+            <li className="text-muted-foreground">Request deletion</li>
+          </ul>
+          <p className="font-semibold mt-4">Students and Teachers</p>
+          <ul className="list-disc pl-6 my-2 space-y-1">
             <li className="text-muted-foreground">
-              <strong>Students and Tutors:</strong> Because we process your data
-              on behalf of the Academy, please direct any data requests (like
-              deleting an account or accessing records) directly to your
-              Academy&apos;s administrator.
+              Since we process data on behalf of the academy, data requests
+              should be directed first to the academy administration.
             </li>
+          </ul>
+          <p className="font-semibold mt-4">Academy Administrators</p>
+          <ul className="list-disc pl-6 my-2 space-y-1">
             <li className="text-muted-foreground">
-              <strong>Academy Admins:</strong> You can update or delete your
-              account information directly within the system settings or by
-              contacting us.
+              You can update or delete your account data through system settings
+              or by contacting us.
             </li>
           </ul>
         </>
       ),
     },
     {
-      title: "9. Changes to This Privacy Policy",
-      content: (
-        <p className="my-2">
-          We may update this Privacy Policy from time to time. We will notify
-          users of any material changes by posting the new Privacy Policy on
-          this page and updating the &quot;Last Updated&quot; date.
-        </p>
-      ),
-    },
-    {
-      title: "10. Contact Us",
+      title: "9. Cookies",
       content: (
         <>
           <p className="my-2">
-            If you have questions or comments about this Privacy Policy, please
-            contact us at:
+            We may use cookies and similar technologies to:
+          </p>
+          <ul className="list-disc pl-6 my-2 space-y-1">
+            <li className="text-muted-foreground">Improve performance</li>
+            <li className="text-muted-foreground">Maintain sessions</li>
+            <li className="text-muted-foreground">Enhance user experience</li>
+            <li className="text-muted-foreground">Analyse usage</li>
+          </ul>
+          <p className="my-2">
+            You can disable cookies from your browser settings, but this may
+            affect some platform functions.
+          </p>
+        </>
+      ),
+    },
+    {
+      title: "10. Changes to This Privacy Policy",
+      content: (
+        <>
+          <p className="my-2">
+            We may update this Privacy Policy from time to time. When we make
+            material changes, we will notify users via:
+          </p>
+          <ul className="list-disc pl-6 my-2 space-y-1">
+            <li className="text-muted-foreground">The platform</li>
+            <li className="text-muted-foreground">Email</li>
+            <li className="text-muted-foreground">Updating this page</li>
+          </ul>
+          <p className="my-2">
+            The “Last Updated” date at the top of the page will always be
+            updated accordingly.
+          </p>
+        </>
+      ),
+    },
+    {
+      title: "11. Contact Us",
+      content: (
+        <>
+          <p className="my-2">
+            If you have any questions or concerns about this Privacy Policy or
+            data protection, you can contact us via:
           </p>
           <ul className="list-disc pl-6 my-2 space-y-1">
             <li className="text-muted-foreground">
               Email: academiyatisystem@gmail.com
             </li>
-            <li className="text-muted-foreground">Phone: +201011214517</li>
+            <li className="text-muted-foreground">Phone: +20 1011214517</li>
           </ul>
         </>
       ),
     },
   ];
 
+  // ===== ARABIC SECTIONS (new content) =====
   const arabicSections = [
     {
       title: "1. دورنا في معالجة البيانات",
       content: (
         <>
           <p className="my-2">
-            تقدم خدمتنا أدوات إدارية متكاملة للأكاديميات التعليمية. وفي هذا
-            السياق:
+            يقدم نظام أكاديميتي أدوات تشغيل وإدارة متكاملة للأكاديميات التعليمية
+            الأونلاين. في هذا السياق:
           </p>
           <ul
             className="list-disc pr-6 mr-4 space-y-1"
             style={{ listStylePosition: "outside" }}
           >
             <li className="text-muted-foreground">
-              <strong>الأكاديمية (عميلنا):</strong> تعمل بصفتها &quot;مراقب
-              البيانات&quot; (Data Controller). وهي الجهة التي تقرر طبيعة بيانات
-              الطلاب والمعلمين التي يتم جمعها وكيفية استخدامها.
+              <strong>الأكاديمية (عميلنا):</strong> تُعتبر الأكاديمية المالكة
+              الفعلية لبيانات الطلاب والمعلمين، وهي الجهة التي تحدد ما البيانات
+              التي يتم جمعها، ولماذا يتم جمعها، وكيف يتم استخدامها. ويُشار إليها
+              قانونيًا بـ <strong>مراقب البيانات</strong> (Data Controller).
             </li>
             <li className="text-muted-foreground">
-              <strong>نظام أكاديميتي:</strong> يعمل بصفته &quot;معالج
-              البيانات&quot; (Data Processor). نحن نقوم فقط بمعالجة بيانات
-              الطلاب والمعلمين نيابةً عن الأكاديمية لغرض تقديم خدمتنا.
+              <strong>نظام أكاديميتي:</strong> نحن نوفر البنية التقنية اللازمة
+              لإدارة هذه البيانات، ونعالجها فقط نيابة عن الأكاديمية بهدف تقديم
+              الخدمة. ويُشار إلينا قانونيًا بـ <strong>معالج البيانات</strong>{" "}
+              (Data Processor).
             </li>
           </ul>
         </>
@@ -293,155 +436,285 @@ export default async function PrivacyPolicyPage({
       title: "2. المعلومات التي نجمعها",
       content: (
         <>
-          <p className="my-2">
-            نحن نجمع المعلومات منك مباشرةً، وتلقائياً من خلال استخدامك للخدمة،
-            ومن خلال عمليات الربط مع الأنظمة الخارجية.
-          </p>
-
-          <p className="font-semibold mt-4">
-            أ. المعلومات المقدمة من مديري الأكاديمية:
-          </p>
-          <ul className="list-disc pr-6 mr-4 space-y-1">
+          <p className="my-2">قد نقوم بجمع المعلومات من ثلاثة مصادر رئيسية:</p>
+          <ul
+            className="list-disc pr-6 mr-4 space-y-1"
+            style={{ listStylePosition: "outside" }}
+          >
             <li className="text-muted-foreground">
-              <strong>بيانات الحساب:</strong> الاسم، وعنوان البريد الإلكتروني،
-              ورقم الهاتف، ومعلومات الفواتير والدفع.
+              المعلومات التي تقدمها لنا مباشرة
             </li>
             <li className="text-muted-foreground">
-              <strong>بيانات المنصة:</strong> البيانات التي تدخلها والمتعلقة
-              بسير العمليات الخاصة بك، بما في ذلك المقاييس المالية، والرواتب،
-              ومعلومات الجداول الزمنية.
+              المعلومات التي تُدخل داخل المنصة
+            </li>
+            <li className="text-muted-foreground">
+              البيانات التقنية الناتجة عن استخدام الخدمة
             </li>
           </ul>
 
-          <p className="font-semibold mt-4">
-            ب. المعلومات التي يتم جمعها من المعلمين والطلاب:
-          </p>
-          <ul className="list-disc pr-6 mr-4 space-y-1">
+          <p className="font-semibold mt-4">أ. معلومات مديري الأكاديمية:</p>
+          <ul
+            className="list-disc pr-6 mr-4 space-y-1"
+            style={{ listStylePosition: "outside" }}
+          >
             <li className="text-muted-foreground">
-              <strong>بيانات الملف الشخصي:</strong> الأسماء، وعناوين البريد
-              الإلكتروني، وبيانات الاتصال التي توفرها الأكاديمية أو المستخدم.
+              <strong>الهوية والتواصل:</strong> الاسم، البريد الإلكتروني، رقم
+              الهاتف، بيانات الفواتير والدفع، بيانات إعدادات الأكاديمية.
             </li>
             <li className="text-muted-foreground">
-              <strong>البيانات التعليمية:</strong> سجلات الحضور، وتقارير الأداء،
-              وسجل الجلسات، وحالات الاشتراكات.
-            </li>
-            <li className="text-muted-foreground">
-              <strong>الاتصالات:</strong> الرسائل التي يتم إرسالها من خلال بوابة
-              الطلاب وأنظمة الاتصال الداخلية الخاصة بنا.
+              <strong>البيانات التشغيلية:</strong> الجداول، الاشتراكات، الرواتب،
+              التقارير المالية، إعدادات الحصص، وغيرها من المدخلات الإدارية.
             </li>
           </ul>
 
-          <p className="font-semibold mt-4">
-            ج. البيانات التي يتم جمعها تلقائياً:
-          </p>
-          <ul className="list-disc pr-6 mr-4 space-y-1">
+          <p className="font-semibold mt-4">ب. معلومات الطلاب والمعلمين:</p>
+          <ul
+            className="list-disc pr-6 mr-4 space-y-1"
+            style={{ listStylePosition: "outside" }}
+          >
             <li className="text-muted-foreground">
-              <strong>بيانات الجهاز والاستخدام:</strong> عناوين بروتوكول
-              الإنترنت (IP)، وأنواع المتصفحات، وأنظمة التشغيل، ومقاييس التفاعل
-              (مثل الوقت المستغرق في التصفح، والنقرات) وذلك لمساعدتنا في تحسين
-              وتطوير المنصة.
+              <strong>بيانات الحساب:</strong> الاسم، البريد الإلكتروني، رقم
+              الهاتف أو وسائل التواصل.
+            </li>
+            <li className="text-muted-foreground">
+              <strong>البيانات التعليمية:</strong> سجلات الحضور، تقارير الأداء،
+              سجلات الحصص، الاشتراكات والباقات.
+            </li>
+            <li className="text-muted-foreground">
+              <strong>بيانات التواصل:</strong> الرسائل والتنبيهات والاتصالات
+              التي تتم من خلال النظام أو من خلال وسائل الربط المدعومة.
             </li>
           </ul>
+
+          <p className="font-semibold mt-4">ج. البيانات التقنية والاستخدام:</p>
+          <ul
+            className="list-disc pr-6 mr-4 space-y-1"
+            style={{ listStylePosition: "outside" }}
+          >
+            <li className="text-muted-foreground">
+              <strong>يتم جمعها تلقائيًا:</strong> عنوان IP، نوع المتصفح، نظام
+              التشغيل، سجل الأخطاء، بيانات الأداء، أنماط الاستخدام داخل المنصة.
+            </li>
+          </ul>
+          <p className="my-2">
+            تُستخدم هذه البيانات لتحسين الأداء والأمان وتجربة الاستخدام.
+          </p>
         </>
       ),
     },
     {
-      title: "3. عمليات الربط مع الأنظمة الخارجية (Zoom)",
+      title: "3. الربط مع الأنظمة الخارجية",
       content: (
         <>
           <p className="my-2">
-            لتسهيل عمليات التعلم عبر الإنترنت، ترتبط خدمتنا بتطبيقات تابعة
-            لأطراف خارجية مثل Zoom.
+            قد يتكامل نظام أكاديميتي مع خدمات خارجية لتسهيل العملية التعليمية،
+            ويشمل ذلك خدمات مثل:
           </p>
-          <ul className="list-disc pr-6 mr-4 space-y-1">
+          <ul
+            className="list-disc pr-6 mr-4 space-y-1"
+            style={{ listStylePosition: "outside" }}
+          >
+            <li className="text-muted-foreground">Zoom</li>
+            <li className="text-muted-foreground">خدمات الإشعارات</li>
+            <li className="text-muted-foreground">خدمات الرسائل</li>
+          </ul>
+          <p className="font-semibold mt-4">بالنسبة لتكامل Zoom:</p>
+          <ul
+            className="list-disc pr-6 mr-4 space-y-1"
+            style={{ listStylePosition: "outside" }}
+          >
             <li className="text-muted-foreground">
-              نقوم بجمع ومعالجة روابط اجتماعات Zoom.
+              قد نقوم بجمع ومعالجة روابط الاجتماعات ومعلومات الجلسات اللازمة
+              لتشغيل الخدمة.
             </li>
             <li className="text-muted-foreground">
-              نحن لا نقوم بتسجيل مقاطع الفيديو أو الصوت لجلسات Zoom على خوادمنا،
-              ما لم تقم الأكاديمية بتفعيل ذلك صراحةً من خلال ميزات التسجيل
-              الأساسية المتاحة في تطبيق Zoom. يخضع استخدامك لـ Zoom أيضاً لسياسة
-              الخصوصية الخاصة بشركة Zoom.
+              لا نقوم بتسجيل الصوت أو الفيديو على خوادمنا بشكل افتراضي. أي
+              تسجيلات تتم عبر Zoom تخضع أيضًا لسياسات Zoom الخاصة.
             </li>
           </ul>
+          <p className="my-2">
+            استخدامك للخدمات الخارجية يخضع كذلك لسياسات الخصوصية الخاصة بمزودي
+            تلك الخدمات.
+          </p>
         </>
       ),
     },
     {
-      title: "4. كيف نستخدم معلوماتك",
+      title: "4. كيف نستخدم المعلومات",
       content: (
         <>
           <p className="my-2">
-            نحن نستخدم المعلومات التي تم جمعها بشكل صارم لتشغيل الخدمة وتحسينها
-            من أجل الأغراض التالية:
+            نستخدم البيانات فقط لتشغيل وتحسين النظام. يشمل ذلك:
           </p>
-          <ul className="list-disc pr-6 mr-4 space-y-1">
-            <li className="text-muted-foreground">إنشاء حساباتك وإدارتها.</li>
+          <ul
+            className="list-disc pr-6 mr-4 space-y-1"
+            style={{ listStylePosition: "outside" }}
+          >
+            <li className="text-muted-foreground">إنشاء الحسابات وإدارتها</li>
+            <li className="text-muted-foreground">إدارة الجداول والحصص</li>
+            <li className="text-muted-foreground">حساب الاشتراكات والماليات</li>
+            <li className="text-muted-foreground">حساب الرواتب</li>
+            <li className="text-muted-foreground">إصدار التقارير</li>
             <li className="text-muted-foreground">
-              تسهيل عمليات الجدولة، وحساب الرواتب، وإصدار التقارير المالية.
+              إرسال التذكيرات والتنبيهات
             </li>
             <li className="text-muted-foreground">
-              تشغيل بوابة الاتصال الداخلية بين الطلاب والمعلمين.
+              تشغيل بوابات التواصل الداخلية
             </li>
             <li className="text-muted-foreground">
-              إرسال المعلومات الإدارية، مثل التذكيرات، والفواتير، والتنبيهات
-              الأمنية.
+              تحسين الأداء وتجربة الاستخدام
             </li>
             <li className="text-muted-foreground">
-              تحديد ومنع الأنشطة الاحتيالية أو التجاوزات غير المصرح بها لأنظمة
-              الأكاديمية (مثل مراقبة سجلات الاتصال لضمان أمان وموثوقية المنصة).
+              اكتشاف الأنشطة الاحتيالية أو غير المصرح بها
             </li>
           </ul>
         </>
       ),
     },
     {
-      title: "5. كيف نشارك معلوماتك",
+      title: "5. كيف نشارك المعلومات",
       content: (
         <>
           <p className="my-2">
-            نحن لا نبيع أو نؤجر أو نتاجر بمعلوماتك الشخصية. نحن نشارك المعلومات
-            فقط في الحالات التالية:
+            نحن لا نبيع أو نؤجر أو نتاجر ببياناتك الشخصية. قد تتم مشاركة
+            البيانات فقط في الحالات التالية:
           </p>
-          <ul className="list-disc pr-6 mr-4 space-y-1">
+          <ul
+            className="list-disc pr-6 mr-4 space-y-1"
+            style={{ listStylePosition: "outside" }}
+          >
             <li className="text-muted-foreground">
-              <strong>مع الأكاديمية:</strong> يجب أن يدرك المعلمون والطلاب أن
-              الأكاديمية (المدير) لديها حق الوصول الكامل إلى ملفاتهم الشخصية،
-              وسجلات الجلسات، ومراسلاتهم عبر المنصة.
+              <strong>مع الأكاديمية:</strong> يجب على الطلاب والمعلمين إدراك أن
+              إدارة الأكاديمية لديها صلاحية الوصول إلى البيانات المرتبطة
+              بالأكاديمية، بما في ذلك الملفات الشخصية، الحضور، الحصص، التقارير،
+              والاشتراكات.
             </li>
             <li className="text-muted-foreground">
-              <strong>مقدمو الخدمات:</strong> قد نشارك البيانات مع أطراف خارجية
-              موثوقة تساعدنا في تشغيل المنصة (مثل مزودي خدمات الاستضافة
-              السحابية) وذلك بموجب اتفاقيات صارمة.
+              <strong>مع مزودي الخدمات:</strong> قد نتعامل مع مزودي خدمات
+              موثوقين للمساعدة في تشغيل النظام، مثل خدمات الاستضافة السحابية،
+              خدمات النسخ الاحتياطي، خدمات الإشعارات، وذلك ضمن ضوابط تعاقدية
+              وأمنية مناسبة.
             </li>
             <li className="text-muted-foreground">
-              <strong>الامتثال القانوني:</strong> قد نفصح عن بياناتك إذا لزم
-              الأمر للامتثال للقانون، أو استجابة لأمر محكمة، أو طلب حكومي رسمي.
+              <strong>الامتثال القانوني:</strong> قد نفصح عن بيانات إذا كان ذلك
+              مطلوبًا قانونيًا، مثل أوامر قضائية، التزامات تنظيمية، طلبات حكومية
+              رسمية.
             </li>
           </ul>
         </>
       ),
     },
     {
-      title: "6. أمن البيانات",
+      title: "6. أمن البيانات وحمايتها",
       content: (
-        <p className="my-2">
-          نحن نطبق تدابير أمنية وإدارية وتقنية قوية لحماية معلوماتك الشخصية.
-          يشمل ذلك تشفير البيانات، وبنية آمنة لقواعد البيانات، وبروتوكولات صارمة
-          لتقييد الوصول. ومع ذلك، لا يمكن ضمان أمان أي نقل إلكتروني عبر شبكة
-          الإنترنت أو تقنية لتخزين المعلومات بنسبة 100٪.
-        </p>
+        <>
+          <p className="my-2">
+            نعتبر حماية بيانات الأكاديميات مسؤولية أساسية، لذلك نطبق ضوابط تقنية
+            وإدارية متعددة لتقليل مخاطر فقدان البيانات أو الوصول غير المصرح به.
+          </p>
+          <p className="font-semibold mt-4">أ. الاستضافة الآمنة</p>
+          <ul
+            className="list-disc pr-6 mr-4 space-y-1"
+            style={{ listStylePosition: "outside" }}
+          >
+            <li className="text-muted-foreground">
+              يتم تخزين بيانات النظام على خوادم افتراضية خاصة (Secure VPS) ضمن
+              بيئة تشغيل مؤمنة، مع تحديثات أمنية وصيانة دورية.
+            </li>
+          </ul>
+          <p className="font-semibold mt-4">ب. عزل بيانات الأكاديميات</p>
+          <ul
+            className="list-disc pr-6 mr-4 space-y-1"
+            style={{ listStylePosition: "outside" }}
+          >
+            <li className="text-muted-foreground">
+              يتم عزل بيانات كل أكاديمية منطقيًا داخل النظام بحيث لا يمكن لأي
+              أكاديمية الوصول إلى بيانات أكاديمية أخرى.
+            </li>
+          </ul>
+          <p className="font-semibold mt-4">ج. التحكم في صلاحيات الوصول</p>
+          <ul
+            className="list-disc pr-6 mr-4 space-y-1"
+            style={{ listStylePosition: "outside" }}
+          >
+            <li className="text-muted-foreground">
+              الوصول إلى البيانات داخل النظام يخضع لصلاحيات محددة حسب دور
+              المستخدم (مثل: مدير الأكاديمية، المشرف، المعلم، الطالب).
+            </li>
+            <li className="text-muted-foreground">
+              داخل فريق نظام أكاديميتي، يتم تقييد الوصول للبيانات التشغيلية لأقل
+              حد ممكن.
+            </li>
+            <li className="text-muted-foreground">
+              مالك النظام قد يمتلك صلاحيات إدارية عامة لمراقبة سلامة النظام
+              وتشخيص الأعطال، لكن لا يتم استخدام هذه الصلاحيات للوصول إلى
+              البيانات التفصيلية الحساسة إلا عند الضرورة الفنية المشروعة.
+            </li>
+          </ul>
+          <p className="font-semibold mt-4">د. تشفير البيانات الحساسة</p>
+          <ul
+            className="list-disc pr-6 mr-4 space-y-1"
+            style={{ listStylePosition: "outside" }}
+          >
+            <li className="text-muted-foreground">
+              نقوم بتشفير البيانات الحساسة حيثما كان ذلك مناسبًا، خاصة البيانات
+              التي قد تؤثر على خصوصية المستخدمين (مثل بيانات التواصل الحساسة).
+            </li>
+            <li className="text-muted-foreground">
+              كما يتم تأمين نقل البيانات باستخدام بروتوكولات اتصال مشفرة مثل
+              HTTPS و TLS.
+            </li>
+          </ul>
+          <p className="font-semibold mt-4">هـ. النسخ الاحتياطي</p>
+          <ul
+            className="list-disc pr-6 mr-4 space-y-1"
+            style={{ listStylePosition: "outside" }}
+          >
+            <li className="text-muted-foreground">
+              نقوم بإنشاء نسخ احتياطية أسبوعية (Weekly Backups) بهدف تقليل مخاطر
+              فقدان البيانات نتيجة الأعطال أو الحوادث غير المتوقعة. تُستخدم
+              النسخ الاحتياطية فقط لأغراض الاستعادة في حالات الطوارئ.
+            </li>
+          </ul>
+          <p className="font-semibold mt-4">و. مراقبة النظام</p>
+          <ul
+            className="list-disc pr-6 mr-4 space-y-1"
+            style={{ listStylePosition: "outside" }}
+          >
+            <li className="text-muted-foreground">
+              نراقب سجلات النظام والأنشطة التشغيلية لاكتشاف محاولات الوصول غير
+              المصرح بها، الأنشطة غير الطبيعية، والأعطال الأمنية المحتملة.
+            </li>
+          </ul>
+          <p className="font-semibold mt-4">ز. الإبلاغ عن الحوادث الأمنية</p>
+          <ul
+            className="list-disc pr-6 mr-4 space-y-1"
+            style={{ listStylePosition: "outside" }}
+          >
+            <li className="text-muted-foreground">
+              في حال وقوع حادث أمني قد يؤثر جوهريًا على سرية البيانات أو
+              سلامتها، سنسعى لإخطار الأكاديمية المتأثرة خلال فترة زمنية معقولة
+              بعد اكتشاف الحادث.
+            </li>
+          </ul>
+        </>
       ),
     },
     {
       title: "7. الاحتفاظ بالبيانات",
       content: (
-        <p className="my-2">
-          نحتفظ بالمعلومات الشخصية فقط طوال الفترة اللازمة لتحقيق الأغراض
-          الموضحة في سياسة الخصوصية هذه، أو حسبما يقتضيه القانون. في حال قامت
-          الأكاديمية بإلغاء حسابها، سنقوم بحذف البيانات المرتبطة بها أو إخفاء
-          هويتها في غضون 30 يوماً، مع مراعاة التزاماتنا القانونية.
-        </p>
+        <>
+          <p className="my-2">
+            نحتفظ بالبيانات فقط طوال المدة اللازمة لتقديم الخدمة أو للامتثال
+            للمتطلبات القانونية.
+          </p>
+          <p className="my-2">
+            في حال إلغاء الأكاديمية لحسابها: قد يتم حذف البيانات المرتبطة بها أو
+            إخفاء هوية البيانات (Anonymization)، وذلك عادة خلال 30 يومًا من
+            إنهاء الحساب، ما لم توجد التزامات قانونية تستوجب الاحتفاظ بها لفترة
+            أطول.
+          </p>
+        </>
       ),
     },
     {
@@ -449,48 +722,100 @@ export default async function PrivacyPolicyPage({
       content: (
         <>
           <p className="my-2">
-            بناءً على موقعك الجغرافي، قد تكون لديك حقوق معينة فيما يتعلق
-            ببياناتك الشخصية، بما في ذلك الحق في الوصول إلى معلوماتك أو تصحيحها
-            أو حذفها.
+            بحسب القوانين المطبقة في منطقتك الجغرافية، قد تكون لديك حقوق معينة
+            فيما يتعلق ببياناتك، مثل:
           </p>
-          <ul className="list-disc pr-6 mr-4 space-y-1">
+          <ul
+            className="list-disc pr-6 mr-4 space-y-1"
+            style={{ listStylePosition: "outside" }}
+          >
+            <li className="text-muted-foreground">الوصول إلى بياناتك</li>
+            <li className="text-muted-foreground">تعديلها</li>
+            <li className="text-muted-foreground">تصحيحها</li>
+            <li className="text-muted-foreground">طلب حذفها</li>
+          </ul>
+          <p className="font-semibold mt-4">الطلاب والمعلمون:</p>
+          <ul
+            className="list-disc pr-6 mr-4 space-y-1"
+            style={{ listStylePosition: "outside" }}
+          >
             <li className="text-muted-foreground">
-              <strong>الطلاب والمعلمون:</strong> نظراً لأننا نعالج بياناتكم
-              نيابةً عن الأكاديمية، يُرجى توجيه أي طلبات متعلقة بالبيانات (مثل
-              طلب حذف الحساب أو الوصول إلى السجلات) مباشرةً إلى إدارة الأكاديمية
-              التابعين لها.
+              نظرًا لأننا نعالج البيانات نيابة عن الأكاديمية، يجب توجيه طلبات
+              البيانات أولًا إلى إدارة الأكاديمية.
             </li>
+          </ul>
+          <p className="font-semibold mt-4">مدراء الأكاديميات:</p>
+          <ul
+            className="list-disc pr-6 mr-4 space-y-1"
+            style={{ listStylePosition: "outside" }}
+          >
             <li className="text-muted-foreground">
-              <strong>مديرو الأكاديمية:</strong> يمكنكم تحديث أو حذف معلومات
-              حسابكم مباشرة من خلال إعدادات النظام أو عن طريق التواصل معنا.
+              يمكنكم تحديث أو حذف بيانات حسابكم عبر إعدادات النظام أو بالتواصل
+              معنا.
             </li>
           </ul>
         </>
       ),
     },
     {
-      title: "9. التغييرات على سياسة الخصوصية",
-      content: (
-        <p className="my-2">
-          قد نقوم بتحديث سياسة الخصوصية هذه من وقت لآخر. سنقوم بإشعار المستخدمين
-          بأي تغييرات جوهرية عن طريق نشر سياسة الخصوصية الجديدة على هذه الصفحة
-          وتحديث تاريخ &quot;آخر تحديث&quot; المذكور أعلاه.
-        </p>
-      ),
-    },
-    {
-      title: "10. اتصل بنا",
+      title: "9. ملفات تعريف الارتباط (Cookies)",
       content: (
         <>
           <p className="my-2">
-            إذا كانت لديك أي أسئلة أو استفسارات حول سياسة الخصوصية هذه، يُرجى
-            التواصل معنا عبر:
+            قد نستخدم ملفات تعريف الارتباط وتقنيات مشابهة من أجل:
           </p>
-          <ul className="list-disc pr-6 mr-4 space-y-1">
+          <ul
+            className="list-disc pr-6 mr-4 space-y-1"
+            style={{ listStylePosition: "outside" }}
+          >
+            <li className="text-muted-foreground">تحسين الأداء</li>
+            <li className="text-muted-foreground">حفظ الجلسات</li>
+            <li className="text-muted-foreground">تحسين تجربة المستخدم</li>
+            <li className="text-muted-foreground">تحليل الاستخدام</li>
+          </ul>
+          <p className="my-2">
+            يمكنك تعطيل ملفات تعريف الارتباط من إعدادات المتصفح، لكن قد يؤثر ذلك
+            على بعض وظائف المنصة.
+          </p>
+        </>
+      ),
+    },
+    {
+      title: "10. التغييرات على سياسة الخصوصية",
+      content: (
+        <>
+          <p className="my-2">
+            قد نقوم بتحديث سياسة الخصوصية من وقت لآخر. عند إجراء تغييرات جوهرية،
+            سنقوم بإشعار المستخدمين عبر:
+          </p>
+          <ul
+            className="list-disc pr-6 mr-4 space-y-1"
+            style={{ listStylePosition: "outside" }}
+          >
+            <li className="text-muted-foreground">المنصة</li>
+            <li className="text-muted-foreground">البريد الإلكتروني</li>
+            <li className="text-muted-foreground">تحديث هذه الصفحة</li>
+          </ul>
+          <p className="my-2">ويتم دائمًا تحديث تاريخ آخر تحديث أعلى الصفحة.</p>
+        </>
+      ),
+    },
+    {
+      title: "11. التواصل معنا",
+      content: (
+        <>
+          <p className="my-2">
+            إذا كانت لديك أي أسئلة أو استفسارات حول سياسة الخصوصية أو حماية
+            البيانات، يمكنك التواصل معنا عبر:
+          </p>
+          <ul
+            className="list-disc pr-6 mr-4 space-y-1"
+            style={{ listStylePosition: "outside" }}
+          >
             <li className="text-muted-foreground">
               البريد الإلكتروني: academiyatisystem@gmail.com
             </li>
-            <li className="text-muted-foreground">رقم الهاتف: +201011214517</li>
+            <li className="text-muted-foreground">الهاتف: +20 1011214517</li>
           </ul>
         </>
       ),
@@ -508,12 +833,12 @@ export default async function PrivacyPolicyPage({
             <div className="text-center space-y-2">
               <h1 className="text-3xl md:text-4xl font-bold text-foreground">
                 {locale === "ar"
-                  ? "سياسة الخصوصية لـ نظام أكاديميتي (Academiyati System)"
+                  ? "سياسة الخصوصية لنظام أكاديميتي (Academiyati System)"
                   : "Privacy Policy for Academiyati System"}
               </h1>
               <p className="text-muted-foreground">
                 {locale === "ar"
-                  ? "آخر تحديث: 29/5/2026"
+                  ? "آخر تحديث: 29 مايو 2026"
                   : "Last Updated: May 29, 2026"}
               </p>
             </div>

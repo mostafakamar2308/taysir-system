@@ -23,198 +23,420 @@ export default async function TermsOfServicePage({
   const { locale } = await params;
   const isRTL = locale === "ar";
 
+  // ===== ENGLISH SECTIONS (updated to match new Arabic content) =====
   const englishSections = [
     {
       title: "1. Description of Service",
       content: (
-        <p className="my-2">
-          Academiyati System is a B2B software-as-a-service platform designed to
-          help educational academies manage their operations. The Service
-          includes features such as student and tutor management, financial
-          analytics, scheduling, internal communication portals, and third-party
-          application integrations (e.g., Zoom).
-        </p>
-      ),
-    },
-    {
-      title: "2. Account Registration and Responsibility",
-      content: (
         <>
           <p className="my-2">
-            <strong>Account Creation:</strong> To use the Service, you must
-            register for an administrative account. You agree to provide
-            accurate, current, and complete information during registration.
+            &quot;Academiyati System&quot; is a software‑as‑a‑service (SaaS)
+            platform designed to help educational academies manage and operate
+            their daily operations more efficiently.
           </p>
-          <p className="my-2">
-            <strong>Authorized Users:</strong> The Client is strictly
-            responsible for all activities occurring under their account,
-            including the actions of any tutors, staff, or students authorized
-            by the Client to access the Service (&quot;End Users&quot;).
-          </p>
-          <p className="my-2">
-            <strong>Disputes with End Users:</strong> We provide the software
-            tools to manage your academy, including internal communication
-            systems. However, we are not a party to any agreements between the
-            Academy and its tutors or students. Any disputes regarding payments,
-            stolen students, intellectual property, or breach of contract
-            between the Academy and its End Users are solely the responsibility
-            of the Academy.
-          </p>
-        </>
-      ),
-    },
-    {
-      title: "3. Subscriptions, Fees, and Payments",
-      content: (
-        <>
-          <p className="my-2">
-            <strong>Subscription Tiers:</strong> Access to certain features
-            (such as the communication portal or white-glove onboarding) depends
-            on your selected subscription tier.
-          </p>
-          <p className="my-2">
-            <strong>Billing:</strong> Fees are billed in advance on a monthly
-            basis. All payments are non-refundable unless otherwise specified in
-            writing.
-          </p>
-          <p className="my-2">
-            <strong>Changes in Fees:</strong> We reserve the right to change our
-            pricing upon providing a minimum of 30 days&apos; notice. Continued
-            use of the Service after the price change takes effect constitutes
-            your agreement to pay the modified fees.
-          </p>
-        </>
-      ),
-    },
-    {
-      title: "4. Acceptable Use Policy",
-      content: (
-        <>
-          <p className="my-2">You and your End Users agree not to:</p>
+          <p className="my-2">The Service includes, but is not limited to:</p>
           <ul className="list-disc pl-6 my-2 space-y-1">
             <li className="text-muted-foreground">
-              Use the Service for any illegal, unauthorized, or fraudulent
-              purpose.
+              Student and teacher management
             </li>
             <li className="text-muted-foreground">
-              Interfere with or disrupt the integrity or performance of the
-              Service.
+              Attendance tracking and scheduling
             </li>
             <li className="text-muted-foreground">
-              Attempt to gain unauthorized access to the Service, other
-              accounts, or underlying systems.
+              Financial reporting and collection
             </li>
             <li className="text-muted-foreground">
-              Upload or transmit any malicious code, viruses, or illegal
-              content.
+              Internal communication tools
+            </li>
+            <li className="text-muted-foreground">
+              Integration with external services such as Zoom
+            </li>
+            <li className="text-muted-foreground">
+              Additional features that may be launched or developed in the
+              future
             </li>
           </ul>
         </>
       ),
     },
     {
-      title: "5. Data and Intellectual Property Rights",
+      title: "2. Registration, Accounts, and Client Responsibility",
       content: (
         <>
+          <p className="font-semibold mt-4">Account Creation</p>
           <p className="my-2">
-            <strong>Your Data:</strong> The Client retains all ownership rights
-            to the data inputted into the system (including student lists,
-            financial records, and schedules). By using the Service, you grant
-            us a worldwide, limited license to host, copy, and process this data
-            solely to provide the Service to you.
+            To use the Service, you must create an administrative account and
+            provide accurate, up‑to‑date, and complete information.
           </p>
+
+          <p className="font-semibold mt-4">Account Responsibility</p>
           <p className="my-2">
-            <strong>Our Intellectual Property:</strong> The Service, including
-            its original code, design, features, PWA architecture, and
-            functionality, is owned entirely by Academiyati System and is
-            protected by copyright, trademark, and other intellectual property
-            laws. You may not copy, modify, or create derivative works from the
-            Service.
+            The Client bears full responsibility for all activities that occur
+            under their account, including activities performed by teachers,
+            staff, or students authorised to use the system.
           </p>
-        </>
-      ),
-    },
-    {
-      title: "6. Third-Party Services and Integrations",
-      content: (
-        <>
-          <p className="my-2">
-            Our Service relies on integrations with third-party platforms,
-            specifically Zoom, to function effectively.
+
+          <p className="font-semibold mt-4">
+            Password and Permission Responsibility
           </p>
+          <p className="my-2">The Client is responsible for:</p>
           <ul className="list-disc pl-6 my-2 space-y-1">
             <li className="text-muted-foreground">
-              We do not control these third-party platforms and are not
-              responsible for their uptime, performance, or changes to their
-              APIs.
+              Maintaining the confidentiality of login credentials
             </li>
             <li className="text-muted-foreground">
-              If a third-party provider experiences an outage or restricts our
-              API access, it may temporarily impact related features within My
-              Academy System. We are not liable for any resulting interruptions
-              or losses.
+              Managing access permissions for their subordinate users
+            </li>
+            <li className="text-muted-foreground">
+              Revoking permissions for unauthorised users when necessary
+            </li>
+          </ul>
+          <p className="my-2">
+            Any use resulting from sharing login details or mismanagement of
+            permissions falls under the Client&apos;s responsibility.
+          </p>
+
+          <p className="font-semibold mt-4">Disputes with End Users</p>
+          <p className="my-2">
+            Academiyati System provides management tools for the academy only
+            and is not a party to agreements or disputes between the academy and
+            its teachers or students.
+          </p>
+          <p className="my-2">This includes, for example:</p>
+          <ul className="list-disc pl-6 my-2 space-y-1">
+            <li className="text-muted-foreground">Payment disputes</li>
+            <li className="text-muted-foreground">Student poaching</li>
+            <li className="text-muted-foreground">Breach of contracts</li>
+            <li className="text-muted-foreground">
+              Disputes related to intellectual property
             </li>
           </ul>
         </>
       ),
     },
     {
-      title: "7. Limitation of Liability",
-      content: (
-        <p className="my-2">
-          To the maximum extent permitted by law, Academiyati System and its
-          affiliates, directors, or employees shall not be liable for any
-          indirect, incidental, special, consequential, or punitive damages,
-          including without limitation, loss of profits, data, use, or goodwill,
-          resulting from: (a) Your access to or use of (or inability to access
-          or use) the Service; (b) Any unauthorized access to our secure servers
-          and/or any personal information stored therein; (c) Any bugs, viruses,
-          or downtime transmitted to or through our Service by any third party.
-        </p>
-      ),
-    },
-    {
-      title: "8. Disclaimer of Warranties",
-      content: (
-        <p className="my-2">
-          The Service is provided on an &quot;AS IS&quot; and &quot;AS
-          AVAILABLE&quot; basis. We make no warranties, expressed or implied,
-          regarding the reliability, accuracy, or availability of the Service.
-          We do not warrant that the Service will perfectly prevent all
-          unauthorized interactions between tutors and students; the platform is
-          a tool to mitigate risk, not a guarantee.
-        </p>
-      ),
-    },
-    {
-      title: "9. Termination",
+      title: "3. Subscriptions and Payments",
       content: (
         <>
+          <p className="font-semibold mt-4">Subscription</p>
           <p className="my-2">
-            <strong>By You:</strong> You may cancel your subscription at any
-            time by contacting our support team or through your account
-            settings.
+            The available features depend on the plan to which the Client
+            subscribes.
           </p>
+
+          <p className="font-semibold mt-4">Billing</p>
           <p className="my-2">
-            <strong>By Us:</strong> We reserve the right to suspend or terminate
-            your account at our sole discretion, without notice, for conduct
-            that we believe violates these Terms or is harmful to other users of
-            the Service, to us, or to third parties.
+            Subscription fees are billed in advance on a monthly basis or
+            according to the agreed plan.
+          </p>
+
+          <p className="font-semibold mt-4">Overdue Payment Policy</p>
+          <p className="my-2">
+            In the event of late payment, we reserve the right to:
+          </p>
+          <ul className="list-disc pl-6 my-2 space-y-1">
+            <li className="text-muted-foreground">Send payment reminders</li>
+            <li className="text-muted-foreground">
+              Temporarily suspend some or all Service features
+            </li>
+            <li className="text-muted-foreground">
+              Restrict account access until outstanding amounts are settled
+            </li>
+          </ul>
+          <p className="my-2">
+            We may grant a grace period at our discretion before full
+            suspension.
+          </p>
+
+          <p className="font-semibold mt-4">Refunds</p>
+          <p className="my-2">
+            Payments for used periods are non‑refundable. However, we may
+            consider exceptional refund requests at our sole discretion.
+          </p>
+
+          <p className="font-semibold mt-4">Price Changes</p>
+          <p className="my-2">
+            We reserve the right to change pricing with at least 30 days&apos;
+            prior notice. Continued use of the Service after the new prices take
+            effect constitutes acceptance.
           </p>
         </>
       ),
     },
     {
-      title: "10. Governing Law",
+      title: "4. Acceptable Use",
+      content: (
+        <>
+          <p className="my-2">
+            The Client and its authorised users agree not to:
+          </p>
+          <ul className="list-disc pl-6 my-2 space-y-1">
+            <li className="text-muted-foreground">
+              Use the Service for any illegal or fraudulent purpose
+            </li>
+            <li className="text-muted-foreground">
+              Attempt unauthorised access to systems or other accounts
+            </li>
+            <li className="text-muted-foreground">
+              Disrupt or impair the performance of the Service
+            </li>
+            <li className="text-muted-foreground">
+              Upload or send malicious software or illegal content
+            </li>
+          </ul>
+        </>
+      ),
+    },
+    {
+      title: "5. Data and Intellectual Property",
+      content: (
+        <>
+          <p className="font-semibold mt-4">Client Data Ownership</p>
+          <p className="my-2">
+            The Client retains full ownership rights to all data entered into
+            the system, including:
+          </p>
+          <ul className="list-disc pl-6 my-2 space-y-1">
+            <li className="text-muted-foreground">Student data</li>
+            <li className="text-muted-foreground">Teacher data</li>
+            <li className="text-muted-foreground">Financial records</li>
+            <li className="text-muted-foreground">Schedules and reports</li>
+          </ul>
+          <p className="my-2">
+            By using the Service, the Client grants Academiyati System a limited
+            licence to process this data solely for the purpose of providing and
+            operating the Service.
+          </p>
+
+          <p className="font-semibold mt-4">Data Export Rights</p>
+          <p className="my-2">
+            Upon subscription termination, the Client has the right to request
+            an exportable copy of their data (e.g., Excel or CSV) within a
+            period not exceeding 30 days from the cancellation date.
+          </p>
+
+          <p className="font-semibold mt-4">Our Intellectual Property</p>
+          <p className="my-2">
+            All intellectual property rights related to the system, including:
+          </p>
+          <ul className="list-disc pl-6 my-2 space-y-1">
+            <li className="text-muted-foreground">Source code</li>
+            <li className="text-muted-foreground">Design</li>
+            <li className="text-muted-foreground">Technical architecture</li>
+            <li className="text-muted-foreground">User interfaces</li>
+            <li className="text-muted-foreground">Trademarks</li>
+          </ul>
+          <p className="my-2">
+            are fully owned by Academiyati System. Copying, reselling, or
+            modifying the system without prior written permission is prohibited.
+          </p>
+        </>
+      ),
+    },
+    {
+      title: "6. Security and Data Protection",
+      content: (
+        <>
+          <p className="my-2">
+            We are committed to implementing reasonable technical and
+            administrative measures to protect client data.
+          </p>
+          <p className="my-2">This includes:</p>
+          <ul className="list-disc pl-6 my-2 space-y-1">
+            <li className="text-muted-foreground">
+              Hosting data on secure VPS servers
+            </li>
+            <li className="text-muted-foreground">
+              Logically isolating each academy&apos;s data from others
+            </li>
+            <li className="text-muted-foreground">
+              Encrypting sensitive data such as contact information
+            </li>
+            <li className="text-muted-foreground">Regular backups</li>
+            <li className="text-muted-foreground">
+              Restricting administrative access to data
+            </li>
+          </ul>
+          <p className="my-2">
+            Internal administrative access to data is limited to what is
+            necessary to operate the platform, provide customer support, or
+            address technical issues. Nevertheless, no electronic system can be
+            100% secure.
+          </p>
+        </>
+      ),
+    },
+    {
+      title: "7. Third‑Party Services",
+      content: (
+        <>
+          <p className="my-2">
+            Some platform features may rely on external services such as Zoom.
+          </p>
+          <p className="my-2">
+            We do not control these services and are not responsible for:
+          </p>
+          <ul className="list-disc pl-6 my-2 space-y-1">
+            <li className="text-muted-foreground">Their failures</li>
+            <li className="text-muted-foreground">Downtime</li>
+            <li className="text-muted-foreground">Changes to their APIs</li>
+            <li className="text-muted-foreground">
+              Restrictions they may impose in the future
+            </li>
+          </ul>
+          <p className="my-2">
+            Any interruption from these services may temporarily affect certain
+            features.
+          </p>
+        </>
+      ),
+    },
+    {
+      title: "8. Beta Features",
+      content: (
+        <>
+          <p className="my-2">
+            We may offer some features in a beta stage. These features may:
+          </p>
+          <ul className="list-disc pl-6 my-2 space-y-1">
+            <li className="text-muted-foreground">Change</li>
+            <li className="text-muted-foreground">Be improved</li>
+            <li className="text-muted-foreground">Be discontinued</li>
+            <li className="text-muted-foreground">
+              Contain temporary limitations
+            </li>
+          </ul>
+          <p className="my-2">
+            Using beta features implies acceptance of their developmental
+            nature.
+          </p>
+        </>
+      ),
+    },
+    {
+      title: "9. Service Availability and Maintenance",
+      content: (
+        <>
+          <p className="my-2">
+            We strive to provide the Service with the highest possible stability
+            and reliability.
+          </p>
+          <p className="my-2">Occasionally, we may need to perform:</p>
+          <ul className="list-disc pl-6 my-2 space-y-1">
+            <li className="text-muted-foreground">Scheduled maintenance</li>
+            <li className="text-muted-foreground">Technical updates</li>
+            <li className="text-muted-foreground">
+              Infrastructure improvements
+            </li>
+          </ul>
+          <p className="my-2">
+            These may result in temporary service interruptions. We will try to
+            give as much prior notice as possible.
+          </p>
+        </>
+      ),
+    },
+    {
+      title: "10. Limitation of Liability",
+      content: (
+        <>
+          <p className="my-2">
+            To the maximum extent permitted by law, Academiyati System, its
+            employees, or partners shall not be liable for any indirect,
+            incidental, or consequential damages, including:
+          </p>
+          <ul className="list-disc pl-6 my-2 space-y-1">
+            <li className="text-muted-foreground">Loss of profits</li>
+            <li className="text-muted-foreground">Loss of data</li>
+            <li className="text-muted-foreground">Loss of use</li>
+            <li className="text-muted-foreground">Commercial damages</li>
+          </ul>
+          <p className="my-2">This includes damages arising from:</p>
+          <ul className="list-disc pl-6 my-2 space-y-1">
+            <li className="text-muted-foreground">
+              Use of the Service or inability to use it
+            </li>
+            <li className="text-muted-foreground">
+              Unauthorised access to the systems
+            </li>
+            <li className="text-muted-foreground">Software failures</li>
+            <li className="text-muted-foreground">External interruptions</li>
+          </ul>
+        </>
+      ),
+    },
+    {
+      title: "11. Disclaimer of Warranties",
+      content: (
+        <>
+          <p className="my-2">
+            The Service is provided on an &quot;AS IS&quot; and &quot;AS
+            AVAILABLE&quot; basis. We make no express or implied warranty that
+            the Service will completely prevent all operational risks.
+          </p>
+          <p className="my-2">For example, the platform reduces risks of:</p>
+          <ul className="list-disc pl-6 my-2 space-y-1">
+            <li className="text-muted-foreground">Revenue leakage</li>
+            <li className="text-muted-foreground">Student poaching</li>
+            <li className="text-muted-foreground">Operational errors</li>
+          </ul>
+          <p className="my-2">
+            but it does not guarantee their complete prevention in all cases.
+          </p>
+        </>
+      ),
+    },
+    {
+      title: "12. Force Majeure",
+      content: (
+        <>
+          <p className="my-2">
+            We are not liable for any delay or interruption caused by
+            circumstances beyond our reasonable control, including but not
+            limited to:
+          </p>
+          <ul className="list-disc pl-6 my-2 space-y-1">
+            <li className="text-muted-foreground">Internet outages</li>
+            <li className="text-muted-foreground">Data centre failures</li>
+            <li className="text-muted-foreground">Natural disasters</li>
+            <li className="text-muted-foreground">Large‑scale cyberattacks</li>
+            <li className="text-muted-foreground">
+              Governmental or regulatory actions
+            </li>
+          </ul>
+        </>
+      ),
+    },
+    {
+      title: "13. Termination of Service",
+      content: (
+        <>
+          <p className="font-semibold mt-4">By the Client</p>
+          <p className="my-2">
+            The Client may cancel the subscription at any time by contacting us
+            or through account settings (if available).
+          </p>
+
+          <p className="font-semibold mt-4">By Us</p>
+          <p className="my-2">
+            We reserve the right to suspend or terminate the account in case of
+            a material breach of these Terms or if use harms the system or other
+            users. We will provide prior notice when reasonably possible.
+          </p>
+        </>
+      ),
+    },
+    {
+      title: "14. Governing Law",
       content: (
         <p className="my-2">
-          These Terms shall be governed and construed in accordance with the
-          laws of Egypt, without regard to its conflict of law provisions.
+          These Terms are governed by and interpreted in accordance with the
+          laws of the Arab Republic of Egypt.
         </p>
       ),
     },
     {
-      title: "11. Contact Information",
+      title: "15. Contact Us",
       content: (
         <>
           <p className="my-2">
@@ -225,203 +447,444 @@ export default async function TermsOfServicePage({
             <li className="text-muted-foreground">
               Email: academiyatisystem@gmail.com
             </li>
-            <li className="text-muted-foreground">Phone: +201011214517</li>
+            <li className="text-muted-foreground">Phone: +20 1011214517</li>
           </ul>
         </>
       ),
     },
   ];
 
+  // ===== ARABIC SECTIONS (new content as provided) =====
   const arabicSections = [
     {
       title: "1. وصف الخدمة",
       content: (
-        <p className="my-2">
-          &quot;نظام أكاديميتي&quot; هي منصة برمجيات كخدمة (B2B SaaS) مصممة
-          لمساعدة الأكاديميات التعليمية في إدارة عملياتها. تشمل الخدمة ميزات
-          مثل: إدارة الطلاب والمعلمين، التحليلات المالية، الجدولة الزمنية،
-          بوابات الاتصال الداخلية، والربط مع تطبيقات الطرف الثالث (مثل Zoom).
-        </p>
-      ),
-    },
-    {
-      title: "2. تسجيل الحساب والمسؤولية",
-      content: (
         <>
           <p className="my-2">
-            <strong>إنشاء الحساب:</strong> لاستخدام الخدمة، يجب عليك التسجيل
-            لإنشاء حساب إداري. أنت توافق على تقديم معلومات دقيقة وحديثة وكاملة
-            أثناء عملية التسجيل.
+            &quot;نظام أكاديميتي&quot; هو منصة برمجية بنظام الاشتراك (Software
+            as a Service - SaaS) مصممة لمساعدة الأكاديميات التعليمية على إدارة
+            وتشغيل عملياتها اليومية بكفاءة أعلى.
           </p>
-          <p className="my-2">
-            <strong>المستخدمون المصرح لهم:</strong> يتحمل العميل المسؤولية
-            الكاملة عن جميع الأنشطة التي تحدث تحت حسابه، بما في ذلك تصرفات أي من
-            المعلمين أو الموظفين أو الطلاب الذين يصرح لهم العميل بالوصول إلى
-            الخدمة (&quot;المستخدمون النهائيون&quot;).
-          </p>
-          <p className="my-2">
-            <strong>النزاعات مع المستخدمين النهائيين:</strong> نحن نقدم الأدوات
-            البرمجية لإدارة أكاديميتك، بما في ذلك أنظمة الاتصال الداخلية. ومع
-            ذلك، نحن لسنا طرفاً في أي اتفاقيات بين الأكاديمية ومعلميها أو
-            طلابها. أي نزاعات تتعلق بالمدفوعات، أو تسريب الطلاب، أو الملكية
-            الفكرية، أو خرق العقود بين الأكاديمية والمستخدمين النهائيين هي
-            مسؤولية الأكاديمية وحدها.
-          </p>
-        </>
-      ),
-    },
-    {
-      title: "3. الاشتراكات والرسوم والمدفوعات",
-      content: (
-        <>
-          <p className="my-2">
-            <strong>فئات الاشتراك:</strong> يعتمد الوصول إلى ميزات معينة (مثل
-            بوابة الاتصال أو الإعداد المتكامل للبيانات) على فئة الاشتراك التي
-            تختارها.
-          </p>
-          <p className="my-2">
-            <strong>الفوترة:</strong> يتم تحصيل الرسوم مقدماً على أساس شهري.
-            جميع المدفوعات غير قابلة للاسترداد ما لم يُنص على خلاف ذلك كتابياً.
-          </p>
-          <p className="my-2">
-            <strong>تغيير الرسوم:</strong> نحتفظ بالحق في تغيير أسعارنا بعد
-            تقديم إشعار مسبق لا يقل عن 30 يوماً. استمرارك في استخدام الخدمة بعد
-            سريان تغيير الأسعار يُعد موافقة منك على دفع الرسوم المعدلة.
-          </p>
-        </>
-      ),
-    },
-    {
-      title: "4. سياسة الاستخدام المقبول",
-      content: (
-        <>
-          <p className="my-2">
-            توافق أنت والمستخدمون النهائيون التابعون لك على عدم:
-          </p>
-          <ul className="list-disc pr-6 mr-4 space-y-1">
+          <p className="my-2">تشمل الخدمة، على سبيل المثال لا الحصر:</p>
+          <ul
+            className="list-disc pr-6 mr-4 space-y-1"
+            style={{ listStylePosition: "outside" }}
+          >
+            <li className="text-muted-foreground">إدارة الطلاب والمعلمين</li>
+            <li className="text-muted-foreground">متابعة الحضور والجداول</li>
+            <li className="text-muted-foreground">التقارير المالية والتحصيل</li>
+            <li className="text-muted-foreground">أدوات التواصل الداخلية</li>
             <li className="text-muted-foreground">
-              استخدام الخدمة لأي غرض غير قانوني أو غير مصرح به أو احتيالي.
+              التكامل مع خدمات خارجية مثل Zoom
             </li>
             <li className="text-muted-foreground">
-              التدخل في أو الإخلال بسلامة أو أداء الخدمة.
-            </li>
-            <li className="text-muted-foreground">
-              محاولة الوصول غير المصرح به إلى الخدمة، أو إلى حسابات أخرى، أو
-              الأنظمة الأساسية.
-            </li>
-            <li className="text-muted-foreground">
-              رفع أو نقل أي تعليمات برمجية ضارة، أو فيروسات، أو محتوى غير
-              قانوني.
+              ميزات إضافية قد يتم إطلاقها أو تطويرها مستقبلاً
             </li>
           </ul>
         </>
       ),
     },
     {
-      title: "5. البيانات وحقوق الملكية الفكرية",
+      title: "2. التسجيل والحسابات ومسؤولية العميل",
       content: (
         <>
+          <p className="font-semibold mt-4">إنشاء الحساب</p>
           <p className="my-2">
-            <strong>بياناتك:</strong> يحتفظ العميل بجميع حقوق الملكية للبيانات
-            التي يتم إدخالها في النظام (بما في ذلك قوائم الطلاب، والسجلات
-            المالية، والجداول). باستخدامك للخدمة، فإنك تمنحنا ترخيصاً عالمياً
-            ومحدوداً لاستضافة ونسخ ومعالجة هذه البيانات حصرياً لغرض تقديم الخدمة
-            لك.
+            لاستخدام الخدمة، يجب إنشاء حساب إداري وتقديم معلومات صحيحة ومحدثة
+            وكاملة.
           </p>
+
+          <p className="font-semibold mt-4">مسؤولية الحساب</p>
           <p className="my-2">
-            <strong>ملكيتنا الفكرية:</strong> الخدمة، بما في ذلك الكود الأصلي،
-            والتصميم، والميزات، وهيكلية تطبيق (PWA)، والوظائف، مملوكة بالكامل لـ
-            &quot;نظام أكاديميتي&quot; ومحمية بقوانين حقوق الطبع والنشر
-            والعلامات التجارية وغيرها من قوانين الملكية الفكرية. لا يجوز لك نسخ
-            الخدمة أو تعديلها أو إنشاء أعمال مشتقة منها.
+            يتحمل العميل المسؤولية الكاملة عن جميع الأنشطة التي تتم من خلال
+            حسابه، بما في ذلك الأنشطة التي يقوم بها المعلمون أو الموظفون أو
+            الطلاب المصرح لهم باستخدام النظام.
           </p>
-        </>
-      ),
-    },
-    {
-      title: "6. خدمات الطرف الثالث والربط الإلكتروني",
-      content: (
-        <>
-          <p className="my-2">
-            تعتمد خدمتنا على الربط مع منصات خارجية، وتحديداً Zoom، لتعمل بشكل
-            فعال.
-          </p>
-          <ul className="list-disc pr-6 mr-4 space-y-1">
+
+          <p className="font-semibold mt-4">مسؤولية كلمات المرور والصلاحيات</p>
+          <p className="my-2">يتحمل العميل مسؤولية:</p>
+          <ul
+            className="list-disc pr-6 mr-4 space-y-1"
+            style={{ listStylePosition: "outside" }}
+          >
             <li className="text-muted-foreground">
-              نحن لا نتحكم في هذه المنصات الخارجية ولسنا مسؤولين عن وقت تشغيلها
-              أو أدائها أو التغييرات في واجهات برمجة التطبيقات (APIs) الخاصة
-              بها.
+              الحفاظ على سرية بيانات تسجيل الدخول
             </li>
             <li className="text-muted-foreground">
-              إذا واجه مزود الخدمة الخارجي انقطاعاً أو قيّد وصولنا إلى واجهة
-              برمجة التطبيقات، فقد يؤثر ذلك مؤقتاً على الميزات ذات الصلة داخل
-              &quot;نظام أكاديميتي&quot;. نحن لا نتحمل المسؤولية عن أي انقطاعات
-              أو خسائر ناتجة عن ذلك.
+              إدارة صلاحيات الوصول للمستخدمين التابعين له
+            </li>
+            <li className="text-muted-foreground">
+              إزالة صلاحيات المستخدمين غير المصرح لهم عند الحاجة
+            </li>
+          </ul>
+          <p className="my-2">
+            أي استخدام ناتج عن مشاركة بيانات الدخول أو سوء إدارة الصلاحيات يقع
+            ضمن مسؤولية العميل.
+          </p>
+
+          <p className="font-semibold mt-4">النزاعات مع المستخدمين النهائيين</p>
+          <p className="my-2">
+            نظام أكاديميتي يوفر أدوات لإدارة الأكاديمية فقط، ولا يعتبر طرفًا في
+            الاتفاقيات أو النزاعات بين الأكاديمية وبين معلميها أو طلابها.
+          </p>
+          <p className="my-2">يشمل ذلك، على سبيل المثال:</p>
+          <ul
+            className="list-disc pr-6 mr-4 space-y-1"
+            style={{ listStylePosition: "outside" }}
+          >
+            <li className="text-muted-foreground">نزاعات المدفوعات</li>
+            <li className="text-muted-foreground">تسريب الطلاب</li>
+            <li className="text-muted-foreground">خرق العقود</li>
+            <li className="text-muted-foreground">
+              النزاعات المتعلقة بالملكية الفكرية
             </li>
           </ul>
         </>
       ),
     },
     {
-      title: "7. حدود المسؤولية",
-      content: (
-        <p className="my-2">
-          إلى أقصى حد يسمح به القانون، لا تتحمل منصة &quot;نظام أكاديميتي&quot;
-          أو الشركات التابعة لها أو مديروها أو موظفوها المسؤولية عن أي أضرار غير
-          مباشرة أو عرضية أو خاصة أو تبعية أو تأديبية، بما في ذلك على سبيل
-          المثال لا الحصر، خسارة الأرباح أو البيانات أو الاستخدام أو السمعة
-          التجارية، والناتجة عن: (أ) وصولك إلى الخدمة أو استخدامك لها (أو عدم
-          قدرتك على الوصول إليها أو استخدامها)؛ (ب) أي وصول غير مصرح به إلى
-          خوادمنا الآمنة و/أو أي معلومات شخصية مخزنة فيها؛ (ج) أي أعطال برمجية،
-          أو فيروسات، أو فترات توقف تنتقل إلى أو عبر خدمتنا بواسطة أي طرف ثالث.
-        </p>
-      ),
-    },
-    {
-      title: "8. إخلاء المسؤولية من الضمانات",
-      content: (
-        <p className="my-2">
-          تُقدم الخدمة على أساس &quot;كما هي&quot; (AS IS) و&quot;كما هي
-          متوفرة&quot; (AS AVAILABLE). نحن لا نقدم أي ضمانات، صريحة أو ضمنية،
-          فيما يتعلق بموثوقية الخدمة أو دقتها أو توفرها. نحن لا نضمن أن الخدمة
-          ستمنع بشكل مثالي وكامل جميع التفاعلات غير المصرح بها بين المعلمين
-          والطلاب؛ المنصة هي أداة لتقليل المخاطر وليست ضماناً قاطعاً.
-        </p>
-      ),
-    },
-    {
-      title: "9. إنهاء الخدمة",
+      title: "3. الاشتراكات والمدفوعات",
       content: (
         <>
+          <p className="font-semibold mt-4">الاشتراك</p>
           <p className="my-2">
-            <strong>من قبلك:</strong> يمكنك إلغاء اشتراكك في أي وقت عن طريق
-            الاتصال بفريق الدعم أو من خلال إعدادات حسابك.
+            تعتمد الميزات المتاحة على الخطة التي يشترك بها العميل.
           </p>
+
+          <p className="font-semibold mt-4">الفوترة</p>
           <p className="my-2">
-            <strong>من قبلنا:</strong> نحتفظ بالحق في تعليق أو إنهاء حسابك وفقاً
-            لتقديرنا الخاص، دون إشعار مسبق، في حال رصد أي سلوك نعتقد أنه ينتهك
-            هذه الشروط أو يضر بمستخدمين آخرين للخدمة، أو بنا، أو بأطراف ثالثة.
+            يتم تحصيل رسوم الاشتراك مقدمًا على أساس شهري أو حسب الخطة المتفق
+            عليها.
+          </p>
+
+          <p className="font-semibold mt-4">التأخر في السداد</p>
+          <p className="my-2">
+            في حال التأخر عن سداد الاشتراك، نحتفظ بالحق في:
+          </p>
+          <ul
+            className="list-disc pr-6 mr-4 space-y-1"
+            style={{ listStylePosition: "outside" }}
+          >
+            <li className="text-muted-foreground">إرسال تنبيهات بالسداد</li>
+            <li className="text-muted-foreground">
+              تعليق بعض أو جميع ميزات الخدمة مؤقتًا
+            </li>
+            <li className="text-muted-foreground">
+              تقييد الوصول إلى الحساب لحين تسوية المستحقات
+            </li>
+          </ul>
+          <p className="my-2">
+            قد نمنح فترة سماح وفقًا لتقديرنا قبل التعليق الكامل للخدمة.
+          </p>
+
+          <p className="font-semibold mt-4">الاسترداد</p>
+          <p className="my-2">
+            المدفوعات الخاصة بالفترات المستخدمة غير قابلة للاسترداد. ومع ذلك، قد
+            ننظر في طلبات الاسترداد الاستثنائية وفقًا لتقديرنا الخاص.
+          </p>
+
+          <p className="font-semibold mt-4">تغيير الأسعار</p>
+          <p className="my-2">
+            نحتفظ بحق تعديل الأسعار مع إشعار مسبق لا يقل عن 30 يومًا. استمرار
+            استخدام الخدمة بعد سريان الأسعار الجديدة يعد موافقة عليها.
           </p>
         </>
       ),
     },
     {
-      title: "10. القانون المعمول به",
+      title: "4. الاستخدام المقبول",
+      content: (
+        <>
+          <p className="my-2">يوافق العميل والمستخدمون التابعون له على عدم:</p>
+          <ul
+            className="list-disc pr-6 mr-4 space-y-1"
+            style={{ listStylePosition: "outside" }}
+          >
+            <li className="text-muted-foreground">
+              استخدام الخدمة لأي غرض غير قانوني أو احتيالي
+            </li>
+            <li className="text-muted-foreground">
+              محاولة الوصول غير المصرح به للأنظمة أو الحسابات الأخرى
+            </li>
+            <li className="text-muted-foreground">
+              تعطيل أو الإضرار بأداء الخدمة
+            </li>
+            <li className="text-muted-foreground">
+              رفع أو إرسال برمجيات ضارة أو محتوى غير قانوني
+            </li>
+          </ul>
+        </>
+      ),
+    },
+    {
+      title: "5. البيانات والملكية الفكرية",
+      content: (
+        <>
+          <p className="font-semibold mt-4">ملكية بيانات العميل</p>
+          <p className="my-2">
+            يحتفظ العميل بكامل حقوق ملكية البيانات التي يدخلها إلى النظام، بما
+            في ذلك:
+          </p>
+          <ul
+            className="list-disc pr-6 mr-4 space-y-1"
+            style={{ listStylePosition: "outside" }}
+          >
+            <li className="text-muted-foreground">بيانات الطلاب</li>
+            <li className="text-muted-foreground">بيانات المعلمين</li>
+            <li className="text-muted-foreground">السجلات المالية</li>
+            <li className="text-muted-foreground">الجداول والتقارير</li>
+          </ul>
+          <p className="my-2">
+            باستخدام الخدمة، يمنح العميل &quot;نظام أكاديميتي&quot; ترخيصًا
+            محدودًا لمعالجة هذه البيانات فقط لغرض تقديم الخدمة وتشغيلها.
+          </p>
+
+          <p className="font-semibold mt-4">تصدير البيانات</p>
+          <p className="my-2">
+            في حال إنهاء الاشتراك، يحق للعميل طلب نسخة قابلة للتصدير من بياناته
+            (مثل Excel أو CSV) خلال مدة لا تتجاوز 30 يومًا من تاريخ الإلغاء.
+          </p>
+
+          <p className="font-semibold mt-4">ملكيتنا الفكرية</p>
+          <p className="my-2">
+            جميع حقوق الملكية الفكرية الخاصة بالنظام، بما في ذلك:
+          </p>
+          <ul
+            className="list-disc pr-6 mr-4 space-y-1"
+            style={{ listStylePosition: "outside" }}
+          >
+            <li className="text-muted-foreground">الكود البرمجي</li>
+            <li className="text-muted-foreground">التصميم</li>
+            <li className="text-muted-foreground">البنية التقنية</li>
+            <li className="text-muted-foreground">الواجهات</li>
+            <li className="text-muted-foreground">العلامات التجارية</li>
+          </ul>
+          <p className="my-2">
+            مملوكة بالكامل لنظام أكاديميتي. لا يجوز نسخ أو إعادة بيع أو تعديل
+            النظام دون إذن كتابي مسبق.
+          </p>
+        </>
+      ),
+    },
+    {
+      title: "6. الأمان وحماية البيانات",
+      content: (
+        <>
+          <p className="my-2">
+            نلتزم باتخاذ تدابير تقنية وإدارية معقولة لحماية بيانات العملاء.
+          </p>
+          <p className="my-2">يشمل ذلك:</p>
+          <ul
+            className="list-disc pr-6 mr-4 space-y-1"
+            style={{ listStylePosition: "outside" }}
+          >
+            <li className="text-muted-foreground">
+              استضافة البيانات داخل خوادم آمنة (Secure VPS)
+            </li>
+            <li className="text-muted-foreground">
+              فصل بيانات كل أكاديمية منطقيًا عن غيرها
+            </li>
+            <li className="text-muted-foreground">
+              تشفير البيانات الحساسة مثل معلومات الاتصال
+            </li>
+            <li className="text-muted-foreground">النسخ الاحتياطي الدوري</li>
+            <li className="text-muted-foreground">
+              تقييد الوصول الإداري للبيانات
+            </li>
+          </ul>
+          <p className="my-2">
+            يقتصر الوصول الإداري الداخلي إلى البيانات على ما يلزم لتشغيل المنصة
+            أو دعم العملاء أو معالجة الأعطال الفنية. ورغم ذلك، لا يمكن ضمان أمان
+            أي نظام إلكتروني بنسبة 100%.
+          </p>
+        </>
+      ),
+    },
+    {
+      title: "7. خدمات الطرف الثالث",
+      content: (
+        <>
+          <p className="my-2">
+            قد تعتمد بعض وظائف المنصة على خدمات خارجية مثل Zoom.
+          </p>
+          <p className="my-2">نحن لا نتحكم في هذه الخدمات ولسنا مسؤولين عن:</p>
+          <ul
+            className="list-disc pr-6 mr-4 space-y-1"
+            style={{ listStylePosition: "outside" }}
+          >
+            <li className="text-muted-foreground">أعطالها</li>
+            <li className="text-muted-foreground">توقفها</li>
+            <li className="text-muted-foreground">تغييرات APIs الخاصة بها</li>
+            <li className="text-muted-foreground">
+              القيود التي تفرضها مستقبلاً
+            </li>
+          </ul>
+          <p className="my-2">
+            أي انقطاع من طرف هذه الخدمات قد يؤثر مؤقتًا على بعض الميزات.
+          </p>
+        </>
+      ),
+    },
+    {
+      title: "8. الميزات التجريبية (Beta Features)",
+      content: (
+        <>
+          <p className="my-2">
+            قد نوفر بعض الميزات في مرحلة تجريبية (Beta). هذه الميزات قد:
+          </p>
+          <ul
+            className="list-disc pr-6 mr-4 space-y-1"
+            style={{ listStylePosition: "outside" }}
+          >
+            <li className="text-muted-foreground">تتغير</li>
+            <li className="text-muted-foreground">يتم تحسينها</li>
+            <li className="text-muted-foreground">يتم إيقافها</li>
+            <li className="text-muted-foreground">تحتوي على قيود مؤقتة</li>
+          </ul>
+          <p className="my-2">
+            استخدام الميزات التجريبية يعني قبول طبيعتها التطويرية.
+          </p>
+        </>
+      ),
+    },
+    {
+      title: "9. توفر الخدمة والصيانة",
+      content: (
+        <>
+          <p className="my-2">
+            نسعى لتوفير الخدمة بأعلى قدر ممكن من الاستقرار والموثوقية.
+          </p>
+          <p className="my-2">قد نحتاج أحيانًا إلى إجراء:</p>
+          <ul
+            className="list-disc pr-6 mr-4 space-y-1"
+            style={{ listStylePosition: "outside" }}
+          >
+            <li className="text-muted-foreground">صيانة دورية</li>
+            <li className="text-muted-foreground">تحديثات تقنية</li>
+            <li className="text-muted-foreground">تحسينات للبنية التحتية</li>
+          </ul>
+          <p className="my-2">
+            وقد يترتب على ذلك توقف مؤقت للخدمة. سنحاول الإشعار المسبق قدر
+            الإمكان.
+          </p>
+        </>
+      ),
+    },
+    {
+      title: "10. حدود المسؤولية",
+      content: (
+        <>
+          <p className="my-2">
+            إلى أقصى حد يسمح به القانون، لا يتحمل نظام أكاديميتي أو موظفوه أو
+            شركاؤه المسؤولية عن أي أضرار غير مباشرة أو تبعية، بما يشمل:
+          </p>
+          <ul
+            className="list-disc pr-6 mr-4 space-y-1"
+            style={{ listStylePosition: "outside" }}
+          >
+            <li className="text-muted-foreground">خسارة الأرباح</li>
+            <li className="text-muted-foreground">خسارة البيانات</li>
+            <li className="text-muted-foreground">فقدان الاستخدام</li>
+            <li className="text-muted-foreground">الأضرار التجارية</li>
+          </ul>
+          <p className="my-2">يشمل ذلك الأضرار الناتجة عن:</p>
+          <ul
+            className="list-disc pr-6 mr-4 space-y-1"
+            style={{ listStylePosition: "outside" }}
+          >
+            <li className="text-muted-foreground">
+              استخدام الخدمة أو تعذر استخدامها
+            </li>
+            <li className="text-muted-foreground">وصول غير مصرح به للأنظمة</li>
+            <li className="text-muted-foreground">أعطال برمجية</li>
+            <li className="text-muted-foreground">انقطاعات خارجية</li>
+          </ul>
+        </>
+      ),
+    },
+    {
+      title: "11. إخلاء الضمانات",
+      content: (
+        <>
+          <p className="my-2">
+            يتم تقديم الخدمة على أساس: &quot;كما هي&quot; (AS IS) و &quot;حسب
+            التوفر&quot; (AS AVAILABLE). لا نقدم ضمانًا صريحًا أو ضمنيًا بأن
+            الخدمة ستمنع بشكل كامل جميع المخاطر التشغيلية.
+          </p>
+          <p className="my-2">على سبيل المثال، المنصة تقلل مخاطر:</p>
+          <ul
+            className="list-disc pr-6 mr-4 space-y-1"
+            style={{ listStylePosition: "outside" }}
+          >
+            <li className="text-muted-foreground">تسرب الإيرادات</li>
+            <li className="text-muted-foreground">تسريب الطلاب</li>
+            <li className="text-muted-foreground">الأخطاء التشغيلية</li>
+          </ul>
+          <p className="my-2">لكنها لا تضمن منعها بالكامل في جميع الحالات.</p>
+        </>
+      ),
+    },
+    {
+      title: "12. الظروف الخارجة عن الإرادة (Force Majeure)",
+      content: (
+        <>
+          <p className="my-2">
+            لا نتحمل المسؤولية عن أي تأخير أو انقطاع ناتج عن ظروف خارجة عن
+            إرادتنا، بما في ذلك على سبيل المثال لا الحصر:
+          </p>
+          <ul
+            className="list-disc pr-6 mr-4 space-y-1"
+            style={{ listStylePosition: "outside" }}
+          >
+            <li className="text-muted-foreground">انقطاع الإنترنت</li>
+            <li className="text-muted-foreground">أعطال مراكز البيانات</li>
+            <li className="text-muted-foreground">الكوارث الطبيعية</li>
+            <li className="text-muted-foreground">
+              الهجمات الإلكترونية واسعة النطاق
+            </li>
+            <li className="text-muted-foreground">
+              القرارات الحكومية أو التنظيمية
+            </li>
+          </ul>
+        </>
+      ),
+    },
+    {
+      title: "13. إنهاء الخدمة",
+      content: (
+        <>
+          <p className="font-semibold mt-4">من طرف العميل</p>
+          <p className="my-2">
+            يمكن للعميل إلغاء الاشتراك في أي وقت عبر التواصل معنا أو من خلال
+            إعدادات الحساب إن توفرت.
+          </p>
+
+          <p className="font-semibold mt-4">من طرفنا</p>
+          <p className="my-2">
+            نحتفظ بالحق في تعليق أو إنهاء الحساب في حال وجود انتهاك جوهري لهذه
+            الشروط أو وجود استخدام يضر بالنظام أو بالمستخدمين الآخرين. سنقوم
+            بالإشعار المسبق متى كان ذلك ممكنًا عمليًا.
+          </p>
+        </>
+      ),
+    },
+    {
+      title: "14. القانون المعمول به",
       content: (
         <p className="my-2">
-          تخضع هذه الشروط وتُفسر وفقاً لقوانين جمهورية مصر العربية، دون اعتبار
-          لتعارضها مع أحكام وقوانين أخرى.
+          تخضع هذه الشروط وتفسر وفقًا لقوانين جمهورية مصر العربية.
         </p>
       ),
     },
     {
-      title: "11. معلومات الاتصال",
+      title: "15. التواصل معنا",
       content: (
         <>
-          <p className="my-2">
-            لأي أسئلة بخصوص شروط الخدمة هذه، يُرجى التواصل معنا عبر:
-          </p>
-          <ul className="list-disc pr-6 mr-4 space-y-1">
+          <p className="my-2">لأي استفسارات بخصوص شروط الخدمة:</p>
+          <ul
+            className="list-disc pr-6 mr-4 space-y-1"
+            style={{ listStylePosition: "outside" }}
+          >
             <li className="text-muted-foreground">
               البريد الإلكتروني: academiyatisystem@gmail.com
             </li>
@@ -446,8 +909,8 @@ export default async function TermsOfServicePage({
               </h1>
               <p className="text-muted-foreground">
                 {locale === "ar"
-                  ? "آخر تحديث: 29/5/2026"
-                  : "Last Updated: May 29, 2026"}
+                  ? "آخر تحديث: 27/06/2026"
+                  : "Last Updated: June 27, 2026"}
               </p>
             </div>
 
