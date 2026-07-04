@@ -197,7 +197,7 @@ export async function createStudent(formData: FormData) {
         where: { id: student.id },
         data: {
           currentSubscriptionId: subscriptionId,
-          sessionsBalance: { increment: subscribedPlan.sessionsPerWeek },
+          sessionsBalance: { increment: subscribedPlan.sessionsPerWeek * 4 },
         },
       });
     }
@@ -501,6 +501,7 @@ export async function changeStudentStatusWithSubscription(
       data: {
         currentSubscriptionId: subscription.id,
         planId: plan.id,
+        sessionsBalance: { increment: plan.sessionsPerWeek * 4 },
         tutorId: subscriptionData.tutorId,
       },
     });

@@ -19,7 +19,6 @@ export const leadSchema = z.object({
     "schedule-chaos",
     "professional-appearance",
   ]),
-  urgency: z.enum(["asap", "within-month", "exploring"]),
 });
 
 export type LeadData = z.infer<typeof leadSchema>;

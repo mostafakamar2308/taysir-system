@@ -56,7 +56,6 @@ export async function registerLead(data: unknown) {
         teacherCount: leadData.teacherCount,
         currentMethod: leadData.currentMethod,
         biggestChallenge: leadData.biggestChallenge,
-        urgency: leadData.urgency,
         qualificationTier: tier,
         qualificationStatus,
       },

@@ -205,11 +205,6 @@ export function RegisterForm({ onSubmit, serverError }: RegisterFormProps) {
               t.raw("form.biggestChallengeOptions"),
               t("form.biggestChallenge"),
             )}
-            {renderRadioGroup(
-              "urgency",
-              t.raw("form.urgencyOptions"),
-              t("form.urgency"),
-            )}
           </div>
         </div>
 
