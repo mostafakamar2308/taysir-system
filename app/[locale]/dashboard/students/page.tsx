@@ -16,20 +16,24 @@ export default async function StudentsPage({
   const students = await db.student.findMany({
     where: {
       user: {
-        name: {
-          contains: name,
-          mode: "insensitive",
-        },
+        name: { contains: name, mode: "insensitive" },
       },
-      academyId: currentUser?.academyId,
+      academyId: currentUser.academyId,
     },
     include: {
       user: {
         select: { name: true, phone: true, email: true, timezone: true },
       },
-      tutor: {
+      groupMemberships: {
+        where: { active: true },
         include: {
-          user: true,
+          group: {
+            select: {
+              id: true,
+              tutor: { select: { id: true, user: { select: { name: true } } } },
+              _count: { select: { members: { where: { active: true } } } },
+            },
+          },
         },
       },
       plan: true,
@@ -42,20 +46,26 @@ export default async function StudentsPage({
     where: { academyId: currentUser.academyId },
   });
 
-  const transformedStudents: DashboardStudent[] = students.map((student) => ({
-    id: student.id,
-    name: student.user.name || "",
-    email: student.user.email || "",
-    age: student.age,
-    phone: student.user.phone || "",
-    country: student.country || "",
-    timezone: student.user.timezone,
-    status: student.status,
-    tutorName: student.tutor?.user?.name || "لم يحدد معلم",
-    tutorId: student.tutor?.id,
-    plan: student.plan?.id,
-    planName: student.plan?.title,
-  }));
+  const transformedStudents: DashboardStudent[] = students.map((student) => {
+    const groups = student.groupMemberships.map((m) => ({
+      tutorId: m.group.tutor.id,
+      tutorName: m.group.tutor.user.name ?? "غير معروف",
+      isPrivate: m.group._count.members === 1,
+    }));
+    return {
+      id: student.id,
+      name: student.user.name || "",
+      email: student.user.email || "",
+      age: student.age,
+      phone: student.user.phone || "",
+      country: student.country || "",
+      timezone: student.user.timezone,
+      status: student.status,
+      groups,
+      plan: student.plan?.id,
+      planName: student.plan?.title,
+    };
+  });
 
   const tutors = await db.tutor.findMany({
     include: { user: true },

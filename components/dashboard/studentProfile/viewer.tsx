@@ -120,17 +120,25 @@ export default function StudentProfileClient({
                 <Badge className={statusColor}>{statusLabel}</Badge>
               </div>
               <div className="flex flex-wrap gap-4 text-sm">
-                {student.tutorName && (
-                  <div>
-                    <span className="text-muted-foreground">المعلم: </span>
-                    <Link
-                      href={`/dashboard/tutors/${student.tutorId}`}
-                      className="text-primary hover:underline font-medium"
-                    >
-                      {student.tutorName}
-                    </Link>
-                  </div>
-                )}
+                <div>
+                  <span className="text-muted-foreground">المعلمون: </span>
+                  {student.groups.length === 0 ? (
+                    <span>لا يوجد معلم</span>
+                  ) : (
+                    student.groups.map((g, idx) => (
+                      <span key={g.tutorId}>
+                        <Link
+                          href={`/dashboard/tutors/${g.tutorId}`}
+                          className="text-primary hover:underline font-medium"
+                        >
+                          {g.tutorName}
+                        </Link>
+                        {!g.isPrivate && " (مجموعة)"}
+                        {idx < student.groups.length - 1 && "، "}
+                      </span>
+                    ))
+                  )}
+                </div>
                 <div>
                   <span className="text-muted-foreground">
                     البريد الإلكتروني:{" "}

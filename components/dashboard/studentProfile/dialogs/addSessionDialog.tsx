@@ -20,7 +20,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { createSession } from "@/actions/sessions";
@@ -31,9 +30,8 @@ interface AddSessionDialogProps {
   onOpenChange: (open: boolean) => void;
   studentId: number;
   studentName: string;
-  tutors: { id: number; name: string | null }[];
+  groupTutors: { id: number; name: string }[]; // <-- changed
   academyId: number;
-  currentTutorId?: number | null;
 }
 
 export default function AddSessionDialog({
@@ -41,15 +39,14 @@ export default function AddSessionDialog({
   onOpenChange,
   studentId,
   studentName,
-  tutors,
+  groupTutors,
   academyId,
-  currentTutorId,
 }: AddSessionDialogProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [tutorId, setTutorId] = useState<string>(
-    currentTutorId ? String(currentTutorId) : "",
+    groupTutors.length === 1 ? String(groupTutors[0].id) : "",
   );
   const [date, setDate] = useState(dayjs().format("YYYY-MM-DD"));
   const [startTime, setStartTime] = useState("09:00");
@@ -58,13 +55,9 @@ export default function AddSessionDialog({
   const [notes, setNotes] = useState("");
   const [isTrial, setIsTrial] = useState(false);
 
-  const hasCurrentTutor = !!currentTutorId;
-  const selectedTutorName = tutors.find((t) => t.id === currentTutorId)?.name;
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate tutor
     if (!tutorId) {
       toast({ title: "يرجى اختيار المعلم", variant: "destructive" });
       return;
@@ -110,39 +103,24 @@ export default function AddSessionDialog({
         dir="rtl"
       >
         <DialogHeader>
-          <DialogTitle>
-            {hasCurrentTutor
-              ? `إضافة حصة للطالب ${studentName} مع المعلم ${selectedTutorName}`
-              : `إضافة حصة للطالب ${studentName}`}
-          </DialogTitle>
+          <DialogTitle>إضافة حصة للطالب {studentName}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Tutor selection – disabled if student already has a tutor */}
+          {/* Tutor selection – always a dropdown */}
           <div className="space-y-2">
             <Label>المعلم *</Label>
-            {hasCurrentTutor ? (
-              <Input
-                value={selectedTutorName || ""}
-                disabled
-                className="bg-muted"
-              />
-            ) : (
-              <Select value={tutorId} onValueChange={setTutorId} required>
-                <SelectTrigger>
-                  <SelectValue placeholder="اختر المعلم" />
-                </SelectTrigger>
-                <SelectContent>
-                  {tutors.map((t) => (
-                    <SelectItem key={t.id} value={String(t.id)}>
-                      {t.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            {hasCurrentTutor && (
-              <input type="hidden" name="tutorId" value={tutorId} />
-            )}
+            <Select value={tutorId} onValueChange={setTutorId} required>
+              <SelectTrigger>
+                <SelectValue placeholder="اختر المعلم" />
+              </SelectTrigger>
+              <SelectContent>
+                {groupTutors.map((t) => (
+                  <SelectItem key={t.id} value={String(t.id)}>
+                    {t.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

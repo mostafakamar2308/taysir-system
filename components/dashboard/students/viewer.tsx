@@ -5,13 +5,13 @@ import StudentCard from "@/components/dashboard/students/studentCard";
 import StatsCards from "@/components/dashboard/students/statsCard";
 import ViewToggle from "@/components/dashboard/common/viewToggle";
 import { Download, Filter, GraduationCap, Search } from "lucide-react";
-import { DashboardStudent } from "@/types/student";
+import type { DashboardStudent } from "@/types/student";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Currency, Plan } from "@/generated/prisma/browser";
-import { SortDir, SortField } from "@/types/lib";
+import type { Currency, Plan } from "@/generated/prisma/browser";
+import type { SortDir, SortField } from "@/types/lib";
 import { exportStudentsToCSV } from "@/lib/export";
 import FilterPanel from "@/components/dashboard/common/filterPanel";
 import BulkActionsBar from "@/components/dashboard/students/bulkActionBar";
@@ -42,7 +42,7 @@ const StudentsViewer = ({
   const [showFilters, setShowFilters] = useState(false);
   const search = searchParams.get("q") || "";
   const statusFilter = searchParams.get("status") || "";
-  const tutorFilter = searchParams.get("tutor") || "";
+  const tutorFilter = searchParams.get("tutor") || ""; // tutor ID as string
   const countryFilter = searchParams.get("country") || "";
   const planFilter = searchParams.get("plan") || "";
   const sortField = (searchParams.get("sort") as SortField) || "name";
@@ -62,11 +62,10 @@ const StudentsViewer = ({
     router.push("?", { scroll: false });
   }, [router]);
 
+  // Filter options – tutor names come from the static list, still fine
   const filterOptions = useMemo(
     () => ({
-      tutors: Array.from(new Set(students.map((s) => s.tutorName))).filter(
-        Boolean,
-      ),
+      tutors: tutors.map((t) => t.name).filter(Boolean),
       countries: Array.from(new Set(students.map((s) => s.country))).filter(
         Boolean,
       ),
@@ -79,7 +78,7 @@ const StudentsViewer = ({
         value: String(plan.id),
       })),
     }),
-    [students, plans],
+    [students, plans, tutors],
   );
 
   const filteredStudents = useMemo(() => {
@@ -87,18 +86,20 @@ const StudentsViewer = ({
       if (
         search &&
         !s.name.includes(search) &&
-        !s.email.includes(search) &&
-        !s.tutorName.includes(search)
+        !s.email.includes(search)
+        // we could also search in group tutor names, but keep simple for now
       )
         return false;
       if (statusFilter && s.status.toString() !== statusFilter) return false;
-      if (tutorFilter && s.tutorName !== tutorFilter) return false;
+      // NEW tutor filter: check if any group's tutor name matches
+      if (tutorFilter && !s.groups.some((g) => g.tutorName === tutorFilter))
+        return false;
       if (countryFilter && s.country !== countryFilter) return false;
       if (planFilter && String(s.plan) !== planFilter) return false;
       return true;
     });
 
-    // Sorting
+    // Sorting (unchanged)
     result.sort((a, b) => {
       let cmp = 0;
       switch (sortField) {

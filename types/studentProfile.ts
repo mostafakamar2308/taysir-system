@@ -77,8 +77,12 @@ export interface StudentProfile {
   source: string | null;
   academyId: number;
   preferredLanguage: string | null;
-  tutorId: number | null;
-  tutorName: string | null;
+  groups: {
+    tutorId: number;
+    tutorUserId: number;
+    tutorName: string;
+    isPrivate: boolean;
+  }[];
   planId: number | null;
   plan: Plan | null;
   notes: Note[];
@@ -86,7 +90,6 @@ export interface StudentProfile {
   subscriptions: Subscription[];
   sessions: SessionRecord[];
 }
-
 export type Report = {
   id: number;
   rating: number | null;

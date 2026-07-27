@@ -81,6 +81,7 @@ model Academy {
   supervisors          Supervisor[]
   tutors               Tutor[]
   students             Student[]
+  groups               Group[]
   sessions             Session[]
   expenses             Expense[]
   plans                Plan[]
@@ -165,15 +166,13 @@ model Student {
   currentSubscriptionId Int?
   source                String?
 
-  tutorId Int?
-  tutor   Tutor? @relation(fields: [tutorId], references: [id])
-
   academyId Int
   academy   Academy @relation(fields: [academyId], references: [id])
 
   planId Int?
   plan   Plan? @relation(fields: [planId], references: [id])
 
+  groupMemberships      GroupStudent[]
   studentAvailabilities StudentAvailability[]
   notes                 Note[]
   payments              Revenue[]
@@ -183,7 +182,6 @@ model Student {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([tutorId])
   @@index([status])
 }
 
@@ -194,6 +192,10 @@ model Supervisor {
 
   academyId Int
   academy   Academy @relation(fields: [academyId], references: [id])
+
+  defaultForTutors Tutor[]           @relation("TutorDefaultSupervisor")
+  sessions         Session[]
+  tutorAttendances TutorAttendance[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -211,8 +213,8 @@ model Tutor {
   currency   Currency @relation(fields: [currencyId], references: [id])
   currencyId Int
 
-  privatePricePerHour Float
-  groupPricePerHour   Float     @default(0)
+  baseHourlyRate      Float     @default(0) // default rate for a private (1:1) group, used when the group has no override
+  baseGroupHourlyRate Float     @default(0) // default rate for a shared group, used when the group has no override
   active              Boolean?
   bio                 String?
   qualifications      String?
@@ -224,17 +226,21 @@ model Tutor {
   zoomTokenExpiry     DateTime?
   zoomUserId          String?
 
+  defaultSupervisorId Int?
+  defaultSupervisor   Supervisor? @relation("TutorDefaultSupervisor", fields: [defaultSupervisorId], references: [id])
+
   specialities        Speciality[]
-  students            Student[]
-  sessions            Session[]
+  groups              Group[]
   tutorAvailabilities TutorAvailability[]
   notes               Note[]
   expenses            Expense[]
+  sessions            Session[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([userId])
+  @@index([defaultSupervisorId])
 }
 
 model SuperAdmin {
@@ -246,6 +252,51 @@ model SuperAdmin {
   updatedAt DateTime @updatedAt
 
   @@index([userId])
+}
+
+// ===================Groups=================
+// A group is the unit that carries the teaching rate and the session schedule.
+// A "private" tutor assignment is simply a group with a single active member -
+// there is no separate flag, so membership can never drift out of sync with it.
+
+model Group {
+  id             Int     @id @default(autoincrement())
+  title          String
+  academyId      Int
+  academy        Academy @relation(fields: [academyId], references: [id])
+  currentTutorId Int
+  currentTutor   Tutor   @relation(fields: [currentTutorId], references: [id])
+
+  tutorHourlyRate Float?
+  active          Boolean @default(true)
+
+  members  GroupStudent[]
+  sessions Session[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([currentTutorId])
+  @@index([academyId])
+}
+
+model GroupStudent {
+  id        Int     @id @default(autoincrement())
+  groupId   Int
+  group     Group   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  studentId Int
+  student   Student @relation(fields: [studentId], references: [id])
+
+  joinedAt DateTime  @default(now())
+  leftAt   DateTime?
+  active   Boolean   @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([groupId, studentId])
+  @@index([groupId])
+  @@index([studentId])
 }
 
 // ===================Plan and Subscriptions=================
@@ -291,7 +342,6 @@ model Subscription {
 }
 
 // ===================Session and Attendance=================
-
 model Session {
   id              Int      @id @default(autoincrement())
   startTime       DateTime
@@ -307,18 +357,28 @@ model Session {
   zoomStartUrl    String?
   zoomMeetingUuid String?
 
+  groupId Int
+  group   Group @relation(fields: [groupId], references: [id])
+
   tutorId   Int
-  tutor     Tutor   @relation(fields: [tutorId], references: [id])
+  tutor     Tutor @relation(fields: [tutorId], references: [id])
+  tutorRate Float
+
+  supervisorId Int
+  supervisor   Supervisor @relation(fields: [supervisorId], references: [id])
+
   academyId Int
   academy   Academy @relation(fields: [academyId], references: [id])
 
-  participants SessionParticipant[]
-  assignment   Assignment?
+  participants    SessionParticipant[]
+  assignment      Assignment?
+  tutorAttendance TutorAttendance?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([tutorId])
+  @@index([groupId])
+  @@index([supervisorId])
   @@index([isTrial])
 }
 
@@ -343,6 +403,27 @@ model SessionParticipant {
   @@unique([sessionId, studentId])
   @@index([sessionId])
   @@index([studentId])
+}
+
+// Supervisor's review of the tutor's own attendance/conduct for a session.
+// One record per session (a session has exactly one tutor via its group).
+model TutorAttendance {
+  id        Int     @id @default(autoincrement())
+  sessionId Int     @unique
+  session   Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  status Int // present, absent, late, substituted, etc.
+  notes  String?
+
+  reviewedBy Int
+  supervisor Supervisor @relation(fields: [reviewedBy], references: [id])
+  reviewedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sessionId])
+  @@index([reviewedBy])
 }
 
 model TutorAvailability {

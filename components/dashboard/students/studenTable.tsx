@@ -27,6 +27,7 @@ interface StudentTableProps {
   plans: { id: number; title: string }[];
   academyId?: number;
 }
+
 const statusLabels: Record<StudentStatus, string> = {
   [StudentStatus.trial]: "تجريبي",
   [StudentStatus.subscribed]: "مشترك",
@@ -113,49 +114,57 @@ export function StudentTable({
               field="status"
               label="الحالة"
             />
-            {/* <TableHead className="text-right">البرنامج</TableHead> */}
             <TableHead className="text-right">الخطة</TableHead>
-            <TableHead className="text-right">المعلم</TableHead>
+            <TableHead className="text-right">المجموعات / المعلم</TableHead>
             <TableHead className="text-right w-10">إجراءات</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody className="bg-white">
-          {students.map((s) => (
-            <TableRow
-              key={s.id}
-              className={selected.has(String(s.id)) ? "bg-primary/5" : ""}
-            >
-              <TableCell className="flex items-center justify-center">
-                <Checkbox
-                  checked={selected.has(String(s.id))}
-                  onCheckedChange={() => onSelect(String(s.id))}
-                />
-              </TableCell>
-              <TableCell className="font-medium">
-                <Link
-                  href={`/ar/dashboard/students/${s.id}`}
-                  className="hover:underline hover:text-primary"
-                >
-                  {s.name}
-                </Link>
-              </TableCell>
-              <TableCell>{s.age}</TableCell>
-              <TableCell>{s.country}</TableCell>
-              <TableCell>
-                <span
-                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium`}
-                >
-                  {statusLabels[s.status]}
-                </span>
-              </TableCell>
-              {/* <TableCell>{s.currentProgram}</TableCell> */}
-              <TableCell>{s.plan}</TableCell>
-              <TableCell>{s.tutorName}</TableCell>
-              <TableCell>
-                <QuickActionsMenu tutors={tutors} plans={plans} student={s} />
-              </TableCell>
-            </TableRow>
-          ))}
+          {students.map((s) => {
+            // Build group display text
+            const groupDisplay =
+              s.groups.length === 0
+                ? "—"
+                : s.groups.length === 1 && s.groups[0].isPrivate
+                  ? s.groups[0].tutorName
+                  : `${s.groups.length} مجموعات`;
+
+            return (
+              <TableRow
+                key={s.id}
+                className={selected.has(String(s.id)) ? "bg-primary/5" : ""}
+              >
+                <TableCell className="flex items-center justify-center">
+                  <Checkbox
+                    checked={selected.has(String(s.id))}
+                    onCheckedChange={() => onSelect(String(s.id))}
+                  />
+                </TableCell>
+                <TableCell className="font-medium">
+                  <Link
+                    href={`/ar/dashboard/students/${s.id}`}
+                    className="hover:underline hover:text-primary"
+                  >
+                    {s.name}
+                  </Link>
+                </TableCell>
+                <TableCell>{s.age}</TableCell>
+                <TableCell>{s.country}</TableCell>
+                <TableCell>
+                  <span
+                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium`}
+                  >
+                    {statusLabels[s.status]}
+                  </span>
+                </TableCell>
+                <TableCell>{s.planName ?? "—"}</TableCell>
+                <TableCell>{groupDisplay}</TableCell>
+                <TableCell>
+                  <QuickActionsMenu tutors={tutors} plans={plans} student={s} />
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </div>

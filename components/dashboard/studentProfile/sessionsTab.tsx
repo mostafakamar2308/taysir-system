@@ -83,12 +83,18 @@ export default function SessionsTab({ student, tutors }: SessionsTabProps) {
     sessionDate: string;
   }>({ open: false, report: null!, sessionDate: "" });
 
+  // Derive unique tutors from active groups
+  const groupTutors = useMemo(() => {
+    const unique = new Map<number, string>();
+    student.groups.forEach((g) => unique.set(g.tutorId, g.tutorName));
+    return Array.from(unique.entries()).map(([id, name]) => ({ id, name }));
+  }, [student.groups]);
+
   // دالة تغيير الشهر
   const fetchMonth = async (newMonthStart: string) => {
     setLoading(true);
     try {
       const data = await getStudentSessionsForMonth(student.id, newMonthStart);
-
       setSessions(data);
       setMonthStart(newMonthStart);
     } catch (error) {
@@ -353,9 +359,8 @@ export default function SessionsTab({ student, tutors }: SessionsTabProps) {
         onOpenChange={setAddDialogOpen}
         studentId={student.id}
         studentName={student.name}
-        tutors={tutors}
+        groupTutors={groupTutors}
         academyId={student.academyId}
-        currentTutorId={student.tutorId}
       />
 
       {editDialog.session && (

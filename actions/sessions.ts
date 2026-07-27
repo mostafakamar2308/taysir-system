@@ -40,19 +40,59 @@ export async function createSession(input: CreateSessionInput) {
     }
   }
 
-  // Basic validations
   const start = dayjs.utc(input.startTime);
   const startDate = start.toDate();
-  const endDate = dayjs.utc(start).add(input.duration, "minute").toDate();
+  const endDate = start.add(input.duration, "minute").toDate();
 
   if (start.isBefore(dayjs()))
     throw new Error("لا يمكن أن تكون الحصة في الماضى");
 
-  // Check conflicts for tutor and ALL students
+  // Find or create a group for this tutor
+  let group = await db.group.findFirst({
+    where: {
+      tutorId: input.tutorId,
+      academyId: currentUser.academyId!,
+      active: true,
+    },
+  });
+  if (!group) {
+    group = await db.group.create({
+      data: {
+        academyId: currentUser.academyId!,
+        tutorId: input.tutorId,
+      },
+    });
+  }
+
+  // Ensure students are active members of this group
+  for (const studentId of input.studentIds) {
+    const existing = await db.groupStudent.findFirst({
+      where: { groupId: group.id, studentId, active: true },
+    });
+    if (!existing) {
+      await db.groupStudent.create({
+        data: { groupId: group.id, studentId },
+      });
+    }
+  }
+
+  // Get supervisor: use tutor's default supervisor, or throw
+  const tutorWithSupervisor = await db.tutor.findUnique({
+    where: { id: input.tutorId },
+    select: { defaultSupervisorId: true },
+  });
+  const supervisorId = tutorWithSupervisor?.defaultSupervisorId;
+  if (!supervisorId) {
+    throw new Error(
+      "لا يوجد مشرف افتراضي للمعلم، الرجاء تعيين مشرف للمعلم قبل إنشاء الحصة",
+    );
+  }
+
+  // Conflict check: check tutor (via group) and students
   const conflicts = await db.session.findMany({
     where: {
       OR: [
-        { tutorId: input.tutorId },
+        { group: { tutorId: input.tutorId } },
         { participants: { some: { studentId: { in: input.studentIds } } } },
       ],
       startTime: { lt: endDate },
@@ -61,7 +101,7 @@ export async function createSession(input: CreateSessionInput) {
     },
     include: {
       participants: { include: { student: { include: { user: true } } } },
-      tutor: { include: { user: true } },
+      group: { include: { tutor: { include: { user: true } } } },
     },
   });
 
@@ -109,7 +149,6 @@ export async function createSession(input: CreateSessionInput) {
 
   // Create session + participants in transaction
   const session = await db.$transaction(async (tx) => {
-    // Decrement balance for non-trial
     if (!input.isTrial) {
       for (const student of students) {
         await decrementBalance(student.id, tx);
@@ -121,7 +160,8 @@ export async function createSession(input: CreateSessionInput) {
         startTime: startDate,
         endTime: endDate,
         durationMinutes: input.duration,
-        tutorId: input.tutorId,
+        groupId: group!.id,
+        supervisorId: supervisorId,
         academyId: currentUser.academyId!,
         topic: input.topic,
         notes: input.notes,
@@ -129,18 +169,6 @@ export async function createSession(input: CreateSessionInput) {
       },
     });
 
-    for (const student of students) {
-      await tx.student.update({
-        data: {
-          tutorId: input.tutorId,
-        },
-        where: {
-          id: student.id,
-        },
-      });
-    }
-
-    // Create participants
     await tx.sessionParticipant.createMany({
       data: input.studentIds.map((studentId) => ({
         sessionId: created.id,
@@ -152,7 +180,7 @@ export async function createSession(input: CreateSessionInput) {
     return created;
   });
 
-  // Zoom integration (unchanged)
+  // Zoom integration
   const tutor = await db.tutor.findUnique({
     where: { id: input.tutorId },
     select: { zoomAuthenticated: true, id: true },
@@ -196,6 +224,7 @@ export type UpdateSessionInput = {
 export async function updateSession(input: UpdateSessionInput) {
   const existing = await db.session.findUnique({
     where: { id: input.id },
+    include: { group: { select: { tutorId: true } } }, // needed for Zoom
   });
   if (!existing) throw new Error("Session not found");
 
@@ -223,11 +252,15 @@ export async function updateSession(input: UpdateSessionInput) {
 
   if (updated.zoomMeetingId) {
     try {
-      await updateZoomMeeting(updated.zoomMeetingId, updated.tutorId, {
-        topic: updated.topic || undefined,
-        startTime: updated.startTime,
-        duration: updated.durationMinutes,
-      });
+      await updateZoomMeeting(
+        updated.zoomMeetingId,
+        existing.group.tutorId, // use tutorId from the group
+        {
+          topic: updated.topic || undefined,
+          startTime: updated.startTime,
+          duration: updated.durationMinutes,
+        },
+      );
     } catch (error) {
       console.error("Zoom meeting update failed:", error);
     }
@@ -277,7 +310,12 @@ export async function getSessionsForWeek(startDate: Date, endDate: Date) {
           student: { select: { user: { select: { name: true } } } },
         },
       },
-      tutor: { include: { user: true } },
+      group: {
+        // <-- changed
+        include: {
+          tutor: { include: { user: true } },
+        },
+      },
     },
     orderBy: { startTime: "asc" },
   });
@@ -296,10 +334,8 @@ export async function getSessionsForWeek(startDate: Date, endDate: Date) {
     zoomMeetingId: s.zoomMeetingId,
     zoomJoinUrl: s.zoomJoinUrl,
     zoomStartUrl: s.zoomStartUrl,
-    tutorId: s.tutorId,
-    tutorName: s.tutor.user.name,
-    // Attendance / reports will be loaded separately or included per participant if needed.
-    // For a week view, you might just return a summary; adjust as needed.
+    tutorId: s.group.tutorId,
+    tutorName: s.group.tutor.user.name,
   }));
 }
 
@@ -315,7 +351,12 @@ export async function getSessionDetails(sessionId: number) {
           report: true,
         },
       },
-      tutor: { include: { user: { select: { name: true, phone: true } } } },
+      group: {
+        // replaced tutor
+        include: {
+          tutor: { include: { user: { select: { name: true, phone: true } } } },
+        },
+      },
     },
   });
 
@@ -333,8 +374,8 @@ export async function getSessionDetails(sessionId: number) {
     zoomMeetingId: session.zoomMeetingId,
     zoomJoinUrl: session.zoomJoinUrl,
     zoomStartUrl: session.zoomStartUrl,
-    tutorId: session.tutorId,
-    tutorName: session.tutor.user.name ?? "",
+    tutorId: session.group.tutor.id,
+    tutorName: session.group.tutor.user.name ?? "",
     participants: session.participants.map((p) => ({
       id: p.id,
       studentId: p.studentId,
@@ -373,7 +414,12 @@ export async function getSessionDetailsForManagement(
           report: true,
         },
       },
-      tutor: { include: { user: { select: { name: true } } } },
+      group: {
+        // replaced tutor
+        include: {
+          tutor: { include: { user: { select: { name: true } } } },
+        },
+      },
     },
   });
   if (!session) return null;
@@ -406,8 +452,8 @@ export async function getSessionDetailsForManagement(
     status: getSessionStatus(session),
     topic: session.topic,
     notes: session.notes,
-    tutorId: session.tutorId,
-    tutorName: session.tutor.user.name ?? null,
+    tutorId: session.group.tutor.id,
+    tutorName: session.group.tutor.user.name ?? null,
     isTrial: session.isTrial,
     studentId: first?.studentId ?? null,
     studentName: participants.map((p) => p.studentName).join("، ") || "",

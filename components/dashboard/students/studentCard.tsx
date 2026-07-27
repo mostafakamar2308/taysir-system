@@ -2,7 +2,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { DashboardStudent, StudentStatus } from "@/types/student";
-import { Phone, Mail, Clock, Book, AppWindow, User2 } from "lucide-react";
+import { Phone, Mail, Clock, Book, User2, Users } from "lucide-react";
 import { QuickActionsMenu } from "./quickActionsMenu";
 import Link from "next/link";
 
@@ -30,6 +30,16 @@ const statusColors: Record<StudentStatus, string> = {
 };
 
 const StudentCard = ({ student, plans, tutors }: StudentCardProps) => {
+  // Construct tutor display string
+  const tutorDisplay =
+    student.groups.length === 0
+      ? "لا يوجد معلم"
+      : student.groups.length === 1 && student.groups[0].isPrivate
+        ? student.groups[0].tutorName
+        : student.groups.length === 1
+          ? `${student.groups[0].tutorName} (مجموعة)`
+          : `${student.groups.length} مجموعات`;
+
   return (
     <Card className="border-none shadow-sm hover:shadow-md transition-shadow">
       <CardContent className="p-5 space-y-4">
@@ -63,16 +73,16 @@ const StudentCard = ({ student, plans, tutors }: StudentCardProps) => {
         {/* Details Grid */}
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div className="flex items-center gap-2 text-muted-foreground">
-            <User2 className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate">{student.tutorName}</span>
+            {student.groups.some((g) => !g.isPrivate) ? (
+              <Users className="h-3.5 w-3.5 shrink-0" />
+            ) : (
+              <User2 className="h-3.5 w-3.5 shrink-0" />
+            )}
+            <span className="truncate">{tutorDisplay}</span>
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
             <Clock className="h-3.5 w-3.5 shrink-0" />
             <span className="truncate">{student.timezone}</span>
-          </div>
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <AppWindow className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate">{student.email}</span>
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
             <Book className="h-3.5 w-3.5 shrink-0" />
@@ -100,7 +110,6 @@ const StudentCard = ({ student, plans, tutors }: StudentCardProps) => {
               <Mail className="h-4 w-4" />
             </a>
           </div>
-          {/* Add source badge if you have source field */}
         </div>
       </CardContent>
     </Card>

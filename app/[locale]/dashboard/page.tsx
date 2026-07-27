@@ -289,6 +289,7 @@ export default async function DashboardPage() {
       cancelledBy: null,
     },
     include: {
+      group: { include: { tutor: { include: { user: true } } } },
       participants: {
         include: {
           student: {
@@ -296,9 +297,6 @@ export default async function DashboardPage() {
           },
           report: true,
         },
-      },
-      tutor: {
-        select: { id: true, user: { select: { name: true, phone: true } } },
       },
     },
   });
@@ -312,8 +310,8 @@ export default async function DashboardPage() {
         studentId: p.studentId,
         studentName: p.student.user.name || "",
         studentPhone: p.student.user.phone,
-        tutorName: sess.tutor.user.name || "",
-        tutorPhone: sess.tutor.user.phone,
+        tutorName: sess.group.tutor.user.name || "",
+        tutorPhone: sess.group.tutor.user.phone,
         startTime: sess.startTime.toISOString(),
       })),
   );
@@ -334,8 +332,8 @@ export default async function DashboardPage() {
         studentId: p.studentId,
         studentName: p.student.user.name || "",
         studentPhone: p.student.user.phone,
-        tutorName: sess.tutor.user.name || "",
-        tutorPhone: sess.tutor.user.phone,
+        tutorName: sess.group.tutor.user.name || "",
+        tutorPhone: sess.group.tutor.user.phone,
         startTime: sess.startTime.toISOString(),
       })),
   );
@@ -353,9 +351,9 @@ export default async function DashboardPage() {
       )
       .map((p) => ({
         sessionId: sess.id,
-        tutorId: sess.tutor.id,
-        tutorName: sess.tutor.user.name || "",
-        tutorPhone: sess.tutor.user.phone,
+        tutorId: sess.group.tutor.id,
+        tutorName: sess.group.tutor.user.name || "",
+        tutorPhone: sess.group.tutor.user.phone,
         studentName: p.student.user.name || "",
         startTime: sess.startTime.toISOString(),
       })),

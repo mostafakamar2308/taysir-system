@@ -8,12 +8,14 @@ export type DashboardStudent = {
   country: string;
   timezone: string;
   status: StudentStatus;
-  tutorName: string;
-  tutorId?: number;
+  groups: {
+    tutorId: number;
+    tutorName: string;
+    isPrivate: boolean;
+  }[];
   plan?: number;
   planName?: string;
 };
-
 export enum StudentStatus {
   lead,
   trial,

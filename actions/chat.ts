@@ -34,98 +34,111 @@ export async function getChatMessages(
 
 export async function getChatsForUser(userId: number, role: number) {
   if (role === Role.Student) {
-    // A student has only one chat with their tutor (if assigned)
     const student = await db.student.findUnique({
       where: { userId },
       include: {
-        tutor: { include: { user: { select: { id: true, name: true } } } },
-      },
-    });
-    if (!student || !student.tutor) return [];
-    const chat = await db.chatRoom.upsert({
-      where: {
-        tutorUserId_studentUserId: {
-          tutorUserId: student.tutor.userId,
-          studentUserId: student.userId,
-        },
-      },
-      update: {},
-      create: {
-        tutorUserId: student.tutor.userId,
-        studentUserId: student.userId,
-        academyId: student.academyId,
-      },
-      include: {
-        tutor: {
-          select: { id: true, name: true, imageUrl: true },
-        },
-
-        student: {
-          select: { id: true, name: true, imageUrl: true },
-        },
-
-        messages: {
-          take: 1,
-          orderBy: { createdAt: "desc" },
+        groupMemberships: {
+          where: { active: true },
           include: {
-            sender: true,
+            group: {
+              include: {
+                tutor: {
+                  include: {
+                    user: { select: { id: true, name: true, imageUrl: true } },
+                  },
+                },
+              },
+            },
           },
         },
       },
     });
-    return [chat];
+
+    if (!student || student.groupMemberships.length === 0) return [];
+
+    // Deduplicate by tutor userId
+    const uniqueTutors = new Map<
+      number,
+      (typeof student.groupMemberships)[0]["group"]["tutor"]
+    >();
+    for (const membership of student.groupMemberships) {
+      const tutor = membership.group.tutor;
+      if (!uniqueTutors.has(tutor.userId)) {
+        uniqueTutors.set(tutor.userId, tutor);
+      }
+    }
+
+    const chats = await Promise.all(
+      Array.from(uniqueTutors.values()).map(async (tutor) => {
+        return db.chatRoom.upsert({
+          where: {
+            tutorUserId_studentUserId: {
+              tutorUserId: tutor.userId,
+              studentUserId: userId, // student's user ID
+            },
+          },
+          update: {},
+          create: {
+            tutorUserId: tutor.userId,
+            studentUserId: userId,
+            academyId: student.academyId,
+          },
+          include: {
+            tutor: {
+              select: { id: true, name: true, imageUrl: true },
+            },
+            student: {
+              select: { id: true, name: true, imageUrl: true },
+            },
+            messages: {
+              take: 1,
+              orderBy: { createdAt: "desc" },
+              include: { sender: true },
+            },
+          },
+        });
+      }),
+    );
+
+    return chats;
   }
 
+  // Tutor branch stays the same
   if (role === Role.Tutor) {
     const tutor = await db.tutor.findUnique({ where: { userId } });
     if (!tutor) return [];
     const chats = await db.chatRoom.findMany({
-      where: { tutorUserId: tutor.userId },
+      where: { tutorUserId: userId },
       include: {
-        student: {
-          select: { id: true, name: true, imageUrl: true },
-        },
-
+        student: { select: { id: true, name: true, imageUrl: true } },
+        tutor: { select: { id: true, name: true, imageUrl: true } },
         messages: {
           take: 1,
           orderBy: { createdAt: "desc" },
-          include: {
-            sender: true,
-          },
-        },
-        tutor: {
-          select: { id: true, name: true, imageUrl: true },
+          include: { sender: true },
         },
       },
-
       orderBy: { updatedAt: "desc" },
     });
     return chats;
   }
 
+  // Admin/Supervisor branch stays the same
   if (role === Role.Admin || role === Role.Supervisor) {
     const admin = await db.admin.findUnique({ where: { userId } });
-    const supervisor = await db.supervisor.findUnique({
-      where: { userId },
-    });
+    const supervisor = await db.supervisor.findUnique({ where: { userId } });
     const academyId = admin?.academyId || supervisor?.academyId;
     if (!academyId) return [];
 
     const chats = await db.chatRoom.findMany({
       where: { academyId },
       include: {
-        student: {
-          select: { id: true, name: true, imageUrl: true },
-        },
-        tutor: {
-          select: { id: true, name: true, imageUrl: true },
-        },
+        student: { select: { id: true, name: true, imageUrl: true } },
+        tutor: { select: { id: true, name: true, imageUrl: true } },
         messages: {
           take: 1,
           orderBy: { createdAt: "desc" },
-          include: {
-            sender: true,
-          },
+          include: { sender: true },
         },
       },
       orderBy: { updatedAt: "desc" },

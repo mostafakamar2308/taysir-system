@@ -28,7 +28,6 @@ export default async function StudentProfilePage({
   const student = await db.student.findUnique({
     where: { id },
     include: {
-      tutor: { include: { user: true } },
       user: true,
       plan: { include: { currency: true } },
       studentAvailabilities: true,
@@ -38,7 +37,21 @@ export default async function StudentProfilePage({
         orderBy: { startDate: "desc" },
       },
       payments: { include: { currency: true } },
-      // NEW: fetch sessions via participants
+      // Active groups → tutors
+      groupMemberships: {
+        where: { active: true },
+        include: {
+          group: {
+            include: {
+              tutor: {
+                include: { user: { select: { id: true, name: true } } },
+              },
+              _count: { select: { members: { where: { active: true } } } },
+            },
+          },
+        },
+      },
+      // Sessions via participants – note group.tutor
       sessionParticipants: {
         where: {
           session: {
@@ -48,7 +61,7 @@ export default async function StudentProfilePage({
         include: {
           session: {
             include: {
-              tutor: { include: { user: true } },
+              group: { include: { tutor: { include: { user: true } } } },
             },
           },
           report: true,
@@ -60,7 +73,15 @@ export default async function StudentProfilePage({
 
   if (!student) notFound();
 
-  // Transform sessions using participants
+  // Build groups array for profile header
+  const groups = student.groupMemberships.map((m) => ({
+    tutorId: m.group.tutor.id,
+    tutorUserId: m.group.tutor.userId,
+    tutorName: m.group.tutor.user.name ?? "غير معروف",
+    isPrivate: m.group._count.members === 1,
+  }));
+
+  // Transform sessions
   const sessions: SessionRecord[] = student.sessionParticipants.map((p) => ({
     id: p.session.id,
     startTime: p.session.startTime.toISOString(),
@@ -69,12 +90,12 @@ export default async function StudentProfilePage({
     status: getSessionStatus(p.session),
     topic: p.session.topic,
     notes: p.session.notes,
-    tutorId: p.session.tutorId,
-    tutorName: p.session.tutor.user.name ?? "",
+    tutorId: p.session.group.tutor.id,
+    tutorName: p.session.group.tutor.user.name ?? "",
     attendance: {
       id: p.id,
       status: p.studentAttendanceStatus,
-      reason: null, // use p.reason if field exists
+      reason: p.reason ?? null,
     },
     report: p.report
       ? {
@@ -100,8 +121,7 @@ export default async function StudentProfilePage({
     status: student.status,
     source: student.source,
     preferredLanguage: student.user.preferredLanguage,
-    tutorId: student.tutorId,
-    tutorName: student.tutor?.user.name ?? null,
+    groups, // replaces tutorId/tutorName
     planId: student.planId,
     sessionsBalance: student.sessionsBalance,
     plan: student.plan
