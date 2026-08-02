@@ -30,7 +30,9 @@ export default async function StudentsPage({
           group: {
             select: {
               id: true,
-              tutor: { select: { id: true, user: { select: { name: true } } } },
+              currentTutor: {
+                select: { id: true, user: { select: { name: true } } },
+              },
               _count: { select: { members: { where: { active: true } } } },
             },
           },
@@ -48,8 +50,8 @@ export default async function StudentsPage({
 
   const transformedStudents: DashboardStudent[] = students.map((student) => {
     const groups = student.groupMemberships.map((m) => ({
-      tutorId: m.group.tutor.id,
-      tutorName: m.group.tutor.user.name ?? "غير معروف",
+      tutorId: m.group.currentTutor.id,
+      tutorName: m.group.currentTutor.user.name ?? "غير معروف",
       isPrivate: m.group._count.members === 1,
     }));
     return {

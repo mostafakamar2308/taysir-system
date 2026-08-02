@@ -11,54 +11,104 @@ export enum AttendanceStatus {
   LATE,
   CANCELLED,
 }
-export interface AdminSessionClientData {
+
+export interface AdminSession {
   id: number;
   startTime: string;
   endTime: string;
   durationMinutes: number;
-  status: number;
   topic: string | null;
-  notes: string | null;
-  tutorId: number;
-  tutorName: string | null;
   isTrial: boolean;
-  studentId: number | null; // first participant's ID (backward compat)
-  studentName: string; // joined names
-  studentPhone: string | null;
-  zoomMeetingId: string | null;
-  zoomJoinUrl: string | null;
-  zoomStartUrl: string | null;
-  attendance?: {
-    // first participant's attendance (backward compat)
+  cancelledBy: number | null;
+
+  status: SessionStatus;
+
+  zoomUrl: string | null;
+
+  groupId: number;
+  groupName: string;
+
+  tutorId: number;
+  tutorName: string;
+  tutorRate: number;
+  tutorAttendance: AdminSessionTutorAttendance | null;
+
+  supervisorId: number;
+  supervisorName: string;
+
+  participants: AdminSessionParticipant[];
+  assignment: SessionAssignment | null;
+
+  createdAt: string;
+}
+
+export interface AdminSessionTutorAttendance {
+  id: number;
+  name: string | null;
+  status: AttendanceStatus;
+  notes: string | null;
+  reviewedAt: string | null;
+}
+
+export interface AdminSessionParticipant {
+  id: number;
+  studentId: number;
+  name: string | null;
+  status: AttendanceStatus | null;
+  reason: string | null;
+  balanceDeducted: boolean;
+  report: SessionReport | null;
+  homeworkSolution: HomeworkSolution | null;
+}
+
+export interface SessionReport {
+  id: number;
+  rating: number | null;
+  outcome: string | null;
+  strengths: string | null;
+  weaknesses: string | null;
+  nextGoals: string | null;
+  comments: string | null;
+}
+
+export interface SessionAssignment {
+  id: number;
+  title: string | null;
+  description: string | null;
+  deadline: string;
+  maxScore: number;
+  fileUrl: string | null;
+}
+
+export interface HomeworkSolution {
+  id: number;
+  assignmentId: number;
+  participantId: number;
+  fileUrl: string;
+  score: number | null;
+  feedback: string | null;
+  submittedAt: string;
+  gradedAt: string | null;
+  gradedBy: number | null;
+}
+
+export interface SessionGroup {
+  id: number;
+  title: string;
+  tutorId: number;
+  tutorName: string;
+  active: boolean;
+  activeMembers: {
     id: number;
-    tutorAttendance: number | null;
-    studentAttendance: number | null;
-    reason: string | null;
-  };
-  report?: {
-    // first participant's report (backward compat)
-    id: number;
-    rating: number | null;
-    outcomes: string | null;
-    strengths: string | null;
-    weaknesses: string | null;
-    nextGoals: string | null;
-    comments: string | null;
-  };
-  participants: {
-    participantId: number;
-    studentId: number;
-    studentName: string;
-    studentPhone: string | null;
-    attendanceStatus: number | null;
-    report: {
-      id: number;
-      rating: number | null;
-      outcomes: string | null;
-      strengths: string | null;
-      weaknesses: string | null;
-      nextGoals: string | null;
-      comments: string | null;
-    } | null;
+    name: string;
+    sessionsBalance: number;
   }[];
+}
+
+export interface SessionStudent {
+  id: number;
+  name: string;
+  sessionBalance: number;
+  tutorId: number | null;
+  tutorName: string | null;
 }

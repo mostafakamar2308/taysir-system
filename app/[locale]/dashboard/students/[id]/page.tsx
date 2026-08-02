@@ -37,13 +37,14 @@ export default async function StudentProfilePage({
         orderBy: { startDate: "desc" },
       },
       payments: { include: { currency: true } },
-      // Active groups → tutors
+      // Active groups → currentTutor
       groupMemberships: {
         where: { active: true },
         include: {
           group: {
             include: {
-              tutor: {
+              currentTutor: {
+                // ✅ changed from tutor to currentTutor
                 include: { user: { select: { id: true, name: true } } },
               },
               _count: { select: { members: { where: { active: true } } } },
@@ -51,7 +52,7 @@ export default async function StudentProfilePage({
           },
         },
       },
-      // Sessions via participants – note group.tutor
+      // Sessions via participants – use group.currentTutor
       sessionParticipants: {
         where: {
           session: {
@@ -61,7 +62,14 @@ export default async function StudentProfilePage({
         include: {
           session: {
             include: {
-              group: { include: { tutor: { include: { user: true } } } },
+              group: {
+                include: {
+                  currentTutor: {
+                    // ✅ changed from tutor to currentTutor
+                    include: { user: true },
+                  },
+                },
+              },
             },
           },
           report: true,
@@ -75,13 +83,13 @@ export default async function StudentProfilePage({
 
   // Build groups array for profile header
   const groups = student.groupMemberships.map((m) => ({
-    tutorId: m.group.tutor.id,
-    tutorUserId: m.group.tutor.userId,
-    tutorName: m.group.tutor.user.name ?? "غير معروف",
+    tutorId: m.group.currentTutor.id, // ✅ changed
+    tutorUserId: m.group.currentTutor.userId,
+    tutorName: m.group.currentTutor.user.name ?? "غير معروف",
     isPrivate: m.group._count.members === 1,
   }));
 
-  // Transform sessions
+  // Transform sessions – use group.currentTutor
   const sessions: SessionRecord[] = student.sessionParticipants.map((p) => ({
     id: p.session.id,
     startTime: p.session.startTime.toISOString(),
@@ -90,8 +98,8 @@ export default async function StudentProfilePage({
     status: getSessionStatus(p.session),
     topic: p.session.topic,
     notes: p.session.notes,
-    tutorId: p.session.group.tutor.id,
-    tutorName: p.session.group.tutor.user.name ?? "",
+    tutorId: p.session.group.currentTutor.id, // ✅ changed
+    tutorName: p.session.group.currentTutor.user.name ?? "",
     attendance: {
       id: p.id,
       status: p.studentAttendanceStatus,
@@ -121,7 +129,7 @@ export default async function StudentProfilePage({
     status: student.status,
     source: student.source,
     preferredLanguage: student.user.preferredLanguage,
-    groups, // replaces tutorId/tutorName
+    groups,
     planId: student.planId,
     sessionsBalance: student.sessionsBalance,
     plan: student.plan

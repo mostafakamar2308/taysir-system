@@ -26,7 +26,7 @@ import PaymentsTab from "@/components/dashboard/tutorProfile/paymentsTab";
 import CommunicationTab from "@/components/dashboard/tutorProfile/communicationTab";
 import EditTutorDialog from "@/components/dashboard/tutorProfile/editTutorDialog";
 import ReportsTab from "@/components/dashboard/tutorProfile/reportsTab";
-import { SessionDetailPanel } from "../sessions/sessionDetailPanel";
+import { SessionDetailPanel } from "../sessions/SessionDetailPanel";
 import { AdminSessionClientData } from "@/types/session";
 import { getSessionDetailsForManagement } from "@/actions/sessions";
 

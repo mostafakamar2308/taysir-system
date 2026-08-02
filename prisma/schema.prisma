@@ -345,17 +345,13 @@ model Subscription {
 model Session {
   id              Int      @id @default(autoincrement())
   startTime       DateTime
-  endTime         DateTime
   durationMinutes Int      @default(60)
   topic           String?
   notes           String?
   isTrial         Boolean  @default(false)
   cancelledBy     Int?
 
-  zoomMeetingId   String?
-  zoomJoinUrl     String?
-  zoomStartUrl    String?
-  zoomMeetingUuid String?
+  zoomUrl String?
 
   groupId Int
   group   Group @relation(fields: [groupId], references: [id])
