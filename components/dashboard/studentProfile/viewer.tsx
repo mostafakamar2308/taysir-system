@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { useToast } from "@/hooks/use-toast";
 import {
   MessageSquare,
   Mail,
@@ -16,43 +15,28 @@ import {
   MapPin,
   Clock,
   ArrowLeft,
+  Plus,
 } from "lucide-react";
 import { StudentStatus } from "@/types/student";
 import { statusColors, statusLabels } from "@/lib/enums";
 import EditStudentDialog from "../students/editStudentDialog";
-import { Plan, StudentProfile } from "@/types/studentProfile";
+import AddSessionDialog from "@/components/dashboard/studentProfile/dialogs/addSessionDialog";
+import { StudentProfile } from "@/types/studentProfile";
 import OverviewTab from "@/components/dashboard/studentProfile/overviewTab";
 import SessionsTab from "@/components/dashboard/studentProfile/sessionsTab";
-import AttendanceProgressTab from "@/components/dashboard/studentProfile/attendanceProgressTab";
-import BillingTab from "@/components/dashboard/studentProfile/billingTab";
-import RecordPaymentDialog from "./dialogs/recordPaymentDialog";
-import { SubscriptionStatus } from "@/types/subscription";
-import dayjs from "@/lib/dayjs";
 
 interface StudentProfileClientProps {
   student: StudentProfile;
-  plans: Plan[];
   tutors: { id: number; name: string | null }[];
-  academyId: number;
-  defaultCurrency: {
-    code: string;
-    symbol: string;
-    name: string;
-  };
-  currencyRates: Record<string, number>;
 }
 
 export default function StudentProfileClient({
   student,
-  plans,
-  defaultCurrency,
   tutors,
-  currencyRates,
 }: StudentProfileClientProps) {
-  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("overview");
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [recordPayment, setRecordPayment] = useState(false);
+  const [addSessionOpen, setAddSessionOpen] = useState(false);
 
   const statusLabel = statusLabels[student.status as StudentStatus];
   const statusColor = statusColors[student.status as StudentStatus];
@@ -62,22 +46,6 @@ export default function StudentProfileClient({
       window.open(`https://wa.me/${student.phone.replace("+", "")}`, "_blank");
     }
   };
-
-  const handleMarkPayment = () => {
-    setRecordPayment(true);
-  };
-
-  const handleAddNote = () => {
-    toast({ title: "إضافة ملاحظة" });
-  };
-
-  const handleViewAttendance = () => {
-    setActiveTab("attendance");
-  };
-
-  const activeSubscription =
-    student.subscriptions.find((s) => s.status === SubscriptionStatus.active) ||
-    null;
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto" dir="rtl">
@@ -145,29 +113,6 @@ export default function StudentProfileClient({
                   </span>
                   <span className="font-medium">{student.email}</span>
                 </div>
-
-                {student.plan && (
-                  <div>
-                    <span className="text-muted-foreground">الخطة: </span>
-                    <span className="font-medium">{student.plan.title}</span>
-                  </div>
-                )}
-
-                {activeSubscription && (
-                  <div>
-                    <span className="text-muted-foreground">
-                      تاريخ انتهاء الاشتراك:{" "}
-                    </span>
-                    <span className="font-medium">
-                      {dayjs(activeSubscription.endDate).format(
-                        "dddd YYYY-MM-DD",
-                      ) ||
-                        dayjs(activeSubscription.startDate)
-                          .add(30, "d")
-                          .format("dddd YYYY-MM-DD")}
-                    </span>
-                  </div>
-                )}
               </div>
               {/* Quick Actions */}
               <div className="flex flex-wrap gap-2 pt-1">
@@ -201,11 +146,25 @@ export default function StudentProfileClient({
                     <Calendar className="h-4 w-4 ml-2" /> الجدول
                   </Link>
                 </Button>
+                <Button size="sm" onClick={() => setAddSessionOpen(true)}>
+                  <Plus className="h-4 w-4 ml-2" /> إضافة حصة
+                </Button>
               </div>
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Add session dialog */}
+      <AddSessionDialog
+        open={addSessionOpen}
+        onOpenChange={setAddSessionOpen}
+        studentId={student.id}
+        studentName={student.name}
+        tutors={tutors}
+        preselectedTutorId={student.groups[0]?.tutorId ?? null}
+        creditBalance={student.creditBalance}
+      />
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -213,8 +172,6 @@ export default function StudentProfileClient({
           {[
             { val: "overview", label: "نظرة عامة" },
             { val: "sessions", label: "الحصص" },
-            { val: "attendance", label: "الحضور والتقدم" },
-            { val: "billing", label: "المالية والخطة" },
           ].map((t) => (
             <TabsTrigger
               key={t.val}
@@ -227,44 +184,12 @@ export default function StudentProfileClient({
         </TabsList>
 
         <TabsContent value="overview">
-          <OverviewTab
-            student={student}
-            onMarkPayment={handleMarkPayment}
-            onContact={handleContact}
-            onViewAttendance={handleViewAttendance}
-            onAddNote={handleAddNote}
-          />
+          <OverviewTab student={student} />
         </TabsContent>
-
         <TabsContent value="sessions">
-          <SessionsTab tutors={tutors} student={student} />
-        </TabsContent>
-
-        <TabsContent value="attendance">
-          <AttendanceProgressTab student={student} />
-        </TabsContent>
-
-        <TabsContent value="billing">
-          <BillingTab
-            student={student}
-            defaultCurrency={defaultCurrency}
-            plans={plans}
-            currencyRates={currencyRates}
-          />
+          <SessionsTab student={student} tutors={tutors} />
         </TabsContent>
       </Tabs>
-      <RecordPaymentDialog
-        open={recordPayment}
-        activeSubscriptionId={
-          student.subscriptions.find(
-            (s) => s.status === SubscriptionStatus.active,
-          )?.id
-        }
-        onOpenChange={setRecordPayment}
-        studentId={student.id}
-        activeSubscriptionPricePerSession={activeSubscription?.pricePerSession}
-        subscriptions={student.subscriptions}
-      />
     </div>
   );
 }

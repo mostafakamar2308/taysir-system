@@ -4,7 +4,6 @@ export interface StudentInGroup {
   studentId: number;
   studentName: string;
   status: number; // StudentStatus
-  subscriptionStatus: "active" | "near_end" | "none";
   remainingSessions: number;
   active: boolean; // membership active
 }

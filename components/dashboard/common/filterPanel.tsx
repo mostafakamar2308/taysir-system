@@ -12,10 +12,11 @@ import {
 import { SlidersHorizontal, X } from "lucide-react";
 
 interface FilterOptions {
-  tutors: string[];
+  tutors: { value: string; label: string }[];
   countries: string[];
   statuses: { value: string; label: string }[];
   plans: { value: string; label: string }[];
+  groups?: { value: string; label: string }[];
   specialities?: { value: string; label: string }[];
 }
 
@@ -26,6 +27,7 @@ interface FilterPanelProps {
     tutor: string;
     country: string;
     plan: string;
+    group: string;
     speciality: string;
   };
   onFilterChange: (key: string, value: string) => void;
@@ -71,7 +73,7 @@ export default function FilterPanel({
             label="المعلم"
             value={currentFilters.tutor}
             onChange={(v) => onFilterChange("tutor", v)}
-            options={filterOptions.tutors.map((t) => ({ value: t, label: t }))}
+            options={filterOptions.tutors}
           />
           <FilterSelect
             label="الدولة"
@@ -81,6 +83,12 @@ export default function FilterPanel({
               value: c,
               label: c,
             }))}
+          />
+          <FilterSelect
+            label="المجموعة"
+            value={currentFilters.group}
+            onChange={(v) => onFilterChange("group", v)}
+            options={filterOptions.groups ?? []}
           />
           <FilterSelect
             label="الخطة"

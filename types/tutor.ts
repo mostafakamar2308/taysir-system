@@ -72,38 +72,63 @@ export interface TutorSession {
   } | null;
 }
 
-// ---------- TutorProfile ----------
+export interface GroupSummary {
+  id: number;
+  title: string;
+  nextSessionDate: string | null;
+  latestSessionDate: string | null;
+  members: { id: number; name: string }[];
+}
+
 export interface TutorProfile {
   id: number;
   name: string;
-  email: string;
-  academyId: number;
-  currencyId: number;
+  email: string | null;
   phone: string | null;
-  currency: string;
   timezone: string;
-  zoomUrl: string | null;
-  zoomAuthenticated: boolean;
-  academyName: string;
-  privatePricePerHour: number;
-  groupPricePerHour: number;
-  specialities: string[];
   active: boolean;
-  bio: string | null;
-  qualifications: string | null;
-  imageUrl: string | null;
-  availabilities: TutorAvailability[];
-  students: AssignedStudent[];
-  sessions: TutorSession[]; // flattened per‑student rows
-  notes: TutorNote[];
-  payments: TutorPayment[];
+  specialities: string[];
+  baseHourlyRate: number;
+  baseGroupHourlyRate: number;
+  zoomUrl: string | null;
+  currency: string;
+  groups: GroupSummary[];
   monthlyStats: {
     totalSessions: number;
-    attendedSessions: number; // sessions where at least one student attended (or tutor? we'll keep old logic)
+    attendedSessions: number;
     attendanceRate: number;
     totalEarnings: number;
     paid: number;
     pending: number;
   };
-  performanceMetrics: PerformanceMetrics;
+  performanceMetrics: {
+    attendanceRate: number;
+    reportAdherence: number;
+    reportQuality: number;
+    homeworkGradingCount: number; // NEW
+    weightedScore: number;
+    scoreHint: string;
+    scoreColor: string;
+  };
+}
+
+// For the sessions tab (weekly cards)
+export interface TutorSessionCardData {
+  id: number;
+  sessionId: number;
+  startTime: string;
+  endTime: string;
+  durationMinutes: number;
+  status: SessionStatus;
+  topic: string | null;
+  groupName: string;
+  isCompleted: boolean;
+  attendanceCount: number;
+  totalParticipants: number;
+  reportCount: number;
+  homeworkSubmissions: number;
+  homeworkGraded: number;
+  hasAssignment: boolean;
+  isTrial: boolean;
+  notes: string | null;
 }

@@ -2,14 +2,13 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { DashboardStudent, StudentStatus } from "@/types/student";
-import { Phone, Mail, Clock, Book, User2, Users } from "lucide-react";
+import { Phone, Mail, Clock, User2, Users, DollarSign } from "lucide-react";
 import { QuickActionsMenu } from "./quickActionsMenu";
 import Link from "next/link";
 
 type StudentCardProps = {
   student: DashboardStudent;
   tutors: { id: number; name: string }[];
-  plans: { id: number; title: string }[];
   academyId?: number;
 };
 
@@ -29,8 +28,7 @@ const statusColors: Record<StudentStatus, string> = {
   [StudentStatus.paused]: "bg-gray-100 text-gray-700",
 };
 
-const StudentCard = ({ student, plans, tutors }: StudentCardProps) => {
-  // Construct tutor display string
+const StudentCard = ({ student, tutors }: StudentCardProps) => {
   const tutorDisplay =
     student.groups.length === 0
       ? "لا يوجد معلم"
@@ -43,7 +41,6 @@ const StudentCard = ({ student, plans, tutors }: StudentCardProps) => {
   return (
     <Card className="border-none shadow-sm hover:shadow-md transition-shadow">
       <CardContent className="p-5 space-y-4">
-        {/* Header */}
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
             <div className="h-11 w-11 rounded-full bg-primary/10 flex items-center justify-center">
@@ -66,11 +63,10 @@ const StudentCard = ({ student, plans, tutors }: StudentCardProps) => {
             >
               {statusLabels[student.status]}
             </span>
-            <QuickActionsMenu tutors={tutors} plans={plans} student={student} />
+            <QuickActionsMenu tutors={tutors} student={student} />
           </div>
         </div>
 
-        {/* Details Grid */}
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div className="flex items-center gap-2 text-muted-foreground">
             {student.groups.some((g) => !g.isPrivate) ? (
@@ -85,14 +81,13 @@ const StudentCard = ({ student, plans, tutors }: StudentCardProps) => {
             <span className="truncate">{student.timezone}</span>
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
-            <Book className="h-3.5 w-3.5 shrink-0" />
+            <DollarSign className="h-3.5 w-3.5 shrink-0" />
             <span className="truncate">
-              {student.planName || "لم يختر خطة"}
+              رصيد: {student.creditBalance.toFixed(2)}
             </span>
           </div>
         </div>
 
-        {/* Footer */}
         <div className="flex items-center justify-between pt-3 border-t border-border">
           <div className="flex items-center gap-3">
             <a

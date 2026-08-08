@@ -31,25 +31,32 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   academyId: number;
+  tutorId?: number; // when passed (tutor view), filter to this tutor
 }
 
-export function AddSessionDialog({ open, onOpenChange, academyId }: Props) {
+export function AddSessionDialog({
+  open,
+  onOpenChange,
+  academyId,
+  tutorId,
+}: Props) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [groups, setGroups] = useState<SessionGroup[]>([]);
-  const [tutors, setTutors] = useState<{ id: number; name: string | null }[]>(
+  const [tutors, setTutors] = useState<{ name: string | null; id: number }[]>(
     [],
   );
   const [students, setStudents] = useState<
     { id: number; name: string; creditBalance: number }[]
   >([]);
 
-  // Form state
-  const [mode, setMode] = useState<"group" | "private">("group"); // radio toggle
+  const [mode, setMode] = useState<"group" | "private">("group");
   const [selectedGroupId, setSelectedGroupId] = useState<string>("");
-  const [selectedTutorId, setSelectedTutorId] = useState<string>("");
+  const [selectedTutorId, setSelectedTutorId] = useState<string>(
+    tutorId ? String(tutorId) : "",
+  );
   const [originalTutorId, setOriginalTutorId] = useState<number | null>(null);
-  const [selectedStudentId, setSelectedStudentId] = useState<string>(""); // for private mode
+  const [selectedStudentId, setSelectedStudentId] = useState<string>("");
   const [date, setDate] = useState(dayjs().format("YYYY-MM-DD"));
   const [startTime, setStartTime] = useState("09:00");
   const [duration, setDuration] = useState(60);
@@ -59,14 +66,14 @@ export function AddSessionDialog({ open, onOpenChange, academyId }: Props) {
 
   useEffect(() => {
     if (open) {
-      getSessionFormOptions(academyId)
+      getSessionFormOptions(academyId, tutorId)
         .then((data) => {
           setGroups(data.groups);
           setTutors(data.tutors);
           setStudents(data.students);
 
           setSelectedGroupId("");
-          setSelectedTutorId("");
+          setSelectedTutorId(tutorId ? String(tutorId) : "");
           setOriginalTutorId(null);
           setSelectedStudentId("");
           setDate(dayjs().format("YYYY-MM-DD"));
@@ -79,7 +86,7 @@ export function AddSessionDialog({ open, onOpenChange, academyId }: Props) {
         })
         .catch(console.error);
     }
-  }, [open, academyId]);
+  }, [open, academyId, tutorId]);
 
   const selectedGroup = useMemo(
     () => groups.find((g) => g.id === parseInt(selectedGroupId)),
@@ -181,7 +188,6 @@ export function AddSessionDialog({ open, onOpenChange, academyId }: Props) {
           <DialogTitle>إضافة حصة جديدة</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Mode toggle */}
           <div className="flex gap-4">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -207,7 +213,6 @@ export function AddSessionDialog({ open, onOpenChange, academyId }: Props) {
 
           {mode === "group" ? (
             <>
-              {/* Group selection */}
               <div className="space-y-2">
                 <Label>المجموعة *</Label>
                 <Select
@@ -228,12 +233,12 @@ export function AddSessionDialog({ open, onOpenChange, academyId }: Props) {
                 </Select>
               </div>
 
-              {/* Tutor selection (auto‑filled, can override) */}
               <div className="space-y-2">
                 <Label>المعلم</Label>
                 <Select
                   value={selectedTutorId}
                   onValueChange={handleTutorChange}
+                  disabled={!!tutorId}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="اختر المعلم" />
@@ -262,7 +267,6 @@ export function AddSessionDialog({ open, onOpenChange, academyId }: Props) {
             </>
           ) : (
             <>
-              {/* Student selection */}
               <div className="space-y-2">
                 <Label>الطالب *</Label>
                 <Select
@@ -283,13 +287,13 @@ export function AddSessionDialog({ open, onOpenChange, academyId }: Props) {
                 </Select>
               </div>
 
-              {/* Tutor selection */}
               <div className="space-y-2">
                 <Label>المعلم *</Label>
                 <Select
                   value={selectedTutorId}
                   onValueChange={setSelectedTutorId}
                   required
+                  disabled={!!tutorId}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="اختر المعلم" />
@@ -306,7 +310,6 @@ export function AddSessionDialog({ open, onOpenChange, academyId }: Props) {
             </>
           )}
 
-          {/* Low balance warning */}
           {lowBalanceStudents.length > 0 && (
             <Alert
               variant="destructive"
@@ -319,7 +322,7 @@ export function AddSessionDialog({ open, onOpenChange, academyId }: Props) {
                 <ul className="list-disc list-inside mt-1">
                   {lowBalanceStudents.map((s) => (
                     <li key={s.id}>
-                      {s.name} (الرصيد: {s.creditBalance} )
+                      {s.name} (الرصيد: {s.creditBalance})
                     </li>
                   ))}
                 </ul>
@@ -328,7 +331,6 @@ export function AddSessionDialog({ open, onOpenChange, academyId }: Props) {
             </Alert>
           )}
 
-          {/* Date & Time */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>التاريخ *</Label>

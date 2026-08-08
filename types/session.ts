@@ -56,7 +56,8 @@ export interface AdminSessionParticipant {
   name: string | null;
   status: AttendanceStatus | null;
   reason: string | null;
-  balanceDeducted: boolean;
+  price: number;
+  paymentStatus: number;
   report: SessionReport | null;
   homeworkSolution: HomeworkSolution | null;
 }
@@ -101,14 +102,14 @@ export interface SessionGroup {
   activeMembers: {
     id: number;
     name: string;
-    sessionsBalance: number;
+    creditBalance: number;
   }[];
 }
 
 export interface SessionStudent {
   id: number;
   name: string;
-  sessionBalance: number;
+  creditBalance: number;
   tutorId: number | null;
   tutorName: string | null;
 }

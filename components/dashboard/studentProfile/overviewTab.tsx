@@ -1,217 +1,296 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle } from "lucide-react";
-import { StudentProfile } from "@/types/studentProfile";
-import { AttendanceSummary } from "@/components/dashboard/studentProfile/attendanceSummary";
-import { getStudentWarnings } from "@/lib/studentWarning";
+import {
+  Calendar,
+  Clock,
+  Users,
+  Star,
+  BookOpen,
+  AlertCircle,
+} from "lucide-react";
+import type { StudentProfile, SessionRecord } from "@/types/studentProfile";
+import { SessionStatus, AttendanceStatus } from "@/types/session";
+import { formatDate, formatTime } from "@/lib/dates";
+import dayjs from "@/lib/dayjs";
+import { SessionDetailPanel } from "@/components/dashboard/sessions/SessionDetailPanel";
+import { getSessionDetailsForManagement } from "@/actions/sessions";
+import type { AdminSession } from "@/types/session";
+import { useToast } from "@/hooks/use-toast";
 
-interface OverviewTabProps {
+interface Props {
   student: StudentProfile;
-  onMarkPayment?: () => void;
-  onContact?: () => void;
-  onViewAttendance?: () => void;
-  onAddNote?: () => void;
 }
 
-export default function OverviewTab({
-  student,
-  onMarkPayment,
-  onContact,
-  onViewAttendance,
-}: OverviewTabProps) {
-  const warnings = getStudentWarnings(student, onMarkPayment, onContact);
+export default function OverviewTab({ student }: Props) {
+  const { toast } = useToast();
+  const [detailSession, setDetailSession] = useState<AdminSession | null>(null);
 
-  const upcomingSessions = student.sessions
-    .filter((s) => new Date(s.startTime) > new Date() && s.status === 0)
-    .sort(
-      (a, b) =>
-        new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
-    )
-    .slice(0, 3);
-
-  const recentSessions = student.sessions
-    .filter((s) => new Date(s.startTime) <= new Date())
-    .sort(
-      (a, b) =>
-        new Date(b.startTime).getTime() - new Date(a.startTime).getTime(),
-    )
-    .slice(0, 3);
-
-  const formatDate = (d: string) =>
-    new Date(d).toLocaleDateString("ar-EG", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
+  // Monthly stats
+  const stats = useMemo(() => {
+    const now = dayjs();
+    const monthStart = now.startOf("month");
+    const monthEnd = now.endOf("month");
+    const monthSessions = student.sessions.filter((s) => {
+      const d = dayjs(s.startTime);
+      return d.isAfter(monthStart) && d.isBefore(monthEnd);
     });
-  const formatTime = (d: string) =>
-    new Date(d).toLocaleTimeString("ar-EG", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    const totalSessions = monthSessions.length;
+    const nextSessions = monthSessions.filter((s) =>
+      dayjs(s.startTime).isAfter(now),
+    ).length;
+    const present = monthSessions.filter(
+      (s) =>
+        s.attendance &&
+        s.attendance?.status !== null &&
+        [AttendanceStatus.ATTENDED, AttendanceStatus.LATE].includes(
+          s.attendance.status,
+        ),
+    ).length;
+    const absent = monthSessions.filter(
+      (s) =>
+        s.attendance &&
+        s.attendance?.status !== null &&
+        [
+          AttendanceStatus.ABSENT_EXCUSED,
+          AttendanceStatus.ABSENT_UNEXCUSED,
+        ].includes(s.attendance.status),
+    ).length;
+    const ratings = monthSessions
+      .filter((s) => s.report?.rating != null)
+      .map((s) => s.report!.rating!);
+    const avgRating =
+      ratings.length > 0
+        ? ratings.reduce((a, b) => a + b, 0) / ratings.length
+        : 0;
+    const homeworkScores = monthSessions
+      .filter((s) => s.homeworkSolution?.score != null)
+      .map((s) => s.homeworkSolution!.score!);
+    const avgHomework =
+      homeworkScores.length > 0
+        ? homeworkScores.reduce((a, b) => a + b, 0) / homeworkScores.length
+        : 0;
+    return {
+      totalSessions,
+      nextSessions,
+      present,
+      absent,
+      avgRating,
+      avgHomework,
+    };
+  }, [student.sessions]);
+
+  // Next session
+  const nextSession = useMemo(() => {
+    const now = dayjs();
+    const upcoming = student.sessions
+      .filter((s) => dayjs(s.startTime).isAfter(now))
+      .sort((a, b) => dayjs(a.startTime).diff(dayjs(b.startTime)));
+    return upcoming[0] ?? null;
+  }, [student.sessions]);
+
+  // Latest 3 sessions
+  const latestSessions = useMemo(() => {
+    return [...student.sessions]
+      .filter((s) => dayjs(s.startTime).isBefore(dayjs()))
+      .sort((a, b) => dayjs(b.startTime).diff(dayjs(a.startTime)))
+      .slice(0, 3);
+  }, [student.sessions]);
+
+  const handleSessionClick = async (sessionId: number) => {
+    try {
+      const full = await getSessionDetailsForManagement(sessionId);
+      setDetailSession(full);
+    } catch {
+      toast({ title: "خطأ في تحميل التفاصيل", variant: "destructive" });
+    }
+  };
 
   return (
     <div className="space-y-6">
-      {/* Warnings Section */}
-      {warnings.length > 0 && (
-        <div className="space-y-2">
-          {warnings.map((w, i) => (
-            <div
-              key={i}
-              className={`flex items-center justify-between p-4 rounded-lg border ${
-                w.type === "danger"
-                  ? "bg-destructive/10 border-destructive/30"
-                  : w.type === "warning"
-                    ? "bg-amber-50 border-amber-200"
-                    : "bg-blue-50 border-blue-200"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <AlertTriangle
-                  className={`h-5 w-5 ${
-                    w.type === "danger"
-                      ? "text-destructive"
-                      : w.type === "warning"
-                        ? "text-amber-600"
-                        : "text-blue-600"
-                  }`}
-                />
-                <span className="text-sm font-medium">{w.message}</span>
-              </div>
-              {w.action && (
-                <Button size="sm" variant="outline" onClick={w.action.onClick}>
-                  {w.action.label}
-                </Button>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Monthly Summary Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatCard
+          icon={Calendar}
+          label="حصص الشهر"
+          value={stats.totalSessions}
+        />
+        <StatCard
+          icon={Clock}
+          label="الحصص القادمة"
+          value={stats.nextSessions}
+        />
+        <StatCard
+          icon={Users}
+          label="حاضر"
+          value={stats.present}
+          color="text-green-600"
+        />
+        <StatCard
+          icon={AlertCircle}
+          label="غائب"
+          value={stats.absent}
+          color="text-red-600"
+        />
+        <StatCard
+          icon={Star}
+          label="متوسط التقييم"
+          value={stats.avgRating.toFixed(1)}
+          isRating
+        />
+        <StatCard
+          icon={BookOpen}
+          label="متوسط الواجبات"
+          value={stats.avgHomework.toFixed(1)}
+          isRating
+        />
+      </div>
 
-      {/* Attendance Summary */}
+      {/* Next Session */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">ملخص الحضور</CardTitle>
+          <CardTitle className="text-lg">الحصة القادمة</CardTitle>
         </CardHeader>
         <CardContent>
-          <AttendanceSummary sessions={student.sessions} />
+          {nextSession ? (
+            <SessionCard
+              session={nextSession}
+              onClick={() => handleSessionClick(nextSession.id)}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              لا توجد حصة قادمة
+            </p>
+          )}
         </CardContent>
       </Card>
 
-      {/* Upcoming and Recent Sessions */}
-      <div className="grid md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">الحصص القادمة</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {upcomingSessions.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                لا توجد حصص قادمة
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {upcomingSessions.map((s) => (
-                  <div
-                    key={s.id}
-                    className="flex items-center justify-between p-3 rounded-lg border bg-card"
-                  >
-                    <div>
-                      <p className="font-medium text-sm">
-                        {s.topic || "بدون موضوع"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatDate(s.startTime)} • {formatTime(s.startTime)} -{" "}
-                        {formatTime(s.endTime)}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        مع {s.tutorName}
-                      </p>
-                    </div>
-                    <Badge className="bg-blue-100 text-blue-700">مجدولة</Badge>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">آخر الحصص</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {recentSessions.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                لا توجد حصص سابقة
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {recentSessions.map((s) => (
-                  <div
-                    key={s.id}
-                    className="flex items-center justify-between p-3 rounded-lg border bg-card"
-                  >
-                    <div>
-                      <p className="font-medium text-sm">
-                        {s.topic || "بدون موضوع"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatDate(s.startTime)} • {formatTime(s.startTime)}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Badge className="bg-green-100 text-green-700">
-                        مكتملة
-                      </Badge>
-                      {s.attendance && (
-                        <Badge
-                          className={
-                            s.attendance.status === 0
-                              ? "bg-green-100 text-green-700"
-                              : s.attendance.status === 3
-                                ? "bg-orange-100 text-orange-700"
-                                : s.attendance.status === 1
-                                  ? "bg-amber-100 text-amber-700"
-                                  : "bg-red-100 text-red-700"
-                          }
-                        >
-                          {s.attendance.status === 0
-                            ? "حاضر"
-                            : s.attendance.status === 3
-                              ? "متأخر"
-                              : s.attendance.status === 1
-                                ? "غائب (بعذر)"
-                                : "غائب (بدون عذر)"}
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Latest Note */}
-      {student.notes.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">آخر ملاحظة</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="p-4 rounded-lg bg-muted/50 border">
-              <p className="text-sm">{student.notes[0].content}</p>
-              <p className="text-xs text-muted-foreground mt-2">
-                {student.notes[0].authorName} •{" "}
-                {formatDate(student.notes[0].createdAt)}
-              </p>
+      {/* Latest Sessions */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">آخر الحصص</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {latestSessions.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              لا توجد حصص سابقة
+            </p>
+          ) : (
+            <div className="grid gap-3">
+              {latestSessions.map((s) => (
+                <SessionCard
+                  key={s.id}
+                  session={s}
+                  onClick={() => handleSessionClick(s.id)}
+                />
+              ))}
             </div>
-          </CardContent>
-        </Card>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Session Detail Panel */}
+      {detailSession && (
+        <SessionDetailPanel
+          session={detailSession}
+          open={!!detailSession}
+          onOpenChange={(open) => {
+            if (!open) setDetailSession(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+interface StatCardProps {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: number | string;
+  color?: string;
+  isRating?: boolean;
+}
+// Helper: small stat card
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  color,
+  isRating,
+}: StatCardProps) {
+  return (
+    <Card>
+      <CardContent className="p-4 flex items-center gap-3">
+        <Icon className={`h-5 w-5 ${color || "text-primary"}`} />
+        <div>
+          <p className="text-xs text-muted-foreground">{label}</p>
+          <p className="text-lg font-bold">
+            {isRating ? value : value}
+            {isRating && <span className="text-xs font-normal">/5</span>}
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Session card used in both overview and sessions tab
+function SessionCard({
+  session,
+  onClick,
+}: {
+  session: SessionRecord;
+  onClick: () => void;
+}) {
+  const isCompleted = session.status === SessionStatus.COMPLETED;
+  const statusColor = isCompleted
+    ? "border-green-300 bg-green-50"
+    : session.status === SessionStatus.CANCELLED
+      ? "border-red-300 bg-red-50"
+      : "border-blue-300 bg-blue-50";
+
+  return (
+    <div
+      className={`p-3 border rounded-lg cursor-pointer hover:shadow-md transition ${statusColor}`}
+      onClick={onClick}
+    >
+      <div className="flex justify-between items-center">
+        <div>
+          <p className="font-semibold text-sm">{session.groupName}</p>
+          <p className="text-xs text-muted-foreground">{session.tutorName}</p>
+          <p className="text-xs">
+            {formatDate(session.startTime)} • {formatTime(session.startTime)} –{" "}
+            {formatTime(session.endTime)}
+          </p>
+          {session.topic && <p className="text-xs mt-1">{session.topic}</p>}
+        </div>
+        <Badge
+          className={
+            isCompleted
+              ? "bg-green-100 text-green-700"
+              : "bg-blue-100 text-blue-700"
+          }
+        >
+          {isCompleted ? "مكتملة" : "مجدولة"}
+        </Badge>
+      </div>
+      {isCompleted && (
+        <div className="flex gap-2 mt-2 text-xs text-muted-foreground">
+          <span>
+            الحضور: {session.attendance?.status != null ? "مسجل" : "غير مسجل"}
+          </span>
+          <span>التقرير: {session.report ? "مكتمل" : "غير مكتوب"}</span>
+          {session.homeworkSolution && (
+            <span>
+              الواجب:{" "}
+              {session.homeworkSolution.score != null
+                ? `${session.homeworkSolution.score}`
+                : "غير مصحح"}
+            </span>
+          )}
+        </div>
       )}
     </div>
   );

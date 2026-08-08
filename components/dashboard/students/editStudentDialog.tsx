@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { getStudent, updateStudent } from "@/actions/student";
+import { assignTutor, getStudent, updateStudent } from "@/actions/student";
 import { User } from "lucide-react";
 import { GetStudentResult } from "@/types/student";
 
@@ -60,7 +60,18 @@ export default function EditStudentDialog({
     if (!student) return;
     setLoading(true);
     try {
+      const selectedTutor = formData.get("tutorId") as string | null;
       await updateStudent(student.id, formData);
+
+      const currentTutorId = student.groupMemberships[0]?.tutorId ?? null;
+      const newTutorId =
+        selectedTutor && selectedTutor !== "none"
+          ? parseInt(selectedTutor)
+          : null;
+      if (newTutorId !== currentTutorId) {
+        await assignTutor(student.id, newTutorId);
+      }
+
       toast({ title: "تم تحديث بيانات الطالب" });
       setOpen(false);
       router.refresh();
@@ -170,7 +181,9 @@ export default function EditStudentDialog({
               <Select
                 name="tutorId"
                 defaultValue={
-                  student.tutorId ? String(student.tutorId) : "none"
+                  student.groupMemberships[0]
+                    ? String(student.groupMemberships[0].tutorId)
+                    : "none"
                 }
               >
                 <SelectTrigger>

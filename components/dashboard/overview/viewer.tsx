@@ -27,7 +27,6 @@ interface StatItem {
 interface DashboardClientProps {
   students: { id: number; name: string; balance: number }[];
   tutors: { id: number; name: string | null }[];
-  plans: { id: number; title: string }[];
   costCenters: { id: number; title: string }[];
   currencies: { id: number; name: string }[];
   specialities: { id: number; title: string }[];
@@ -206,7 +205,6 @@ export default function DashboardClient(props: DashboardClientProps) {
         <CardContent className="flex flex-wrap gap-2">
           <AddStudentDialog
             currencies={props.currencies}
-            plans={props.plans}
             tutors={props.tutors}
             academyId={props.academyId}
           >

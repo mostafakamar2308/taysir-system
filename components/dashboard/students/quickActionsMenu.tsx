@@ -16,28 +16,21 @@ import {
   Pencil,
   Phone,
   Mail,
-  RefreshCw,
   StickyNote,
-  UserCog,
 } from "lucide-react";
 import Link from "next/link";
 import EditStudentDialog from "@/components/dashboard/students/editStudentDialog";
-import ChangeStatusDialog from "@/components/dashboard/students/changeStatusDialog";
-import AssignTutorDialog from "@/components/dashboard/students/assignTutorDialog";
 import AddNoteDialog from "@/components/dashboard/students/addNoteDialog";
 
 export function QuickActionsMenu({
   student,
-  plans,
   tutors,
 }: {
   student: DashboardStudent;
   tutors: { id: number; name: string }[];
-  plans: { id: number; title: string }[];
 }) {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [changeStatusOpen, setChangeStatusOpen] = useState(false);
-  const [assignTutorOpen, setAssignTutorOpen] = useState(false);
+
   const [addNoteOpen, setAddNoteOpen] = useState(false);
 
   return (
@@ -64,18 +57,6 @@ export function QuickActionsMenu({
             <Pencil className="h-3.5 w-3.5" /> تعديل
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem
-            className="gap-2 text-sm"
-            onClick={() => setChangeStatusOpen(true)}
-          >
-            <RefreshCw className="h-3.5 w-3.5" /> تغيير الحالة
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            className="gap-2 text-sm"
-            onClick={() => setAssignTutorOpen(true)}
-          >
-            <UserCog className="h-3.5 w-3.5" /> تعيين معلم
-          </DropdownMenuItem>
           <DropdownMenuItem
             className="gap-2 text-sm"
             onClick={() => setAddNoteOpen(true)}
@@ -105,26 +86,6 @@ export function QuickActionsMenu({
         tutors={tutors}
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
-      />
-
-      <ChangeStatusDialog
-        studentId={student.id}
-        studentName={student.name}
-        currentTutorId={student.tutorId}
-        plans={plans}
-        currentStatus={student.status}
-        tutors={tutors}
-        open={changeStatusOpen}
-        onOpenChange={setChangeStatusOpen}
-      />
-
-      <AssignTutorDialog
-        studentId={student.id}
-        studentName={student.name}
-        currentTutorId={student.tutorId}
-        tutors={tutors}
-        open={assignTutorOpen}
-        onOpenChange={setAssignTutorOpen}
       />
 
       <AddNoteDialog

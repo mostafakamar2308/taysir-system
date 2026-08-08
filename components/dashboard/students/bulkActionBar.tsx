@@ -12,7 +12,6 @@ type BulkActionsBarProps = {
   selectedCount: number;
   selectedIds: number[];
   tutors: { id: number; name: string }[];
-  plans: { id: number; title: string }[];
   onClearSelection: () => void;
   onSuccess?: () => void;
 };
@@ -21,7 +20,6 @@ export default function BulkActionsBar({
   selectedCount,
   selectedIds,
   tutors,
-  plans,
   onClearSelection,
   onSuccess,
 }: BulkActionsBarProps) {
@@ -94,7 +92,6 @@ export default function BulkActionsBar({
         open={changeStatusOpen}
         onOpenChange={setChangeStatusOpen}
         studentIds={selectedIds}
-        plans={plans}
         onSuccess={handleSuccess}
       />
 

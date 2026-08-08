@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import StudentCard from "@/components/dashboard/students/studentCard";
 import StatsCards from "@/components/dashboard/students/statsCard";
 import ViewToggle from "@/components/dashboard/common/viewToggle";
@@ -10,7 +10,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { Currency, Plan } from "@/generated/prisma/browser";
+import type { Currency } from "@/generated/prisma/browser";
 import type { SortDir, SortField } from "@/types/lib";
 import { exportStudentsToCSV } from "@/lib/export";
 import FilterPanel from "@/components/dashboard/common/filterPanel";
@@ -22,18 +22,25 @@ import { statusColors, statusLabels } from "@/lib/enums";
 
 interface StudentsClientProps {
   students: DashboardStudent[];
-  plans: Plan[];
   currencies: Currency[];
   tutors: { id: number; name: string }[];
   academyId: number;
+  filterOptions: {
+    countries: string[];
+    groups: { value: string; label: string }[];
+  };
+  statusCounts: Record<number, number>;
+  totalStudents: number;
 }
 
 const StudentsViewer = ({
   students,
-  plans,
   tutors,
   academyId,
   currencies,
+  filterOptions,
+  statusCounts,
+  totalStudents,
 }: StudentsClientProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -42,11 +49,12 @@ const StudentsViewer = ({
   const [showFilters, setShowFilters] = useState(false);
   const search = searchParams.get("q") || "";
   const statusFilter = searchParams.get("status") || "";
-  const tutorFilter = searchParams.get("tutor") || ""; // tutor ID as string
+  const tutorFilter = searchParams.get("tutor") || "";
   const countryFilter = searchParams.get("country") || "";
-  const planFilter = searchParams.get("plan") || "";
+  const groupFilter = searchParams.get("group") || "";
   const sortField = (searchParams.get("sort") as SortField) || "name";
   const sortDir = (searchParams.get("dir") as SortDir) || "asc";
+  const [searchInput, setSearchInput] = useState(search);
 
   const setParam = useCallback(
     (key: string, value: string) => {
@@ -59,80 +67,22 @@ const StudentsViewer = ({
   );
 
   const clearFilters = useCallback(() => {
+    setSearchInput("");
     router.push("?", { scroll: false });
   }, [router]);
 
-  // Filter options – tutor names come from the static list, still fine
-  const filterOptions = useMemo(
-    () => ({
-      tutors: tutors.map((t) => t.name).filter(Boolean),
-      countries: Array.from(new Set(students.map((s) => s.country))).filter(
-        Boolean,
-      ),
-      statuses: Object.entries(statusLabels).map(([value, label]) => ({
-        value,
-        label,
-      })),
-      plans: plans.map((plan) => ({
-        label: plan.title,
-        value: String(plan.id),
-      })),
-    }),
-    [students, plans, tutors],
-  );
-
-  const filteredStudents = useMemo(() => {
-    const result = students.filter((s) => {
-      if (
-        search &&
-        !s.name.includes(search) &&
-        !s.email.includes(search)
-        // we could also search in group tutor names, but keep simple for now
-      )
-        return false;
-      if (statusFilter && s.status.toString() !== statusFilter) return false;
-      // NEW tutor filter: check if any group's tutor name matches
-      if (tutorFilter && !s.groups.some((g) => g.tutorName === tutorFilter))
-        return false;
-      if (countryFilter && s.country !== countryFilter) return false;
-      if (planFilter && String(s.plan) !== planFilter) return false;
-      return true;
-    });
-
-    // Sorting (unchanged)
-    result.sort((a, b) => {
-      let cmp = 0;
-      switch (sortField) {
-        case "name":
-          cmp = a.name.localeCompare(b.name, "ar");
-          break;
-        case "age":
-          cmp = a.age - b.age;
-          break;
-        case "status":
-          cmp = a.status - b.status;
-          break;
-      }
-      return sortDir === "desc" ? -cmp : cmp;
-    });
-
-    return result;
-  }, [
-    students,
-    search,
-    statusFilter,
-    tutorFilter,
-    countryFilter,
-    planFilter,
-    sortField,
-    sortDir,
-  ]);
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (searchInput !== search) setParam("q", searchInput);
+    }, 400);
+    return () => clearTimeout(timeout);
+  }, [searchInput, search, setParam]);
 
   const activeFilterCount = [
     statusFilter,
     tutorFilter,
     countryFilter,
-    planFilter,
+    groupFilter,
   ].filter(Boolean).length;
 
   const toggleSort = (field: SortField) => {
@@ -154,18 +104,17 @@ const StudentsViewer = ({
   };
 
   const toggleSelectAll = () => {
-    if (selected.size === filteredStudents.length) {
+    if (selected.size === students.length) {
       setSelected(new Set());
     } else {
-      setSelected(new Set(filteredStudents.map((s) => String(s.id))));
+      setSelected(new Set(students.map((s) => String(s.id))));
     }
   };
 
   const handleExport = () => {
-    exportStudentsToCSV(filteredStudents);
+    exportStudentsToCSV(students);
   };
 
-  // Convert selected Set to array of numbers for bulk actions
   const selectedIds = useMemo(() => {
     return Array.from(selected).map((id) => parseInt(id));
   }, [selected]);
@@ -183,7 +132,7 @@ const StudentsViewer = ({
             الطلاب
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
-            {students.length} طالب مسجل
+            {totalStudents} طالب مسجل
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -192,8 +141,8 @@ const StudentsViewer = ({
             <Input
               placeholder="بحث بالاسم..."
               className="pr-9 w-55"
-              value={search}
-              onChange={(e) => setParam("q", e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
             />
           </div>
           <Button
@@ -228,12 +177,25 @@ const StudentsViewer = ({
 
       {showFilters && (
         <FilterPanel
-          filterOptions={filterOptions}
+          filterOptions={{
+            tutors: tutors
+              .map((t) => ({ value: String(t.id), label: t.name }))
+              .filter((t) => t.label),
+            countries: filterOptions.countries,
+            groups: filterOptions.groups,
+            statuses: Object.entries(statusLabels).map(([value, label]) => ({
+              value,
+              label,
+            })),
+            plans: [],
+            specialities: [],
+          }}
           currentFilters={{
             status: statusFilter,
             tutor: tutorFilter,
             country: countryFilter,
-            plan: planFilter,
+            plan: "",
+            group: groupFilter,
             speciality: "",
           }}
           onFilterChange={setParam}
@@ -242,20 +204,18 @@ const StudentsViewer = ({
         />
       )}
 
-      {/* Bulk actions */}
       {selected.size > 0 && (
         <BulkActionsBar
           selectedCount={selected.size}
           selectedIds={selectedIds}
           tutors={tutors}
-          plans={plans}
           onClearSelection={() => setSelected(new Set())}
           onSuccess={handleBulkActionSuccess}
         />
       )}
 
       <StatsCards
-        students={students}
+        counts={statusCounts}
         currentStatusFilter={statusFilter}
         onStatusClick={(status) =>
           setParam("status", status === statusFilter ? "" : status)
@@ -264,10 +224,9 @@ const StudentsViewer = ({
         statusColors={statusColors}
       />
 
-      {filteredStudents.length === 0 ? (
+      {students.length === 0 ? (
         <EmptyState
           tutors={tutors}
-          plans={plans}
           currencies={currencies}
           academyId={academyId}
           type={"students"}
@@ -278,22 +237,20 @@ const StudentsViewer = ({
         <>
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              {filteredStudents.length} نتيجة
+              {students.length} نتيجة
             </p>
             <AddStudentDialog
               tutors={tutors}
-              plans={plans}
               currencies={currencies}
               academyId={academyId}
             />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredStudents.map((student) => (
+            {students.map((student) => (
               <StudentCard
                 key={student.id}
                 student={student}
                 tutors={tutors}
-                plans={plans}
                 academyId={academyId}
               />
             ))}
@@ -301,7 +258,7 @@ const StudentsViewer = ({
         </>
       ) : (
         <StudentTable
-          students={filteredStudents}
+          students={students}
           selected={selected}
           onSelect={toggleSelect}
           onSelectAll={toggleSelectAll}
@@ -309,7 +266,6 @@ const StudentsViewer = ({
           sortDir={sortDir}
           onSort={toggleSort}
           tutors={tutors}
-          plans={plans}
         />
       )}
     </div>

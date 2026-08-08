@@ -1,48 +1,30 @@
 "use server";
 
-import { randomBytes } from "crypto";
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
-import { getTokenFromCookie, verifyToken } from "@/lib/jwt";
 import db from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { getTokenFromCookie, verifyToken } from "@/lib/jwt";
 
-export async function startZoomOAuth() {
+export async function setZoomLink(formData: FormData) {
   const token = await getTokenFromCookie();
-  if (!token) throw new Error("Not authenticated");
+  if (!token) throw new Error("غير مصرح");
   const payload = verifyToken(token);
-  if (!payload?.academyId) throw new Error("Unauthorized");
+  if (!payload || !payload.tutorId) throw new Error("غير مصرح");
 
-  // // Generate a cryptographically random state
-  // const state = randomBytes(32).toString("hex");
+  const zoomUrl = formData.get("zoomUrl") as string;
 
-  // // Store state in a short-lived, httpOnly cookie
-  // const cookieStore = await cookies();
-  // cookieStore.set("zoom_oauth_state", state, {
-  //   httpOnly: true,
-  //   secure: process.env.NODE_ENV === "production",
-  //   sameSite: "lax",
-  //   maxAge: 600, // 10 minutes
-  //   path: "/",
-  // });
+  if (!zoomUrl || !zoomUrl.startsWith("https://")) {
+    throw new Error("يرجى إدخال رابط Zoom صحيح يبدأ بـ https://");
+  }
 
-  // Use the exact granular scopes from your Zoom app
-  const scope = [
-    "user:read:user",
-    "meeting:write:meeting",
-    "meeting:update:meeting",
-  ].join(" ");
-
-  const params = new URLSearchParams({
-    response_type: "code",
-    client_id: process.env.ZOOM_CLIENT_ID!,
-    redirect_uri: process.env.ZOOM_REDIRECT_URI!,
-    scope,
-    // state,
+  await db.tutor.update({
+    where: { id: payload.tutorId },
+    data: {
+      zoomUrl,
+      zoomAuthenticated: true,
+    },
   });
 
-  const url = `https://zoom.us/oauth/authorize?${params.toString()}`;
-  redirect(url);
+  revalidatePath("/ar/dashboard/tutor/zoom");
 }
 
 export async function unlinkZoom() {
@@ -51,7 +33,6 @@ export async function unlinkZoom() {
   const payload = verifyToken(token);
   if (!payload || !payload.tutorId) throw new Error("غير مصرح");
 
-  // Clear all Zoom-related fields
   await db.tutor.update({
     where: { id: payload.tutorId },
     data: {

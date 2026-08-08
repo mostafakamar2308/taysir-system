@@ -24,7 +24,6 @@ interface StudentTableProps {
   sortDir: SortDir;
   onSort: (field: SortField) => void;
   tutors: { id: number; name: string }[];
-  plans: { id: number; title: string }[];
   academyId?: number;
 }
 
@@ -76,7 +75,6 @@ export function StudentTable({
   sortField,
   sortDir,
   onSort,
-  plans,
   tutors,
 }: StudentTableProps) {
   return (
@@ -114,14 +112,13 @@ export function StudentTable({
               field="status"
               label="الحالة"
             />
-            <TableHead className="text-right">الخطة</TableHead>
+            <TableHead className="text-right">الرصيد</TableHead>
             <TableHead className="text-right">المجموعات / المعلم</TableHead>
             <TableHead className="text-right w-10">إجراءات</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody className="bg-white">
           {students.map((s) => {
-            // Build group display text
             const groupDisplay =
               s.groups.length === 0
                 ? "—"
@@ -151,16 +148,14 @@ export function StudentTable({
                 <TableCell>{s.age}</TableCell>
                 <TableCell>{s.country}</TableCell>
                 <TableCell>
-                  <span
-                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium`}
-                  >
+                  <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium">
                     {statusLabels[s.status]}
                   </span>
                 </TableCell>
-                <TableCell>{s.planName ?? "—"}</TableCell>
+                <TableCell>{s.creditBalance.toFixed(2)}</TableCell>
                 <TableCell>{groupDisplay}</TableCell>
                 <TableCell>
-                  <QuickActionsMenu tutors={tutors} plans={plans} student={s} />
+                  <QuickActionsMenu tutors={tutors} student={s} />
                 </TableCell>
               </TableRow>
             );

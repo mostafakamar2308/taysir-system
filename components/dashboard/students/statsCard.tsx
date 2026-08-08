@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Users } from "lucide-react";
 
 interface StatsCardsProps {
-  students: Array<{ status: number }>;
+  counts: Record<number, number>;
   currentStatusFilter: string;
   onStatusClick: (status: string) => void;
   statusLabels: Record<number, string>;
@@ -12,19 +12,12 @@ interface StatsCardsProps {
 }
 
 export default function StatsCards({
-  students,
+  counts,
   currentStatusFilter,
   onStatusClick,
   statusLabels,
   statusColors,
 }: StatsCardsProps) {
-  const counts = students.reduce(
-    (acc, s) => {
-      acc[s.status] = (acc[s.status] || 0) + 1;
-      return acc;
-    },
-    {} as Record<number, number>,
-  );
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-5 gap-3">

@@ -467,7 +467,6 @@ export default async function DashboardPage() {
   });
   const currencies = await db.currency.findMany();
   const specialities = await db.speciality.findMany();
-  const plans = await db.plan.findMany({ where: { academyId } });
   const allStudents = await db.student.findMany({
     where: { academyId },
     include: { user: { select: { name: true } } },
@@ -484,7 +483,6 @@ export default async function DashboardPage() {
       nearEndSubscriptions={nearEndSubscriptions}
       reportsSheet={sessionsWithoutReport}
       academyId={academyId}
-      plans={plans.map((p) => ({ id: p.id, title: p.title }))}
       currencies={currencies.map((c) => ({ id: c.id, name: c.name }))}
       tutors={tutors.map((t) => ({ id: t.id, name: t.user.name }))}
       students={allStudents.map((s) => ({

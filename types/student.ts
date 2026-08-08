@@ -1,4 +1,13 @@
-import { Student, User, Tutor, Plan } from "@/generated/prisma/browser";
+import { User } from "@/generated/prisma/browser";
+
+export type DashboardStudentGroup = {
+  groupId: number;
+  groupTitle: string;
+  tutorId: number;
+  tutorName: string;
+  isPrivate: boolean;
+};
+
 export type DashboardStudent = {
   id: number;
   name: string;
@@ -8,14 +17,10 @@ export type DashboardStudent = {
   country: string;
   timezone: string;
   status: StudentStatus;
-  groups: {
-    tutorId: number;
-    tutorName: string;
-    isPrivate: boolean;
-  }[];
-  plan?: number;
-  planName?: string;
+  creditBalance: number;
+  groups: DashboardStudentGroup[];
 };
+
 export enum StudentStatus {
   lead,
   trial,
@@ -24,14 +29,20 @@ export enum StudentStatus {
   paused,
 }
 
-// Type for tutor with user (password omitted)
-type TutorWithUser = Tutor & {
+// Shape returned by getStudent action (used by the edit dialog)
+export type GetStudentResult = {
+  id: number;
+  age: number;
+  country: string | null;
+  source: string | null;
+  currencyId: number;
   user: Omit<User, "password">;
-};
-
-// Type for student with all includes
-export type GetStudentResult = Student & {
-  user: User;
-  tutor: TutorWithUser | null;
-  plan: Plan | null;
+  groupMemberships: {
+    id: number;
+    groupId: number;
+    groupTitle: string;
+    tutorId: number;
+    tutorName: string;
+    isPrivate: boolean;
+  }[];
 };

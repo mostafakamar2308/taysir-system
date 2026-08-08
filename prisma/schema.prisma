@@ -89,7 +89,6 @@ model Academy {
   revenues             Revenue[]
   academyCurrencyRates AcademyCurrencyRate[]
   whatsAppMessages     WhatsAppMessage[]
-  subscriptions        Subscription[]
 
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
@@ -154,29 +153,24 @@ model Admin {
 }
 
 model Student {
-  id                    Int      @id @default(autoincrement())
-  age                   Int      @default(12)
-  country               String?
-  status                Int      @default(0)
-  currencyId            Int
-  currency              Currency @relation(fields: [currencyId], references: [id])
-  userId                Int      @unique
-  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sessionsBalance       Int      @default(0)
-  currentSubscriptionId Int?
-  source                String?
+  id            Int      @id @default(autoincrement())
+  age           Int      @default(12)
+  country       String?
+  status        Int      @default(0)
+  currencyId    Int
+  currency      Currency @relation(fields: [currencyId], references: [id])
+  userId        Int      @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  creditBalance Float    @default(0)
+  source        String?
 
   academyId Int
   academy   Academy @relation(fields: [academyId], references: [id])
-
-  planId Int?
-  plan   Plan? @relation(fields: [planId], references: [id])
 
   groupMemberships      GroupStudent[]
   studentAvailabilities StudentAvailability[]
   notes                 Note[]
   payments              Revenue[]
-  subscriptions         Subscription[]        @relation("StudentSubscriptions")
   sessionParticipants   SessionParticipant[]
 
   createdAt DateTime @default(now())
@@ -213,8 +207,8 @@ model Tutor {
   currency   Currency @relation(fields: [currencyId], references: [id])
   currencyId Int
 
-  baseHourlyRate      Float     @default(0) // default rate for a private (1:1) group, used when the group has no override
-  baseGroupHourlyRate Float     @default(0) // default rate for a shared group, used when the group has no override
+  baseHourlyRate      Float     @default(0)
+  baseGroupHourlyRate Float     @default(0)
   active              Boolean?
   bio                 String?
   qualifications      String?
@@ -255,9 +249,6 @@ model SuperAdmin {
 }
 
 // ===================Groups=================
-// A group is the unit that carries the teaching rate and the session schedule.
-// A "private" tutor assignment is simply a group with a single active member -
-// there is no separate flag, so membership can never drift out of sync with it.
 
 model Group {
   id             Int     @id @default(autoincrement())
@@ -267,8 +258,9 @@ model Group {
   currentTutorId Int
   currentTutor   Tutor   @relation(fields: [currentTutorId], references: [id])
 
-  tutorHourlyRate Float?
-  active          Boolean @default(true)
+  tutorHourlyRate     Float?
+  studentSessionPrice Float?
+  active              Boolean @default(true)
 
   members  GroupStudent[]
   sessions Session[]
@@ -281,11 +273,12 @@ model Group {
 }
 
 model GroupStudent {
-  id        Int     @id @default(autoincrement())
-  groupId   Int
-  group     Group   @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  studentId Int
-  student   Student @relation(fields: [studentId], references: [id])
+  id                 Int     @id @default(autoincrement())
+  groupId            Int
+  group              Group   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  studentId          Int
+  student            Student @relation(fields: [studentId], references: [id])
+  customSessionPrice Float?
 
   joinedAt DateTime  @default(now())
   leftAt   DateTime?
@@ -299,46 +292,24 @@ model GroupStudent {
   @@index([studentId])
 }
 
-// ===================Plan and Subscriptions=================
+// ===================Plans (standalone products) ==================
 
 model Plan {
-  id              Int    @id @default(autoincrement())
-  title           String
-  sessionsPerWeek Int
-  price           Float  @default(0)
-  billingPeriod   Int    @default(30)
+  id            Int    @id @default(autoincrement())
+  title         String
+  sessionCount  Int
+  price         Float  @default(0)
+  billingPeriod Int    @default(30)
 
   currencyId Int
-  currency   Currency  @relation(fields: [currencyId], references: [id])
+  currency   Currency @relation(fields: [currencyId], references: [id])
   academyId  Int
-  academy    Academy   @relation(fields: [academyId], references: [id])
-  students   Student[]
-  revenues   Revenue[]
+  academy    Academy  @relation(fields: [academyId], references: [id])
 
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  subscriptions Subscription[]
-}
+  revenues Revenue[]
 
-model Subscription {
-  id        Int       @id @default(autoincrement())
-  academyId Int
-  academy   Academy   @relation(fields: [academyId], references: [id])
-  studentId Int
-  student   Student   @relation("StudentSubscriptions", fields: [studentId], references: [id])
-  planId    Int
-  plan      Plan      @relation(fields: [planId], references: [id])
-  startDate DateTime
-  endDate   DateTime?
-  status    Int       @default(0)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-
-  payments Revenue[]
-
-  @@index([studentId])
-  @@index([planId])
-  @@index([status])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ===================Session and Attendance=================
@@ -387,8 +358,10 @@ model SessionParticipant {
 
   studentAttendanceStatus Int?
   reason                  String?
-  balanceDeducted         Boolean @default(false)
   cancelledBy             Int?
+
+  price         Float @default(0) // price frozen at scheduling
+  paymentStatus Int   @default(0)
 
   report            SessionReport?
   homeworkSolutions HomeworkSolution[]
@@ -402,13 +375,12 @@ model SessionParticipant {
 }
 
 // Supervisor's review of the tutor's own attendance/conduct for a session.
-// One record per session (a session has exactly one tutor via its group).
 model TutorAttendance {
   id        Int     @id @default(autoincrement())
   sessionId Int     @unique
   session   Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
-  status Int // present, absent, late, substituted, etc.
+  status Int
   notes  String?
 
   reviewedBy Int
@@ -491,23 +463,20 @@ model Revenue {
   currency    Currency @relation(fields: [currencyId], references: [id])
   status      Int      @default(0)
   method      Int?
-  // Time to pay usually today.
   dueDate     DateTime @default(now())
   description String?
   channel     String?
   notes       String?
   invoiceUrl  String?
 
-  academyId      Int
-  academy        Academy       @relation(fields: [academyId], references: [id])
-  studentId      Int
-  student        Student       @relation(fields: [studentId], references: [id])
-  planId         Int?
-  plan           Plan?         @relation(fields: [planId], references: [id])
-  recordedBy     Int?
-  recorder       User?         @relation(fields: [recordedBy], references: [id])
-  subscriptionId Int?
-  subscription   Subscription? @relation(fields: [subscriptionId], references: [id])
+  academyId  Int
+  academy    Academy @relation(fields: [academyId], references: [id])
+  studentId  Int
+  student    Student @relation(fields: [studentId], references: [id])
+  planId     Int?
+  plan       Plan?   @relation(fields: [planId], references: [id])
+  recordedBy Int?
+  recorder   User?   @relation(fields: [recordedBy], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -651,7 +620,7 @@ model ChatMessage {
   isRead    Boolean   @default(false)
   isDeleted Boolean   @default(false)
   readAt    DateTime?
-  refId     String? // client‑side temporary ID for optimistic updates
+  refId     String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -682,10 +651,10 @@ model Assignment {
 
   title       String?
   description String?
-  deadline    DateTime? // optional deadline for submission
+  deadline    DateTime?
   maxScore    Int       @default(10)
 
-  filePath         String // path to stored file on disk
+  filePath         String
   originalFileName String
   fileSize         Int
   mimeType         String
@@ -718,5 +687,5 @@ model HomeworkSolution {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([assignmentId, participantId]) // one solution per student per assignment
+  @@unique([assignmentId, participantId])
 }

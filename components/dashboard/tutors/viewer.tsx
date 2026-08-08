@@ -244,6 +244,7 @@ export default function TutorsViewer({
             tutor: "",
             country: "",
             plan: "",
+            group: "",
           }}
           onFilterChange={(key, value) => setParam(key, value)}
           onClear={clearFilters}

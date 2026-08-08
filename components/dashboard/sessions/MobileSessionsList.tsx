@@ -8,6 +8,8 @@ interface Props {
   weekDates: Date[];
   sessions: AdminSession[];
   onSessionClick: (session: AdminSession) => void;
+  onEditSession?: (session: AdminSession) => void;
+  onCancelSession?: (session: AdminSession) => void;
 }
 
 const dayNames = [
@@ -24,6 +26,8 @@ export function MobileSessionsList({
   weekDates,
   sessions,
   onSessionClick,
+  onEditSession,
+  onCancelSession,
 }: Props) {
   const today = dayjs().format("YYYY-MM-DD");
 
@@ -51,6 +55,8 @@ export function MobileSessionsList({
                   key={session.id}
                   session={session}
                   onClick={() => onSessionClick(session)}
+                  onEdit={onEditSession}
+                  onCancel={onCancelSession}
                 />
               ))}
             </div>

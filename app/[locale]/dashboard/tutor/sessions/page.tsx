@@ -1,167 +1,159 @@
 import db from "@/lib/prisma";
+import dayjs from "@/lib/dayjs";
 import { user } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { Role } from "@/types/user";
-import dayjs from "@/lib/dayjs";
-import SessionsClient from "@/components/tutor/sessions/viewer";
 import { getSessionStatus } from "@/lib/session";
-import { AttendanceStatus } from "@/types/session";
-import { SessionClientData } from "@/types/tutor/session";
-import { Prisma } from "@/generated/prisma/client";
+import type { AdminSession, AdminSessionParticipant } from "@/types/session";
+import TutorSessionsViewer from "@/components/tutor/sessions/viewer";
 
 export default async function TutorSessionsPage({
   searchParams,
 }: {
-  searchParams: Promise<{
-    view?: string;
-    week?: string;
-    filter?: string;
-    sessionId?: string;
-    studentId?: string;
-    status?: string;
-  }>;
+  searchParams: Promise<{ week?: string }>;
 }) {
   const currentUser = await user();
-  if (
-    !currentUser ||
-    !currentUser.academyId ||
-    currentUser.role !== Role.Tutor ||
-    !currentUser.tutorId
-  ) {
-    redirect("/login");
-  }
+  if (!currentUser?.tutorId || !currentUser?.academyId) redirect("/login");
   const tutorId = currentUser.tutorId;
+  const academyId = currentUser.academyId;
 
-  const { week, filter, sessionId, studentId, status } = await searchParams;
-
-  // Build Prisma where – fully typed
-  const where: Prisma.SessionWhereInput = { tutorId };
-  if (week) {
-    const startDate = dayjs(week).startOf("week").toDate();
-    const endDate = dayjs(startDate).endOf("week").toDate();
-    where.startTime = { gte: startDate, lt: endDate };
-  }
-  if (studentId) {
-    where.participants = { some: { studentId: parseInt(studentId) } };
-  }
-  if (filter === "pending_attendance") {
-    where.participants = { some: { studentAttendanceStatus: null } };
-  }
+  const { week } = await searchParams;
+  const refDate = week ? dayjs(week) : dayjs();
+  const saturday = refDate.startOf("week").subtract(1, "day");
+  const friday = saturday.add(6, "day").endOf("day");
+  const weekStart = saturday.toDate();
+  const weekEnd = friday.toDate();
 
   const sessions = await db.session.findMany({
-    where,
+    where: {
+      academyId,
+      startTime: { gte: weekStart, lt: weekEnd },
+      group: { currentTutorId: tutorId },
+    },
     include: {
+      group: { select: { id: true, title: true } },
+      tutor: { select: { id: true, user: { select: { name: true } } } },
+      supervisor: {
+        select: { id: true, user: { select: { name: true } } },
+      },
       participants: {
         include: {
-          student: {
-            select: { id: true, user: { select: { name: true, phone: true } } },
-          },
+          student: { select: { id: true, user: { select: { name: true } } } },
           report: true,
         },
       },
       assignment: {
         include: {
-          solutions: true,
+          solutions: {
+            include: {
+              participant: { select: { id: true } },
+            },
+          },
+        },
+      },
+      tutorAttendance: {
+        include: {
+          supervisor: { select: { user: { select: { name: true } } } },
         },
       },
     },
-    orderBy: { startTime: "desc" },
+    orderBy: { startTime: "asc" },
   });
 
-  // Students for filter dropdown
-  const students = await db.student.findMany({
-    where: { tutorId },
-    select: {
-      id: true,
-      sessionsBalance: true,
-      user: { select: { name: true } },
-    },
-  });
-  const tutorStudents = students.map((s) => ({
-    id: s.id,
-    name: s.user.name || "",
-    balance: s.sessionsBalance,
-  }));
+  const transformedSessions: AdminSession[] = sessions.map((s) => {
+    const endTime = dayjs(s.startTime)
+      .add(s.durationMinutes, "minute")
+      .toISOString();
+    const participantList: AdminSessionParticipant[] = s.participants.map(
+      (p) => {
+        const solution = s.assignment?.solutions.find(
+          (sol) => sol.participantId === p.id,
+        );
+        return {
+          id: p.id,
+          studentId: p.studentId,
+          name: p.student.user.name ?? "",
+          status: p.studentAttendanceStatus,
+          reason: p.reason,
+          price: p.price,
+          paymentStatus: p.paymentStatus,
+          report: p.report
+            ? {
+                id: p.report.id,
+                rating: p.report.rating,
+                outcome: p.report.outcomes,
+                strengths: p.report.strengths,
+                weaknesses: p.report.weaknesses,
+                nextGoals: p.report.nextGoals,
+                comments: p.report.comments,
+              }
+            : null,
+          homeworkSolution: solution
+            ? {
+                id: solution.id,
+                assignmentId: solution.assignmentId,
+                participantId: solution.participantId,
+                fileUrl: `/api/file/solution/${solution.id}`,
+                score: solution.score,
+                feedback: solution.feedback,
+                submittedAt: solution.submittedAt.toISOString(),
+                gradedAt: solution.gradedAt?.toISOString() ?? null,
+                gradedBy: solution.gradedBy,
+              }
+            : null,
+        };
+      },
+    );
 
-  // Transform to clean SessionClientData
-  let transformedSessions: SessionClientData[] = sessions.map((s) => ({
-    id: s.id,
-    startTime: s.startTime.toISOString(),
-    endTime: s.endTime.toISOString(),
-    durationMinutes: s.durationMinutes,
-    status: getSessionStatus(s),
-    topic: s.topic,
-    notes: s.notes,
-    tutorId: s.tutorId,
-    tutorName: currentUser.name!,
-    isTrial: s.isTrial,
-    studentName:
-      s.participants.map((p) => p.student.user.name || "").join("، ") || "",
-    zoomMeetingId: s.zoomMeetingId,
-    zoomJoinUrl: s.zoomJoinUrl,
-    zoomStartUrl: s.zoomStartUrl,
-    participants: s.participants.map((p) => ({
-      participantId: p.id,
-      studentId: p.studentId,
-      studentName: p.student.user.name || "",
-      studentPhone: p.student.user.phone,
-      attendanceStatus: p.studentAttendanceStatus,
-      report: p.report
+    return {
+      id: s.id,
+      startTime: s.startTime.toISOString(),
+      endTime,
+      durationMinutes: s.durationMinutes,
+      topic: s.topic,
+      isTrial: s.isTrial,
+      cancelledBy: s.cancelledBy,
+      status: getSessionStatus({
+        cancelledBy: s.cancelledBy,
+        startTime: s.startTime,
+      }),
+      zoomUrl: s.zoomUrl,
+      groupId: s.groupId,
+      groupName: s.group.title,
+      tutorId: s.tutorId,
+      tutorName: s.tutor.user.name ?? "",
+      tutorRate: s.tutorRate,
+      tutorAttendance: s.tutorAttendance
         ? {
-            id: p.report.id,
-            rating: p.report.rating,
-            outcomes: p.report.outcomes,
-            strengths: p.report.strengths,
-            weaknesses: p.report.weaknesses,
-            nextGoals: p.report.nextGoals,
-            comments: p.report.comments,
+            id: s.tutorAttendance.id,
+            name: s.tutorAttendance.supervisor?.user.name ?? null,
+            status: s.tutorAttendance.status,
+            notes: s.tutorAttendance.notes,
+            reviewedAt: s.tutorAttendance.reviewedAt?.toISOString() ?? null,
+          }
+        : { id: 0, name: null, status: 0, notes: null, reviewedAt: null },
+      supervisorId: s.supervisorId,
+      supervisorName: s.supervisor.user.name ?? "",
+      participants: participantList,
+      assignment: s.assignment
+        ? {
+            id: s.assignment.id,
+            title: s.assignment.title,
+            description: s.assignment.description,
+            deadline: s.assignment.deadline?.toISOString() ?? "",
+            maxScore: s.assignment.maxScore,
+            fileUrl: `/api/file/assignment/${s.assignment.id}`,
           }
         : null,
-    })),
-    assignmentStats: {
-      totalParticipants: s.participants.length,
-      hasAssignment: !!s.assignment,
-      uploadedCount: s.assignment?.solutions?.length ?? 0,
-      gradedCount:
-        s.assignment?.solutions?.filter((sol) => sol.score !== null).length ??
-        0,
-    },
-  }));
-
-  // Apply pending_reports filter (post‑processing)
-  if (filter === "pending_reports") {
-    transformedSessions = transformedSessions.filter((s) =>
-      s.participants.some(
-        (p) =>
-          p.attendanceStatus !== null &&
-          [AttendanceStatus.ATTENDED, AttendanceStatus.LATE].includes(
-            p.attendanceStatus,
-          ) &&
-          !p.report,
-      ),
-    );
-  }
-
-  // Client‑side status filter
-  if (status) {
-    const statusNum = parseInt(status);
-    transformedSessions = transformedSessions.filter(
-      (s) => s.status === statusNum,
-    );
-  }
+      createdAt: s.createdAt.toISOString(),
+    };
+  });
 
   return (
-    <SessionsClient
-      sessions={transformedSessions}
-      students={tutorStudents}
-      currentWeekStart={
-        week
-          ? dayjs(week).startOf("week").toISOString()
-          : dayjs().startOf("week").toISOString()
-      }
-      filter={filter}
-      sessionIdParam={sessionId ? parseInt(sessionId) : null}
+    <TutorSessionsViewer
+      initialSessions={transformedSessions}
+      initialWeekStart={saturday.format("YYYY-MM-DD")}
       tutorId={tutorId}
+      academyId={academyId}
     />
   );
 }

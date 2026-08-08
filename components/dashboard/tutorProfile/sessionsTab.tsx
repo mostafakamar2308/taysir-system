@@ -1,9 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import Link from "next/link";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { useState, useEffect, useMemo } from "react";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -12,117 +10,102 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import {
-  attendanceStatusColors,
-  attendanceStatusLabels,
-  sessionStatusColors,
-  sessionStatusLabels,
-} from "@/const/sessions";
-import type { TutorSession } from "@/types/tutor";
-import { ChevronRight, ChevronLeft } from "lucide-react";
+import { ChevronRight, ChevronLeft, Plus } from "lucide-react";
 import dayjs from "@/lib/dayjs";
-import { getTutorSessionsForMonth } from "@/actions/tutor";
+import { getTutorSessionsForWeek } from "@/actions/tutor";
+import type { TutorSessionCardData } from "@/types/tutor";
 import { SessionStatus } from "@/types/session";
+import { formatDate, formatTime } from "@/lib/dates";
+import { AddSessionDialog } from "@/components/dashboard/sessions/AddSessionDialog";
+import { TutorEditSessionDialog } from "./EditSessionDialog";
+import { CancelSessionDialog } from "@/components/dashboard/sessions/CancelSessionDialog";
+import { SessionDetailPanel } from "@/components/dashboard/sessions/SessionDetailPanel";
+import type { AdminSession } from "@/types/session";
+import { getSessionDetailsForManagement } from "@/actions/sessions";
+import { useToast } from "@/hooks/use-toast";
 
-interface SessionsTabProps {
-  tutor: {
-    id: number;
-    academyId: number;
-    sessions: TutorSession[];
-    students: { id: number; name: string }[];
-  };
-  onSessionClick: (sessionId: number) => void;
+interface Props {
+  tutorId: number;
+  academyId: number;
 }
 
-export default function SessionsTab({
-  tutor,
-  onSessionClick,
-}: SessionsTabProps) {
-  const [sessions, setSessions] = useState<TutorSession[]>(tutor.sessions);
-  const [monthStart, setMonthStart] = useState(
-    dayjs().utc().startOf("month").toISOString(),
-  );
+const statusColors: Record<number, string> = {
+  [SessionStatus.SCHEDULED]: "border-blue-300 bg-blue-50",
+  [SessionStatus.COMPLETED]: "border-green-300 bg-green-50",
+  [SessionStatus.CANCELLED]: "border-red-300 bg-red-50",
+};
+
+export default function SessionsTab({ tutorId, academyId }: Props) {
+  const [weekStart, setWeekStart] = useState(
+    dayjs().startOf("week").subtract(1, "day").format("YYYY-MM-DD"),
+  ); // Saturday
+  const [sessions, setSessions] = useState<TutorSessionCardData[]>([]);
   const [loading, setLoading] = useState(false);
-  const [sessionFilter, setSessionFilter] = useState("all");
-  const [sessionSearch, setSessionSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [addOpen, setAddOpen] = useState(false);
+  const [editing, setEditing] = useState<TutorSessionCardData | null>(null);
+  const [cancel, setCancel] = useState<TutorSessionCardData | null>(null);
+  const [detail, setDetail] = useState<AdminSession | null>(null);
+  const { toast } = useToast();
 
-  const fetchMonth = async (newMonthStart: string) => {
-    setLoading(true);
-    try {
-      const data = await getTutorSessionsForMonth(tutor.id, newMonthStart);
-      setSessions(data);
-      setMonthStart(newMonthStart);
-    } catch (error) {
-      console.error("فشل جلب حصص الشهر", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const navigateMonth = (direction: "prev" | "next") => {
-    const newMonth = dayjs(monthStart)
-      .utc()
-      .add(direction === "next" ? 1 : -1, "month")
-      .startOf("month")
-      .toISOString();
-    fetchMonth(newMonth);
-  };
-
-  const formattedMonth = dayjs(monthStart).format("MMMM YYYY");
+  useEffect(() => {
+    const fetchSessions = async () => {
+      setLoading(true);
+      try {
+        const data = await getTutorSessionsForWeek(tutorId, weekStart);
+        setSessions(data);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSessions();
+  }, [weekStart, tutorId]);
 
   const filteredSessions = useMemo(() => {
-    let s = [...sessions];
-    if (sessionFilter !== "all") {
-      s = s.filter((x) => x.status === parseInt(sessionFilter));
-    }
-    if (sessionSearch) {
-      const q = sessionSearch.toLowerCase();
-      s = s.filter(
-        (x) =>
-          x.topic?.toLowerCase().includes(q) ||
-          x.studentName.toLowerCase().includes(q),
-      );
-    }
-    return s.sort(
-      (a, b) =>
-        new Date(b.startTime).getTime() - new Date(a.startTime).getTime(),
-    );
-  }, [sessions, sessionFilter, sessionSearch]);
+    if (statusFilter === "all") return sessions;
+    return sessions.filter((s) => s.status === parseInt(statusFilter));
+  }, [sessions, statusFilter]);
 
-  const formatDate = (d: string) =>
-    new Date(d).toLocaleDateString("ar-EG", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  const formatTime = (d: string) =>
-    new Date(d).toLocaleTimeString("ar-EG", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+  const navigate = (dir: number) => {
+    const newStart = dayjs(weekStart)
+      .add(dir * 7, "day")
+      .format("YYYY-MM-DD");
+    setWeekStart(newStart);
+  };
+
+  const handleDetailClick = async (cardData: TutorSessionCardData) => {
+    try {
+      const full = await getSessionDetailsForManagement(cardData.sessionId);
+      setDetail(full);
+    } catch {
+      toast({ title: "خطأ في تحميل التفاصيل", variant: "destructive" });
+    }
+  };
+
+  const formatWeekLabel = () => {
+    const start = dayjs(weekStart).format("D MMMM");
+    const end = dayjs(weekStart).add(6, "day").format("D MMMM YYYY");
+    return `${start} – ${end}`;
+  };
 
   return (
-    <div className="space-y-4 mt-4">
-      <div className="flex flex-wrap gap-3 items-center justify-between">
-        <div className="flex gap-3 flex-wrap items-center">
-          <Input
-            placeholder="بحث بالموضوع أو الطالب..."
-            value={sessionSearch}
-            onChange={(e) => setSessionSearch(e.target.value)}
-            className="w-60"
-          />
-          <Select value={sessionFilter} onValueChange={setSessionFilter}>
-            <SelectTrigger className="w-40">
-              <SelectValue />
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" onClick={() => navigate(-1)}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <span className="text-sm font-semibold">{formatWeekLabel()}</span>
+          <Button variant="outline" size="icon" onClick={() => navigate(1)}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="flex items-center gap-2">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="h-9 w-32.5">
+              <SelectValue placeholder="الحالة" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">جميع الحالات</SelectItem>
@@ -131,110 +114,128 @@ export default function SessionsTab({
               <SelectItem value="2">ملغاة</SelectItem>
             </SelectContent>
           </Select>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => navigateMonth("next")}
-            disabled={loading}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <span className="text-sm font-medium min-w-40 text-center">
-            {formattedMonth}
-          </span>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => navigateMonth("prev")}
-            disabled={loading}
-          >
-            <ChevronRight className="h-4 w-4" />
+          <Button onClick={() => setAddOpen(true)}>
+            <Plus className="h-4 w-4 ml-1" /> إضافة
           </Button>
         </div>
       </div>
 
       {loading ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">جاري تحميل الحصص...</p>
-          </CardContent>
-        </Card>
+        <p className="text-center text-muted-foreground py-8">
+          جاري التحميل...
+        </p>
       ) : filteredSessions.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">لا توجد حصص</p>
-          </CardContent>
-        </Card>
+        <p className="text-center text-muted-foreground py-8">لا توجد حصص</p>
       ) : (
-        <Card>
-          <CardContent className="p-0">
-            <div className="overflow-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>التاريخ</TableHead>
-                    <TableHead>الوقت</TableHead>
-                    <TableHead>الطالب</TableHead>
-                    <TableHead>الموضوع</TableHead>
-                    <TableHead>الحالة</TableHead>
-                    <TableHead>الحضور</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredSessions.map((s) => (
-                    <TableRow
-                      key={s.participantId}
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => onSessionClick(s.sessionId)}
-                    >
-                      <TableCell className="whitespace-nowrap">
-                        {formatDate(s.startTime)}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        {formatTime(s.startTime)} – {formatTime(s.endTime)}
-                      </TableCell>
-                      <TableCell>
-                        <Link
-                          href={`/dashboard/students/${s.studentId}`}
-                          className="text-primary hover:underline"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {s.studentName}
-                        </Link>
-                      </TableCell>
-                      <TableCell>{s.topic || "—"}</TableCell>
-                      <TableCell>
-                        <Badge className={sessionStatusColors[s.status]}>
-                          {sessionStatusLabels[s.status]}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {s.attendance.status !== null ? (
-                          <Badge
-                            className={
-                              attendanceStatusColors[s.attendance.status]
-                            }
-                          >
-                            {attendanceStatusLabels[s.attendance.status]}
-                          </Badge>
-                        ) : s.status === SessionStatus.COMPLETED ? (
-                          <span className="text-amber-600 text-xs">
-                            غير مسجل
-                          </span>
-                        ) : (
-                          "—"
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {filteredSessions.map((s) => (
+            <div
+              key={s.id}
+              className={`p-4 border rounded-lg cursor-pointer hover:shadow-md transition ${statusColors[s.status]}`}
+              onClick={() => handleDetailClick(s)}
+            >
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="font-semibold">{s.groupName}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {formatDate(s.startTime)} • {formatTime(s.startTime)} –{" "}
+                    {formatTime(s.endTime)}
+                  </p>
+                  {s.topic && <p className="text-sm">{s.topic}</p>}
+                </div>
+                {s.status !== SessionStatus.CANCELLED ? (
+                  <Badge
+                    className={
+                      s.isCompleted
+                        ? "bg-green-100 text-green-700"
+                        : "bg-blue-100 text-blue-700"
+                    }
+                  >
+                    {s.isCompleted ? "مكتملة" : "مجدولة"}
+                  </Badge>
+                ) : null}
+              </div>
+              {s.isCompleted && (
+                <div className="flex gap-2 mt-2 text-xs text-muted-foreground">
+                  <span>
+                    الحضور: {s.attendanceCount}/{s.totalParticipants}
+                  </span>
+                  <span>
+                    التقارير: {s.reportCount}/{s.totalParticipants}
+                  </span>
+                  {s.hasAssignment && (
+                    <>
+                      <span>
+                        الواجبات: {s.homeworkSubmissions}/{s.totalParticipants}
+                      </span>
+                      <span>
+                        تم التصحيح: {s.homeworkGraded}/{s.totalParticipants}
+                      </span>
+                    </>
+                  )}
+                </div>
+              )}
+              {s.status !== SessionStatus.CANCELLED ? (
+                <div className="flex justify-end mt-2 gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditing(s);
+                    }}
+                  >
+                    تعديل
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCancel(s);
+                    }}
+                  >
+                    إلغاء
+                  </Button>
+                </div>
+              ) : null}
             </div>
-          </CardContent>
-        </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Dialogs */}
+      <AddSessionDialog
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        academyId={academyId}
+      />
+      {editing && (
+        <TutorEditSessionDialog
+          open={!!editing}
+          onOpenChange={(open) => {
+            if (!open) setEditing(null);
+          }}
+          session={editing}
+          academyId={academyId}
+          tutorId={tutorId}
+        />
+      )}
+      {cancel && (
+        <CancelSessionDialog
+          open={!!cancel}
+          onOpenChange={() => setCancel(null)}
+          sessionId={cancel.sessionId}
+        />
+      )}
+      {detail && (
+        <SessionDetailPanel
+          session={detail}
+          open={!!detail}
+          onOpenChange={(open) => {
+            if (!open) setDetail(null);
+          }}
+        />
       )}
     </div>
   );

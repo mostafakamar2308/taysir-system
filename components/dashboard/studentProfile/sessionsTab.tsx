@@ -1,10 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
-import { Card, CardContent } from "@/components/ui/card";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -13,174 +10,104 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  MoreHorizontal,
-  Plus,
-  Eye,
-  ChevronRight,
-  ChevronLeft,
-} from "lucide-react";
-import { StudentProfile, SessionRecord } from "@/types/studentProfile";
-import { SessionStatus, AttendanceStatus } from "@/types/session";
-import {
-  sessionStatusColors,
-  sessionStatusLabels,
-  attendanceStatusColors,
-  attendanceStatusLabels,
-} from "@/lib/enums";
-import { useToast } from "@/hooks/use-toast";
-import EditSessionDialog from "@/components/dashboard/studentProfile/dialogs/editSessionDialog";
-import DeleteSessionDialog from "@/components/dashboard/studentProfile/dialogs/deleteSessionDialog";
-import ViewReportDialog from "@/components/dashboard/studentProfile/dialogs/viewReportDialog";
-import AddSessionDialog from "@/components/dashboard/studentProfile/dialogs/addSessionDialog";
-import { getStudentSessionsForMonth } from "@/actions/student";
+import { ChevronRight, ChevronLeft, Plus } from "lucide-react";
+import type { StudentProfile, SessionRecord } from "@/types/studentProfile";
+import { SessionStatus } from "@/types/session";
+import { formatDate, formatTime } from "@/lib/dates";
 import dayjs from "@/lib/dayjs";
+import { getStudentSessionsForWeek } from "@/actions/student";
+import { SessionDetailPanel } from "@/components/dashboard/sessions/SessionDetailPanel";
+import { getSessionDetailsForManagement } from "@/actions/sessions";
+import type { AdminSession } from "@/types/session";
+import { useToast } from "@/hooks/use-toast";
+import AddSessionDialog from "@/components/dashboard/studentProfile/dialogs/addSessionDialog";
 
-interface SessionsTabProps {
+interface Props {
   student: StudentProfile;
   tutors: { id: number; name: string | null }[];
 }
 
-export default function SessionsTab({ student, tutors }: SessionsTabProps) {
-  const router = useRouter();
+export default function SessionsTab({ student, tutors }: Props) {
   const { toast } = useToast();
-
-  const [sessions, setSessions] = useState<SessionRecord[]>(student.sessions);
-  const [monthStart, setMonthStart] = useState(
-    dayjs.utc().startOf("month").toISOString(),
+  const [addSessionOpen, setAddSessionOpen] = useState(false);
+  const [weekStart, setWeekStart] = useState(
+    dayjs().startOf("week").subtract(1, "day").format("YYYY-MM-DD"),
   );
+  const [sessions, setSessions] = useState<SessionRecord[]>([]);
   const [loading, setLoading] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [reportFilter, setReportFilter] = useState("all"); // all, missing, done
+  const [detailSession, setDetailSession] = useState<AdminSession | null>(null);
 
-  const [sessionFilter, setSessionFilter] = useState<string>("all");
-  const [sessionSearch, setSessionSearch] = useState("");
-  const [addDialogOpen, setAddDialogOpen] = useState(false);
-
-  const [editDialog, setEditDialog] = useState<{
-    open: boolean;
-    session: SessionRecord | null;
-  }>({ open: false, session: null });
-  const [deleteDialog, setDeleteDialog] = useState<{
-    open: boolean;
-    sessionId: number;
-  }>({ open: false, sessionId: 0 });
-  const [reportDialog, setReportDialog] = useState<{
-    open: boolean;
-    report: NonNullable<SessionRecord["report"]>;
-    sessionDate: string;
-  }>({ open: false, report: null!, sessionDate: "" });
-
-  // Derive unique tutors from active groups
-  const groupTutors = useMemo(() => {
-    const unique = new Map<number, string>();
-    student.groups.forEach((g) => unique.set(g.tutorId, g.tutorName));
-    return Array.from(unique.entries()).map(([id, name]) => ({ id, name }));
-  }, [student.groups]);
-
-  // دالة تغيير الشهر
-  const fetchMonth = async (newMonthStart: string) => {
-    setLoading(true);
-    try {
-      const data = await getStudentSessionsForMonth(student.id, newMonthStart);
-      setSessions(data);
-      setMonthStart(newMonthStart);
-    } catch (error) {
-      console.error("فشل جلب حصص الشهر", error);
-      toast({ title: "حدث خطأ أثناء جلب الحصص", variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const navigateMonth = (direction: "prev" | "next") => {
-    const newMonth = dayjs(monthStart)
-      .utc()
-      .add(direction === "next" ? 1 : -1, "month")
-      .startOf("month")
-      .toISOString();
-
-    fetchMonth(newMonth);
-  };
-
-  const formattedMonth = dayjs(monthStart).format("MMMM YYYY");
+  useEffect(() => {
+    const fetchSessions = async () => {
+      setLoading(true);
+      try {
+        const data = await getStudentSessionsForWeek(student.id, weekStart);
+        setSessions(data);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSessions();
+  }, [weekStart, student.id]);
 
   const filteredSessions = useMemo(() => {
-    let s = [...sessions];
-    if (sessionFilter !== "all")
-      s = s.filter((x) => x.status === parseInt(sessionFilter));
-    if (sessionSearch) {
-      const q = sessionSearch.toLowerCase();
-      s = s.filter(
-        (x) =>
-          x.topic?.toLowerCase().includes(q) ||
-          x.tutorName?.toLowerCase().includes(q),
+    let result = sessions;
+    if (statusFilter !== "all") {
+      result = result.filter((s) => s.status === parseInt(statusFilter));
+    }
+    if (reportFilter === "missing") {
+      result = result.filter(
+        (s) => s.status === SessionStatus.COMPLETED && !s.report,
       );
+    } else if (reportFilter === "done") {
+      result = result.filter((s) => s.report);
     }
-    return s.sort(
-      (a, b) =>
-        new Date(b.startTime).getTime() - new Date(a.startTime).getTime(),
+    return result;
+  }, [sessions, statusFilter, reportFilter]);
+
+  const navigate = (dir: number) => {
+    setWeekStart((prev) =>
+      dayjs(prev)
+        .add(dir * 7, "day")
+        .format("YYYY-MM-DD"),
     );
-  }, [sessions, sessionFilter, sessionSearch]);
+  };
 
-  const formatDate = (d: string) =>
-    new Date(d).toLocaleDateString("ar-EG", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  const formatTime = (d: string) =>
-    new Date(d).toLocaleTimeString("ar-EG", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-
-  const handleRowClick = (session: SessionRecord) => {
-    if (session.report) {
-      setReportDialog({
-        open: true,
-        report: session.report,
-        sessionDate: formatDate(session.startTime),
-      });
-    } else {
-      toast({ title: "لا يوجد تقرير لهذه الحصة" });
+  const handleSessionClick = async (sessionId: number) => {
+    try {
+      const full = await getSessionDetailsForManagement(sessionId);
+      setDetailSession(full);
+    } catch {
+      toast({ title: "خطأ في تحميل التفاصيل", variant: "destructive" });
     }
   };
 
-  const handleEdit = (session: SessionRecord) => {
-    setEditDialog({ open: true, session });
-  };
-
-  const handleDelete = (sessionId: number) => {
-    setDeleteDialog({ open: true, sessionId });
+  const formatWeekLabel = () => {
+    const start = dayjs(weekStart).format("D MMMM");
+    const end = dayjs(weekStart).add(6, "day").format("D MMMM YYYY");
+    return `${start} – ${end}`;
   };
 
   return (
-    <div className="space-y-4 mt-4">
-      {/* السطر العلوي: بحث، فلتر، تنقل شهري، زر إضافة */}
-      <div className="flex flex-wrap gap-3 items-center justify-between">
-        <div className="flex gap-3 flex-wrap items-center">
-          <Input
-            placeholder="بحث بالموضوع أو المعلم..."
-            value={sessionSearch}
-            onChange={(e) => setSessionSearch(e.target.value)}
-            className="w-60"
-          />
-          <Select value={sessionFilter} onValueChange={setSessionFilter}>
-            <SelectTrigger className="w-40">
-              <SelectValue />
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" onClick={() => navigate(-1)}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <span className="text-sm font-semibold">{formatWeekLabel()}</span>
+          <Button variant="outline" size="icon" onClick={() => navigate(1)}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="flex items-center gap-2">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="h-9 w-[130px]">
+              <SelectValue placeholder="الحالة" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">جميع الحالات</SelectItem>
@@ -189,201 +116,116 @@ export default function SessionsTab({ student, tutors }: SessionsTabProps) {
               <SelectItem value="2">ملغاة</SelectItem>
             </SelectContent>
           </Select>
-
-          {/* أزرار التنقل بين الأشهر */}
-          <div className="flex items-center gap-2 mr-4">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => navigateMonth("next")}
-              disabled={loading}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <span className="text-sm font-medium min-w-30 text-center">
-              {formattedMonth}
-            </span>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => navigateMonth("prev")}
-              disabled={loading}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
+          <Select value={reportFilter} onValueChange={setReportFilter}>
+            <SelectTrigger className="h-9 w-[130px]">
+              <SelectValue placeholder="التقرير" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">الكل</SelectItem>
+              <SelectItem value="missing">ناقص</SelectItem>
+              <SelectItem value="done">مكتمل</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button size="sm" onClick={() => setAddSessionOpen(true)}>
+            <Plus className="h-4 w-4 ml-2" /> إضافة حصة
+          </Button>
         </div>
-
-        <Button onClick={() => setAddDialogOpen(true)}>
-          <Plus className="h-4 w-4 ml-2" /> إضافة حصة
-        </Button>
       </div>
 
-      {/* عرض الجدول مع مؤشر التحميل */}
       {loading ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">جاري تحميل الحصص...</p>
-          </CardContent>
-        </Card>
+        <p className="text-center text-muted-foreground py-8">
+          جاري التحميل...
+        </p>
       ) : filteredSessions.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">لا توجد حصص تطابق البحث</p>
-          </CardContent>
-        </Card>
+        <p className="text-center text-muted-foreground py-8">لا توجد حصص</p>
       ) : (
-        <Card>
-          <div className="overflow-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>التاريخ</TableHead>
-                  <TableHead>الوقت</TableHead>
-                  <TableHead>المعلم</TableHead>
-                  <TableHead>الموضوع</TableHead>
-                  <TableHead>الحالة</TableHead>
-                  <TableHead>الحضور</TableHead>
-                  <TableHead>التقرير</TableHead>
-                  <TableHead>إجراءات</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredSessions.map((s) => {
-                  const sessionStatusLabel =
-                    sessionStatusLabels[s.status as SessionStatus];
-                  const sessionStatusColor =
-                    sessionStatusColors[s.status as SessionStatus];
-                  let attendanceCell;
-                  if (s.attendance?.status) {
-                    attendanceCell = (
-                      <Badge
-                        className={
-                          attendanceStatusColors[
-                            s.attendance.status as AttendanceStatus
-                          ]
-                        }
-                      >
-                        {
-                          attendanceStatusLabels[
-                            s.attendance.status as AttendanceStatus
-                          ]
-                        }
-                      </Badge>
-                    );
-                  } else {
-                    attendanceCell = "—";
-                  }
-                  const reportCell = s.report ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRowClick(s);
-                      }}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                  ) : (
-                    "—"
-                  );
-
-                  return (
-                    <TableRow
-                      key={s.id}
-                      className={
-                        s.report ? "cursor-pointer hover:bg-muted/50" : ""
-                      }
-                      onClick={() => s.report && handleRowClick(s)}
-                    >
-                      <TableCell className="whitespace-nowrap">
-                        {formatDate(s.startTime)}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        {formatTime(s.startTime)} – {formatTime(s.endTime)}
-                      </TableCell>
-                      <TableCell>{s.tutorName}</TableCell>
-                      <TableCell>{s.topic || "—"}</TableCell>
-                      <TableCell>
-                        <Badge className={sessionStatusColor}>
-                          {sessionStatusLabel}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{attendanceCell}</TableCell>
-                      <TableCell>{reportCell}</TableCell>
-                      <TableCell>
-                        <DropdownMenu dir="rtl">
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                router.push(
-                                  `/dashboard/sessions?sessionId=${s.id}`,
-                                )
-                              }
-                            >
-                              عرض تفاصيل الحصة
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleEdit(s)}>
-                              تعديل الحصة
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="text-destructive"
-                              onClick={() => handleDelete(s.id)}
-                            >
-                              حذف الحصة
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        </Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {filteredSessions.map((s) => (
+            <SessionCard
+              key={s.id}
+              session={s}
+              onClick={() => handleSessionClick(s.id)}
+            />
+          ))}
+        </div>
       )}
+
+      {detailSession && (
+        <SessionDetailPanel
+          session={detailSession}
+          open={!!detailSession}
+          onOpenChange={(open) => {
+            if (!open) setDetailSession(null);
+          }}
+        />
+      )}
+
       <AddSessionDialog
-        open={addDialogOpen}
-        onOpenChange={setAddDialogOpen}
+        open={addSessionOpen}
+        onOpenChange={setAddSessionOpen}
         studentId={student.id}
         studentName={student.name}
-        groupTutors={groupTutors}
-        academyId={student.academyId}
+        tutors={tutors}
+        preselectedTutorId={student.groups[0]?.tutorId ?? null}
+        creditBalance={student.creditBalance}
       />
+    </div>
+  );
+}
+function SessionCard({
+  session,
+  onClick,
+}: {
+  session: SessionRecord;
+  onClick: () => void;
+}) {
+  const isCompleted = session.status === SessionStatus.COMPLETED;
+  const statusColor = isCompleted
+    ? "border-green-300 bg-green-50"
+    : session.status === SessionStatus.CANCELLED
+      ? "border-red-300 bg-red-50"
+      : "border-blue-300 bg-blue-50";
 
-      {editDialog.session && (
-        <EditSessionDialog
-          open={editDialog.open}
-          onOpenChange={(open) => setEditDialog({ ...editDialog, open })}
-          session={editDialog.session}
-        />
-      )}
-
-      <DeleteSessionDialog
-        open={deleteDialog.open}
-        onOpenChange={(open) => setDeleteDialog({ ...deleteDialog, open })}
-        sessionId={deleteDialog.sessionId}
-      />
-
-      {reportDialog.report && (
-        <ViewReportDialog
-          open={reportDialog.open}
-          onOpenChange={(open) => setReportDialog({ ...reportDialog, open })}
-          report={reportDialog.report}
-          sessionDate={reportDialog.sessionDate}
-        />
+  return (
+    <div
+      className={`p-3 border rounded-lg cursor-pointer hover:shadow-md transition ${statusColor}`}
+      onClick={onClick}
+    >
+      <div className="flex justify-between items-center">
+        <div>
+          <p className="font-semibold text-sm">{session.groupName}</p>
+          <p className="text-xs text-muted-foreground">{session.tutorName}</p>
+          <p className="text-xs">
+            {formatDate(session.startTime)} • {formatTime(session.startTime)} –{" "}
+            {formatTime(session.endTime)}
+          </p>
+          {session.topic && <p className="text-xs mt-1">{session.topic}</p>}
+        </div>
+        <Badge
+          className={
+            isCompleted
+              ? "bg-green-100 text-green-700"
+              : "bg-blue-100 text-blue-700"
+          }
+        >
+          {isCompleted ? "مكتملة" : "مجدولة"}
+        </Badge>
+      </div>
+      {isCompleted && (
+        <div className="flex gap-2 mt-2 text-xs text-muted-foreground">
+          <span>
+            الحضور: {session.attendance?.status != null ? "مسجل" : "غير مسجل"}
+          </span>
+          <span>التقرير: {session.report ? "مكتمل" : "غير مكتوب"}</span>
+          {session.homeworkSolution && (
+            <span>
+              الواجب:{" "}
+              {session.homeworkSolution.score != null
+                ? `${session.homeworkSolution.score}`
+                : "غير مصحح"}
+            </span>
+          )}
+        </div>
       )}
     </div>
   );

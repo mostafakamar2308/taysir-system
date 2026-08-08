@@ -1,14 +1,5 @@
 import { StudentStatus } from "@/types/student";
 
-export interface Plan {
-  id: number;
-  title: string;
-  sessionsPerWeek: number;
-  price: number;
-  billingPeriod: number;
-  currency: string;
-}
-
 export interface Availability {
   id: number;
   dayOfWeek: number;
@@ -33,9 +24,10 @@ export interface SessionRecord {
   notes: string | null;
   tutorId: number;
   tutorName: string;
-  // One session per student – their own attendance & report
+  groupId: number;
+  groupName: string;
   attendance?: {
-    id: number; // participant id
+    id: number;
     status: number | null;
     reason: string | null;
   };
@@ -47,6 +39,12 @@ export interface SessionRecord {
     weaknesses: string | null;
     nextGoals: string | null;
     comments: string | null;
+  } | null;
+  homeworkSolution?: {
+    id: number;
+    score: number | null;
+    submittedAt: string;
+    gradedAt: string | null;
   } | null;
 }
 
@@ -73,7 +71,7 @@ export interface StudentProfile {
   country: string | null;
   timezone: string;
   status: StudentStatus;
-  sessionsBalance: number;
+  creditBalance: number;
   source: string | null;
   academyId: number;
   preferredLanguage: string | null;
@@ -83,11 +81,8 @@ export interface StudentProfile {
     tutorName: string;
     isPrivate: boolean;
   }[];
-  planId: number | null;
-  plan: Plan | null;
   notes: Note[];
   payments: Payment[];
-  subscriptions: Subscription[];
   sessions: SessionRecord[];
 }
 export type Report = {
@@ -99,22 +94,3 @@ export type Report = {
   nextGoals: string | null;
   comments: string | null;
 } | null;
-
-export type Subscription = {
-  id: number;
-  planId: number;
-  planTitle: string;
-  planSessionsPerWeek: number;
-  planPrice: number;
-  planCurrency: string;
-  startDate: string;
-  endDate: string | null;
-  status: number;
-  pricePerSession: number;
-  payments: {
-    id: number;
-    amount: number;
-    date: string;
-    status: number;
-  }[];
-};

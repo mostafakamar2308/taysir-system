@@ -11,7 +11,6 @@ interface StatsCardsProps {
 export default function StatsCards({ tutors }: StatsCardsProps) {
   const total = tutors.length;
   const active = tutors.filter((t) => t.active).length;
-  const totalStudents = tutors.reduce((sum, t) => sum + t.studentCount, 0);
 
   const stats = [
     {
@@ -26,16 +25,10 @@ export default function StatsCards({ tutors }: StatsCardsProps) {
       icon: UserCheck,
       color: "bg-green-100 text-green-700",
     },
-    {
-      label: "إجمالي الطلاب",
-      value: totalStudents,
-      icon: Users,
-      color: "bg-blue-100 text-blue-700",
-    },
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 gap-3">
       {stats.map((stat) => (
         <Card key={stat.label} className="border-none shadow-sm">
           <CardContent className="p-4 flex items-center gap-3">

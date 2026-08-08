@@ -8,7 +8,7 @@ import { Role } from "@/types/user";
 import { getTokenFromCookie, verifyToken } from "@/lib/jwt";
 import { getSessionStatus } from "@/lib/session";
 import dayjs from "@/lib/dayjs";
-import { TutorSession } from "@/types/tutor";
+import { TutorSession, TutorSessionCardData } from "@/types/tutor";
 
 const createTutorSchema = z.object({
   name: z.string().min(1, "الاسم مطلوب"),
@@ -105,77 +105,61 @@ export async function createTutor(formData: FormData) {
   revalidatePath("/ar/dashboard/tutors");
 }
 
-const updateTutorSchema = z.object({
-  name: z.string().min(1, "الاسم مطلوب"),
-  email: z.string().email("بريد إلكتروني غير صالح"),
-  phone: z.string().optional().nullable(),
-  timezone: z.string().min(1, "المنطقة الزمنية مطلوبة"),
-  privatePricePerHour: z.number().positive("يجب أن يكون أكبر من 0"),
-  groupPricePerHour: z.number().positive("يجب أن يكون أكبر من 0"),
-  bio: z.string().optional().nullable(),
-  qualifications: z.string().optional().nullable(),
-  active: z.boolean(),
-  zoomAuthenticated: z.boolean().optional(),
-  zoomUrl: z.string().optional().nullable(),
-});
-
 export async function updateTutor(id: number, formData: FormData) {
   const token = await getTokenFromCookie();
   if (!token) throw new Error("غير مصرح");
   const payload = verifyToken(token);
-  if (!payload) throw new Error("غير مصرح");
+  if (!payload || !payload.academyId) throw new Error("غير مصرح");
 
   const rawData = {
-    name: formData.get("name"),
-    email: formData.get("email"),
-    phone: formData.get("phone") || null,
-    timezone: formData.get("timezone"),
-    privatePricePerHour: formData.get("privatePricePerHour")
-      ? parseFloat(formData.get("privatePricePerHour") as string)
-      : undefined,
-    groupPricePerHour: formData.get("groupPricePerHour")
-      ? parseFloat(formData.get("groupPricePerHour") as string)
-      : undefined,
-    bio: formData.get("bio") || null,
-    qualifications: formData.get("qualifications") || null,
+    name: formData.get("name") as string,
+    email: formData.get("email") as string,
+    phone: formData.get("phone") as string | null,
+    timezone: formData.get("timezone") as string,
+    baseHourlyRate: parseFloat(formData.get("baseHourlyRate") as string),
+    baseGroupHourlyRate: parseFloat(
+      formData.get("baseGroupHourlyRate") as string,
+    ),
+    bio: formData.get("bio") as string | null,
+    qualifications: formData.get("qualifications") as string | null,
     active: formData.get("active") === "true",
-    zoomAuthenticated: formData.get("zoomAuthenticated") === "true",
-    zoomUrl: formData.get("zoomUrl") || null,
+    zoomUrl: (formData.get("zoomUrl") as string) || null,
   };
 
-  const validated = updateTutorSchema.parse(rawData);
+  if (rawData.baseHourlyRate < 0 || rawData.baseGroupHourlyRate < 0)
+    throw new Error("السعر يجب أن يكون أكبر من أو يساوي 0");
 
-  // Update user and tutor in transaction
+  const tutor = await db.tutor.findUnique({
+    where: { id },
+    select: { userId: true },
+  });
+  if (!tutor) throw new Error("المعلم غير موجود");
+
   await db.$transaction([
     db.user.update({
-      where: {
-        id: (
-          await db.tutor.findUnique({ where: { id }, select: { userId: true } })
-        )?.userId,
-      },
+      where: { id: tutor.userId },
       data: {
-        name: validated.name,
-        email: validated.email,
-        phone: validated.phone,
-        timezone: validated.timezone,
+        name: rawData.name,
+        email: rawData.email,
+        phone: rawData.phone,
+        timezone: rawData.timezone,
       },
     }),
     db.tutor.update({
       where: { id },
       data: {
-        privatePricePerHour: validated.privatePricePerHour,
-        groupPricePerHour: validated.groupPricePerHour,
-        bio: validated.bio,
-        qualifications: validated.qualifications,
-        active: validated.active,
-        zoomAuthenticated: validated.zoomAuthenticated,
-        zoomUrl: validated.zoomUrl,
+        baseHourlyRate: rawData.baseHourlyRate,
+        baseGroupHourlyRate: rawData.baseGroupHourlyRate,
+        bio: rawData.bio,
+        qualifications: rawData.qualifications,
+        active: rawData.active,
+        zoomUrl: rawData.zoomUrl,
+        zoomAuthenticated: !!rawData.zoomUrl,
       },
     }),
   ]);
 
   revalidatePath(`/ar/dashboard/tutors/${id}`);
-  revalidatePath("/ar/dashboard/tutors");
 }
 
 export async function addTutorNote(tutorId: number, content: string) {
@@ -226,7 +210,9 @@ export async function getTutorSessionsForMonth(
       sessionId: s.id,
       participantId: p.id,
       startTime: s.startTime.toISOString(),
-      endTime: s.endTime.toISOString(),
+      endTime: dayjs(s.startTime)
+        .add(s.durationMinutes, "minute")
+        .toISOString(),
       durationMinutes: s.durationMinutes,
       status: getSessionStatus(s),
       topic: s.topic,
@@ -249,4 +235,59 @@ export async function getTutorSessionsForMonth(
         : null,
     })),
   );
+}
+export async function getTutorSessionsForWeek(
+  tutorId: number,
+  weekStart: string,
+): Promise<TutorSessionCardData[]> {
+  const start = dayjs(weekStart).startOf("day"); // Saturday
+  const end = start.add(7, "day");
+
+  const sessions = await db.session.findMany({
+    where: {
+      tutorId,
+      startTime: { gte: start.toDate(), lt: end.toDate() },
+    },
+    include: {
+      group: { select: { title: true } },
+      participants: {
+        include: { report: true, homeworkSolutions: true },
+      },
+      assignment: { include: { solutions: true } },
+    },
+    orderBy: { startTime: "asc" },
+  });
+
+  return sessions.map((s) => {
+    const attendanceCount = s.participants.filter(
+      (p) => p.studentAttendanceStatus !== null,
+    ).length;
+    const reportCount = s.participants.filter((p) => p.report).length;
+    const homeworkSubmissions = s.participants.filter(
+      (p) => p.homeworkSolutions.length > 0,
+    ).length;
+    const homeworkGraded =
+      s.assignment?.solutions.filter((sol) => sol.score !== null).length ?? 0;
+    return {
+      id: s.id,
+      sessionId: s.id,
+      startTime: s.startTime.toISOString(),
+      endTime: dayjs(s.startTime)
+        .add(s.durationMinutes, "minute")
+        .toISOString(),
+      durationMinutes: s.durationMinutes,
+      status: getSessionStatus(s),
+      topic: s.topic,
+      groupName: s.group.title,
+      isCompleted: s.startTime < new Date() && !s.cancelledBy,
+      attendanceCount,
+      totalParticipants: s.participants.length,
+      reportCount,
+      homeworkSubmissions,
+      homeworkGraded,
+      isTrial: s.isTrial,
+      notes: s.notes,
+      hasAssignment: !!s.assignment,
+    };
+  });
 }

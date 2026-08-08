@@ -12,7 +12,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -21,6 +20,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { createSession } from "@/actions/sessions";
 import dayjs from "@/lib/dayjs";
@@ -30,8 +31,9 @@ interface AddSessionDialogProps {
   onOpenChange: (open: boolean) => void;
   studentId: number;
   studentName: string;
-  groupTutors: { id: number; name: string }[]; // <-- changed
-  academyId: number;
+  tutors: { id: number; name: string | null }[];
+  preselectedTutorId?: number | null;
+  creditBalance?: number | null;
 }
 
 export default function AddSessionDialog({
@@ -39,21 +41,25 @@ export default function AddSessionDialog({
   onOpenChange,
   studentId,
   studentName,
-  groupTutors,
-  academyId,
+  tutors,
+  preselectedTutorId,
+  creditBalance,
 }: AddSessionDialogProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [tutorId, setTutorId] = useState<string>(
-    groupTutors.length === 1 ? String(groupTutors[0].id) : "",
+    preselectedTutorId ? String(preselectedTutorId) : "",
   );
   const [date, setDate] = useState(dayjs().format("YYYY-MM-DD"));
   const [startTime, setStartTime] = useState("09:00");
-  const [duration, setDuration] = useState("60");
+  const [duration, setDuration] = useState(60);
   const [topic, setTopic] = useState("");
   const [notes, setNotes] = useState("");
   const [isTrial, setIsTrial] = useState(false);
+
+  const lowBalance =
+    !isTrial && creditBalance != null && creditBalance <= 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,19 +75,17 @@ export default function AddSessionDialog({
 
     setLoading(true);
     try {
-      const input = {
-        studentIds: [studentId],
+      await createSession({
+        studentId,
         tutorId: parseInt(tutorId),
-        academyId,
         date,
         startTime: dayjs(`${date}T${startTime}`).utc().toISOString(),
-        duration: parseInt(duration),
+        duration,
         topic: topic || undefined,
         notes: notes || undefined,
         isTrial,
-      };
-      await createSession(input);
-      toast({ title: "تمت إضافة الحصة" });
+      });
+      toast({ title: "تم إضافة الحصة" });
       onOpenChange(false);
       router.refresh();
     } catch (error) {
@@ -97,16 +101,28 @@ export default function AddSessionDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      key={open ? "open" : "closed"}
+      open={open}
+      onOpenChange={onOpenChange}
+    >
       <DialogContent
         className="sm:max-w-lg max-h-[90vh] overflow-y-auto"
         dir="rtl"
       >
         <DialogHeader>
-          <DialogTitle>إضافة حصة للطالب {studentName}</DialogTitle>
+          <DialogTitle>إضافة حصة خاصة للطالب {studentName}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Tutor selection – always a dropdown */}
+          {/* Student (fixed) */}
+          <div className="space-y-2">
+            <Label>الطالب</Label>
+            <div className="rounded-md border px-3 py-2 text-sm bg-muted/40">
+              {studentName}
+            </div>
+          </div>
+
+          {/* Tutor selection – preselected from the student's group */}
           <div className="space-y-2">
             <Label>المعلم *</Label>
             <Select value={tutorId} onValueChange={setTutorId} required>
@@ -114,7 +130,7 @@ export default function AddSessionDialog({
                 <SelectValue placeholder="اختر المعلم" />
               </SelectTrigger>
               <SelectContent>
-                {groupTutors.map((t) => (
+                {tutors.map((t) => (
                   <SelectItem key={t.id} value={String(t.id)}>
                     {t.name}
                   </SelectItem>
@@ -123,6 +139,21 @@ export default function AddSessionDialog({
             </Select>
           </div>
 
+          {/* Low balance warning */}
+          {lowBalance && (
+            <Alert
+              variant="destructive"
+              className="border-red-300 bg-red-50 dark:bg-red-900/10"
+            >
+              <AlertCircle className="h-4 w-4 text-red-600" />
+              <AlertDescription className="text-red-800 dark:text-red-300 text-xs">
+                تحذير: الطالب ليس لديه رصيد كافٍ (الرصيد: {creditBalance}).
+                قد تزيد الحصة من المبلغ المستحق عليه.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Date & Time */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>التاريخ *</Label>
@@ -146,37 +177,22 @@ export default function AddSessionDialog({
 
           <div className="space-y-2">
             <Label>المدة (دقيقة)</Label>
-            <Select value={duration} onValueChange={setDuration}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {[15, 20, 25, 30, 45, 60, 90].map((m) => (
-                  <SelectItem key={m} value={String(m)}>
-                    {m} دقيقة
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Input
+              type="number"
+              value={duration}
+              onChange={(e) => setDuration(parseInt(e.target.value))}
+              min={15}
+            />
           </div>
 
           <div className="space-y-2">
             <Label>الموضوع</Label>
-            <Input
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-              placeholder="مثال: سورة البقرة - الآيات 1-20"
-            />
+            <Input value={topic} onChange={(e) => setTopic(e.target.value)} />
           </div>
 
           <div className="space-y-2">
             <Label>ملاحظات</Label>
-            <Textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="ملاحظات..."
-              rows={2}
-            />
+            <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
 
           {/* Trial session checkbox */}
@@ -203,7 +219,7 @@ export default function AddSessionDialog({
               إلغاء
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? "جاري الحفظ..." : "إضافة"}
+              {loading ? "جاري الإنشاء..." : "إنشاء"}
             </Button>
           </DialogFooter>
         </form>

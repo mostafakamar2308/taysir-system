@@ -24,7 +24,6 @@ interface BulkChangeStatusDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   studentIds: number[];
-  plans: { id: number; title: string }[];
   onSuccess?: () => void;
 }
 
@@ -40,11 +39,9 @@ export default function BulkChangeStatusDialog({
   open,
   onOpenChange,
   studentIds,
-  plans,
   onSuccess,
 }: BulkChangeStatusDialogProps) {
   const [status, setStatus] = useState<string>("");
-  const [planId, setPlanId] = useState<string>("none");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -56,11 +53,7 @@ export default function BulkChangeStatusDialog({
     }
     setLoading(true);
     try {
-      await bulkChangeStatus(
-        studentIds,
-        parseInt(status),
-        planId !== "none" ? parseInt(planId) : undefined,
-      );
+      await bulkChangeStatus(studentIds, parseInt(status));
       toast({ title: "تم تغيير حالة الطلاب المحددين" });
       onSuccess?.();
       onOpenChange(false);
@@ -70,8 +63,6 @@ export default function BulkChangeStatusDialog({
       setLoading(false);
     }
   };
-
-  const isSubscribed = status === String(StudentStatus.subscribed);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -97,25 +88,6 @@ export default function BulkChangeStatusDialog({
               </SelectContent>
             </Select>
           </div>
-
-          {isSubscribed && (
-            <div className="space-y-2">
-              <Label>الخطة (للمشتركين)</Label>
-              <Select value={planId} onValueChange={setPlanId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="اختر الخطة" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">بدون خطة</SelectItem>
-                  {plans.map((p) => (
-                    <SelectItem key={p.id} value={String(p.id)}>
-                      {p.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
 
           <div className="flex justify-end gap-2">
             <Button

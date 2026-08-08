@@ -9,7 +9,6 @@ import type {
   StudentInGroup,
   GroupSession,
 } from "@/types/groupDetails";
-import { SubscriptionStatus } from "@/types/subscription";
 
 export default async function GroupDetailPage({
   params,
@@ -34,11 +33,6 @@ export default async function GroupDetailPage({
           student: {
             include: {
               user: { select: { name: true } },
-              subscriptions: {
-                where: { status: SubscriptionStatus.active },
-                orderBy: { startDate: "desc" },
-                take: 1,
-              },
             },
           },
         },
@@ -65,24 +59,14 @@ export default async function GroupDetailPage({
 
   if (!group || group.academyId !== academyId) notFound();
 
-  const now = dayjs.utc();
-
   // Students in group
   const students: StudentInGroup[] = group.members.map((m) => {
-    const sub = m.student.subscriptions[0];
-    let subscriptionStatus: StudentInGroup["subscriptionStatus"] = "none";
-    if (sub) {
-      const end = dayjs(sub.endDate) ?? dayjs(sub.startDate).add(30, "day");
-      if (end.isBefore(now)) subscriptionStatus = "none";
-      else if (end.isBefore(now.add(7, "day"))) subscriptionStatus = "near_end";
-      else subscriptionStatus = "active";
-    }
     return {
       studentId: m.studentId,
       studentName: m.student.user.name ?? "—",
       status: m.student.status,
-      subscriptionStatus,
-      remainingSessions: m.student.sessionsBalance,
+      remainingSessions:
+        m.student.creditBalance / (group.studentSessionPrice || 50),
       active: m.active,
     };
   });
@@ -121,7 +105,9 @@ export default async function GroupDetailPage({
     return {
       id: s.id,
       startTime: s.startTime.toISOString(),
-      endTime: s.endTime.toISOString(),
+      endTime: dayjs(s.startTime)
+        .add(s.durationMinutes, "minute")
+        .toISOString(),
       status: getSessionStatus(s),
       topic: s.topic,
       tutorAttendanceStatus: s.tutorAttendance?.status ?? null,

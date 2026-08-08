@@ -74,7 +74,8 @@ export default async function SessionsPage({
           name: p.student.user.name ?? "",
           status: p.studentAttendanceStatus,
           reason: p.reason,
-          balanceDeducted: p.balanceDeducted,
+          price: p.price,
+          paymentStatus: p.paymentStatus,
           report: p.report
             ? {
                 id: p.report.id,

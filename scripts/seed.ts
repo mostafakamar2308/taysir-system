@@ -1,24 +1,20 @@
 import dayjs from "@/lib/dayjs";
 import db from "@/lib/prisma";
 import { HistoryActionType, TargetType } from "@/types/history";
-import { PaymentMethod, PaymentStatus } from "@/types/payment";
-import { AttendanceStatus } from "@/types/session";
 import { StudentStatus } from "@/types/student";
-import { SubscriptionStatus } from "@/types/subscription";
 import { Role } from "@/types/user";
 import bcrypt from "bcrypt";
 import { faker } from "@faker-js/faker/locale/ar";
 
-const NOW = dayjs();
 const ACADEMY_NAME = "أكاديمية النمو";
 const START_DATE = dayjs().startOf("year");
 const MONTHS = 6;
 
 // Plans in EGP
 const PLANS = [
-  { title: "الخطة الأساسية", sessionsPerWeek: 2, price: 600 },
-  { title: "الخطة المتوسطة", sessionsPerWeek: 3, price: 800 },
-  { title: "الخطة المتقدمة", sessionsPerWeek: 4, price: 1200 },
+  { title: "الخطة الأساسية", sessionCount: 2, price: 600 },
+  { title: "الخطة المتوسطة", sessionCount: 3, price: 800 },
+  { title: "الخطة المتقدمة", sessionCount: 4, price: 1200 },
 ];
 
 const TUTORS_INITIAL = 10;
@@ -27,10 +23,6 @@ const TUTORS_ADDED_MONTH3 = 5;
 const LEADS_BASE = [50, 65, 80, 95, 110, 130];
 const TRIALS_BASE = [30, 40, 50, 60, 70, 80];
 const CONVERSIONS_BASE = [10, 15, 20, 25, 30, 35];
-
-// Group sessions: probability each month to have a few
-const GROUP_SESSION_PROBABILITY = 0.6;
-const MAX_GROUP_SESSIONS_PER_MONTH = 16;
 
 const randomInt = (min: number, max: number) =>
   Math.floor(Math.random() * (max - min + 1)) + min;
@@ -57,7 +49,6 @@ async function cleanup() {
 
   await db.revenue.deleteMany();
   await db.expense.deleteMany();
-  await db.subscription.deleteMany();
   await db.plan.deleteMany();
   await db.student.deleteMany();
   await db.tutor.deleteMany();
@@ -85,7 +76,7 @@ async function seed() {
   console.log("🌱 Seeding started...");
 
   // Cost centers, currencies, specialities – unchanged
-  const costCenters = await Promise.all([
+  await Promise.all([
     db.costCenter.create({ data: { title: "مرتبات المعلمين" } }),
     db.costCenter.create({ data: { title: "مرتبات الموظفين (غير المعلمين)" } }),
     db.costCenter.create({ data: { title: "الإعلانات" } }),
@@ -179,7 +170,7 @@ async function seed() {
   console.log(`✅ Academy: ${academy.name}`);
 
   // Plans
-  const plans = await Promise.all(
+  await Promise.all(
     PLANS.map((p) =>
       db.plan.create({
         data: {
@@ -187,6 +178,7 @@ async function seed() {
           billingPeriod: 30,
           currencyId: eurCurrency.id,
           academyId: academy.id,
+          sessionCount: p.sessionCount * 4,
         },
       }),
     ),

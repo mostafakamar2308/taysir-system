@@ -10,17 +10,17 @@ import {
 import { getTokenFromCookie, verifyToken } from "@/lib/jwt";
 import db from "@/lib/prisma";
 import { getSessionStatus } from "@/lib/session";
-import { HistoryActionType, TargetType } from "@/types/history";
-import { PaymentMethod, PaymentStatus } from "@/types/payment";
+import { PaymentStatus } from "@/types/payment";
 import { StudentStatus } from "@/types/student";
+import { GetStudentResult } from "@/types/student";
 import { SubscriptionStatus } from "@/types/subscription";
+import { SessionRecord } from "@/types/studentProfile";
 import { Role } from "@/types/user";
 import dayjs from "dayjs";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import bcrypt from "bcrypt";
-import { Plan } from "@/generated/prisma/browser";
-import { SessionRecord } from "@/types/studentProfile";
+import { Prisma } from "@/generated/prisma/client";
 
 const userSchema = z.object({
   name: z.string().min(1, "الاسم مطلوب"),
@@ -36,11 +36,170 @@ const studentDataSchema = z.object({
   country: z.string().optional().nullable(),
   status: z.number().default(0),
   source: z.string().optional().nullable(),
-  tutorId: z.number().optional().nullable(),
   currencyId: z.number(),
-  planId: z.number().optional().nullable(),
 });
 
+type StudentForTutor = { id: number; userId: number };
+
+// ── Private-group helpers (new group-based model) ────────────────
+// "Assigning a tutor" to a student means ensuring the student is an active
+// member of a private group (a group with exactly one active member) for that
+// tutor, and deactivating memberships in other private groups.
+
+async function getCurrentPrivateTutorId(
+  tx: Prisma.TransactionClient,
+  studentId: number,
+): Promise<number | null> {
+  const memberships = await tx.groupStudent.findMany({
+    where: { studentId, active: true },
+    include: {
+      group: {
+        include: {
+          _count: { select: { members: { where: { active: true } } } },
+        },
+      },
+    },
+  });
+  const privateMembership = memberships.find(
+    (m) => m.group._count.members === 1,
+  );
+  return privateMembership?.group.currentTutorId ?? null;
+}
+
+async function ensurePrivateGroup(
+  tx: Prisma.TransactionClient,
+  tutorId: number,
+  academyId: number,
+  student: StudentForTutor,
+  studentName: string,
+) {
+  const candidates = await tx.group.findMany({
+    where: { currentTutorId: tutorId, academyId, active: true },
+    include: {
+      members: { where: { active: true }, select: { studentId: true } },
+    },
+  });
+  const existing = candidates.find(
+    (g) =>
+      g.members.length === 0 ||
+      (g.members.length === 1 && g.members[0].studentId === student.id),
+  );
+
+  let groupId = existing?.id;
+  if (!groupId) {
+    const created = await tx.group.create({
+      data: {
+        title: `خاص - ${studentName}`,
+        academyId,
+        currentTutorId: tutorId,
+      },
+    });
+    groupId = created.id;
+  }
+
+  await tx.groupStudent.upsert({
+    where: { groupId_studentId: { groupId, studentId: student.id } },
+    update: { active: true, leftAt: null },
+    create: { groupId, studentId: student.id },
+  });
+
+  return groupId;
+}
+
+async function deactivatePrivateMemberships(
+  tx: Prisma.TransactionClient,
+  studentId: number,
+  exceptGroupId?: number,
+): Promise<number[]> {
+  const memberships = await tx.groupStudent.findMany({
+    where: {
+      studentId,
+      active: true,
+      ...(exceptGroupId ? { groupId: { not: exceptGroupId } } : {}),
+    },
+    include: {
+      group: {
+        include: {
+          currentTutor: { select: { userId: true } },
+          _count: { select: { members: { where: { active: true } } } },
+        },
+      },
+    },
+  });
+
+  const affectedTutorUserIds: number[] = [];
+  for (const m of memberships) {
+    if (m.group._count.members === 1) {
+      await tx.groupStudent.update({
+        where: { id: m.id },
+        data: { active: false, leftAt: new Date() },
+      });
+      affectedTutorUserIds.push(m.group.currentTutor.userId);
+    }
+  }
+  return affectedTutorUserIds;
+}
+
+async function setStudentTutor(
+  tx: Prisma.TransactionClient,
+  student: StudentForTutor,
+  studentName: string,
+  tutorId: number | null,
+  academyId: number,
+): Promise<number | null> {
+  const oldTutorId = await getCurrentPrivateTutorId(tx, student.id);
+
+  if (tutorId) {
+    const tutor = await tx.tutor.findUnique({
+      where: { id: tutorId },
+      select: { id: true, userId: true },
+    });
+    if (!tutor) throw new Error("المعلم غير موجود");
+
+    const groupId = await ensurePrivateGroup(
+      tx,
+      tutorId,
+      academyId,
+      student,
+      studentName,
+    );
+    await deactivatePrivateMemberships(tx, student.id, groupId);
+
+    await tx.chatRoom.upsert({
+      where: {
+        tutorUserId_studentUserId: {
+          tutorUserId: tutor.userId,
+          studentUserId: student.userId,
+        },
+      },
+      create: {
+        tutorUserId: tutor.userId,
+        studentUserId: student.userId,
+        academyId,
+      },
+      update: { isClosed: false },
+    });
+  } else {
+    const affectedTutorUserIds = await deactivatePrivateMemberships(
+      tx,
+      student.id,
+    );
+    if (affectedTutorUserIds.length > 0) {
+      await tx.chatRoom.updateMany({
+        where: {
+          studentUserId: student.userId,
+          tutorUserId: { in: affectedTutorUserIds },
+          isClosed: false,
+        },
+        data: { isClosed: true },
+      });
+    }
+  }
+
+  return oldTutorId;
+}
+
+// ── Create ───────────────────────────────────────────────────────
 export async function createStudent(formData: FormData) {
   const currentUser = await user();
   if (!currentUser || !currentUser.academyId) throw new Error("غير مصرح");
@@ -63,31 +222,19 @@ export async function createStudent(formData: FormData) {
       ? parseInt(formData.get("status") as string)
       : 0,
     source: formData.get("source") || null,
-    tutorId:
-      formData.get("tutorId") && formData.get("tutorId") !== "none"
-        ? parseInt(formData.get("tutorId") as string)
-        : null,
     currencyId:
       formData.get("currencyId") && formData.get("currencyId") !== "none"
         ? parseInt(formData.get("currencyId") as string)
         : null,
-    planId:
-      formData.get("planId") && formData.get("planId") !== "none"
-        ? parseInt(formData.get("planId") as string)
+    tutorId:
+      formData.get("tutorId") && formData.get("tutorId") !== "none"
+        ? parseInt(formData.get("tutorId") as string)
         : null,
   };
 
   // Validate both parts
   const validatedUser = userSchema.parse(rawUser);
   const validatedStudent = studentDataSchema.parse(rawStudent);
-
-  // For subscribed students, planId is mandatory
-  if (
-    validatedStudent.status === StudentStatus.subscribed &&
-    !validatedStudent.planId
-  ) {
-    throw new Error("الخطة مطلوبة للطلاب المشتركين");
-  }
 
   // Generate temporary password
   const tempPassword = "default123";
@@ -107,7 +254,7 @@ export async function createStudent(formData: FormData) {
       },
     });
 
-    // 2. Create Student (without currentSubscriptionId for now)
+    // 2. Create Student
     const student = await tx.student.create({
       data: {
         userId: user.id,
@@ -117,95 +264,24 @@ export async function createStudent(formData: FormData) {
         status: validatedStudent.status,
         currencyId: validatedStudent.currencyId,
         source: validatedStudent.source,
-        tutorId: validatedStudent.tutorId,
-        planId: validatedStudent.planId,
       },
     });
+
+    // 3. If a tutor was selected, create a private-group membership + chat room
     if (rawStudent.tutorId) {
-      const tutor = await tx.tutor.findUnique({
-        where: {
-          id: rawStudent.tutorId,
-        },
-        select: {
-          userId: true,
-        },
-      });
-      if (!tutor) throw new Error("المعلم غير موجود");
-      await tx.chatRoom.create({
-        data: {
-          studentUserId: student.userId,
-          tutorUserId: tutor.userId,
-          academyId: currentUser.academyId!,
-        },
-      });
+      await setStudentTutor(
+        tx,
+        student,
+        user.name ?? "",
+        rawStudent.tutorId,
+        currentUser.academyId!,
+      );
     }
 
-    let subscriptionId: number | null = null;
-    let subscribedPlan: Plan | null = null;
-
-    // 3. If student is subscribed, create subscription + paid revenue
-    if (
-      validatedStudent.status === StudentStatus.subscribed &&
-      validatedStudent.planId
-    ) {
-      const plan = await tx.plan.findUnique({
-        where: { id: validatedStudent.planId },
-      });
-      if (!plan) throw new Error("الخطة غير موجودة");
-      subscribedPlan = plan;
-
-      const startDate = new Date();
-      const endDate = new Date();
-      endDate.setDate(endDate.getDate() + plan.billingPeriod);
-
-      // Create subscription (status = active)
-      const subscription = await tx.subscription.create({
-        data: {
-          academyId: currentUser.academyId!,
-          studentId: student.id,
-          planId: plan.id,
-          startDate,
-          endDate,
-          status: SubscriptionStatus.active, // 0 = active
-        },
-      });
-
-      // Create a paid revenue entry (status = 1 for paid, adjust if needed)
-      await tx.revenue.create({
-        data: {
-          amount: plan.price,
-          currencyId: plan.currencyId,
-          status: 1, // 1 = paid (0 = pending)
-          dueDate: new Date(),
-          description: `دفع خطة ${plan.title}`,
-          academyId: currentUser.academyId!,
-          studentId: student.id,
-          planId: plan.id,
-          recordedBy: currentUser.id,
-          subscriptionId: subscription.id,
-          // method: optional, can be added from form later
-        },
-      });
-
-      subscriptionId = subscription.id;
-    }
-
-    // 4. Update student with currentSubscriptionId if created
-    let updatedStudent = student;
-    if (subscriptionId && subscribedPlan) {
-      updatedStudent = await tx.student.update({
-        where: { id: student.id },
-        data: {
-          currentSubscriptionId: subscriptionId,
-          sessionsBalance: { increment: subscribedPlan.sessionsPerWeek * 4 },
-        },
-      });
-    }
-
-    return { user, student: updatedStudent };
+    return { user, student };
   });
 
-  // If status is "lead", record lead history (optional)
+  // If status is "lead", record lead history
   if (validatedStudent.status === StudentStatus.lead) {
     await recordLeadCreatedHistory(
       result.student.id,
@@ -225,20 +301,18 @@ const userUpdateSchema = z.object({
   preferredLanguage: z.string().optional().nullable(),
 });
 
-// Schema for student fields (excluding relations that shouldn't be updated directly)
+// Schema for student fields (tutor is managed via group memberships)
 const studentUpdateSchema = z.object({
   age: z.number().min(1, "العمر مطلوب"),
   country: z.string().optional().nullable(),
   source: z.string().optional().nullable(),
-  tutorId: z.number().optional().nullable(),
-  // status, currencyId, planId are not updated from this dialog
 });
 
 export async function updateStudent(id: number, formData: FormData) {
   const currentUser = await user();
   if (!currentUser || !currentUser.academyId) throw new Error("غير مصرح");
 
-  // 1. Fetch existing student to get userId and current status
+  // 1. Fetch existing student to get userId
   const existingStudent = await db.student.findUnique({
     where: { id },
     include: { user: true },
@@ -262,16 +336,11 @@ export async function updateStudent(id: number, formData: FormData) {
       : undefined,
     country: formData.get("country") || null,
     source: formData.get("source") || null,
-    tutorId:
-      formData.get("tutorId") && formData.get("tutorId") !== "none"
-        ? parseInt(formData.get("tutorId") as string)
-        : null,
   };
   const validatedStudent = studentUpdateSchema.parse(rawStudent);
 
   // 4. Perform updates in a transaction
   await db.$transaction(async (tx) => {
-    // Update User record
     await tx.user.update({
       where: { id: existingStudent.userId },
       data: {
@@ -283,146 +352,63 @@ export async function updateStudent(id: number, formData: FormData) {
       },
     });
 
-    // Update Student record
     await tx.student.update({
       where: { id },
       data: {
         age: validatedStudent.age,
         country: validatedStudent.country,
         source: validatedStudent.source,
-        tutorId: validatedStudent.tutorId,
       },
     });
-
-    // Close chat with old tutor if tutor changed
-    if (rawStudent.tutorId) {
-      if (existingStudent.tutorId) {
-        const existingTutor = await tx.tutor.findUnique({
-          where: {
-            id: rawStudent.tutorId,
-          },
-          select: {
-            userId: true,
-          },
-        });
-        if (!existingTutor)
-          throw new Error("المعلم المسجل غير موجود: Shouldn't Happen");
-        const existingChatRoom = await tx.chatRoom.findUnique({
-          where: {
-            tutorUserId_studentUserId: {
-              tutorUserId: existingTutor?.userId,
-              studentUserId: existingStudent.userId,
-            },
-          },
-        });
-        if (!existingChatRoom)
-          throw new Error("لا يوجد محادثة: Shouldn't Happen");
-        await tx.chatRoom.update({
-          where: {
-            tutorUserId_studentUserId: {
-              tutorUserId: existingTutor?.userId,
-              studentUserId: existingStudent.userId,
-            },
-          },
-          data: {
-            isClosed: true,
-          },
-        });
-      }
-      const tutor = await tx.tutor.findUnique({
-        where: {
-          id: rawStudent.tutorId,
-        },
-        select: {
-          userId: true,
-        },
-      });
-      if (!tutor) throw new Error("المعلم غير موجود");
-      await tx.chatRoom.upsert({
-        create: {
-          studentUserId: existingStudent.userId,
-          tutorUserId: tutor.userId,
-          academyId: currentUser.academyId!,
-        },
-        where: {
-          tutorUserId_studentUserId: {
-            tutorUserId: tutor.userId,
-            studentUserId: existingStudent.userId,
-          },
-        },
-        update: {
-          isClosed: false,
-        },
-      });
-    }
   });
-
-  // 5. Optional: Handle status‑related side effects only if status was changed
-  //    Since the edit dialog does not include status, we normally wouldn't run this.
-  //    But if you later add status to the form, uncomment and adjust accordingly.
-  /*
-  const newStatus = formData.get("status") ? parseInt(formData.get("status") as string) : existingStudent.status;
-  if (newStatus !== existingStudent.status) {
-    if (newStatus === StudentStatus.lead) {
-      await db.history.create({
-        data: {
-          targetType: TargetType.Student,
-          targetId: id,
-          action: HistoryActionType.LeadCreated,
-          recordedBy: currentUser.id,
-          academyId: currentUser.academyId,
-          recorderType: Role.Admin,
-        },
-      });
-    }
-    if ([StudentStatus.paused, StudentStatus.churned].includes(newStatus)) {
-      await db.subscription.updateMany({
-        where: { studentId: id },
-        data: { status: SubscriptionStatus.cancelled },
-      });
-      await db.student.update({
-        where: { id },
-        data: { currentSubscriptionId: null, planId: null },
-      });
-    }
-  }
-  */
 
   revalidatePath("/ar/dashboard/students");
 }
 
-export async function getStudent(id: number) {
+export async function getStudent(id: number): Promise<GetStudentResult | null> {
   const student = await db.student.findUnique({
-    where: {
-      id,
-    },
+    where: { id },
     include: {
-      user: true,
-      tutor: {
+      user: { omit: { password: true } },
+      groupMemberships: {
+        where: { active: true },
         include: {
-          user: {
-            omit: {
-              password: true,
+          group: {
+            include: {
+              currentTutor: {
+                include: { user: { omit: { password: true } } },
+              },
+              _count: { select: { members: { where: { active: true } } } },
             },
           },
         },
       },
-      plan: true,
     },
   });
+  if (!student) return null;
 
-  return student;
+  return {
+    id: student.id,
+    age: student.age,
+    country: student.country,
+    source: student.source,
+    currencyId: student.currencyId,
+    user: student.user,
+    groupMemberships: student.groupMemberships.map((m) => ({
+      id: m.id,
+      groupId: m.groupId,
+      groupTitle: m.group.title,
+      tutorId: m.group.currentTutor.id,
+      tutorName: m.group.currentTutor.user.name ?? "غير معروف",
+      isPrivate: m.group._count.members === 1,
+    })),
+  };
 }
 
-export async function changeStudentStatusWithSubscription(
+// ── Status changes (no subscriptions) ────────────────────────────
+export async function changeStudentStatus(
   studentId: number,
   status: number,
-  subscriptionData?: {
-    planId: number;
-    startDate: Date;
-    paid: boolean;
-    tutorId?: number;
-  },
   note?: string,
 ) {
   const token = await getTokenFromCookie();
@@ -431,13 +417,10 @@ export async function changeStudentStatusWithSubscription(
   if (!payload) throw new Error("غير مصرح");
 
   const student = await db.student.findUnique({
-    where: {
-      id: studentId,
-    },
+    where: { id: studentId },
   });
   if (!student) throw new Error("هذا الطالب غير موجود");
 
-  // Update student status
   await db.student.update({
     where: { id: studentId },
     data: { status },
@@ -451,63 +434,6 @@ export async function changeStudentStatusWithSubscription(
     student.academyId,
   );
 
-  // If status is subscribed and subscription data provided, create a subscription
-  if (status === StudentStatus.subscribed && subscriptionData) {
-    const plan = await db.plan.findUnique({
-      where: {
-        id: subscriptionData.planId,
-      },
-    });
-    if (!plan) throw new Error("No plan with this id");
-    await db.subscription.updateMany({
-      where: {
-        studentId,
-      },
-      data: {
-        status: SubscriptionStatus.expired,
-      },
-    });
-    const subscription = await db.subscription.create({
-      data: {
-        studentId,
-        planId: subscriptionData.planId,
-        academyId: student.academyId,
-        startDate: subscriptionData.startDate,
-        endDate: dayjs(subscriptionData.startDate).add(1, "month").toDate(),
-        status: dayjs(subscriptionData.startDate).isAfter(dayjs())
-          ? SubscriptionStatus.pending
-          : SubscriptionStatus.active,
-      },
-    });
-
-    await db.revenue.create({
-      data: {
-        studentId,
-        academyId: student.academyId,
-        amount: plan.price,
-        currencyId: plan.currencyId,
-        status: subscriptionData.paid
-          ? PaymentStatus.PAID
-          : PaymentStatus.PENDING,
-        method: PaymentMethod.ONLINE,
-        planId: plan.id,
-        recordedBy: payload.id,
-        subscriptionId: subscription.id,
-      },
-    });
-
-    await db.student.update({
-      where: { id: studentId },
-      data: {
-        currentSubscriptionId: subscription.id,
-        planId: plan.id,
-        sessionsBalance: { increment: plan.sessionsPerWeek * 4 },
-        tutorId: subscriptionData.tutorId,
-      },
-    });
-  }
-
-  // If note provided, create a note
   if (note?.trim()) {
     await db.note.create({
       data: {
@@ -529,20 +455,29 @@ export async function assignTutor(studentId: number, tutorId: number | null) {
   const payload = verifyToken(token);
   if (!payload || !payload.academyId) throw new Error("غير مصرح");
 
-  await db.student.update({
+  const student = await db.student.findUnique({
     where: { id: studentId },
-    data: { tutorId },
+    include: { user: { select: { id: true, name: true } } },
   });
-  await db.history.create({
-    data: {
-      targetType: TargetType.Student,
-      targetId: studentId,
-      action: HistoryActionType.StudentTutorChange,
-      recordedBy: payload.id,
-      recorderType: TargetType.Admin,
-      academyId: payload.academyId,
-    },
-  });
+  if (!student) throw new Error("الطالب غير موجود");
+
+  const oldTutorId = await db.$transaction(async (tx) =>
+    setStudentTutor(
+      tx,
+      student,
+      student.user.name ?? "",
+      tutorId,
+      payload.academyId!,
+    ),
+  );
+
+  await recordStudentTutorChangeHistory(
+    studentId,
+    oldTutorId,
+    tutorId,
+    payload.id,
+    payload.academyId,
+  );
 
   revalidatePath("/ar/dashboard/students");
   revalidatePath(`/ar/dashboard/students/${studentId}`);
@@ -557,7 +492,7 @@ export async function addNote(studentId: number, content: string) {
   await db.note.create({
     data: {
       content,
-      targetType: 0, // student
+      targetType: 0,
       targetId: studentId,
       authorId: payload.id,
     },
@@ -573,41 +508,42 @@ export async function bulkAssignTutor(
   const token = await getTokenFromCookie();
   if (!token) throw new Error("غير مصرح");
   const payload = verifyToken(token);
-  if (!payload) throw new Error("غير مصرح");
+  if (!payload || !payload.academyId) throw new Error("غير مصرح");
 
-  // Fetch current tutors for these students
   const students = await db.student.findMany({
     where: { id: { in: studentIds } },
-    select: { id: true, tutorId: true, academyId: true },
+    include: { user: { select: { id: true, name: true } } },
   });
 
-  // Update all students
-  await db.student.updateMany({
-    where: { id: { in: studentIds } },
-    data: { tutorId },
-  });
+  const changes: { studentId: number; oldTutorId: number | null }[] = [];
 
-  // Record history for each student (if tutor changed)
-  for (const student of students) {
-    if (student.tutorId !== tutorId) {
-      await recordStudentTutorChangeHistory(
-        student.id,
-        student.tutorId,
+  await db.$transaction(async (tx) => {
+    for (const student of students) {
+      const oldTutorId = await setStudentTutor(
+        tx,
+        student,
+        student.user.name ?? "",
         tutorId,
-        payload.id,
-        student.academyId,
+        payload.academyId!,
       );
+      changes.push({ studentId: student.id, oldTutorId });
     }
+  });
+
+  for (const change of changes) {
+    await recordStudentTutorChangeHistory(
+      change.studentId,
+      change.oldTutorId,
+      tutorId,
+      payload.id,
+      payload.academyId,
+    );
   }
 
   revalidatePath("/ar/dashboard/students");
 }
 
-export async function bulkChangeStatus(
-  studentIds: number[],
-  status: number,
-  planId?: number,
-) {
+export async function bulkChangeStatus(studentIds: number[], status: number) {
   const token = await getTokenFromCookie();
   if (!token) throw new Error("غير مصرح");
   const payload = verifyToken(token);
@@ -622,7 +558,7 @@ export async function bulkChangeStatus(
   // Update statuses
   await db.student.updateMany({
     where: { id: { in: studentIds } },
-    data: { status, planId },
+    data: { status },
   });
 
   for (const student of students) {
@@ -829,61 +765,6 @@ export async function resolvePayment(
   revalidatePath("/dashboard/finances");
 }
 
-export async function getStudentSessionsForMonth(
-  studentId: number,
-  monthStart: string,
-): Promise<SessionRecord[]> {
-  const start = dayjs.utc(monthStart).startOf("month").toDate();
-  const end = dayjs.utc(monthStart).endOf("month").toDate();
-
-  // Fetch sessions where the student participates
-  const participants = await db.sessionParticipant.findMany({
-    where: {
-      studentId,
-      session: {
-        startTime: { gte: start, lte: end },
-      },
-    },
-    include: {
-      session: {
-        include: {
-          tutor: { include: { user: { select: { name: true } } } },
-        },
-      },
-      report: true,
-    },
-    orderBy: { session: { startTime: "desc" } },
-  });
-
-  return participants.map((p) => ({
-    id: p.session.id,
-    startTime: p.session.startTime.toISOString(),
-    endTime: p.session.endTime.toISOString(),
-    durationMinutes: p.session.durationMinutes,
-    status: getSessionStatus(p.session),
-    topic: p.session.topic,
-    notes: p.session.notes,
-    tutorId: p.session.tutorId,
-    tutorName: p.session.tutor.user.name ?? "",
-    attendance: {
-      id: p.id,
-      status: p.studentAttendanceStatus,
-      reason: p.reason,
-    },
-    report: p.report
-      ? {
-          id: p.report.id,
-          rating: p.report.rating,
-          outcomes: p.report.outcomes,
-          strengths: p.report.strengths,
-          weaknesses: p.report.weaknesses,
-          nextGoals: p.report.nextGoals,
-          comments: p.report.comments,
-        }
-      : null,
-  }));
-}
-
 export async function renewSubscription(studentId: number, paid?: boolean) {
   const currentUser = await user();
   if (!currentUser || currentUser.role !== Role.Admin)
@@ -973,4 +854,78 @@ export async function renewSubscription(studentId: number, paid?: boolean) {
   });
 
   revalidatePath(`/ar/dashboard/students/${studentId}`);
+}
+
+export async function getStudentSessionsForWeek(
+  studentId: number,
+  weekStart: string,
+): Promise<SessionRecord[]> {
+  const start = dayjs.utc(weekStart).startOf("day");
+  const end = start.add(7, "day");
+
+  const participants = await db.sessionParticipant.findMany({
+    where: {
+      studentId,
+      session: { startTime: { gte: start.toDate(), lt: end.toDate() } },
+    },
+    include: {
+      session: {
+        include: {
+          group: {
+            select: {
+              id: true,
+              title: true,
+              currentTutor: { include: { user: true } },
+            },
+          },
+        },
+      },
+      report: true,
+      homeworkSolutions: { take: 1, orderBy: { createdAt: "desc" } },
+    },
+    orderBy: { session: { startTime: "asc" } },
+  });
+
+  return participants.map((p) => {
+    const solution = p.homeworkSolutions[0] ?? null;
+    return {
+      id: p.session.id,
+      startTime: p.session.startTime.toISOString(),
+      endTime: dayjs(p.session.startTime)
+        .add(p.session.durationMinutes, "minute")
+        .toISOString(),
+      durationMinutes: p.session.durationMinutes,
+      status: getSessionStatus(p.session),
+      topic: p.session.topic,
+      notes: p.session.notes,
+      tutorId: p.session.group.currentTutor.id,
+      tutorName: p.session.group.currentTutor.user.name ?? "",
+      groupId: p.session.group.id,
+      groupName: p.session.group.title,
+      attendance: {
+        id: p.id,
+        status: p.studentAttendanceStatus,
+        reason: p.reason ?? null,
+      },
+      report: p.report
+        ? {
+            id: p.report.id,
+            rating: p.report.rating,
+            outcomes: p.report.outcomes,
+            strengths: p.report.strengths,
+            weaknesses: p.report.weaknesses,
+            nextGoals: p.report.nextGoals,
+            comments: p.report.comments,
+          }
+        : null,
+      homeworkSolution: solution
+        ? {
+            id: solution.id,
+            score: solution.score,
+            submittedAt: solution.submittedAt.toISOString(),
+            gradedAt: solution.gradedAt?.toISOString() ?? null,
+          }
+        : null,
+    };
+  });
 }

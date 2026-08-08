@@ -23,23 +23,10 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { updateTutor } from "@/actions/tutor";
+import type { TutorProfile } from "@/types/tutor";
 
 interface EditTutorDialogProps {
-  tutor: {
-    id: number;
-    name: string;
-    email: string;
-    phone: string | null;
-    timezone: string;
-    privatePricePerHour: number;
-    groupPricePerHour: number;
-    currency: string;
-    bio?: string | null;
-    qualifications?: string | null;
-    active?: boolean;
-    zoomAuthenticated?: boolean;
-    zoomUrl?: string | null;
-  };
+  tutor: TutorProfile;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -54,15 +41,14 @@ export default function EditTutorDialog({
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: tutor.name,
-    email: tutor.email,
+    email: tutor.email || "",
     phone: tutor.phone || "",
     timezone: tutor.timezone,
-    privatePricePerHour: String(tutor.privatePricePerHour),
-    groupPricePerHour: String(tutor.groupPricePerHour),
-    bio: tutor.bio || "",
-    qualifications: tutor.qualifications || "",
-    active: tutor.active ?? true,
-    zoomAuthenticated: tutor.zoomAuthenticated || false,
+    baseHourlyRate: String(tutor.baseHourlyRate),
+    baseGroupHourlyRate: String(tutor.baseGroupHourlyRate),
+    bio: "", // we don't have bio/qualifications in new type, can add later
+    qualifications: "",
+    active: tutor.active,
     zoomUrl: tutor.zoomUrl || "",
   });
 
@@ -83,7 +69,12 @@ export default function EditTutorDialog({
       onOpenChange(false);
       router.refresh();
     } catch (error) {
-      if (error) toast({ title: "حدث خطأ", variant: "destructive" });
+      if (error instanceof Error)
+        toast({
+          title: "خطأ",
+          description: error.message,
+          variant: "destructive",
+        });
     } finally {
       setLoading(false);
     }
@@ -146,10 +137,8 @@ export default function EditTutorDialog({
               <Label>سعر الساعة (خاص)</Label>
               <Input
                 type="number"
-                value={formData.privatePricePerHour}
-                onChange={(e) =>
-                  handleChange("privatePricePerHour", e.target.value)
-                }
+                value={formData.baseHourlyRate}
+                onChange={(e) => handleChange("baseHourlyRate", e.target.value)}
                 required
               />
             </div>
@@ -157,9 +146,9 @@ export default function EditTutorDialog({
               <Label>سعر الساعة (مجموعة)</Label>
               <Input
                 type="number"
-                value={formData.groupPricePerHour}
+                value={formData.baseGroupHourlyRate}
                 onChange={(e) =>
-                  handleChange("groupPricePerHour", e.target.value)
+                  handleChange("baseGroupHourlyRate", e.target.value)
                 }
                 required
               />
@@ -181,6 +170,19 @@ export default function EditTutorDialog({
               rows={3}
             />
           </div>
+
+          <div className="space-y-2">
+            <Label>رابط Zoom الشخصي</Label>
+            <Input
+              value={formData.zoomUrl}
+              onChange={(e) => handleChange("zoomUrl", e.target.value)}
+              placeholder="https://zoom.us/j/..."
+              dir="ltr"
+            />
+            <p className="text-xs text-muted-foreground">
+              سيتم استخدام هذا الرابط لجميع حصص المعلم (اختياري)
+            </p>
+          </div>
           <div className="flex items-center gap-2">
             <Switch
               id="active"
@@ -188,22 +190,6 @@ export default function EditTutorDialog({
               onCheckedChange={(v) => handleChange("active", v)}
             />
             <Label htmlFor="active">نشط</Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <Switch
-              id="zoom"
-              checked={formData.zoomAuthenticated}
-              onCheckedChange={(v) => handleChange("zoomAuthenticated", v)}
-            />
-            <Label htmlFor="zoom">مفعل على Zoom</Label>
-          </div>
-          <div className="space-y-2">
-            <Label>رابط Zoom الشخصي</Label>
-            <Input
-              value={formData.zoomUrl}
-              onChange={(e) => handleChange("zoomUrl", e.target.value)}
-              placeholder="https://zoom.us/j/..."
-            />
           </div>
           <DialogFooter>
             <Button

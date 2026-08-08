@@ -248,6 +248,8 @@ export default function SessionsViewer({
           weekDates={weekDates}
           sessions={filteredSessions}
           onSessionClick={setSelectedSession}
+          onEditSession={setEditingSession}
+          onCancelSession={setCancelSession}
         />
       </div>
 

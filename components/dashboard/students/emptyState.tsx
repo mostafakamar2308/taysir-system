@@ -15,15 +15,11 @@ interface EmptyStateProps {
     id: number;
     title: string;
   }[];
-  plans?: {
-    id: number;
-    title: string;
-  }[];
   academyId: number;
   onClear: () => void;
 }
 
-export function EmptyState({ hasFilters, academyId, plans, specialities, currencies, tutors, type, onClear }: EmptyStateProps) {
+export function EmptyState({ hasFilters, academyId, specialities, currencies, tutors, type, onClear }: EmptyStateProps) {
   return (
     <Card className="border-dashed border-2 shadow-none">
       <CardContent className="py-16 flex flex-col items-center justify-center text-center space-y-4">
@@ -68,9 +64,8 @@ export function EmptyState({ hasFilters, academyId, plans, specialities, currenc
           specialities={specialities}
           academyId={academyId}
         /> : null}
-        {tutors && plans && currencies ? <AddStudentDialog
+        {tutors && currencies ? <AddStudentDialog
           tutors={tutors}
-          plans={plans}
           currencies={currencies}
           academyId={academyId}
         /> : null}

@@ -2,38 +2,48 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { PerformanceMetrics } from "@/types/tutor";
-import { AlertCircle, TrendingUp, FileText, Calendar } from "lucide-react";
+import { Calendar, FileText, AlertCircle, ClipboardList } from "lucide-react";
 
-export default function ScoreCard({
-  performanceMetrics,
-}: {
-  performanceMetrics: PerformanceMetrics;
-}) {
+interface NewPerformanceMetrics {
+  attendanceRate: number;
+  reportAdherence: number;
+  reportQuality: number;
+  homeworkGradingCount: number;
+  weightedScore: number;
+  scoreHint: string;
+  scoreColor: string;
+}
+
+interface Props {
+  performanceMetrics: NewPerformanceMetrics;
+}
+
+export default function ScoreCard({ performanceMetrics }: Props) {
   const metrics = [
     {
       label: "نسبة الحضور",
       value: performanceMetrics.attendanceRate.toFixed(1),
       icon: Calendar,
-      weight: "40%",
-    },
-    {
-      label: "الاحتفاظ بالطلاب",
-      value: performanceMetrics.retentionRate.toFixed(1),
-      icon: TrendingUp,
-      weight: "30%",
+      weight: "35%",
     },
     {
       label: "الالتزام بالتقارير",
       value: performanceMetrics.reportAdherence.toFixed(1),
       icon: FileText,
-      weight: "20%",
+      weight: "25%",
     },
     {
       label: "جودة التقارير",
       value: performanceMetrics.reportQuality.toFixed(1),
       icon: AlertCircle,
-      weight: "10%",
+      weight: "25%",
+    },
+    {
+      label: "الواجبات المصححة",
+      value: performanceMetrics.homeworkGradingCount.toString(),
+      icon: ClipboardList,
+      weight: "15%",
+      isCount: true,
     },
   ];
 
@@ -59,19 +69,30 @@ export default function ScoreCard({
                   <span>{m.label}</span>
                 </div>
                 <span className="font-medium">
-                  {m.value}%{" "}
+                  {m.value}
+                  {!m.isCount && "%"}{" "}
                   <span className="text-xs text-muted-foreground">
                     ({m.weight})
                   </span>
                 </span>
               </div>
-              <Progress value={parseFloat(m.value)} className="h-2" />
+              {!m.isCount && (
+                <Progress value={parseFloat(m.value)} className="h-2" />
+              )}
+              {m.isCount && (
+                <Progress
+                  value={0}
+                  className="h-2"
+                /> /* no progress for count, just spacer */
+              )}
             </div>
           ))}
         </div>
 
         <div
-          className={`p-3 rounded-lg mt-2 text-sm ${performanceMetrics.scoreColor.replace("text-", "bg-").replace("600", "100")} border`}
+          className={`p-3 rounded-lg mt-2 text-sm ${performanceMetrics.scoreColor
+            .replace("text-", "bg-")
+            .replace("600", "100")} border`}
         >
           <p className={`font-medium ${performanceMetrics.scoreColor}`}>
             {performanceMetrics.scoreHint}
