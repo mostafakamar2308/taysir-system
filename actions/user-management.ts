@@ -74,8 +74,8 @@ export async function createUser(formData: FormData) {
       data: {
         userId: user.id,
         academyId: validated.academyId,
-        privatePricePerHour: 50,
-        groupPricePerHour: 50,
+        baseHourlyRate: 50,
+        baseGroupHourlyRate: 50,
         active: true,
         currencyId: validated.currencyId,
       },

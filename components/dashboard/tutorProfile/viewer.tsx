@@ -9,17 +9,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { MessageSquare, Mail, Edit, ArrowLeft } from "lucide-react";
 import type { TutorProfile } from "@/types/tutor";
+import type { TutorFinancesInput } from "@/types/tutorFinances";
 import OverviewTab from "./overviewTab";
 import GroupsTab from "./groupsTab";
 import SessionsTab from "./sessionsTab";
+import FinancesTab from "./financesTab";
 import EditTutorDialog from "@/components/dashboard/tutorProfile/editTutorDialog";
 
 interface Props {
   tutor: TutorProfile;
   academyId: number;
+  finances?: TutorFinancesInput;
 }
 
-export default function TutorProfileClient({ tutor, academyId }: Props) {
+export default function TutorProfileClient({ tutor, academyId, finances }: Props) {
   const [activeTab, setActiveTab] = useState("overview");
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
@@ -131,6 +134,11 @@ export default function TutorProfileClient({ tutor, academyId }: Props) {
           <TabsTrigger value="sessions" className="flex-1">
             الحصص
           </TabsTrigger>
+          {finances && (
+            <TabsTrigger value="finances" className="flex-1">
+              المالية
+            </TabsTrigger>
+          )}
         </TabsList>
         <TabsContent value="overview">
           <OverviewTab tutor={tutor} />
@@ -140,6 +148,13 @@ export default function TutorProfileClient({ tutor, academyId }: Props) {
         </TabsContent>
         <TabsContent value="sessions">
           <SessionsTab tutorId={tutor.id} academyId={academyId} />
+        </TabsContent>
+        <TabsContent value="finances">
+          <FinancesTab
+            tutorId={tutor.id}
+            tutorName={tutor.name}
+            data={finances!}
+          />
         </TabsContent>
       </Tabs>
 

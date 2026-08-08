@@ -9,7 +9,7 @@ import { SubscriptionStatus } from "@/types/subscription";
 
 const planSchema = z.object({
   title: z.string().min(1, "العنوان مطلوب"),
-  sessionsPerWeek: z.number().int().positive("يجب أن تكون 1 أو أكثر"),
+  sessionCount: z.number().int().positive("يجب أن تكون 1 أو أكثر"),
   price: z.number().positive("السعر يجب أن يكون أكبر من 0"),
   billingPeriod: z.number().int().positive("فترة الفوترة يجب أن تكون إيجابية"),
   currencyId: z.number().int().positive("العملة مطلوبة"),
@@ -24,7 +24,7 @@ export async function createPlan(formData: FormData) {
 
   const rawData = {
     title: formData.get("title"),
-    sessionsPerWeek: parseInt(formData.get("sessionsPerWeek") as string),
+    sessionCount: parseInt(formData.get("sessionCount") as string),
     price: parseFloat(formData.get("price") as string),
     billingPeriod: parseInt(formData.get("billingPeriod") as string),
     currencyId: parseInt(formData.get("currencyId") as string),
@@ -45,7 +45,7 @@ export async function updatePlan(id: number, formData: FormData) {
 
   const rawData = {
     title: formData.get("title"),
-    sessionsPerWeek: parseInt(formData.get("sessionsPerWeek") as string),
+    sessionCount: parseInt(formData.get("sessionCount") as string),
     price: parseFloat(formData.get("price") as string),
     billingPeriod: parseInt(formData.get("billingPeriod") as string),
     currencyId: parseInt(formData.get("currencyId") as string),
@@ -84,7 +84,13 @@ export async function getPlans(academyId: number) {
       currency: true,
       subscriptions: {
         where: { status: SubscriptionStatus.active },
-        include: { student: true },
+        include: {
+          groupStudent: {
+            include: {
+              student: { include: { user: { select: { name: true } } } },
+            },
+          },
+        },
       },
       revenues: {
         where: { status: PaymentStatus.PAID },
@@ -96,7 +102,7 @@ export async function getPlans(academyId: number) {
   return plans.map((plan) => ({
     id: plan.id,
     title: plan.title,
-    sessionsPerWeek: plan.sessionsPerWeek,
+    sessionCount: plan.sessionCount,
     price: plan.price,
     billingPeriod: plan.billingPeriod,
     currency: plan.currency.name,

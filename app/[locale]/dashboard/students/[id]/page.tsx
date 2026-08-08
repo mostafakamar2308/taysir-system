@@ -4,6 +4,7 @@ import StudentProfileClient from "@/components/dashboard/studentProfile/viewer";
 import { user } from "@/lib/auth";
 import { getSessionStatus } from "@/lib/session";
 import { StudentProfile, SessionRecord } from "@/types/studentProfile";
+import { getStudentFinancialSummary } from "@/actions/studentFinances";
 import dayjs from "@/lib/dayjs";
 
 export default async function StudentProfilePage({
@@ -21,6 +22,7 @@ export default async function StudentProfilePage({
     where: { id },
     include: {
       user: true,
+      currency: true,
       studentAvailabilities: true,
       notes: { include: { author: true }, orderBy: { createdAt: "desc" } },
       payments: { include: { currency: true } },
@@ -127,9 +129,11 @@ export default async function StudentProfilePage({
     status: student.status,
     creditBalance: student.creditBalance,
     source: student.source,
+    academyId: student.academyId,
+    currencyId: student.currencyId,
+    currencySymbol: student.currency.symbol,
     preferredLanguage: student.user.preferredLanguage,
     groups,
-    academyId: student.academyId,
     notes: student.notes.map((n) => ({
       id: n.id,
       content: n.content,
@@ -157,10 +161,18 @@ export default async function StudentProfilePage({
     include: { user: true },
   });
 
+  let financialSummary = null;
+  try {
+    financialSummary = await getStudentFinancialSummary(id);
+  } catch {
+    financialSummary = null;
+  }
+
   return (
     <StudentProfileClient
       tutors={tutors.map((t) => ({ id: t.id, name: t.user.name }))}
       student={transformed}
+      financialSummary={financialSummary}
     />
   );
 }

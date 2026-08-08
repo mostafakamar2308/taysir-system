@@ -87,8 +87,8 @@ export async function createTutor(formData: FormData) {
       data: {
         userId: user.id,
         academyId: payload.academyId!,
-        privatePricePerHour: validated.privatePricePerHour,
-        groupPricePerHour: validated.groupPricePerHour,
+        baseHourlyRate: validated.privatePricePerHour,
+        baseGroupHourlyRate: validated.groupPricePerHour,
         active: validated.active,
         bio: validated.bio,
         qualifications: validated.qualifications,

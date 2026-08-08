@@ -31,27 +31,16 @@ export default function GroupStudentsCard({ group }: Props) {
     router.refresh();
   };
 
-  const subscriptionBadge = (status: StudentInGroup["subscriptionStatus"]) => {
-    switch (status) {
-      case "active":
-        return (
-          <Badge variant="secondary" className="bg-green-100 text-green-700">
-            نشط
-          </Badge>
-        );
-      case "near_end":
-        return (
-          <Badge variant="secondary" className="bg-amber-100 text-amber-700">
-            قريب الانتهاء
-          </Badge>
-        );
-      default:
-        return (
-          <Badge variant="secondary" className="bg-gray-100 text-gray-700">
-            لا يوجد
-          </Badge>
-        );
-    }
+  const subscriptionBadge = (active: boolean) => {
+    return active ? (
+      <Badge variant="secondary" className="bg-green-100 text-green-700">
+        نشط
+      </Badge>
+    ) : (
+      <Badge variant="secondary" className="bg-gray-100 text-gray-700">
+        غير نشط
+      </Badge>
+    );
   };
 
   return (
@@ -75,7 +64,7 @@ export default function GroupStudentsCard({ group }: Props) {
                 <div className="flex-1">
                   <div className="font-medium">{s.studentName}</div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    {subscriptionBadge(s.subscriptionStatus)}
+                    {subscriptionBadge(s.active)}
                     <span>• متبقي {s.remainingSessions} حصة</span>
                   </div>
                 </div>

@@ -17,14 +17,31 @@ export default async function TutorAnalyticsPage({
     include: {
       user: true,
       specialities: true,
-      students: { select: { id: true } },
+      groups: {
+        where: { active: true },
+        include: {
+          members: {
+            where: { active: true },
+            select: {
+              student: { include: { user: { select: { name: true } } } },
+            },
+          },
+        },
+      },
     },
   });
 
   if (!tutor) notFound();
 
-  // ---- summary stats ----
-  const studentCount = tutor.students.length;
+  // ---- summary stats (distinct active members across the tutor's groups) ----
+  const studentMap = new Map<number, string>();
+  tutor.groups.forEach((g) =>
+    g.members.forEach((m) => {
+      if (!studentMap.has(m.student.id))
+        studentMap.set(m.student.id, m.student.user.name || "");
+    }),
+  );
+  const studentCount = studentMap.size;
 
   // total past non‑cancelled sessions
   const totalSessions = await db.session.count({
@@ -123,10 +140,10 @@ export default async function TutorAnalyticsPage({
     .filter((item) => item.value > 0);
 
   // ---- top students by attendance (from this tutor) ----
-  const students = await db.student.findMany({
-    where: { tutorId },
-    select: { id: true, user: { select: { name: true } } },
-  });
+  const students = Array.from(studentMap.entries()).map(([id, name]) => ({
+    id,
+    name,
+  }));
 
   const topStudents = await Promise.all(
     students.map(async (student) => {
@@ -157,9 +174,9 @@ export default async function TutorAnalyticsPage({
       const rate = total > 0 ? Math.round((attended / total) * 100) : 0;
       return {
         studentId: student.id,
-        studentName: student.user.name || "",
+        studentName: student.name,
         attendanceRate: rate,
-        programName: "—", // no currentProgram field in the minimal select, can be fetched if needed
+        programName: "—",
       };
     }),
   ).then((results) =>

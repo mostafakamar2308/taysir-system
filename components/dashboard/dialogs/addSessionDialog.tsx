@@ -112,16 +112,18 @@ export default function AddSessionDialog({
     setLoading(true);
     try {
       const start = dayjs(`${date}T${startTime}`).utc();
-      await createSession({
-        studentIds: selectedStudentIds.map(Number),
-        tutorId,
-        date,
-        startTime: start.toISOString(),
-        duration: parseInt(duration),
-        topic: topic || undefined,
-        notes: notes || undefined,
-        isTrial,
-      });
+      for (const studentId of selectedStudentIds.map(Number)) {
+        await createSession({
+          studentId,
+          tutorId,
+          date,
+          startTime: start.toISOString(),
+          duration: parseInt(duration),
+          topic: topic || undefined,
+          notes: notes || undefined,
+          isTrial,
+        });
+      }
 
       toast({ title: t("toast.success") });
       router.refresh();

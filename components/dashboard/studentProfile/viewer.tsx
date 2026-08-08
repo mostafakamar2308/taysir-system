@@ -22,17 +22,21 @@ import { statusColors, statusLabels } from "@/lib/enums";
 import EditStudentDialog from "../students/editStudentDialog";
 import AddSessionDialog from "@/components/dashboard/studentProfile/dialogs/addSessionDialog";
 import { StudentProfile } from "@/types/studentProfile";
+import { StudentFinancialSummary } from "@/types/studentFinances";
 import OverviewTab from "@/components/dashboard/studentProfile/overviewTab";
 import SessionsTab from "@/components/dashboard/studentProfile/sessionsTab";
+import FinancesTab from "@/components/dashboard/studentProfile/financesTab";
 
 interface StudentProfileClientProps {
   student: StudentProfile;
   tutors: { id: number; name: string | null }[];
+  financialSummary?: StudentFinancialSummary | null;
 }
 
 export default function StudentProfileClient({
   student,
   tutors,
+  financialSummary,
 }: StudentProfileClientProps) {
   const [activeTab, setActiveTab] = useState("overview");
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -172,6 +176,7 @@ export default function StudentProfileClient({
           {[
             { val: "overview", label: "نظرة عامة" },
             { val: "sessions", label: "الحصص" },
+            { val: "finances", label: "المالية" },
           ].map((t) => (
             <TabsTrigger
               key={t.val}
@@ -188,6 +193,23 @@ export default function StudentProfileClient({
         </TabsContent>
         <TabsContent value="sessions">
           <SessionsTab student={student} tutors={tutors} />
+        </TabsContent>
+        <TabsContent value="finances">
+          {financialSummary ? (
+            <FinancesTab
+              studentId={student.id}
+              academyId={student.academyId}
+              currencyId={student.currencyId}
+              currencySymbol={student.currencySymbol}
+              summary={financialSummary}
+            />
+          ) : (
+            <Card>
+              <CardContent className="p-6 text-sm text-muted-foreground">
+                تعذر تحميل الملخص المالي
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
     </div>

@@ -5,7 +5,6 @@ import dayjs from "@/lib/dayjs";
 import { PaymentMethod, PaymentStatus } from "@/types/payment";
 import { SubscriptionStatus } from "@/types/subscription";
 import { StudentStatus } from "@/types/student";
-import { addSessionsFromPayment } from "@/lib/balance";
 import { revalidatePath } from "next/cache";
 import { Role } from "@/types/user";
 import { user } from "@/lib/auth";
@@ -121,38 +120,26 @@ export async function getDashboardAlerts(
     select: { id: true },
   });
 
-  // Renewal subscriptions – latest active per student
-  const latestSubs = await db.subscription.groupBy({
-    by: ["studentId"],
-    _max: { startDate: true },
+  // Renewal subscriptions – active subscriptions with approaching/passed billing dates
+  const activeSubs = await db.subscription.findMany({
     where: {
-      academyId,
+      status: SubscriptionStatus.active,
+      groupStudent: { group: { academyId } },
     },
+    select: { nextBillingDate: true, endDate: true },
   });
-  const studentIds = latestSubs.map((s) => s.studentId);
   let upcoming = 0;
   let overdue = 0;
-  if (studentIds.length > 0) {
-    const maxStarts = latestSubs.map((s) => s._max.startDate!);
-    const activeSubs = await db.subscription.findMany({
-      where: {
-        studentId: { in: studentIds },
-        status: SubscriptionStatus.active,
-        startDate: { in: maxStarts },
-        academyId,
-      },
-      select: { endDate: true },
-    });
-    upcoming = activeSubs.filter(
-      (s) =>
-        s.endDate &&
-        dayjs(s.endDate).isAfter(now) &&
-        dayjs(s.endDate).isBefore(dayjs(now).add(upcomingDays, "day")),
-    ).length;
-    overdue = activeSubs.filter(
-      (s) => s.endDate && dayjs(s.endDate).isBefore(now),
-    ).length;
-  }
+  activeSubs.forEach((s) => {
+    const billing = s.nextBillingDate ?? s.endDate;
+    if (!billing) return;
+    const billingDay = dayjs(billing);
+    if (billingDay.isAfter(now) && billingDay.isBefore(dayjs(now).add(upcomingDays, "day"))) {
+      upcoming++;
+    } else if (billingDay.isBefore(now)) {
+      overdue++;
+    }
+  });
 
   return {
     negativeProfit: totalRevenue - totalExpenses < 0,
@@ -235,7 +222,10 @@ export async function getDashboardKPIs(
   );
 
   const activeSubscriptions = await db.subscription.count({
-    where: { status: SubscriptionStatus.active, academyId },
+    where: {
+      status: SubscriptionStatus.active,
+      groupStudent: { group: { academyId } },
+    },
   });
 
   // LTV – all time average per student with any PAID revenue
@@ -323,14 +313,14 @@ export async function getQuarterlyKPIs(
     },
   });
 
-  // 5. Fetch subscriptions for active student calculation (entire quarter range + margin)
+  // 5. Fetch subscriptions for active enrollment calculation (entire quarter range + margin)
   const subscriptions = await db.subscription.findMany({
     where: {
-      academyId,
+      groupStudent: { group: { academyId } },
       startDate: { lte: endDate.toDate() },
       OR: [{ endDate: null }, { endDate: { gte: startDate.toDate() } }],
     },
-    select: { studentId: true, startDate: true, endDate: true },
+    select: { groupStudentId: true, startDate: true, endDate: true },
   });
 
   // 6. Compute paying student-months and total revenue
@@ -392,7 +382,7 @@ export async function getQuarterlyKPIs(
     const startDay = monthStart.toDate();
     const endDay = monthEnd.toDate();
 
-    // Active students at start of month
+    // Active enrollments at start of month
     const activeAtStart = new Set(
       subscriptions
         .filter((sub) => {
@@ -400,10 +390,10 @@ export async function getQuarterlyKPIs(
           const subEnd = sub.endDate;
           return subStart <= startDay && (subEnd === null || subEnd > startDay);
         })
-        .map((sub) => sub.studentId),
+        .map((sub) => sub.groupStudentId),
     );
 
-    // Active students at end of month
+    // Active enrollments at end of month
     const activeAtEnd = new Set(
       subscriptions
         .filter((sub) => {
@@ -411,15 +401,15 @@ export async function getQuarterlyKPIs(
           const subEnd = sub.endDate;
           return subStart <= endDay && (subEnd === null || subEnd > endDay);
         })
-        .map((sub) => sub.studentId),
+        .map((sub) => sub.groupStudentId),
     );
 
     const startCount = activeAtStart.size;
     if (startCount === 0) continue;
 
     let churned = 0;
-    for (const student of activeAtStart) {
-      if (!activeAtEnd.has(student)) churned++;
+    for (const enrollment of activeAtStart) {
+      if (!activeAtEnd.has(enrollment)) churned++;
     }
     totalMonthlyChurn += churned / startCount;
     validMonths++;
@@ -556,36 +546,36 @@ export async function getSubscriptionRetention(
 ): Promise<RetentionData> {
   const firstSubs = await db.subscription.findMany({
     where: {
-      academyId,
+      groupStudent: { group: { academyId } },
     },
-    select: { studentId: true, startDate: true, status: true },
+    select: { groupStudentId: true, startDate: true },
     orderBy: { startDate: "asc" },
   });
 
-  // Get the earliest start date per student
-  const studentFirstStart = new Map<number, dayjs.Dayjs>();
+  // Get the earliest start date per enrollment
+  const enrollmentFirstStart = new Map<number, dayjs.Dayjs>();
   firstSubs.forEach((s) => {
     const d = dayjs(s.startDate);
     if (
-      !studentFirstStart.has(s.studentId) ||
-      d.isBefore(studentFirstStart.get(s.studentId)!)
+      !enrollmentFirstStart.has(s.groupStudentId) ||
+      d.isBefore(enrollmentFirstStart.get(s.groupStudentId)!)
     ) {
-      studentFirstStart.set(s.studentId, d);
+      enrollmentFirstStart.set(s.groupStudentId, d);
     }
   });
 
-  // Cohort sizes: count students per cohort month
+  // Cohort sizes: count enrollments per cohort month
   const cohortSizes: Record<string, number> = {};
-  studentFirstStart.forEach((d) => {
+  enrollmentFirstStart.forEach((d) => {
     const key = d.format("YYYY-MM");
     cohortSizes[key] = (cohortSizes[key] || 0) + 1;
   });
 
-  // For each student, check which months after cohort they had an active subscription
+  // For each enrollment, check which months after cohort it had an active subscription
   const now = dayjs();
   const matrix: Record<string, number[]> = {};
 
-  for (const [studentId, firstDate] of studentFirstStart) {
+  for (const [groupStudentId, firstDate] of enrollmentFirstStart) {
     const cohortKey = firstDate.format("YYYY-MM");
     if (!matrix[cohortKey]) {
       const monthsDiff = now.diff(firstDate, "month");
@@ -598,7 +588,7 @@ export async function getSubscriptionRetention(
       const monthEnd = monthStart.endOf("month");
       const hasActive = await db.subscription.findFirst({
         where: {
-          studentId,
+          groupStudentId,
           status: SubscriptionStatus.active,
           startDate: { lte: monthEnd.toDate() },
           endDate: { gte: monthStart.toDate() },
@@ -679,13 +669,17 @@ export async function getPlanEfficiency(
   });
   const activeStudentCounts = await db.subscription.groupBy({
     by: ["planId"],
-    where: { planId: { in: planIds }, status: SubscriptionStatus.active },
-    _count: { studentId: true },
+    where: {
+      planId: { in: planIds },
+      status: SubscriptionStatus.active,
+      groupStudent: { group: { academyId } },
+    },
+    _count: { id: true },
   });
   const activeMap = new Map<number, number>();
-  activeStudentCounts.forEach((g) =>
-    activeMap.set(g.planId, g._count.studentId),
-  );
+  activeStudentCounts.forEach((g) => {
+    if (g.planId) activeMap.set(g.planId, g._count.id);
+  });
 
   return plans.map((plan) => {
     const entry = planMap.get(plan.id)!;
@@ -760,18 +754,31 @@ export async function getRevenueKPIs(
       planId: true,
       method: true,
       student: {
-        select: {
-          tutorId: true,
-          tutor: { select: { user: { select: { name: true } } } },
-        },
+        select: { user: { select: { name: true } } },
       },
       plan: { select: { id: true, title: true } },
+      subscription: {
+        select: {
+          groupStudent: {
+            select: {
+              group: {
+                select: {
+                  currentTutorId: true,
+                  currentTutor: {
+                    select: { user: { select: { name: true } } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     },
   });
 
   // Revenue per plan
   const planMap = new Map<number, { name: string; total: number }>();
-  // Revenue per tutor (via student.tutorId)
+  // Revenue per tutor (via the enrollment's group current tutor)
   const tutorMap = new Map<number, { name: string; total: number }>();
   // Revenue per method
   const methodMap = new Map<number, number>();
@@ -795,9 +802,10 @@ export async function getRevenueKPIs(
     }
 
     // Tutor
-    const tutorId = r.student?.tutorId;
+    const tutorId = r.subscription?.groupStudent.group.currentTutorId;
     if (tutorId) {
-      const name = r.student?.tutor?.user?.name || "";
+      const name =
+        r.subscription?.groupStudent.group.currentTutor?.user?.name || "";
       const t = tutorMap.get(tutorId) || { name, total: 0 };
       t.total += conv;
       tutorMap.set(tutorId, t);
@@ -894,11 +902,12 @@ export async function getOverdueRevenue(
   }));
 }
 
-// ----- Renewal Subscriptions (latest active per student, upcoming/overdue) -----
+// ----- Renewal Subscriptions (active subscriptions, upcoming/overdue billing) -----
 export interface RenewalSubscription {
   studentId: number;
   studentName: string;
   studentPhone: string | null;
+  groupName: string;
   planName: string;
   endDate: string;
   id: number;
@@ -910,29 +919,21 @@ export async function getRenewalSubscriptions(academyId: number): Promise<{
   upcoming: RenewalSubscription[];
   overdue: RenewalSubscription[];
 }> {
-  // Get latest active subscription per student
-  const latestSubs = await db.subscription.groupBy({
-    by: ["studentId"],
-    _max: { startDate: true },
-    where: {
-      student: {
-        academyId,
-      },
-    },
-  });
-  const studentIds = latestSubs.map((s) => s.studentId);
-  if (studentIds.length === 0) return { upcoming: [], overdue: [] };
-
-  const maxStarts = latestSubs.map((s) => s._max.startDate!);
   const subscriptions = await db.subscription.findMany({
     where: {
-      studentId: { in: studentIds },
       status: SubscriptionStatus.active,
-      startDate: { in: maxStarts },
+      groupStudent: { group: { academyId } },
     },
     include: {
-      student: { select: { user: { select: { name: true, phone: true } } } },
-      plan: { select: { title: true, price: true } },
+      groupStudent: {
+        select: {
+          student: {
+            select: { id: true, user: { select: { name: true, phone: true } } },
+          },
+          group: { select: { title: true } },
+        },
+      },
+      plan: { select: { title: true } },
     },
   });
 
@@ -941,18 +942,20 @@ export async function getRenewalSubscriptions(academyId: number): Promise<{
   const overdue: RenewalSubscription[] = [];
 
   subscriptions.forEach((sub) => {
-    if (!sub.endDate) return;
-    const end = dayjs(sub.endDate);
+    const billing = sub.nextBillingDate ?? sub.endDate;
+    if (!billing) return;
+    const end = dayjs(billing);
     const daysLeft = end.diff(now, "day");
     const item: RenewalSubscription = {
       id: sub.id,
-      studentId: sub.studentId,
-      studentName: sub.student.user.name || "",
-      planName: sub.plan.title,
+      studentId: sub.groupStudent.student.id,
+      studentName: sub.groupStudent.student.user.name || "",
+      groupName: sub.groupStudent.group.title,
+      planName: sub.plan?.title || "",
       endDate: end.format("YYYY-MM-DD"),
-      studentPhone: sub.student.user.phone || "",
+      studentPhone: sub.groupStudent.student.user.phone || "",
       daysLeft,
-      planPrice: sub.plan.price,
+      planPrice: sub.price,
     };
     if (daysLeft <= 7 && daysLeft >= 0) {
       upcoming.push(item);
@@ -1036,75 +1039,50 @@ export async function markRevenueAsPaid(id: number) {
   });
 }
 
-export async function createRevenueForSubscription(subscriptionId: number) {
+// Record a payment against a subscription (creates a Revenue row linked to it).
+export async function createRevenueForSubscription(
+  subscriptionId: number,
+  opts?: {
+    status?: PaymentStatus;
+    method?: number;
+    date?: string;
+    notes?: string;
+  },
+) {
   const sub = await db.subscription.findUnique({
     where: { id: subscriptionId },
     select: {
       id: true,
-      studentId: true,
+      price: true,
+      currencyId: true,
       planId: true,
-      startDate: true,
-      endDate: true,
       status: true,
-      plan: {
-        select: {
-          price: true,
-          sessionsPerWeek: true,
-          currencyId: true,
-          billingPeriod: true,
-        },
+      groupStudent: {
+        select: { studentId: true, group: { select: { academyId: true } } },
       },
-      student: { select: { currencyId: true, academyId: true } },
     },
   });
   if (!sub) throw new Error("Subscription not found");
   if (sub.status !== SubscriptionStatus.active)
     throw new Error("Subscription not active");
 
-  const currencyId = sub.plan.currencyId || sub.student.currencyId;
-  const amount = sub.plan.price;
-  const billingDays = sub.plan.billingPeriod || 30; // fallback
-
-  // Perform transaction: expire current, create new subscription, record revenue
-  await db.$transaction(async (tx) => {
-    await tx.subscription.update({
-      where: { id: subscriptionId },
-      data: { status: SubscriptionStatus.expired, endDate: new Date() },
-    });
-    const newSub = await tx.subscription.create({
-      data: {
-        studentId: sub.studentId,
-        planId: sub.planId,
-        academyId: sub.student.academyId,
-        startDate: new Date(),
-        endDate: dayjs().add(billingDays, "day").toDate(),
-        status: SubscriptionStatus.active,
-      },
-    });
-    await tx.student.update({
-      where: {
-        id: sub.studentId,
-      },
-      data: {
-        sessionsBalance: {
-          increment: sub.plan.sessionsPerWeek * 4,
-        },
-      },
-    });
-    await tx.revenue.create({
-      data: {
-        amount,
-        currencyId,
-        academyId: sub.student.academyId,
-        studentId: sub.studentId,
-        planId: sub.planId,
-        subscriptionId: newSub.id,
-        status: PaymentStatus.PAID,
-        method: 0,
-        dueDate: new Date(),
-      },
-    });
+  const revenue = await db.revenue.create({
+    data: {
+      amount: sub.price,
+      currencyId: sub.currencyId,
+      academyId: sub.groupStudent.group.academyId,
+      studentId: sub.groupStudent.studentId,
+      planId: sub.planId,
+      subscriptionId: sub.id,
+      status: opts?.status ?? PaymentStatus.PAID,
+      method: opts?.method ?? 0,
+      dueDate: opts?.date ? dayjs.utc(opts.date).toDate() : new Date(),
+      notes: opts?.notes,
+    },
   });
+
+  revalidatePath("/ar/dashboard");
+  return revenue;
 }
 
 export async function updateRevenue(
@@ -1117,13 +1095,6 @@ export async function updateRevenue(
     planId?: number;
   },
 ) {
-  const revenue = await db.revenue.findUnique({
-    where: { id },
-    select: { status: true, subscriptionId: true },
-  });
-  if (!revenue) throw new Error("Revenue not found");
-
-  // Update the revenue
   await db.revenue.update({
     where: { id },
     data: {
@@ -1131,52 +1102,6 @@ export async function updateRevenue(
       dueDate: data.dueDate ? new Date(data.dueDate) : undefined,
     },
   });
-
-  // If the status changed to PAID and there is a linked subscription, handle subscription lifecycle
-  if (
-    data.status === PaymentStatus.PAID &&
-    revenue.status !== PaymentStatus.PAID &&
-    revenue.subscriptionId
-  ) {
-    // This is similar to a renewal payment
-    const sub = await db.subscription.findUnique({
-      where: { id: revenue.subscriptionId },
-      select: {
-        id: true,
-        status: true,
-        studentId: true,
-        academyId: true,
-        planId: true,
-        plan: {
-          select: {
-            price: true,
-            academyId: true,
-            currencyId: true,
-            billingPeriod: true,
-          },
-        },
-      },
-    });
-    if (sub && sub.status === SubscriptionStatus.active) {
-      const billingDays = sub.plan.billingPeriod || 30;
-      await db.$transaction([
-        db.subscription.update({
-          where: { id: sub.id },
-          data: { status: SubscriptionStatus.expired, endDate: new Date() },
-        }),
-        db.subscription.create({
-          data: {
-            studentId: sub.studentId,
-            academyId: sub.academyId,
-            planId: sub.planId,
-            startDate: new Date(),
-            endDate: dayjs().add(billingDays, "day").toDate(),
-            status: SubscriptionStatus.active,
-          },
-        }),
-      ]);
-    }
-  }
 }
 
 // ----- Expense KPIs -----
@@ -1498,15 +1423,15 @@ export async function getSalaryData(
     const privateMin = privateMinutesMap.get(t.id) || 0;
     const groupMin = groupMinutesMap.get(t.id) || 0;
     const expected =
-      (privateMin / 60) * t.privatePricePerHour +
-      (groupMin / 60) * t.groupPricePerHour;
+      (privateMin / 60) * t.baseHourlyRate +
+      (groupMin / 60) * t.baseGroupHourlyRate;
     const paid = paidAmountMap.get(t.id) || 0;
     const outstanding = Math.max(expected - paid, 0);
     return {
       tutorId: t.id,
       tutorName: t.user.name || "غير معروف",
-      privatePricePerHour: t.privatePricePerHour,
-      groupPricePerHour: t.groupPricePerHour,
+      privatePricePerHour: t.baseHourlyRate,
+      groupPricePerHour: t.baseGroupHourlyRate,
       completedSessions: sessionCountMap.get(t.id) || 0,
       totalMinutes: privateMin + groupMin,
       expectedSalary: expected,
@@ -1541,26 +1466,38 @@ export async function getSalaryData(
         tutorsWithSessions.length
       : 0;
 
-  // 7. Avg revenue per tutor (using old reliable student.tutorId)
+  // 7. Avg revenue per tutor (via subscription -> enrollment -> group current tutor)
   const revenues = await db.revenue.findMany({
     where: {
       academyId,
       status: PaymentStatus.PAID,
       dueDate: { gte: startOfMonth, lt: endOfMonth },
-      student: {
-        tutorId: tutorId ? tutorId : { in: tutors.map((t) => t.id) },
+      subscription: {
+        groupStudent: {
+          group: {
+            currentTutorId: tutorId
+              ? tutorId
+              : { in: tutors.map((t) => t.id) },
+          },
+        },
       },
     },
     select: {
       amount: true,
       currencyId: true,
-      student: { select: { tutorId: true } },
+      subscription: {
+        select: {
+          groupStudent: {
+            select: { group: { select: { currentTutorId: true } } },
+          },
+        },
+      },
     },
   });
 
   const revenueMap = new Map<number, number>();
   revenues.forEach((r) => {
-    const tid = r.student.tutorId;
+    const tid = r.subscription?.groupStudent.group.currentTutorId;
     if (!tid) return;
     const conv = convert(r.amount, r.currencyId, defaultCurrencyId, rateMap);
     revenueMap.set(tid, (revenueMap.get(tid) || 0) + conv);
@@ -1661,6 +1598,7 @@ export async function createRevenueFromDashboard(revenueData: {
   description?: string;
   invoiceUrl?: string;
   notes?: string;
+  subscriptionId?: number;
 }) {
   const currentUser = await user();
   if (!currentUser || !currentUser.academyId || currentUser.role !== Role.Admin)
@@ -1668,42 +1606,37 @@ export async function createRevenueFromDashboard(revenueData: {
 
   const student = await db.student.findUnique({
     where: { id: revenueData.studentId },
+    select: { id: true, currencyId: true },
   });
   if (!student) throw new Error("لا يوجد طالب بهذا الاسم");
 
-  const plan = student.planId
-    ? await db.plan.findUnique({ where: { id: student.planId } })
-    : null;
-
-  await db.$transaction(async (tx) => {
-    const payment = await tx.revenue.create({
-      data: {
-        ...revenueData,
-        currencyId: student.currencyId,
-        planId: student.planId,
-        recordedBy: currentUser.id,
-        academyId: currentUser.academyId!,
-        subscriptionId: student.currentSubscriptionId,
-        dueDate: revenueData.dueDate
-          ? dayjs.utc(revenueData.date).toDate()
-          : undefined,
-      },
+  let planId: number | null = null;
+  if (revenueData.subscriptionId) {
+    const sub = await db.subscription.findUnique({
+      where: { id: revenueData.subscriptionId },
+      select: { planId: true },
     });
+    planId = sub?.planId ?? null;
+  }
 
-    if (student.currentSubscriptionId && plan) {
-      await tx.subscription.update({
-        where: { id: student.currentSubscriptionId },
-        data: {
-          status: SubscriptionStatus.active,
-          endDate: dayjs().add(1, "month").toDate(),
-          startDate: dayjs().toDate(),
-        },
-      });
-    }
-
-    if (revenueData.status === PaymentStatus.PAID) {
-      await addSessionsFromPayment(payment.id, tx);
-    }
+  await db.revenue.create({
+    data: {
+      amount: revenueData.amount,
+      currencyId: student.currencyId,
+      studentId: student.id,
+      planId,
+      subscriptionId: revenueData.subscriptionId,
+      status: revenueData.status,
+      method: revenueData.method,
+      recordedBy: currentUser.id,
+      academyId: currentUser.academyId!,
+      dueDate: revenueData.dueDate
+        ? dayjs.utc(revenueData.dueDate).toDate()
+        : undefined,
+      description: revenueData.description,
+      invoiceUrl: revenueData.invoiceUrl,
+      notes: revenueData.notes,
+    },
   });
 
   revalidatePath("/ar/dashboard");

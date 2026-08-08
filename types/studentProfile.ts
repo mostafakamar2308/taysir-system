@@ -74,6 +74,8 @@ export interface StudentProfile {
   creditBalance: number;
   source: string | null;
   academyId: number;
+  currencyId: number;
+  currencySymbol: string;
   preferredLanguage: string | null;
   groups: {
     tutorId: number;

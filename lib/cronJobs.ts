@@ -71,7 +71,7 @@ async function sendSessionReminders() {
         const phone = p.student.user.phone;
         if (!phone) continue;
         const studentMsg = `تذكير: لديك حصة "${session.topic || "حصتك"}" مع ${session.tutor?.user.name || "المعلم"} بعد ${timeText} (الساعة ${startTimeStr}). 
-        ${session.zoomJoinUrl ? `لينك الحصة: ${session.zoomJoinUrl}` : ""}
+        ${session.zoomUrl ? `لينك الحصة: ${session.zoomUrl}` : ""}
         `;
         await whatsappQueue.add("session-reminder", {
           academyId: academy.id,
@@ -87,7 +87,7 @@ async function sendSessionReminders() {
           .map((p) => p.student.user.name)
           .join("، ");
         const tutorMsg = `تذكير: لديك حصة "${session.topic || "حصتك"}" مع الطلاب: ${studentNames} بعد ${timeText} (الساعة ${startTimeStr}).
-        ${session.zoomStartUrl ? `لينك الحصة: ${session.zoomStartUrl}` : ""}
+        ${session.zoomUrl ? `لينك الحصة: ${session.zoomUrl}` : ""}
         `;
         await whatsappQueue.add("session-reminder", {
           academyId: academy.id,

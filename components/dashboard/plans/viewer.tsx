@@ -24,7 +24,7 @@ import { deletePlan } from "@/actions/plan";
 interface Plan {
   id: number;
   title: string;
-  sessionsPerWeek: number;
+  sessionCount: number;
   price: number;
   billingPeriod: number;
   currency: string;
@@ -91,7 +91,7 @@ export default function PlansClient({
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-lg font-bold">{plan.title}</CardTitle>
               <Badge variant="secondary">
-                {plan.sessionsPerWeek} حصص/أسبوع
+                {plan.sessionCount} حصص/دورة
               </Badge>
             </CardHeader>
             <CardContent>

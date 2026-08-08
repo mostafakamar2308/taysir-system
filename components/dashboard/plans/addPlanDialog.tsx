@@ -39,7 +39,7 @@ export default function AddPlanDialog({
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [title, setTitle] = useState("");
-  const [sessionsPerWeek, setSessionsPerWeek] = useState("2");
+  const [sessionCount, setSessionCount] = useState("2");
   const [price, setPrice] = useState("");
   const [billingPeriod, setBillingPeriod] = useState("30");
   const [currencyId, setCurrencyId] = useState(
@@ -48,7 +48,7 @@ export default function AddPlanDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !sessionsPerWeek || !price || !billingPeriod || !currencyId) {
+    if (!title || !sessionCount || !price || !billingPeriod || !currencyId) {
       toast({ title: "يرجى ملء جميع الحقول", variant: "destructive" });
       return;
     }
@@ -56,7 +56,7 @@ export default function AddPlanDialog({
     try {
       const formData = new FormData();
       formData.append("title", title);
-      formData.append("sessionsPerWeek", sessionsPerWeek);
+      formData.append("sessionCount", sessionCount);
       formData.append("price", price);
       formData.append("billingPeriod", billingPeriod);
       formData.append("currencyId", currencyId);
@@ -95,11 +95,11 @@ export default function AddPlanDialog({
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>حصص/أسبوع</Label>
+              <Label>عدد الحصص</Label>
               <Input
                 type="number"
-                value={sessionsPerWeek}
-                onChange={(e) => setSessionsPerWeek(e.target.value)}
+                value={sessionCount}
+                onChange={(e) => setSessionCount(e.target.value)}
                 required
               />
             </div>

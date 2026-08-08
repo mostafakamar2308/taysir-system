@@ -25,7 +25,7 @@ import { updatePlan } from "@/actions/plan";
 interface Plan {
   id: number;
   title: string;
-  sessionsPerWeek: number;
+  sessionCount: number;
   price: number;
   billingPeriod: number;
   currency: string;
@@ -50,8 +50,8 @@ export default function EditPlanDialog({
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [title, setTitle] = useState(plan.title);
-  const [sessionsPerWeek, setSessionsPerWeek] = useState(
-    plan.sessionsPerWeek.toString(),
+  const [sessionCount, setSessionCount] = useState(
+    plan.sessionCount.toString(),
   );
   const [price, setPrice] = useState(plan.price.toString());
   const [billingPeriod, setBillingPeriod] = useState(
@@ -63,7 +63,7 @@ export default function EditPlanDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !sessionsPerWeek || !price || !billingPeriod || !currencyId) {
+    if (!title || !sessionCount || !price || !billingPeriod || !currencyId) {
       toast({ title: "يرجى ملء جميع الحقول", variant: "destructive" });
       return;
     }
@@ -71,7 +71,7 @@ export default function EditPlanDialog({
     try {
       const formData = new FormData();
       formData.append("title", title);
-      formData.append("sessionsPerWeek", sessionsPerWeek);
+      formData.append("sessionCount", sessionCount);
       formData.append("price", price);
       formData.append("billingPeriod", billingPeriod);
       formData.append("currencyId", currencyId);
@@ -108,11 +108,11 @@ export default function EditPlanDialog({
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>حصص/أسبوع</Label>
+              <Label>عدد الحصص</Label>
               <Input
                 type="number"
-                value={sessionsPerWeek}
-                onChange={(e) => setSessionsPerWeek(e.target.value)}
+                value={sessionCount}
+                onChange={(e) => setSessionCount(e.target.value)}
                 required
               />
             </div>

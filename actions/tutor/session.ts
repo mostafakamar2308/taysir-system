@@ -53,8 +53,7 @@ export async function updateSessionZoomLinks(
   await db.session.update({
     where: { id: sessionId },
     data: {
-      zoomJoinUrl: data.zoomJoinUrl ?? undefined,
-      zoomStartUrl: data.zoomStartUrl ?? undefined,
+      zoomUrl: data.zoomJoinUrl ?? data.zoomStartUrl ?? undefined,
     },
   });
 

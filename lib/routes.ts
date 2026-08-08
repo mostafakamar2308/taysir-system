@@ -90,6 +90,11 @@ export const getSidebarGroups = (role: number, locale: string = "ar") => {
             url: `/${locale}/dashboard/tutors`,
             icon: BookOpen,
           },
+          {
+            titleKey: "items.groups",
+            url: `/${locale}/dashboard/groups`,
+            icon: Users2,
+          },
         ],
       },
       {

@@ -99,11 +99,10 @@ export default async function SessionsManagementPage() {
   const avgRating = avgRatingResult._avg.rating ?? 0;
 
   // --- 4. Running sessions ---
-  const runningSessions = await db.session.findMany({
+  const startedSessions = await db.session.findMany({
     where: {
       academyId,
       startTime: { lte: now.toDate() },
-      endTime: { gte: now.toDate() },
       cancelledBy: null,
     },
     include: {
@@ -116,6 +115,9 @@ export default async function SessionsManagementPage() {
     },
     orderBy: { startTime: "asc" },
   });
+  const runningSessions = startedSessions.filter((s) =>
+    dayjs(s.startTime).add(s.durationMinutes, "minute").isAfter(now),
+  );
 
   // --- 5. Today's sessions grouped by tutor ---
   const todaySessions = await db.session.findMany({
@@ -186,7 +188,7 @@ export default async function SessionsManagementPage() {
   const clientRunningSessions = runningSessions.map((s) => ({
     id: s.id,
     startTime: s.startTime.toISOString(),
-    endTime: s.endTime.toISOString(),
+    endTime: dayjs(s.startTime).add(s.durationMinutes, "minute").toISOString(),
     studentName:
       s.participants.map((p) => p.student.user.name).join("، ") || "",
     tutorName: s.tutor.user.name ?? "",
@@ -215,7 +217,7 @@ export default async function SessionsManagementPage() {
         return {
           id: s.id,
           startTime: s.startTime.toISOString(),
-          endTime: s.endTime.toISOString(),
+          endTime: dayjs(s.startTime).add(s.durationMinutes, "minute").toISOString(),
           studentName: joinedNames || "",
           studentPhone: firstParticipant?.student.user.phone || null,
           topic: s.topic,

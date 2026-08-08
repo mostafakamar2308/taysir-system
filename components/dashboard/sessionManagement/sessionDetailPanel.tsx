@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getSessionDetailsForManagement } from "@/actions/sessions";
-import { AdminSessionClientData } from "@/types/session";
+import { AdminSession } from "@/types/session";
 import { sessionStatusLabels, sessionStatusColors } from "@/const/sessions";
 import { AttendanceStatus, SessionStatus } from "@/types/session";
 import { formatDate, formatTime } from "@/lib/dates";
@@ -32,7 +32,7 @@ export default function SessionManagementDetailPanel({
   open,
   onOpenChange,
 }: Props) {
-  const [session, setSession] = useState<AdminSessionClientData | null>(null);
+  const [session, setSession] = useState<AdminSession | null>(null);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -59,10 +59,8 @@ export default function SessionManagementDetailPanel({
     [sessionId, onOpenChange],
   );
 
-  const attendanceBadge = (
-    p: AdminSessionClientData["participants"][number],
-  ) => {
-    if (p.attendanceStatus === null) {
+  const attendanceBadge = (p: AdminSession["participants"][number]) => {
+    if (p.status === null) {
       return (
         <Badge
           variant="outline"
@@ -79,22 +77,20 @@ export default function SessionManagementDetailPanel({
       [AttendanceStatus.ABSENT_UNEXCUSED]: "غائب بدون عذر",
     };
     const variant =
-      p.attendanceStatus === AttendanceStatus.ATTENDED
+      p.status === AttendanceStatus.ATTENDED
         ? "bg-green-100 text-green-700"
-        : p.attendanceStatus === AttendanceStatus.LATE
+        : p.status === AttendanceStatus.LATE
           ? "bg-orange-100 text-orange-700"
           : "bg-red-100 text-red-700";
     return (
-      <Badge className={variant}>{labels[p.attendanceStatus] || "?"}</Badge>
+      <Badge className={variant}>{labels[p.status] || "?"}</Badge>
     );
   };
 
-  const reportBadge = (p: AdminSessionClientData["participants"][number]) => {
+  const reportBadge = (p: AdminSession["participants"][number]) => {
     if (
-      p.attendanceStatus !== null &&
-      [AttendanceStatus.ATTENDED, AttendanceStatus.LATE].includes(
-        p.attendanceStatus,
-      ) &&
+      p.status !== null &&
+      [AttendanceStatus.ATTENDED, AttendanceStatus.LATE].includes(p.status) &&
       !p.report
     ) {
       return (
@@ -137,7 +133,7 @@ export default function SessionManagementDetailPanel({
             <TabsList className="flex w-full *:grow">
               <TabsTrigger value="details">التفاصيل</TabsTrigger>
               <TabsTrigger value="participants">الطلاب</TabsTrigger>
-              {session.zoomJoinUrl && (
+              {session.zoomUrl && (
                 <TabsTrigger value="zoom">زووم</TabsTrigger>
               )}
             </TabsList>
@@ -154,7 +150,16 @@ export default function SessionManagementDetailPanel({
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">الطلاب</p>
-                <p className="font-medium">{session.studentName}</p>
+                <p className="font-medium">
+                  {session.participants
+                    .map((p) => p.name)
+                    .filter(Boolean)
+                    .join("، ") || "—"}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">المجموعة</p>
+                <p className="font-medium">{session.groupName}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">المعلم</p>
@@ -174,22 +179,16 @@ export default function SessionManagementDetailPanel({
                   {session.topic}
                 </p>
               )}
-              {session.notes && (
-                <p>
-                  <span className="text-muted-foreground">ملاحظات:</span>{" "}
-                  {session.notes}
-                </p>
-              )}
             </TabsContent>
 
             <TabsContent value="participants" className="space-y-6 mt-4">
               {session.participants.map((p) => (
                 <div
-                  key={p.participantId}
+                  key={p.id}
                   className="border rounded-lg p-4 space-y-2"
                 >
                   <div className="flex items-center justify-between">
-                    <h4 className="font-semibold">{p.studentName}</h4>
+                    <h4 className="font-semibold">{p.name}</h4>
                     <div className="flex gap-2">
                       {attendanceBadge(p)}
                       {reportBadge(p)}
@@ -198,7 +197,7 @@ export default function SessionManagementDetailPanel({
                   {p.report && (
                     <div className="text-sm space-y-1 border-t pt-2">
                       {p.report.rating && <p>التقييم: {p.report.rating}/5</p>}
-                      {p.report.outcomes && <p>النتائج: {p.report.outcomes}</p>}
+                      {p.report.outcome && <p>النتائج: {p.report.outcome}</p>}
                       {p.report.strengths && (
                         <p>نقاط القوة: {p.report.strengths}</p>
                       )}
@@ -215,7 +214,7 @@ export default function SessionManagementDetailPanel({
               ))}
             </TabsContent>
 
-            {session.zoomJoinUrl && (
+            {session.zoomUrl && (
               <TabsContent value="zoom" className="space-y-4 mt-4">
                 <div className="flex items-center gap-2 text-primary">
                   <Video className="h-5 w-5" />
@@ -223,11 +222,11 @@ export default function SessionManagementDetailPanel({
                 </div>
                 <div className="space-y-1">
                   <Label className="text-sm text-muted-foreground">
-                    رابط الانضمام
+                    رابط الحصة
                   </Label>
                   <div className="flex items-center gap-2">
                     <Input
-                      value={session.zoomJoinUrl || ""}
+                      value={session.zoomUrl || ""}
                       readOnly
                       className="font-mono text-sm"
                       dir="ltr"
@@ -236,7 +235,7 @@ export default function SessionManagementDetailPanel({
                       variant="outline"
                       size="icon"
                       onClick={() => {
-                        navigator.clipboard.writeText(session.zoomJoinUrl!);
+                        navigator.clipboard.writeText(session.zoomUrl!);
                         toast({ title: "تم النسخ" });
                       }}
                     >
@@ -246,47 +245,13 @@ export default function SessionManagementDetailPanel({
                       variant="outline"
                       size="icon"
                       onClick={() =>
-                        window.open(session.zoomJoinUrl!, "_blank")
+                        window.open(session.zoomUrl!, "_blank")
                       }
                     >
                       <ExternalLink className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
-                {session.zoomStartUrl && (
-                  <div className="space-y-1">
-                    <Label className="text-sm text-muted-foreground">
-                      رابط البدء
-                    </Label>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        value={session.zoomStartUrl || ""}
-                        readOnly
-                        className="font-mono text-sm bg-muted/50"
-                        dir="ltr"
-                      />
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => {
-                          navigator.clipboard.writeText(session.zoomStartUrl!);
-                          toast({ title: "تم النسخ" });
-                        }}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() =>
-                          window.open(session.zoomStartUrl!, "_blank")
-                        }
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
               </TabsContent>
             )}
           </Tabs>

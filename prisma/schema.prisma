@@ -35,6 +35,7 @@ model Currency {
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
   plans                Plan[]
+  subscriptions        Subscription[]
   academyCurrencyRates AcademyCurrencyRate[]
 
   @@index([code])
@@ -164,6 +165,10 @@ model Student {
   creditBalance Float    @default(0)
   source        String?
 
+  // Custom billing date override (null = derived from active subscriptions).
+  // Once set by an admin it persists until explicitly cleared.
+  billingDate DateTime?
+
   academyId Int
   academy   Academy @relation(fields: [academyId], references: [id])
 
@@ -290,6 +295,8 @@ model GroupStudent {
   @@unique([groupId, studentId])
   @@index([groupId])
   @@index([studentId])
+
+  subscriptions Subscription[]
 }
 
 // ===================Plans (standalone products) ==================
@@ -307,6 +314,7 @@ model Plan {
   academy    Academy  @relation(fields: [academyId], references: [id])
 
   revenues Revenue[]
+  subscriptions Subscription[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -347,6 +355,8 @@ model Session {
   @@index([groupId])
   @@index([supervisorId])
   @@index([isTrial])
+  @@index([tutorId])
+  @@index([startTime])
 }
 
 model SessionParticipant {
@@ -475,6 +485,8 @@ model Revenue {
   student    Student @relation(fields: [studentId], references: [id])
   planId     Int?
   plan       Plan?   @relation(fields: [planId], references: [id])
+  subscriptionId Int?
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
   recordedBy Int?
   recorder   User?   @relation(fields: [recordedBy], references: [id])
 
@@ -482,6 +494,40 @@ model Revenue {
   updatedAt DateTime @updatedAt
 
   @@index([studentId])
+  @@index([status])
+  @@index([subscriptionId])
+}
+
+// A commercial agreement for a student's enrollment in a specific group.
+// One GroupStudent can have multiple Subscription rows over time (renewals
+// expire the previous row and create a new one) so pricing history is preserved.
+model Subscription {
+  id             Int          @id @default(autoincrement())
+  groupStudentId Int
+  groupStudent   GroupStudent @relation(fields: [groupStudentId], references: [id], onDelete: Cascade)
+
+  planId Int?
+  plan   Plan?    @relation(fields: [planId], references: [id])
+
+  price        Float // agreed price for one billing cycle (authoritative)
+  currencyId   Int
+  currency     Currency @relation(fields: [currencyId], references: [id])
+
+  sessionCount    Int?     // sessions included per billing cycle (fallback: plan.sessionCount)
+  billingCycle    Int      @default(30) // days between billing dates
+  startDate       DateTime
+  endDate         DateTime? // current cycle end / expiry
+  nextBillingDate DateTime? // next expected payment date
+
+  status Int @default(0) // SubscriptionStatus: active/cancelled/expired/pending
+
+  payments Revenue[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([groupStudentId])
+  @@index([planId])
   @@index([status])
 }
 

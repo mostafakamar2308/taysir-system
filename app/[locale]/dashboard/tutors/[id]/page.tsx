@@ -5,6 +5,8 @@ import dayjs from "@/lib/dayjs";
 import { AttendanceStatus } from "@/types/session";
 import type { TutorProfile, GroupSummary } from "@/types/tutor";
 import { user } from "@/lib/auth";
+import { getTutorFinancialSummary } from "@/actions/tutorFinances";
+import type { TutorFinancesInput } from "@/types/tutorFinances";
 
 export default async function TutorProfilePage({
   params,
@@ -182,6 +184,14 @@ export default async function TutorProfilePage({
     performanceMetrics.scoreColor = "text-red-600";
   }
 
+  let financesData: TutorFinancesInput | undefined;
+  try {
+    const fetched = await getTutorFinancialSummary(id);
+    financesData = fetched.data;
+  } catch {
+    financesData = undefined;
+  }
+
   const transformed: TutorProfile = {
     id: tutor.id,
     name: tutor.user.name ?? "",
@@ -206,5 +216,11 @@ export default async function TutorProfilePage({
     performanceMetrics,
   };
 
-  return <TutorProfileClient tutor={transformed} academyId={academyId} />;
+  return (
+    <TutorProfileClient
+      tutor={transformed}
+      academyId={academyId}
+      finances={financesData}
+    />
+  );
 }

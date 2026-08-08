@@ -42,7 +42,7 @@ export async function getChatsForUser(userId: number, role: number) {
           include: {
             group: {
               include: {
-                tutor: {
+                currentTutor: {
                   include: {
                     user: { select: { id: true, name: true, imageUrl: true } },
                   },
@@ -59,10 +59,10 @@ export async function getChatsForUser(userId: number, role: number) {
     // Deduplicate by tutor userId
     const uniqueTutors = new Map<
       number,
-      (typeof student.groupMemberships)[0]["group"]["tutor"]
+      (typeof student.groupMemberships)[0]["group"]["currentTutor"]
     >();
     for (const membership of student.groupMemberships) {
-      const tutor = membership.group.tutor;
+      const tutor = membership.group.currentTutor;
       if (!uniqueTutors.has(tutor.userId)) {
         uniqueTutors.set(tutor.userId, tutor);
       }

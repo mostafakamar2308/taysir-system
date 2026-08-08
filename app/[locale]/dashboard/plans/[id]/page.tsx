@@ -23,11 +23,15 @@ export default async function PlanDetailPage({
       subscriptions: {
         where: { status: SubscriptionStatus.active },
         include: {
-          student: {
-            select: {
-              id: true,
-              user: { select: { name: true, email: true, phone: true } },
-              status: true,
+          groupStudent: {
+            include: {
+              student: {
+                select: {
+                  id: true,
+                  user: { select: { name: true, email: true, phone: true } },
+                  status: true,
+                },
+              },
             },
           },
         },
@@ -41,11 +45,11 @@ export default async function PlanDetailPage({
   if (!plan) notFound();
 
   const activeStudents = plan.subscriptions.map((sub) => ({
-    id: sub.student.id,
-    name: sub.student.user.name || "",
-    email: sub.student.user.email,
-    phone: sub.student.user.phone || "",
-    status: sub.student.status,
+    id: sub.groupStudent.student.id,
+    name: sub.groupStudent.student.user.name || "",
+    email: sub.groupStudent.student.user.email,
+    phone: sub.groupStudent.student.user.phone || "",
+    status: sub.groupStudent.student.status,
     startDate: sub.startDate,
     endDate: sub.endDate,
   }));
@@ -59,7 +63,7 @@ export default async function PlanDetailPage({
       plan={{
         id: plan.id,
         title: plan.title,
-        sessionsPerWeek: plan.sessionsPerWeek,
+        sessionCount: plan.sessionCount,
         price: plan.price,
         billingPeriod: plan.billingPeriod,
         currency: plan.currency.name,

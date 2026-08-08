@@ -289,7 +289,7 @@ export default async function DashboardPage() {
       cancelledBy: null,
     },
     include: {
-      group: { include: { tutor: { include: { user: true } } } },
+      group: { include: { currentTutor: { include: { user: true } } } },
       participants: {
         include: {
           student: {
@@ -310,8 +310,8 @@ export default async function DashboardPage() {
         studentId: p.studentId,
         studentName: p.student.user.name || "",
         studentPhone: p.student.user.phone,
-        tutorName: sess.group.tutor.user.name || "",
-        tutorPhone: sess.group.tutor.user.phone,
+        tutorName: sess.group.currentTutor.user.name || "",
+        tutorPhone: sess.group.currentTutor.user.phone,
         startTime: sess.startTime.toISOString(),
       })),
   );
@@ -332,8 +332,8 @@ export default async function DashboardPage() {
         studentId: p.studentId,
         studentName: p.student.user.name || "",
         studentPhone: p.student.user.phone,
-        tutorName: sess.group.tutor.user.name || "",
-        tutorPhone: sess.group.tutor.user.phone,
+        tutorName: sess.group.currentTutor.user.name || "",
+        tutorPhone: sess.group.currentTutor.user.phone,
         startTime: sess.startTime.toISOString(),
       })),
   );
@@ -351,61 +351,68 @@ export default async function DashboardPage() {
       )
       .map((p) => ({
         sessionId: sess.id,
-        tutorId: sess.group.tutor.id,
-        tutorName: sess.group.tutor.user.name || "",
-        tutorPhone: sess.group.tutor.user.phone,
+        tutorId: sess.group.currentTutor.id,
+        tutorName: sess.group.currentTutor.user.name || "",
+        tutorPhone: sess.group.currentTutor.user.phone,
         studentName: p.student.user.name || "",
         startTime: sess.startTime.toISOString(),
       })),
   );
 
-  // ---- Reconciliation (unchanged) ----
+  // ---- Reconciliation (per enrollment subscriptions) ----
   const activeSubscriptions = await db.subscription.findMany({
-    where: { student: { academyId }, status: SubscriptionStatus.active },
+    where: {
+      status: SubscriptionStatus.active,
+      groupStudent: { group: { academyId } },
+    },
     include: {
-      student: {
-        select: { id: true, user: { select: { name: true, phone: true } } },
+      groupStudent: {
+        include: {
+          student: {
+            select: { id: true, user: { select: { name: true, phone: true } } },
+          },
+          group: { select: { title: true } },
+        },
       },
-      plan: { select: { title: true, price: true } },
+      plan: { select: { title: true } },
     },
   });
 
   const latePayments = activeSubscriptions
     .filter((sub) => {
-      if (sub.endDate && dayjs(sub.endDate).isBefore(now, "day")) return true;
-      const defaultEnd = dayjs(sub.startDate).add(30, "day");
-      return defaultEnd.isBefore(now, "day");
+      const billing = sub.nextBillingDate ?? sub.endDate;
+      return !!billing && dayjs(billing).isBefore(now, "day");
     })
-    .map((sub) => ({
-      id: sub.studentId,
-      studentName: sub.student.user.name || "",
-      phone: sub.student.user.phone || "",
-      planTitle: sub.plan.title,
-      amountDue: sub.plan.price,
-      daysOverdue: sub.endDate
-        ? Math.abs(dayjs(sub.endDate).diff(now, "day"))
-        : Math.abs(dayjs(sub.startDate).add(30, "day").diff(now, "day")),
-    }));
+    .map((sub) => {
+      const billing = sub.nextBillingDate ?? sub.endDate!;
+      return {
+        id: sub.groupStudent.student.id,
+        studentName: sub.groupStudent.student.user.name || "",
+        phone: sub.groupStudent.student.user.phone || "",
+        planTitle: sub.plan?.title ?? sub.groupStudent.group.title,
+        amountDue: sub.price,
+        daysOverdue: Math.abs(dayjs(billing).diff(now, "day")),
+      };
+    });
 
   const nearEndSubscriptions = activeSubscriptions
     .filter((sub) => {
-      const end = sub.endDate || dayjs(sub.startDate).add(30, "day");
-      const daysLeft = dayjs(end).diff(now, "day");
+      const billing = sub.nextBillingDate ?? sub.endDate;
+      if (!billing) return false;
+      const daysLeft = dayjs(billing).diff(now, "day");
       return daysLeft >= 0 && daysLeft <= 7;
     })
-    .map((sub) => ({
-      id: sub.studentId,
-      studentName: sub.student.user.name || "",
-      phone: sub.student.user.phone || "",
-      planTitle: sub.plan.title,
-      endDate: dayjs(sub.endDate || dayjs(sub.startDate).add(30, "day")).format(
-        "YYYY-MM-DD",
-      ),
-      daysLeft: dayjs(sub.endDate || dayjs(sub.startDate).add(30, "day")).diff(
-        now,
-        "day",
-      ),
-    }));
+    .map((sub) => {
+      const billing = sub.nextBillingDate ?? sub.endDate!;
+      return {
+        id: sub.groupStudent.student.id,
+        studentName: sub.groupStudent.student.user.name || "",
+        phone: sub.groupStudent.student.user.phone || "",
+        planTitle: sub.plan?.title ?? sub.groupStudent.group.title,
+        endDate: dayjs(billing).format("YYYY-MM-DD"),
+        daysLeft: dayjs(billing).diff(now, "day"),
+      };
+    });
 
   // ---- Helper & stats ----
   const calcPercentChange = (current: number, previous: number) => {
@@ -488,7 +495,7 @@ export default async function DashboardPage() {
       students={allStudents.map((s) => ({
         id: s.id,
         name: s.user.name || "",
-        balance: s.sessionsBalance,
+        balance: s.creditBalance,
       }))}
       specialities={specialities.map((s) => ({ id: s.id, title: s.title }))}
       defaultCurrency={{

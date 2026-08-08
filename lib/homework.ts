@@ -90,7 +90,9 @@ export function computeHomeworkData(participants: Participant[]) {
       id: p.session.id,
       participantId: p.id,
       startTime: p.session.startTime.toISOString(),
-      endTime: p.session.endTime.toISOString(),
+      endTime: dayjs(p.session.startTime)
+        .add(p.session.durationMinutes, "minute")
+        .toISOString(),
       topic: p.session.topic,
       tutorName: p.session.tutor.user.name ?? "معلم",
       status: getSessionStatus(p.session),

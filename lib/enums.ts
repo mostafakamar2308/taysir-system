@@ -1,6 +1,7 @@
 import { PaymentMethod, PaymentStatus } from "@/types/payment";
 import { AttendanceStatus, SessionStatus } from "@/types/session";
 import { StudentStatus } from "@/types/student";
+import { SubscriptionStatus } from "@/types/subscription";
 
 export const statusLabels: Record<StudentStatus, string> = {
   [StudentStatus.trial]: "تجريبي",
@@ -76,6 +77,20 @@ export const paymentMethodLabels: Record<PaymentMethod, string> = {
   [PaymentMethod.CARD]: "بطاقة",
   [PaymentMethod.BANK_TRANSFER]: "تحويل بنكي",
   [PaymentMethod.ONLINE]: "إلكتروني",
+};
+
+export const subscriptionStatusLabels: Record<SubscriptionStatus, string> = {
+  [SubscriptionStatus.active]: "نشط",
+  [SubscriptionStatus.cancelled]: "ملغي",
+  [SubscriptionStatus.expired]: "منتهي",
+  [SubscriptionStatus.pending]: "معلق",
+};
+
+export const subscriptionStatusColors: Record<SubscriptionStatus, string> = {
+  [SubscriptionStatus.active]: "bg-green-100 text-green-700",
+  [SubscriptionStatus.cancelled]: "bg-red-100 text-red-700",
+  [SubscriptionStatus.expired]: "bg-gray-100 text-gray-700",
+  [SubscriptionStatus.pending]: "bg-amber-100 text-amber-700",
 };
 
 export const dayLabels: Record<number, string> = {

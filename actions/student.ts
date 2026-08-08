@@ -594,94 +594,100 @@ export async function bulkAddNote(studentIds: number[], content: string) {
   revalidatePath("/ar/dashboard/students");
 }
 
-export async function changePlan(studentId: number, newPlanId: number) {
+export async function changePlan(groupStudentId: number, newPlanId: number) {
   const token = await getTokenFromCookie();
   if (!token) throw new Error("غير مصرح");
   const payload = verifyToken(token);
   if (!payload) throw new Error("غير مصرح");
 
-  // Get the student to know the old plan and academyId
-  const student = await db.student.findUnique({
-    where: { id: studentId },
-  });
-  const plan = await db.plan.findUnique({
-    where: { id: newPlanId },
-  });
-  if (!student || !plan) throw new Error("Student or Plan not found");
+  const plan = await db.plan.findUnique({ where: { id: newPlanId } });
+  if (!plan) throw new Error("الباقة غير موجودة");
 
-  // Expire current active subscription
-  await db.subscription.updateMany({
-    where: {
-      studentId,
-      status: SubscriptionStatus.active,
-    },
-    data: {
-      status: SubscriptionStatus.expired,
-      endDate: dayjs().toDate(),
-    },
-  });
-
-  // Create new subscription
-  const newSubscription = await db.subscription.create({
-    data: {
-      studentId,
-      academyId: student.academyId,
-      planId: newPlanId,
-      startDate: new Date(),
-      endDate: dayjs().add(1, "month").toDate(),
-      status: SubscriptionStatus.active,
-    },
-  });
-
-  await db.revenue.create({
-    data: {
-      amount: plan.price,
-      academyId: student.academyId,
-      currencyId: plan.currencyId,
-      studentId,
-      recordedBy: payload.id,
-      subscriptionId: newSubscription.id,
-      dueDate: newSubscription.startDate,
-      status: PaymentStatus.PENDING,
-    },
-  });
-
-  // Update student's current subscription and plan
-  await db.student.update({
-    where: { id: studentId },
-    data: {
-      currentSubscriptionId: newSubscription.id,
-      planId: newPlanId,
-      status: StudentStatus.subscribed,
-      sessionsBalance: {
-        increment: plan.sessionsPerWeek * 4,
+  const groupStudent = await db.groupStudent.findUnique({
+    where: { id: groupStudentId },
+    include: {
+      student: { select: { id: true, status: true, academyId: true } },
+      subscriptions: {
+        where: { status: SubscriptionStatus.active },
+        orderBy: { startDate: "desc" },
+        take: 1,
+        select: { id: true, planId: true },
       },
     },
   });
+  if (!groupStudent) throw new Error("الالتحاق غير موجود");
 
-  if (student.status !== StudentStatus.subscribed)
+  const activeSub = groupStudent.subscriptions[0];
+  if (!activeSub) throw new Error("لا يوجد اشتراك نشط لهذا الطالب");
+
+  const now = dayjs().toDate();
+  const endDate = dayjs().add(plan.billingPeriod, "day").toDate();
+
+  await db.$transaction(async (tx) => {
+    // Expire the current active subscription for this enrollment
+    await tx.subscription.update({
+      where: { id: activeSub.id },
+      data: { status: SubscriptionStatus.expired, endDate: now },
+    });
+
+    // Create the new subscription row with the plan's terms
+    const newSubscription = await tx.subscription.create({
+      data: {
+        groupStudentId: groupStudent.id,
+        planId: plan.id,
+        price: plan.price,
+        currencyId: plan.currencyId,
+        sessionCount: plan.sessionCount,
+        billingCycle: plan.billingPeriod,
+        startDate: now,
+        endDate,
+        nextBillingDate: endDate,
+        status: SubscriptionStatus.active,
+      },
+    });
+
+    await tx.revenue.create({
+      data: {
+        amount: plan.price,
+        academyId: groupStudent.student.academyId,
+        currencyId: plan.currencyId,
+        studentId: groupStudent.student.id,
+        recordedBy: payload.id,
+        subscriptionId: newSubscription.id,
+        planId: plan.id,
+        dueDate: newSubscription.startDate,
+        status: PaymentStatus.PENDING,
+      },
+    });
+
+    await tx.student.update({
+      where: { id: groupStudent.student.id },
+      data: { status: StudentStatus.subscribed },
+    });
+  });
+
+  if (groupStudent.student.status !== StudentStatus.subscribed)
     await recordStudentStatusChangeHistory(
-      student.id,
-      student.status,
+      groupStudent.student.id,
+      groupStudent.student.status,
       StudentStatus.subscribed,
       payload.id,
-      student.academyId,
+      groupStudent.student.academyId,
     );
 
-  // Record history if plan changed
-  if (student.planId !== newPlanId) {
+  if (activeSub.planId !== newPlanId) {
     await recordStudentPlanChangeHistory(
-      studentId,
-      student.planId,
+      groupStudent.student.id,
+      activeSub.planId,
       newPlanId,
       payload.id,
-      student.academyId,
+      groupStudent.student.academyId,
     );
   }
 
-  revalidatePath(`/ar/dashboard/students/${studentId}`);
+  revalidatePath(`/ar/dashboard/students/${groupStudent.student.id}`);
   revalidatePath("/ar/dashboard/students");
-  return newSubscription;
+  return null;
 }
 
 export async function recordPayment(
@@ -694,38 +700,38 @@ export async function recordPayment(
   const token = await getTokenFromCookie();
   if (!token) throw new Error("غير مصرح");
   const payload = verifyToken(token);
-  if (!payload || !payload.academyId) throw new Error("غير مصرح");
+  if (!payload) throw new Error("غير مصرح");
 
   // Get subscription to find its plan's currency
   const subscription = await db.subscription.findUnique({
     where: { id: subscriptionId },
-    include: { plan: true },
+    include: {
+      plan: { select: { title: true } },
+      groupStudent: {
+        select: { studentId: true, group: { select: { academyId: true } } },
+      },
+    },
   });
   if (!subscription) throw new Error("الاشتراك غير موجود");
+  if (subscription.groupStudent.studentId !== studentId)
+    throw new Error("الاشتراك لا ينتمي لهذا الطالب");
 
   const payment = await db.revenue.create({
     data: {
       amount,
-      currencyId: subscription.plan.currencyId,
-      status: 1,
+      currencyId: subscription.currencyId,
+      status: PaymentStatus.PAID,
       method,
       dueDate: new Date(),
-      description: description || `دفعة اشتراك ${subscription.plan.title}`,
+      description:
+        description ||
+        (subscription.plan?.title
+          ? `دفعة اشتراك ${subscription.plan.title}`
+          : "دفعة اشتراك"),
       studentId,
       subscriptionId,
       planId: subscription.planId,
-      academyId: payload.academyId,
-    },
-  });
-
-  await db.subscription.update({
-    where: {
-      id: subscriptionId,
-    },
-    data: {
-      endDate: dayjs().add(1, "month").toDate(),
-      startDate: dayjs().toDate(),
-      status: SubscriptionStatus.active,
+      academyId: subscription.groupStudent.group.academyId,
     },
   });
 
@@ -765,95 +771,87 @@ export async function resolvePayment(
   revalidatePath("/dashboard/finances");
 }
 
-export async function renewSubscription(studentId: number, paid?: boolean) {
+export async function renewSubscription(
+  subscriptionId: number,
+  opts?: { paid?: boolean; method?: number },
+) {
   const currentUser = await user();
   if (!currentUser || currentUser.role !== Role.Admin)
     throw new Error("غير مصرح");
 
-  const student = await db.student.findUnique({
-    where: {
-      id: studentId,
-    },
-    include: {
-      subscriptions: true,
-      plan: true,
-    },
-  });
-
-  if (
-    !student ||
-    student.status !== StudentStatus.subscribed ||
-    !student.planId
-  )
-    throw new Error("هذا الطالب غير مشترك أصلا");
-
-  const activeSubs = await db.subscription.findMany({
-    where: {
-      studentId,
-      status: SubscriptionStatus.active,
-    },
-  });
-
-  const plan = await db.plan.findUnique({ where: { id: student.planId } });
-  if (!plan) throw new Error("الباقة غير موجودة");
-
-  await db.$transaction(async (tx) => {
-    // revoke active subscription
-    await tx.subscription.updateMany({
-      where: {
-        id: {
-          in: activeSubs.map((s) => s.id),
+  const subscription = await db.subscription.findUnique({
+    where: { id: subscriptionId },
+    select: {
+      id: true,
+      price: true,
+      currencyId: true,
+      planId: true,
+      sessionCount: true,
+      billingCycle: true,
+      status: true,
+      groupStudent: {
+        select: {
+          id: true,
+          studentId: true,
+          group: { select: { academyId: true } },
         },
       },
-      data: {
-        status: SubscriptionStatus.expired,
-      },
+    },
+  });
+  if (!subscription) throw new Error("الاشتراك غير موجود");
+  if (subscription.status !== SubscriptionStatus.active)
+    throw new Error("لا يوجد اشتراك نشط للتجديد");
+
+  const paid = opts?.paid ?? false;
+  const billingDays = subscription.billingCycle || 30;
+  const startDate = dayjs.utc().startOf("day").toDate();
+  const endDate = dayjs
+    .utc()
+    .startOf("day")
+    .add(billingDays, "day")
+    .toDate();
+
+  await db.$transaction(async (tx) => {
+    // Revoke the current active subscription (one active row per enrollment)
+    await tx.subscription.update({
+      where: { id: subscription.id },
+      data: { status: SubscriptionStatus.expired, endDate: startDate },
     });
 
-    // create new subscription
+    // Create the new cycle row, preserving the agreed terms
     const sub = await tx.subscription.create({
       data: {
-        studentId: student.id,
-        academyId: student.academyId,
-        planId: student.planId!,
-        startDate: dayjs.utc().startOf("day").toDate(),
-        endDate: dayjs.utc().endOf("day").add(1, "month").toDate(),
+        groupStudentId: subscription.groupStudent.id,
+        planId: subscription.planId,
+        price: subscription.price,
+        currencyId: subscription.currencyId,
+        sessionCount: subscription.sessionCount,
+        billingCycle: subscription.billingCycle,
+        startDate,
+        endDate,
+        nextBillingDate: endDate,
         status: SubscriptionStatus.active,
       },
     });
 
     await tx.revenue.create({
       data: {
-        amount: plan.price,
-        currencyId: plan.currencyId,
-        academyId: student.academyId,
-        studentId: student.id,
+        amount: subscription.price,
+        currencyId: subscription.currencyId,
+        academyId: subscription.groupStudent.group.academyId,
+        studentId: subscription.groupStudent.studentId,
         description: `تجديد إشتراك شهر ${dayjs().format("MMMM YYYY")} `,
         subscriptionId: sub.id,
-        planId: plan.id,
+        planId: subscription.planId,
         recordedBy: currentUser.id,
-        dueDate: paid
-          ? dayjs.utc().toDate()
-          : dayjs.utc().startOf("day").add(1, "month").toDate(),
+        dueDate: paid ? dayjs.utc().toDate() : endDate,
         status: paid ? PaymentStatus.PAID : PaymentStatus.PENDING,
-      },
-    });
-
-    await tx.student.update({
-      where: {
-        id: student.id,
-      },
-      data: {
-        sessionsBalance: {
-          increment: plan.sessionsPerWeek * 4,
-        },
-        currentSubscriptionId: sub.id,
-        status: StudentStatus.subscribed,
       },
     });
   });
 
-  revalidatePath(`/ar/dashboard/students/${studentId}`);
+  revalidatePath(`/ar/dashboard/students/${subscription.groupStudent.studentId}`);
+  revalidatePath("/ar/dashboard");
 }
 
 export async function getStudentSessionsForWeek(

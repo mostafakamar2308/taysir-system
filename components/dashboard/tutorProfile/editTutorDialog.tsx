@@ -23,10 +23,21 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { updateTutor } from "@/actions/tutor";
-import type { TutorProfile } from "@/types/tutor";
+
+export interface EditableTutor {
+  id: number;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  timezone: string;
+  baseHourlyRate: number;
+  baseGroupHourlyRate: number;
+  active: boolean;
+  zoomUrl: string | null;
+}
 
 interface EditTutorDialogProps {
-  tutor: TutorProfile;
+  tutor: EditableTutor;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }

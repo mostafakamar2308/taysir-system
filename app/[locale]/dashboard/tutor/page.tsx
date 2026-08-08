@@ -75,7 +75,10 @@ export default async function TutorDashboardPage() {
   const toSessionSummary = (s: (typeof sessions)[0]): SessionSummary => ({
     id: s.id,
     startTime: s.startTime.toISOString(),
-    endTime: s.endTime.toISOString(),
+    endTime: dayjs
+      .utc(s.startTime)
+      .add(s.durationMinutes, "minute")
+      .toISOString(),
     topic: s.topic,
     status: getSessionStatus(s),
     participants: s.participants.map((p) => ({
@@ -97,7 +100,7 @@ export default async function TutorDashboardPage() {
         ) &&
         !p.report,
     ),
-    meetingLink: s.zoomStartUrl || null,
+    meetingLink: s.zoomUrl || null,
   });
 
   // All sessions as summaries
@@ -146,8 +149,8 @@ export default async function TutorDashboardPage() {
   }
 
   const expectedEarnings =
-    (totalPrivateMinutes / 60) * tutor.privatePricePerHour +
-    (totalGroupMinutes / 60) * tutor.groupPricePerHour;
+    (totalPrivateMinutes / 60) * tutor.baseHourlyRate +
+    (totalGroupMinutes / 60) * tutor.baseGroupHourlyRate;
 
   // Paid expenses this month
   const paidExpenses = await db.expense.findMany({

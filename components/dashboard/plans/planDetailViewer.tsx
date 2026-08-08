@@ -19,7 +19,7 @@ interface PlanDetailClientProps {
   plan: {
     id: number;
     title: string;
-    sessionsPerWeek: number;
+    sessionCount: number;
     price: number;
     billingPeriod: number;
     currency: string;
@@ -114,8 +114,8 @@ export default function PlanDetailClient({
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-4">
           <div>
-            <p className="text-sm text-muted-foreground">الحصص/أسبوع</p>
-            <p className="font-medium">{plan.sessionsPerWeek}</p>
+            <p className="text-sm text-muted-foreground">عدد الحصص</p>
+            <p className="font-medium">{plan.sessionCount}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground">السعر</p>
@@ -203,7 +203,7 @@ export default function PlanDetailClient({
         plan={{
           id: plan.id,
           title: plan.title,
-          sessionsPerWeek: plan.sessionsPerWeek,
+          sessionCount: plan.sessionCount,
           price: plan.price,
           billingPeriod: plan.billingPeriod,
           currency: plan.currency,

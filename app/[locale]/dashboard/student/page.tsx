@@ -23,17 +23,26 @@ export default async function StudentDashboardPage() {
           imageUrl: true,
         },
       },
-      tutor: { include: { user: { select: { name: true } } } },
-      plan: { include: { currency: { select: { code: true, symbol: true } } } },
-      subscriptions: {
-        where: { status: SubscriptionStatus.active },
-        orderBy: { startDate: "desc" },
-        take: 1,
+      groupMemberships: {
+        where: { active: true },
         include: {
-          plan: {
-            include: { currency: { select: { code: true, symbol: true } } },
+          group: {
+            include: {
+              currentTutor: { include: { user: { select: { name: true } } } },
+            },
           },
-          payments: { include: { currency: { select: { code: true } } } },
+          subscriptions: {
+            where: { status: SubscriptionStatus.active },
+            orderBy: { startDate: "desc" },
+            take: 1,
+            include: {
+              currency: { select: { code: true } },
+              plan: {
+                include: { currency: { select: { code: true, symbol: true } } },
+              },
+              payments: { include: { currency: { select: { code: true } } } },
+            },
+          },
         },
       },
       sessionParticipants: {
@@ -43,7 +52,7 @@ export default async function StudentDashboardPage() {
               tutor: { include: { user: { select: { name: true } } } },
               assignment: {
                 include: {
-                  solutions: true, // load all solutions, we'll filter by participantId
+                  solutions: true,
                 },
               },
             },
@@ -94,7 +103,11 @@ export default async function StudentDashboardPage() {
     (p) => p.session.startTime > now,
   ).length;
 
-  const renewalDate = student.subscriptions[0]?.endDate ?? null;
+  const activeMembership = student.groupMemberships[0];
+  const activeSubscription = activeMembership?.subscriptions[0] ?? null;
+  const currentPlan = activeSubscription?.plan ?? null;
+
+  const renewalDate = activeSubscription?.endDate ?? null;
 
   const { pendingAssignments, lastAssignmentData, sessionsWithAssignment } =
     computeHomeworkData(student.sessionParticipants);
@@ -106,14 +119,14 @@ export default async function StudentDashboardPage() {
       name: student.user.name ?? "طالب",
       timezone: student.user.timezone,
       imageUrl: student.user.imageUrl,
-      tutorName: student.tutor?.user.name ?? null,
-      plan: student.plan
+      tutorName: activeMembership?.group.currentTutor.user.name ?? null,
+      plan: currentPlan
         ? {
-            title: student.plan.title,
-            sessionsPerWeek: student.plan.sessionsPerWeek,
-            price: student.plan.price,
-            currency: student.plan.currency.code,
-            billingPeriod: student.plan.billingPeriod,
+            title: currentPlan.title,
+            sessionsPerWeek: currentPlan.sessionCount,
+            price: currentPlan.price,
+            currency: currentPlan.currency.code,
+            billingPeriod: currentPlan.billingPeriod,
           }
         : null,
     },
@@ -121,9 +134,12 @@ export default async function StudentDashboardPage() {
       ? {
           id: nextSession.id,
           startTime: nextSession.startTime.toISOString(),
-          endTime: nextSession.endTime.toISOString(),
+          endTime: dayjs
+            .utc(nextSession.startTime)
+            .add(nextSession.durationMinutes, "minute")
+            .toISOString(),
           tutorName: nextSession.tutor.user.name ?? "معلم",
-          zoomJoinUrl: nextSession.zoomJoinUrl ?? null,
+          zoomJoinUrl: nextSession.zoomUrl ?? null,
           topic: nextSession.topic,
         }
       : null,
@@ -157,16 +173,16 @@ export default async function StudentDashboardPage() {
         weaknesses: p.report!.weaknesses,
         nextGoals: p.report!.nextGoals,
       })),
-    activeSubscription: student.subscriptions[0]
+    activeSubscription: activeSubscription
       ? {
-          id: student.subscriptions[0].id,
-          planTitle: student.subscriptions[0].plan.title,
-          planSessionsPerWeek: student.subscriptions[0].plan.sessionsPerWeek,
-          planPrice: student.subscriptions[0].plan.price,
-          planCurrency: student.subscriptions[0].plan.currency.code,
-          startDate: student.subscriptions[0].startDate.toISOString(),
-          endDate: student.subscriptions[0].endDate?.toISOString() ?? null,
-          payments: student.subscriptions[0].payments.map((p) => ({
+          id: activeSubscription.id,
+          planTitle: activeSubscription.plan?.title ?? "—",
+          planSessionsPerWeek: activeSubscription.plan?.sessionCount ?? 0,
+          planPrice: activeSubscription.price,
+          planCurrency: activeSubscription.currency.code,
+          startDate: activeSubscription.startDate.toISOString(),
+          endDate: activeSubscription.endDate?.toISOString() ?? null,
+          payments: activeSubscription.payments.map((p) => ({
             amount: p.amount,
             currency: p.currency.code,
             status: p.status,

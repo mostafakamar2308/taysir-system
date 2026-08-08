@@ -16,9 +16,9 @@ const MONTHS = 6;
 
 // Plans in EGP
 const PLANS = [
-  { title: "الخطة الأساسية", sessionsPerWeek: 2, price: 600 },
-  { title: "الخطة المتوسطة", sessionsPerWeek: 3, price: 800 },
-  { title: "الخطة المتقدمة", sessionsPerWeek: 4, price: 1200 },
+  { title: "الخطة الأساسية", sessionCount: 8, price: 600 },
+  { title: "الخطة المتوسطة", sessionCount: 12, price: 800 },
+  { title: "الخطة المتقدمة", sessionCount: 16, price: 1200 },
 ];
 
 const TUTORS_INITIAL = 10;
@@ -85,6 +85,8 @@ async function createSessionWithParticipants(
   studentIds: number[],
   tutorId: number,
   academyId: number,
+  groupId: number,
+  supervisorId: number,
   startTime: dayjs.Dayjs,
   durationMinutes: number,
   isTrial: boolean,
@@ -94,11 +96,13 @@ async function createSessionWithParticipants(
   const session = await db.session.create({
     data: {
       startTime: startTime.toDate(),
-      endTime: startTime.add(durationMinutes, "minute").toDate(),
       durationMinutes,
       topic: topic || faker.lorem.words(3),
       isTrial,
       tutorId,
+      tutorRate: 0,
+      groupId,
+      supervisorId,
       academyId,
     },
   });
@@ -109,7 +113,6 @@ async function createSessionWithParticipants(
       data: {
         sessionId: session.id,
         studentId,
-        balanceDeducted: !isTrial,
       },
     });
 
@@ -145,17 +148,83 @@ async function createSessionWithParticipants(
   return session;
 }
 
+// Ensure a student is an active member of a group, returning the membership id
+async function ensureGroupStudent(
+  groupId: number,
+  studentId: number,
+): Promise<number> {
+  const existing = await db.groupStudent.findUnique({
+    where: { groupId_studentId: { groupId, studentId } },
+    select: { id: true },
+  });
+  if (existing) return existing.id;
+  const created = await db.groupStudent.create({
+    data: { groupId, studentId, active: true },
+  });
+  return created.id;
+}
+
+// Find or create a private group (one student + one tutor) and return its id
+async function findOrCreatePrivateGroup(
+  studentId: number,
+  tutorId: number,
+  academyId: number,
+  tutorHourlyRate: number,
+): Promise<number> {
+  const existing = await db.group.findFirst({
+    where: {
+      academyId,
+      currentTutorId: tutorId,
+      active: true,
+      members: { some: { studentId, active: true } },
+    },
+    select: { id: true },
+  });
+  if (existing) return existing.id;
+
+  const created = await db.group.create({
+    data: {
+      title: "مجموعة خاصة",
+      academyId,
+      currentTutorId: tutorId,
+      tutorHourlyRate,
+      active: true,
+      members: { create: { studentId, active: true } },
+    },
+  });
+  return created.id;
+}
+
+// Ensure the student has a private group + membership, returning both ids
+async function ensurePrivateGroupMembership(
+  studentId: number,
+  tutorId: number,
+  academyId: number,
+  tutorHourlyRate: number,
+): Promise<{ groupId: number; groupStudentId: number }> {
+  const groupId = await findOrCreatePrivateGroup(
+    studentId,
+    tutorId,
+    academyId,
+    tutorHourlyRate,
+  );
+  const groupStudentId = await ensureGroupStudent(groupId, studentId);
+  return { groupId, groupStudentId };
+}
+
 // Original generateSessions now uses the above for single student (private)
 async function generateSessions(
   studentId: number,
   tutorId: number,
   academyId: number,
-  plan: { sessionsPerWeek: number },
+  groupId: number,
+  supervisorId: number,
+  plan: { sessionCount: number },
   start: dayjs.Dayjs,
   end: dayjs.Dayjs,
   isTrial = false,
 ) {
-  const daysOfWeek = pickRandom([0, 1, 2, 3, 4, 5, 6], plan.sessionsPerWeek);
+  const daysOfWeek = pickRandom([0, 1, 2, 3, 4, 5, 6], plan.sessionCount);
   let current = start.startOf("day");
   const sessions = [];
 
@@ -167,6 +236,8 @@ async function generateSessions(
           [studentId],
           tutorId,
           academyId,
+          groupId,
+          supervisorId,
           sessionDate,
           60,
           isTrial,
@@ -186,6 +257,7 @@ async function generateGroupSession(
   monthEnd: dayjs.Dayjs,
   tutors: number[],
   subscribedStudents: { id: number }[],
+  supervisorId: number,
 ) {
   if (subscribedStudents.length < 2) return;
 
@@ -198,10 +270,27 @@ async function generateGroupSession(
   const sessionDate = monthStart.date(sessionDay).hour(14).minute(0).second(0); // different time
   const topic = faker.lorem.words(3) + " (مجموعة)";
 
+  const group = await db.group.create({
+    data: {
+      title: topic,
+      academyId,
+      currentTutorId: tutorId,
+      active: true,
+      members: {
+        create: groupStudents.map((studentId) => ({
+          studentId,
+          active: true,
+        })),
+      },
+    },
+  });
+
   await createSessionWithParticipants(
     groupStudents,
     tutorId,
     academyId,
+    group.id,
+    supervisorId,
     sessionDate,
     90,
     false,
@@ -353,8 +442,8 @@ async function seedDemoAcademy() {
         userId: user.id,
         academyId: academy.id,
         currencyId: eurCurrency.id,
-        privatePricePerHour: privateRate,
-        groupPricePerHour: groupRate,
+        baseHourlyRate: privateRate,
+        baseGroupHourlyRate: groupRate,
         active: true,
         bio: faker.lorem.sentence(),
         qualifications: faker.lorem.words(3),
@@ -365,11 +454,26 @@ async function seedDemoAcademy() {
         },
       },
     });
-    tutorRecords.push({ ...tutor, userId: user.id });
+    tutorRecords.push({ ...tutor, userId: user.id, hourlyRate: privateRate });
   }
   const initialTutors = tutorRecords.slice(0, TUTORS_INITIAL).map((t) => t.id);
   const allTutors = tutorRecords.map((t) => t.id);
   console.log(`✅ ${tutorRecords.length} tutors`);
+
+  // Supervisor (required for sessions)
+  const supervisorUser = await db.user.create({
+    data: {
+      email: "demo.supervisor@academy.com",
+      password,
+      name: "محمد المشرف",
+      role: Role.Supervisor,
+      phone: "+201018303125",
+    },
+  });
+  const supervisor = await db.supervisor.create({
+    data: { userId: supervisorUser.id, academyId: academy.id },
+  });
+  console.log("✅ Supervisor created");
 
   // Month-by-month simulation
   const monthLeads: { id: number }[][] = [];
@@ -387,13 +491,24 @@ async function seedDemoAcademy() {
       const subscribedStudents = await db.student.findMany({
         where: { academyId: academy.id, status: StudentStatus.subscribed },
         include: {
-          subscriptions: { orderBy: { startDate: "desc" }, take: 1 },
-          plan: true,
+          groupMemberships: {
+            where: { active: true },
+            include: {
+              group: { select: { currentTutorId: true } },
+              subscriptions: {
+                orderBy: { startDate: "desc" },
+                take: 1,
+                include: { plan: true },
+              },
+            },
+          },
         },
       });
       for (const student of subscribedStudents) {
-        const lastSub = student.subscriptions[0];
-        if (!lastSub) continue;
+        const membership = student.groupMemberships[0];
+        const lastSub = membership?.subscriptions[0];
+        if (!lastSub || !membership) continue;
+        const plan = lastSub.plan;
 
         await db.subscription.update({
           where: { id: lastSub.id },
@@ -405,11 +520,14 @@ async function seedDemoAcademy() {
 
         const newSub = await db.subscription.create({
           data: {
-            studentId: student.id,
+            groupStudentId: membership.id,
             planId: lastSub.planId,
+            price: plan?.price ?? 0,
+            currencyId: eurCurrency.id,
+            sessionCount: plan?.sessionCount,
+            billingCycle: plan?.billingPeriod ?? 30,
             startDate: monthStart.toDate(),
             endDate: monthEnd.toDate(),
-            academyId: academy.id,
             status: SubscriptionStatus.active,
           },
         });
@@ -417,14 +535,13 @@ async function seedDemoAcademy() {
         await db.student.update({
           where: { id: student.id },
           data: {
-            sessionsBalance: {
-              increment: (student.plan?.sessionsPerWeek ?? 0) * 4,
+            creditBalance: {
+              increment: (plan?.sessionCount ?? 0) * 4,
             },
           },
         });
 
         // Payment
-        const plan = plans.find((p) => p.id === lastSub.planId);
         await db.revenue.create({
           data: {
             amount: plan!.price,
@@ -449,7 +566,7 @@ async function seedDemoAcademy() {
           },
         });
 
-        // Generate sessions for this student
+        // Generate sessions for this student (in their private group)
         const tutorId =
           allTutors[
             randomInt(0, (m < 2 ? initialTutors.length : allTutors.length) - 1)
@@ -458,6 +575,8 @@ async function seedDemoAcademy() {
           student.id,
           tutorId,
           academy.id,
+          membership.group.currentTutorId,
+          supervisor.id,
           plan!,
           monthStart,
           monthEnd,
@@ -529,7 +648,6 @@ async function seedDemoAcademy() {
         data: {
           status: StudentStatus.trial,
           updatedAt: finalTrialDate.toDate(),
-          tutorId,
         },
       });
       await db.history.create({
@@ -549,12 +667,22 @@ async function seedDemoAcademy() {
         },
       });
 
+      const tutorRecord = tutorRecords.find((t) => t.id === tutorId)!;
+      const { groupId } = await ensurePrivateGroupMembership(
+        lead.id,
+        tutorId,
+        academy.id,
+        tutorRecord.hourlyRate,
+      );
+
       // Create trial session (single)
       const trialSessionDate = finalTrialDate.add(1, "day").hour(16);
       await createSessionWithParticipants(
         [lead.id],
         tutorId,
         academy.id,
+        groupId,
+        supervisor.id,
         trialSessionDate,
         60,
         true,
@@ -578,12 +706,12 @@ async function seedDemoAcademy() {
         ? conversionDate
         : monthEnd;
 
+      const convertTutor = pickRandom(tutorRecords, 1)[0];
       await db.student.update({
         where: { id: trial.id },
         data: {
           status: StudentStatus.subscribed,
-          tutorId: pickRandom(tutorRecords, 1)[0].id,
-          planId: plan.id,
+          creditBalance: { increment: plan.sessionCount * 4 },
           updatedAt: finalConvDate.toDate(),
         },
       });
@@ -604,13 +732,23 @@ async function seedDemoAcademy() {
         },
       });
 
+      const { groupId, groupStudentId } = await ensurePrivateGroupMembership(
+        trial.id,
+        convertTutor.id,
+        academy.id,
+        convertTutor.hourlyRate,
+      );
+
       const subscription = await db.subscription.create({
         data: {
-          studentId: trial.id,
+          groupStudentId,
           planId: plan.id,
+          price: plan.price,
+          currencyId: eurCurrency.id,
+          sessionCount: plan.sessionCount,
+          billingCycle: plan.billingPeriod,
           startDate: finalConvDate.toDate(),
           endDate: monthEnd.toDate(),
-          academyId: academy.id,
           status: SubscriptionStatus.active,
         },
       });
@@ -639,12 +777,12 @@ async function seedDemoAcademy() {
         },
       });
 
-      const tutorPool = m < 2 ? initialTutors : allTutors;
-      const tutorId = tutorPool[randomInt(0, tutorPool.length - 1)];
       await generateSessions(
         trial.id,
-        tutorId,
+        convertTutor.id,
         academy.id,
+        groupId,
+        supervisor.id,
         plan,
         finalConvDate,
         monthEnd,
@@ -674,6 +812,7 @@ async function seedDemoAcademy() {
             monthEnd,
             allTutors,
             subscribedStudents,
+            supervisor.id,
           );
         }
         console.log(`  Generated ${groupCount} group sessions`);
@@ -709,8 +848,8 @@ async function seedDemoAcademy() {
       });
       if (!tutor) continue;
       const expectedSalary =
-        (stats.privateMin / 60) * tutor.privatePricePerHour +
-        (stats.groupMin / 60) * tutor.groupPricePerHour;
+        (stats.privateMin / 60) * tutor.baseHourlyRate +
+        (stats.groupMin / 60) * tutor.baseGroupHourlyRate;
       await db.expense.create({
         data: {
           date: monthEnd.toDate(),
@@ -747,26 +886,41 @@ async function seedDemoAcademy() {
       });
     }
 
-    // Chat rooms (unchanged)
+    // Chat rooms: derive the tutor from the student's active group membership
     const studentsWithTutor = await db.student.findMany({
       where: {
         academyId: academy.id,
-        tutorId: { not: null },
         status: { in: [StudentStatus.trial, StudentStatus.subscribed] },
+        groupMemberships: { some: { active: true, group: { active: true } } },
       },
-      select: { id: true, tutor: { select: { userId: true } }, userId: true },
+      select: {
+        id: true,
+        userId: true,
+        groupMemberships: {
+          where: { active: true },
+          select: {
+            group: {
+              select: {
+                currentTutor: { select: { userId: true } },
+              },
+            },
+          },
+        },
+      },
     });
     for (const s of studentsWithTutor) {
+      const tutorUserId = s.groupMemberships[0]?.group.currentTutor.userId;
+      if (!tutorUserId) continue;
       await db.chatRoom.upsert({
         where: {
           tutorUserId_studentUserId: {
-            tutorUserId: s.tutor!.userId,
+            tutorUserId,
             studentUserId: s.userId,
           },
         },
         update: {},
         create: {
-          tutorUserId: s.tutor!.userId,
+          tutorUserId,
           studentUserId: s.userId,
           academyId: academy.id,
         },

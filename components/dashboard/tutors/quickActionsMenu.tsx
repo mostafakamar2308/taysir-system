@@ -17,15 +17,28 @@ import {
   // UserPlus,
 } from "lucide-react";
 import { DashboardTutor } from "./viewer";
-// import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-import EditTutorDialog from "@/components/dashboard/tutorProfile/editTutorDialog";
+import EditTutorDialog, {
+  EditableTutor,
+} from "@/components/dashboard/tutorProfile/editTutorDialog";
 import { useState } from "react";
 
 export function QuickActionsMenu({ tutor }: { tutor: DashboardTutor }) {
   const [editTutor, setEditTutor] = useState(false);
   // const { toast } = useToast();
   const router = useRouter();
+
+  const editableTutor: EditableTutor = {
+    id: tutor.id,
+    name: tutor.name,
+    email: tutor.email,
+    phone: tutor.phone,
+    timezone: tutor.timezone,
+    baseHourlyRate: tutor.privatePricePerHour,
+    baseGroupHourlyRate: tutor.groupPricePerHour,
+    active: tutor.active,
+    zoomUrl: null,
+  };
 
   // const handleAction = (action: string) => {
   //   toast({ title: `تم تنفيذ: ${action}` });
@@ -34,7 +47,7 @@ export function QuickActionsMenu({ tutor }: { tutor: DashboardTutor }) {
   return (
     <DropdownMenu dir="rtl">
       <EditTutorDialog
-        tutor={tutor}
+        tutor={editableTutor}
         open={editTutor}
         onOpenChange={setEditTutor}
       />
