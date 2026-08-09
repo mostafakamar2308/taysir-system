@@ -91,9 +91,10 @@ model Academy {
   academyCurrencyRates AcademyCurrencyRate[]
   whatsAppMessages     WhatsAppMessage[]
 
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  chatRooms ChatRoom[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  chatRooms        ChatRoom[]
+  groupChatRooms   GroupChatRoom[]
 }
 
 model AcademyCurrencyRate {
@@ -133,6 +134,8 @@ model User {
   chatMessages      ChatMessage[]
   tutorChatRooms    ChatRoom[]         @relation("TutorChatRooms")
   studentChatRooms  ChatRoom[]         @relation("StudentChatRooms")
+  groupChatMemberships GroupChatMember[]
+  groupChatMessages    GroupChatMessage[]
   pushSubscriptions PushSubscription[]
 
   createdAt DateTime @default(now())
@@ -269,6 +272,8 @@ model Group {
 
   members  GroupStudent[]
   sessions Session[]
+
+  chatRoom GroupChatRoom?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -665,6 +670,61 @@ model ChatMessage {
   content   String
   isRead    Boolean   @default(false)
   isDeleted Boolean   @default(false)
+  readAt    DateTime?
+  refId     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([roomId])
+  @@index([senderId])
+}
+
+// ===================Group Chat ==================
+
+model GroupChatRoom {
+  id        Int     @id @default(autoincrement())
+  groupId   Int     @unique
+  group     Group   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  academyId Int
+  academy   Academy @relation(fields: [academyId], references: [id], onDelete: Cascade)
+
+  members  GroupChatMember[]
+  messages GroupChatMessage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([academyId])
+}
+
+model GroupChatMember {
+  id               Int            @id @default(autoincrement())
+  roomId           Int
+  room             GroupChatRoom  @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  userId           Int
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt         DateTime       @default(now())
+  leftAt           DateTime?
+  active           Boolean        @default(true)
+  lastReadMessageId Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roomId, userId])
+  @@index([userId])
+}
+
+model GroupChatMessage {
+  id        Int     @id @default(autoincrement())
+  roomId    Int
+  room      GroupChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  senderId  Int
+  sender    User    @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  content   String
+  isRead    Boolean @default(false)
+  isDeleted Boolean @default(false)
   readAt    DateTime?
   refId     String?
 

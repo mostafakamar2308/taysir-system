@@ -65,7 +65,15 @@ export function ChatMessageItem({
           </span>
           <Badge variant="secondary" className="text-xs w-fit">
             {t(
-              `roles.${message.sender.role === Role.Admin ? "admin" : message.sender.role === Role.Tutor ? "tutor" : "student"}`,
+              `roles.${
+                message.sender.role === Role.Admin
+                  ? "admin"
+                  : message.sender.role === Role.Supervisor
+                    ? "supervisor"
+                    : message.sender.role === Role.Tutor
+                      ? "tutor"
+                      : "student"
+              }`,
             )}
           </Badge>
         </div>

@@ -7,18 +7,25 @@ import {
   AcknowledgeCode,
   AcknowledgePayload,
   FullChatMessage,
+  RoomKind,
 } from "@/wss/types";
-import { getChatMessages } from "@/actions/chat";
+import { getChatMessages, getGroupChatMessages } from "@/actions/chat";
 import { Role } from "@/types/user";
 
 interface UseChatOptions {
   roomId: number;
+  kind?: RoomKind;
   userId: number;
   userRole: Role;
   onError?: (error: string) => void;
 }
 
-export function useChat({ roomId, userId, userRole }: UseChatOptions) {
+export function useChat({
+  roomId,
+  kind = "direct",
+  userId,
+  userRole,
+}: UseChatOptions) {
   const { socket } = useSocket();
   const [messages, setMessages] = useState<FullChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,9 +35,9 @@ export function useChat({ roomId, userId, userRole }: UseChatOptions) {
   const markAsRead = useCallback(
     (messageId: number) => {
       if (!socket) return;
-      socket.emit(ClientEvent.MarkMessageAsRead, { id: messageId });
+      socket.emit(ClientEvent.MarkMessageAsRead, { id: messageId, kind });
     },
-    [socket],
+    [socket, kind],
   );
 
   // Load initial messages
@@ -38,7 +45,11 @@ export function useChat({ roomId, userId, userRole }: UseChatOptions) {
     if (!roomId) return;
     const getMessages = async () => {
       setLoading(true);
-      getChatMessages(roomId)
+      const load =
+        kind === "group"
+          ? getGroupChatMessages(roomId)
+          : getChatMessages(roomId);
+      load
         .then((msgs) => {
           setMessages(msgs);
           const unreadFromOthers = msgs.filter(
@@ -50,21 +61,25 @@ export function useChat({ roomId, userId, userRole }: UseChatOptions) {
         .finally(() => setLoading(false));
     };
     getMessages();
-  }, [roomId, markAsRead, userId]);
+  }, [roomId, kind, markAsRead, userId]);
 
   // Join / leave room
   useEffect(() => {
     if (!socket) return;
-    socket.emit(ClientEvent.JoinRoom, { roomId }, (res: AcknowledgePayload) => {
-      if (res.code !== AcknowledgeCode.Success) {
-        console.error("Failed to join room:", res.message);
-      }
-    });
+    socket.emit(
+      ClientEvent.JoinRoom,
+      { roomId, kind },
+      (res: AcknowledgePayload) => {
+        if (res.code !== AcknowledgeCode.Success) {
+          console.error("Failed to join room:", res.message);
+        }
+      },
+    );
 
     return () => {
-      socket.emit(ClientEvent.LeaveRoom, { roomId });
+      socket.emit(ClientEvent.LeaveRoom, { roomId, kind });
     };
-  }, [socket, roomId]);
+  }, [socket, roomId, kind]);
 
   // Listen for real-time events
   useEffect(() => {
@@ -97,7 +112,10 @@ export function useChat({ roomId, userId, userRole }: UseChatOptions) {
         !message.isRead &&
         !message.isDeleted
       ) {
-        socket?.emit(ClientEvent.MarkMessageAsRead, { id: message.id });
+        socket?.emit(ClientEvent.MarkMessageAsRead, {
+          id: message.id,
+          kind,
+        });
       }
     };
 
@@ -157,7 +175,7 @@ export function useChat({ roomId, userId, userRole }: UseChatOptions) {
       timeoutMap.forEach((timeout) => clearTimeout(timeout));
       timeoutMap.clear();
     };
-  }, [socket, userId]);
+  }, [socket, userId, kind]);
 
   // ---- Actions ----
 
@@ -182,7 +200,7 @@ export function useChat({ roomId, userId, userRole }: UseChatOptions) {
 
       socket.emit(
         ClientEvent.SendMessage,
-        { roomId, text, refId },
+        { roomId, text, refId, kind },
         (res: AcknowledgePayload) => {
           if (res.code !== AcknowledgeCode.Success) {
             setMessages((prev) => prev.filter((m) => m.refId !== refId));
@@ -191,7 +209,7 @@ export function useChat({ roomId, userId, userRole }: UseChatOptions) {
         },
       );
     },
-    [socket, roomId, userRole, userId],
+    [socket, roomId, kind, userRole, userId],
   );
 
   const updateMessage = useCallback(
@@ -207,7 +225,7 @@ export function useChat({ roomId, userId, userRole }: UseChatOptions) {
       );
       socket.emit(
         ClientEvent.UpdateMessage,
-        { id: messageId, text },
+        { id: messageId, text, kind },
         (res: AcknowledgePayload) => {
           if (res.code !== AcknowledgeCode.Success) {
             // Revert? Could refetch original message, but for now just ignore
@@ -216,7 +234,7 @@ export function useChat({ roomId, userId, userRole }: UseChatOptions) {
         },
       );
     },
-    [socket],
+    [socket, kind],
   );
 
   const deleteMessage = useCallback(
@@ -226,7 +244,7 @@ export function useChat({ roomId, userId, userRole }: UseChatOptions) {
       setMessages((prev) => prev.filter((m) => m.id !== messageId));
       socket.emit(
         ClientEvent.DeleteMessage,
-        { id: messageId },
+        { id: messageId, kind },
         (res: AcknowledgePayload) => {
           if (res.code !== AcknowledgeCode.Success) {
             console.error("Delete failed:", res.message);
@@ -235,13 +253,13 @@ export function useChat({ roomId, userId, userRole }: UseChatOptions) {
         },
       );
     },
-    [socket],
+    [socket, kind],
   );
 
   const sendTyping = useCallback(() => {
     if (!socket) return;
-    socket.emit(ClientEvent.UserTyping, { roomId });
-  }, [socket, roomId]);
+    socket.emit(ClientEvent.UserTyping, { roomId, kind });
+  }, [socket, roomId, kind]);
 
   return {
     messages,

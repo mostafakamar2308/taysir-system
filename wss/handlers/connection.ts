@@ -4,6 +4,7 @@ import {
   AcknowledgeCallback,
   AcknowledgeCode,
   ClientEvent,
+  RoomKind,
   ServerEvent,
 } from "@/wss/types";
 import { asChatRoomId } from "@/wss/utils";
@@ -20,44 +21,58 @@ export class Connection extends WssHandler {
   }
 
   private async onJoinRoom(
-    data: { roomId: number },
+    data: { roomId: number; kind?: RoomKind },
     callback?: AcknowledgeCallback,
   ) {
     try {
-      const { roomId } = data;
-      const room = await db.chatRoom.findUnique({
-        where: { id: roomId },
-      });
-      if (!room) {
-        this.call(callback, { code: AcknowledgeCode.RoomNotFound });
-        return;
-      }
-
+      const { roomId, kind = "direct" } = data;
       const userId = this.user.id;
-      // Check if the user is a member (tutor, student, or admin of the academy)
-      const isMember =
-        room.tutorUserId === userId ||
-        room.studentUserId === userId ||
-        (await this.isAcademyAdmin(room.academyId));
 
+      const isMember = await this.isRoomMember(roomId, kind, userId);
       if (!isMember) {
-        this.call(callback, { code: AcknowledgeCode.NotMember });
+        this.call(callback, {
+          code: AcknowledgeCode.NotMember,
+          message: "You are not a member of this room",
+        });
         return;
       }
 
-      this.socket.join(asChatRoomId(roomId));
+      this.socket.join(asChatRoomId(roomId, kind));
       this.call(callback, { code: AcknowledgeCode.Success });
-      console.log(`User ${userId} joined room ${roomId}`);
+      console.log(`User ${userId} joined room ${kind}:${roomId}`);
     } catch (err) {
       console.error(err);
     }
   }
 
-  private onLeaveRoom(data: { roomId: number }) {
-    this.socket.leave(asChatRoomId(data.roomId));
+  private onLeaveRoom(data: { roomId: number; kind?: RoomKind }) {
+    this.socket.leave(asChatRoomId(data.roomId, data.kind ?? "direct"));
   }
 
-  private async isAcademyAdmin(academyId: number): Promise<boolean> {
+  private async isRoomMember(
+    roomId: number,
+    kind: RoomKind,
+    userId: number,
+  ): Promise<boolean> {
+    if (kind === "group") {
+      const room = await db.groupChatRoom.findUnique({ where: { id: roomId } });
+      if (!room) return false;
+      const membership = await db.groupChatMember.findFirst({
+        where: { roomId, userId, active: true },
+      });
+      if (membership) return true;
+      return this.isAcademyStaff(room.academyId);
+    }
+
+    const room = await db.chatRoom.findUnique({ where: { id: roomId } });
+    if (!room) return false;
+    if (room.tutorUserId === userId || room.studentUserId === userId) {
+      return true;
+    }
+    return this.isAcademyStaff(room.academyId);
+  }
+
+  private async isAcademyStaff(academyId: number): Promise<boolean> {
     const user = this.user;
     const admin = await db.admin.findUnique({ where: { userId: user.id } });
     if (admin && admin.academyId === academyId) return true;

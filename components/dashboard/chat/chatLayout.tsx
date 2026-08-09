@@ -3,25 +3,30 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { ChatList } from "./chatList";
 import { ChatWindow } from "./chatWindow";
-import { FullChatMessage } from "@/wss/types";
+import { FullChatMessage, RoomKind } from "@/wss/types";
 import { cn } from "@/lib/utils";
 import { useSearchParams } from "next/navigation";
 
-interface Chat {
+export interface ChatRoom {
   id: number;
+  kind: RoomKind;
   tutor: { id: number; name: string | null; imageUrl: string | null };
   student: {
     id: number;
     name: string | null;
     imageUrl: string | null;
-  };
+  } | null;
+  groupId?: number;
+  groupTitle?: string | null;
+  members?: { id: number; name: string | null; imageUrl: string | null }[] | null;
+  lastReadMessageId?: number | null;
   messages: FullChatMessage[];
   isClosed: boolean;
   updatedAt: Date;
 }
 
 interface Props {
-  chats: Chat[];
+  chats: ChatRoom[];
   currentUser: {
     id: number;
     email: string;
@@ -55,6 +60,8 @@ export function ChatLayout({ chats, currentUser }: Props) {
     setMobileChatOpen(false);
   };
 
+  const selectedChat = chats.find((c) => c.id === selectedChatId);
+
   return (
     <div
       dir="rtl"
@@ -80,11 +87,12 @@ export function ChatLayout({ chats, currentUser }: Props) {
           mobileChatOpen ? "flex" : "hidden md:flex",
         )}
       >
-        {selectedChatId ? (
+        {selectedChat ? (
           <ChatWindow
-            roomId={selectedChatId}
+            roomId={selectedChat.id}
+            kind={selectedChat.kind}
             userId={currentUser.id}
-            chat={chats.find((c) => c.id === selectedChatId)!}
+            chat={selectedChat}
             currentUser={currentUser}
             onBack={handleBack}
             showBackButton={true}

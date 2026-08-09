@@ -11,6 +11,8 @@ export enum ClientEvent {
   UserTyping = "user:typing",
 }
 
+export type RoomKind = "direct" | "group";
+
 export enum ServerEvent {
   RoomMessage = "room:message",
   RoomMessageUpdated = "room:message-updated",
@@ -43,27 +45,27 @@ export type AcknowledgeCallback = (payload: AcknowledgePayload) => void;
 // Maps for Socket.IO typed events
 export interface ClientEventsMap {
   [ClientEvent.JoinRoom]: (
-    data: { roomId: number },
+    data: { roomId: number; kind?: RoomKind },
     callback?: AcknowledgeCallback,
   ) => void;
-  [ClientEvent.LeaveRoom]: (data: { roomId: number }) => void;
+  [ClientEvent.LeaveRoom]: (data: { roomId: number; kind?: RoomKind }) => void;
   [ClientEvent.SendMessage]: (
-    data: { roomId: number; text: string; refId: string },
+    data: { roomId: number; text: string; refId: string; kind?: RoomKind },
     callback?: AcknowledgeCallback,
   ) => void;
   [ClientEvent.UpdateMessage]: (
-    data: { id: number; text: string },
+    data: { id: number; text: string; kind?: RoomKind },
     callback?: AcknowledgeCallback,
   ) => void;
   [ClientEvent.DeleteMessage]: (
-    data: { id: number },
+    data: { id: number; kind?: RoomKind },
     callback?: AcknowledgeCallback,
   ) => void;
   [ClientEvent.MarkMessageAsRead]: (
-    data: { id: number },
+    data: { id: number; kind?: RoomKind },
     callback?: AcknowledgeCallback,
   ) => void;
-  [ClientEvent.UserTyping]: (data: { roomId: number }) => void;
+  [ClientEvent.UserTyping]: (data: { roomId: number; kind?: RoomKind }) => void;
 }
 
 export type FullChatMessage = ChatMessage & {

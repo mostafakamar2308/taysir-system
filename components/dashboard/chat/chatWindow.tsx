@@ -5,26 +5,18 @@ import { ChatMessageItem } from "./chatMessageItem";
 import { ChatInput } from "./chatInput";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Users, ArrowRight } from "lucide-react";
 import { Role } from "@/types/user";
+import { RoomKind } from "@/wss/types";
 import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowRight } from "lucide-react";
-
-interface Chat {
-  id: number;
-  tutor: { id: number; name: string | null; imageUrl: string | null };
-  student: {
-    id: number;
-    name: string | null;
-    imageUrl: string | null;
-  };
-  isClosed: boolean;
-}
+import type { ChatRoom } from "./chatLayout";
 
 interface Props {
   roomId: number;
+  kind: RoomKind;
   userId: number;
-  chat: Chat;
+  chat: ChatRoom;
   currentUser: {
     id: number;
     email: string;
@@ -40,6 +32,7 @@ interface Props {
 
 export function ChatWindow({
   roomId,
+  kind,
   userId,
   chat,
   currentUser,
@@ -56,23 +49,51 @@ export function ChatWindow({
     deleteMessage,
     markAsRead,
     sendTyping,
-  } = useChat({ roomId, userId, userRole: currentUser.role });
+  } = useChat({ roomId, kind, userId, userRole: currentUser.role });
 
-  const otherUser =
-    currentUser.role === Role.Tutor || currentUser.role === Role.Admin
-      ? chat.student
-      : chat.tutor;
+  const isStaff = currentUser.role === Role.Admin || currentUser.role === Role.Supervisor;
+  const isGroup = kind === "group";
+
+  const headerTitle = (() => {
+    if (isGroup) return chat.groupTitle || t("unknown");
+    if (isStaff) {
+      const tutorName = chat.tutor.name || t("unknown");
+      const studentName = chat.student?.name || t("unknown");
+      return `${tutorName} ${t("with")} ${studentName}`;
+    }
+    return (
+      (currentUser.role === Role.Tutor || isStaff
+        ? chat.student?.name
+        : chat.tutor.name) || t("unknown")
+    );
+  })();
+
+  const headerAvatar = (() => {
+    if (isGroup) {
+      return {
+        group: true as const,
+        src: null as string | null,
+        name: chat.groupTitle || "?",
+      };
+    }
+    const user =
+      currentUser.role === Role.Tutor || isStaff
+        ? chat.student
+        : chat.tutor;
+    return {
+      group: false as const,
+      src: user?.imageUrl || null,
+      name: user?.name || "?",
+    };
+  })();
+
+  const otherUserRole = isGroup ? "group" : "student";
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
   }, [messages.length, loading]);
-
-  const otherUserRole =
-    currentUser.role === Role.Tutor || currentUser.role === Role.Admin
-      ? "student"
-      : "tutor";
 
   return (
     <div className="flex flex-col h-full">
@@ -88,15 +109,25 @@ export function ChatWindow({
             <ArrowRight className="h-5 w-5" />
           </Button>
         )}
-        <Avatar className="h-10 w-10">
-          <AvatarImage src={otherUser.imageUrl || undefined} />
-          <AvatarFallback>{otherUser.name?.charAt(0) || "?"}</AvatarFallback>
-        </Avatar>
+        {headerAvatar.group ? (
+          <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+            <Users className="h-5 w-5" />
+          </div>
+        ) : (
+          <Avatar className="h-10 w-10">
+            <AvatarImage src={headerAvatar.src || undefined} />
+            <AvatarFallback>
+              {headerAvatar.name?.charAt(0) || "?"}
+            </AvatarFallback>
+          </Avatar>
+        )}
         <div>
-          <div className="font-semibold">{otherUser.name}</div>
+          <div className="font-semibold">{headerTitle}</div>
           <div className="flex gap-2 items-center">
             <Badge variant="outline" className="text-xs">
-              {t(`roles.${otherUserRole}`)}
+              {isGroup
+                ? t("memberCount", { count: chat.members?.length ?? 0 })
+                : t(`roles.${otherUserRole}`)}
             </Badge>
             {typingUsers.size > 0 && (
               <span className="text-xs text-muted-foreground">
