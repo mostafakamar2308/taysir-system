@@ -152,7 +152,11 @@ export function StudentTable({
                     {statusLabels[s.status]}
                   </span>
                 </TableCell>
-                <TableCell>{s.creditBalance.toFixed(2)}</TableCell>
+                <TableCell>
+                  {s.sessionsTotal != null && s.sessionsTotal > 0
+                    ? `${s.sessionsUsed} / ${s.sessionsTotal}`
+                    : "—"}
+                </TableCell>
                 <TableCell>{groupDisplay}</TableCell>
                 <TableCell>
                   <QuickActionsMenu tutors={tutors} student={s} />

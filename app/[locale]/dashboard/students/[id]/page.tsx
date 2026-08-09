@@ -6,6 +6,8 @@ import { getSessionStatus } from "@/lib/session";
 import { StudentProfile, SessionRecord } from "@/types/studentProfile";
 import { getStudentFinancialSummary } from "@/actions/studentFinances";
 import dayjs from "@/lib/dayjs";
+import { SubscriptionStatus } from "@/types/subscription";
+import { countSessionsUsed } from "@/lib/studentFinances";
 
 export default async function StudentProfilePage({
   params,
@@ -37,6 +39,10 @@ export default async function StudentProfilePage({
               },
               _count: { select: { members: { where: { active: true } } } },
             },
+          },
+          subscriptions: {
+            where: { status: SubscriptionStatus.active },
+            select: { id: true, sessionCount: true, startDate: true, endDate: true },
           },
         },
       },
@@ -118,6 +124,22 @@ export default async function StudentProfilePage({
     };
   });
 
+  let sessionsTotal: number | null = 0;
+  let sessionsUsed = 0;
+  for (const m of student.groupMemberships) {
+    for (const sub of m.subscriptions) {
+      if (sub.sessionCount == null) continue;
+      sessionsTotal += sub.sessionCount;
+      sessionsUsed += countSessionsUsed(
+        sub.startDate,
+        sub.endDate,
+        m.group.id,
+        student.sessionParticipants,
+      );
+    }
+  }
+  if (sessionsTotal === 0) sessionsTotal = null;
+
   const transformed: StudentProfile = {
     id: student.id,
     name: student.user.name || "",
@@ -128,6 +150,8 @@ export default async function StudentProfilePage({
     timezone: student.user.timezone,
     status: student.status,
     creditBalance: student.creditBalance,
+    sessionsUsed,
+    sessionsTotal,
     source: student.source,
     academyId: student.academyId,
     currencyId: student.currencyId,

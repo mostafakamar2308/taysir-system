@@ -1040,15 +1040,19 @@
   "unknown": "Unknown",
   "markAsRead": "Mark as read",
   "readAt": "Read at {time}",
-  "conversationClosed": "This conversation is closed.",
-  "inputPlaceholder": "Type your message...",
-  "inputPlaceholderDisabled": "Conversation closed",
-  "roles": {
-   "tutor": "Tutor",
-   "student": "Student",
-   "admin": "Admin"
-  }
- },
+   "conversationClosed": "This conversation is closed.",
+   "inputPlaceholder": "Type your message...",
+   "inputPlaceholderDisabled": "Conversation closed",
+   "with": "with",
+   "memberCount": "{count, plural, one {# member} other {# members}}",
+   "roles": {
+    "tutor": "Tutor",
+    "student": "Student",
+    "admin": "Admin",
+    "supervisor": "Supervisor",
+    "group": "Group"
+   }
+  },
  "admin": {
   "leads": {
    "title": "Lead Management",

@@ -32,7 +32,7 @@ import dayjs from "@/lib/dayjs";
 interface StudentOption {
   id: number;
   name: string;
-  balance: number;
+  sessionsRemaining: number | null;
 }
 
 interface AddSessionDialogProps {
@@ -61,13 +61,16 @@ export default function AddSessionDialog({
   const [notes, setNotes] = useState("");
   const [isTrial, setIsTrial] = useState(false);
 
-  // Build multi-select options, disable students with no balance unless trial
+  // Build multi-select options, disable students with no sessions left unless trial
   const multiSelectOptions = useMemo(() => {
     return students.map((s) => ({
       value: String(s.id),
-      label: `${s.name} (${s.balance} ${t("sessionsLeft")})`,
-      disabled: !isTrial && s.balance < 1,
-      balance: s.balance,
+      label:
+        s.sessionsRemaining != null
+          ? `${s.name} (${s.sessionsRemaining} ${t("sessionsLeft")})`
+          : s.name,
+      disabled:
+        !isTrial && s.sessionsRemaining != null && s.sessionsRemaining < 1,
     }));
   }, [students, isTrial, t]);
 
@@ -78,7 +81,10 @@ export default function AddSessionDialog({
       setSelectedStudentIds((prev) =>
         prev.filter((id) => {
           const student = students.find((s) => String(s.id) === id);
-          return student && student.balance >= 1;
+          return (
+            student &&
+            (student.sessionsRemaining == null || student.sessionsRemaining >= 1)
+          );
         }),
       );
     }
@@ -97,7 +103,9 @@ export default function AddSessionDialog({
       const selected = students.filter((s) =>
         selectedStudentIds.includes(String(s.id)),
       );
-      const lowBalance = selected.filter((s) => s.balance < 1);
+      const lowBalance = selected.filter(
+        (s) => s.sessionsRemaining != null && s.sessionsRemaining < 1,
+      );
       if (lowBalance.length > 0) {
         toast({
           title: t("validation.noBalance", {

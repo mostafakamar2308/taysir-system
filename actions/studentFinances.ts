@@ -9,6 +9,7 @@ import { SubscriptionStatus } from "@/types/subscription";
 import { Role } from "@/types/user";
 import {
   computeStudentFinancialSummary,
+  countSessionsUsed,
   StudentFinancesInput,
 } from "@/lib/studentFinances";
 import type { StudentFinancialSummary } from "@/types/studentFinances";
@@ -273,7 +274,7 @@ export async function renewSubscription(
         select: {
           id: true,
           studentId: true,
-          group: { select: { academyId: true } },
+          group: { select: { academyId: true, id: true } },
         },
       },
     },
@@ -284,6 +285,39 @@ export async function renewSubscription(
   const start = dayjs(data.startDate).toDate();
   const billingCycle = data.billingCycle || sub.billingCycle || 30;
   const endDate = dayjs(start).add(billingCycle, "day").toDate();
+
+  // Carry over any unused sessions from the current cycle into the new one.
+  const now = new Date();
+  let sessionsRemaining = 0;
+  if (sub.sessionCount != null) {
+    const upperBound = sub.endDate
+      ? dayjs.utc(sub.endDate).startOf("day")
+      : dayjs.utc(now).startOf("day");
+    const nowBound = dayjs.utc(now).startOf("day");
+    const used = await db.sessionParticipant.count({
+      where: {
+        studentId: sub.groupStudent.studentId,
+        session: {
+          groupId: sub.groupStudent.group.id,
+          cancelledBy: null,
+          isTrial: false,
+          startTime: {
+            gte: dayjs.utc(sub.startDate).startOf("day").toDate(),
+            lte: (upperBound.isAfter(nowBound) ? nowBound : upperBound).toDate(),
+          },
+        },
+      },
+    });
+    sessionsRemaining = Math.max(0, sub.sessionCount - used);
+  }
+
+  const baseSessionCount =
+    data.sessionCount ??
+    sub.sessionCount ??
+    sub.plan?.sessionCount ??
+    null;
+  const newSessionCount =
+    baseSessionCount != null ? baseSessionCount + sessionsRemaining : null;
 
   await db.$transaction(async (tx) => {
     // Preserve history: expire the current cycle row.
@@ -298,11 +332,7 @@ export async function renewSubscription(
         planId: sub.planId,
         price: data.price,
         currencyId: sub.currencyId,
-        sessionCount:
-          data.sessionCount ??
-          sub.sessionCount ??
-          sub.plan?.sessionCount ??
-          null,
+        sessionCount: newSessionCount,
         billingCycle,
         startDate: start,
         endDate,
@@ -315,6 +345,68 @@ export async function renewSubscription(
   revalidatePath("/ar/dashboard");
   revalidatePath(`/ar/dashboard/students/${sub.groupStudent.studentId}`);
   revalidatePath("/ar/dashboard/groups");
+}
+
+// ---------- Sessions remaining for a set of students ----------
+
+// Returns the total remaining sessions across active subscriptions for each
+// student (null when the student has no countable active subscription).
+export async function getRemainingSessionsForStudents(
+  studentIds: number[],
+): Promise<Map<number, number | null>> {
+  const uniqueIds = Array.from(new Set(studentIds));
+  if (uniqueIds.length === 0) return new Map();
+
+  const students = await db.student.findMany({
+    where: { id: { in: uniqueIds } },
+    select: {
+      id: true,
+      groupMemberships: {
+        where: { active: true },
+        select: {
+          group: { select: { id: true } },
+          subscriptions: {
+            where: { status: SubscriptionStatus.active },
+            select: { sessionCount: true, startDate: true, endDate: true },
+          },
+        },
+      },
+      sessionParticipants: {
+        select: {
+          session: {
+            select: {
+              startTime: true,
+              groupId: true,
+              cancelledBy: true,
+              isTrial: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  const result = new Map<number, number | null>();
+  const now = new Date();
+  for (const student of students) {
+    let total: number | null = null;
+    let used = 0;
+    for (const membership of student.groupMemberships) {
+      for (const sub of membership.subscriptions) {
+        if (sub.sessionCount == null) continue;
+        total = (total ?? 0) + sub.sessionCount;
+        used += countSessionsUsed(
+          sub.startDate,
+          sub.endDate,
+          membership.group.id,
+          student.sessionParticipants,
+          now,
+        );
+      }
+    }
+    result.set(student.id, total == null ? null : Math.max(0, total - used));
+  }
+  return result;
 }
 
 // ---------- Billing date override ----------

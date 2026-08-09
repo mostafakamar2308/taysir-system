@@ -103,6 +103,30 @@ function computeCycleState(
   return "upcoming";
 }
 
+// ---------- Session usage ----------
+
+// Counts sessions actually used against a subscription window (non-cancelled,
+// non-trial, already held, inside the subscription's date range).
+export function countSessionsUsed(
+  startDate: Date,
+  endDate: Date | null,
+  groupId: number,
+  participants: SessionInput[],
+  now: Date = new Date(),
+): number {
+  let used = 0;
+  for (const p of participants) {
+    const s = p.session;
+    if (s.groupId !== groupId || s.cancelledBy != null || s.isTrial) continue;
+    const t = startOfDay(s.startTime);
+    if (t.isBefore(startOfDay(startDate))) continue;
+    if (endDate && t.isAfter(startOfDay(endDate))) continue;
+    if (t.isAfter(startOfDay(now))) continue;
+    used += 1;
+  }
+  return used;
+}
+
 // ---------- Main calculation ----------
 
 export function computeStudentFinancialSummary(
@@ -117,19 +141,8 @@ export function computeStudentFinancialSummary(
 
   // Sessions actually used per subscription window (non-cancelled, non-trial,
   // already held, inside the subscription's date range).
-  const sessionsUsedFor = (sub: SubInput) => {
-    let used = 0;
-    for (const p of input.sessionParticipants) {
-      const s = p.session;
-      if (s.groupId !== sub.groupId || s.cancelledBy != null || s.isTrial) continue;
-      const t = startOfDay(s.startTime);
-      if (t.isBefore(startOfDay(sub.startDate))) continue;
-      if (sub.endDate && t.isAfter(startOfDay(sub.endDate))) continue;
-      if (t.isAfter(startOfDay(now))) continue;
-      used += 1;
-    }
-    return used;
-  };
+  const sessionsUsedFor = (sub: SubInput) =>
+    countSessionsUsed(sub.startDate, sub.endDate, sub.groupId, input.sessionParticipants, now);
 
   // Paid amount per subscription (PAID revenues linked to that row).
   const paidBySub = new Map<number, number>();

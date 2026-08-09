@@ -25,7 +25,7 @@ interface StatItem {
 }
 
 interface DashboardClientProps {
-  students: { id: number; name: string; balance: number }[];
+  students: { id: number; name: string; sessionsRemaining: number | null }[];
   tutors: { id: number; name: string | null }[];
   costCenters: { id: number; title: string }[];
   currencies: { id: number; name: string }[];
@@ -90,6 +90,7 @@ interface DashboardClientProps {
   }>;
   reportsSheet: Array<{
     sessionId: number;
+    studentId: number;
     tutorId: number;
     tutorName: string;
     tutorPhone: string | null;
@@ -531,7 +532,7 @@ export default function DashboardClient(props: DashboardClientProps) {
                   <ul className="space-y-2">
                     {props.absentSessions.map((item) => (
                       <li
-                        key={item.sessionId}
+                        key={`${item.sessionId}-${item.studentId}`}
                         className="flex items-center justify-between p-2 border rounded"
                       >
                         <div>
@@ -707,7 +708,7 @@ export default function DashboardClient(props: DashboardClientProps) {
                   <ul className="space-y-2">
                     {props.reportsSheet.map((item) => (
                       <li
-                        key={item.sessionId}
+                        key={`${item.sessionId}-${item.studentId}`}
                         className="flex items-center justify-between p-2 border rounded"
                       >
                         <div>
@@ -763,7 +764,7 @@ export default function DashboardClient(props: DashboardClientProps) {
                   <ul className="space-y-2">
                     {props.absentSessions.map((item) => (
                       <li
-                        key={item.sessionId}
+                        key={`${item.sessionId}-${item.studentId}`}
                         className="flex items-center justify-between p-2 border rounded"
                       >
                         <div>

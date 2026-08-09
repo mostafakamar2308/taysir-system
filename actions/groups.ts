@@ -14,6 +14,66 @@ async function ensureAdmin() {
   return currentUser;
 }
 
+// ---------- Group chat room helpers ----------
+
+// Create the group chat room for a group if it does not exist yet.
+async function ensureGroupChatRoom(
+  tx: Prisma.TransactionClient,
+  groupId: number,
+  academyId: number,
+) {
+  return tx.groupChatRoom.upsert({
+    where: { groupId },
+    update: {},
+    create: { groupId, academyId },
+  });
+}
+
+// Add/activate a chat member for a group room (soft-join).
+async function addGroupChatMember(
+  tx: Prisma.TransactionClient,
+  roomId: number,
+  userId: number,
+) {
+  return tx.groupChatMember.upsert({
+    where: { roomId_userId: { roomId, userId } },
+    update: { active: true, leftAt: null },
+    create: { roomId, userId },
+  });
+}
+
+// Deactivate a chat member for a group room (soft-leave).
+async function deactivateGroupChatMember(
+  tx: Prisma.TransactionClient,
+  roomId: number,
+  userId: number,
+) {
+  return tx.groupChatMember.updateMany({
+    where: { roomId, userId, active: true },
+    data: { active: false, leftAt: new Date() },
+  });
+}
+
+// Ensure the room exists and every group student + the current tutor are members.
+async function syncGroupChatMembers(
+  tx: Prisma.TransactionClient,
+  groupId: number,
+  academyId: number,
+  studentIds: number[],
+  tutorUserId: number | null,
+) {
+  const room = await ensureGroupChatRoom(tx, groupId, academyId);
+  for (const studentId of studentIds) {
+    const student = await tx.student.findUnique({
+      where: { id: studentId },
+      select: { userId: true },
+    });
+    if (student) await addGroupChatMember(tx, room.id, student.userId);
+  }
+  if (tutorUserId) await addGroupChatMember(tx, room.id, tutorUserId);
+  return room;
+}
+
 // Create an active subscription for an enrollment when no active one exists.
 async function autoCreateSubscription(
   tx: Prisma.TransactionClient,
@@ -93,13 +153,29 @@ export async function createGroup(formData: FormData) {
 
   if (!title || !tutorId) throw new Error("العنوان والمعلم مطلوبان");
 
-  await db.group.create({
-    data: {
-      title,
+  const tutor = await db.tutor.findUnique({
+    where: { id: tutorId },
+    select: { userId: true },
+  });
+  if (!tutor) throw new Error("المعلم غير موجود");
+
+  await db.$transaction(async (tx) => {
+    const group = await tx.group.create({
+      data: {
+        title,
+        academyId,
+        currentTutorId: tutorId,
+        tutorHourlyRate,
+      },
+    });
+
+    await syncGroupChatMembers(
+      tx,
+      group.id,
       academyId,
-      currentTutorId: tutorId,
-      tutorHourlyRate,
-    },
+      [],
+      tutor.userId,
+    );
   });
 
   revalidatePath("/ar/dashboard/groups");
@@ -113,7 +189,7 @@ export async function updateGroup(groupId: number, formData: FormData) {
 
   const group = await db.group.findUnique({
     where: { id: groupId },
-    select: { academyId: true },
+    select: { academyId: true, currentTutorId: true },
   });
   if (!group || group.academyId !== academyId) throw new Error("غير مصرح");
 
@@ -126,13 +202,31 @@ export async function updateGroup(groupId: number, formData: FormData) {
 
   if (!title || !tutorId) throw new Error("العنوان والمعلم مطلوبان");
 
-  await db.group.update({
-    where: { id: groupId },
-    data: {
-      title,
-      currentTutorId: tutorId,
-      tutorHourlyRate,
-    },
+  await db.$transaction(async (tx) => {
+    await tx.group.update({
+      where: { id: groupId },
+      data: {
+        title,
+        currentTutorId: tutorId,
+        tutorHourlyRate,
+      },
+    });
+
+    const room = await ensureGroupChatRoom(tx, groupId, academyId);
+
+    if (group.currentTutorId !== tutorId) {
+      const oldTutor = await tx.tutor.findUnique({
+        where: { id: group.currentTutorId },
+        select: { userId: true },
+      });
+      if (oldTutor) await deactivateGroupChatMember(tx, room.id, oldTutor.userId);
+
+      const newTutor = await tx.tutor.findUnique({
+        where: { id: tutorId },
+        select: { userId: true },
+      });
+      if (newTutor) await addGroupChatMember(tx, room.id, newTutor.userId);
+    }
   });
 
   revalidatePath("/ar/dashboard/groups");
@@ -151,7 +245,11 @@ export async function addStudentsToGroup(
 
   const group = await db.group.findUnique({
     where: { id: groupId },
-    select: { academyId: true, studentSessionPrice: true },
+    select: {
+      academyId: true,
+      studentSessionPrice: true,
+      currentTutor: { select: { userId: true } },
+    },
   });
   if (!group || group.academyId !== academyId) throw new Error("غير مصرح");
 
@@ -177,6 +275,14 @@ export async function addStudentsToGroup(
         );
       }
     }
+
+    await syncGroupChatMembers(
+      tx,
+      groupId,
+      academyId,
+      studentIds,
+      group.currentTutor.userId,
+    );
   });
 
   revalidatePath("/ar/dashboard/groups");
@@ -197,9 +303,22 @@ export async function removeStudentsFromGroup(
   });
   if (!group || group.academyId !== academyId) throw new Error("غير مصرح");
 
-  await db.groupStudent.updateMany({
-    where: { groupId, studentId: { in: studentIds } },
-    data: { active: false, leftAt: new Date() },
+  await db.$transaction(async (tx) => {
+    await tx.groupStudent.updateMany({
+      where: { groupId, studentId: { in: studentIds } },
+      data: { active: false, leftAt: new Date() },
+    });
+
+    const room = await tx.groupChatRoom.findUnique({ where: { groupId } });
+    if (room) {
+      const students = await tx.student.findMany({
+        where: { id: { in: studentIds } },
+        select: { userId: true },
+      });
+      for (const s of students) {
+        await deactivateGroupChatMember(tx, room.id, s.userId);
+      }
+    }
   });
 
   revalidatePath("/ar/dashboard/groups");
@@ -217,11 +336,22 @@ export async function toggleStudentMembership(
 
   const group = await db.group.findUnique({
     where: { id: groupId },
-    select: { academyId: true, studentSessionPrice: true },
+    select: {
+      academyId: true,
+      studentSessionPrice: true,
+      currentTutor: { select: { userId: true } },
+    },
   });
   if (!group || group.academyId !== academyId) throw new Error("غير مصرح");
 
   await db.$transaction(async (tx) => {
+    const room = await ensureGroupChatRoom(tx, groupId, academyId);
+    const student = await tx.student.findUnique({
+      where: { id: studentId },
+      select: { userId: true, currencyId: true },
+    });
+    if (!student) throw new Error("الطالب غير موجود");
+
     if (active) {
       const gs = await tx.groupStudent.upsert({
         where: { groupId_studentId: { groupId, studentId } },
@@ -230,17 +360,9 @@ export async function toggleStudentMembership(
       });
       const price = group.studentSessionPrice;
       if (price && price > 0) {
-        const student = await tx.student.findUnique({
-          where: { id: studentId },
-          select: { currencyId: true },
-        });
-        await autoCreateSubscription(
-          tx,
-          gs.id,
-          price,
-          student?.currencyId ?? 1,
-        );
+        await autoCreateSubscription(tx, gs.id, price, student.currencyId);
       }
+      await addGroupChatMember(tx, room.id, student.userId);
     } else {
       await tx.groupStudent.updateMany({
         where: { groupId, studentId },
@@ -256,6 +378,7 @@ export async function toggleStudentMembership(
           endDate: new Date(),
         },
       });
+      await deactivateGroupChatMember(tx, room.id, student.userId);
     }
   });
 

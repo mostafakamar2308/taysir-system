@@ -22,7 +22,7 @@ interface WeekNavigationProps {
   showFilters: boolean;
   onToggleFilters: () => void;
   activeFilterCount: number;
-  students: { id: number; name: string; balance: number }[];
+  students: { id: number; name: string; sessionsRemaining: number | null }[];
   tutors: { id: number; name: string | null }[];
 }
 

@@ -2,7 +2,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { DashboardStudent, StudentStatus } from "@/types/student";
-import { Phone, Mail, Clock, User2, Users, DollarSign } from "lucide-react";
+import { Phone, Mail, Clock, User2, Users, BookOpen } from "lucide-react";
 import { QuickActionsMenu } from "./quickActionsMenu";
 import Link from "next/link";
 
@@ -81,9 +81,11 @@ const StudentCard = ({ student, tutors }: StudentCardProps) => {
             <span className="truncate">{student.timezone}</span>
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
-            <DollarSign className="h-3.5 w-3.5 shrink-0" />
+            <BookOpen className="h-3.5 w-3.5 shrink-0" />
             <span className="truncate">
-              رصيد: {student.creditBalance.toFixed(2)}
+              {student.sessionsTotal != null && student.sessionsTotal > 0
+                ? `استخدم ${student.sessionsUsed} من ${student.sessionsTotal} حصص`
+                : "لا اشتراكات نشطة"}
             </span>
           </div>
         </div>

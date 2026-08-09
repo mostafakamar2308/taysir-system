@@ -45,6 +45,17 @@ export default function RenewSubscriptionDialog({
   const [startDate, setStartDate] = useState(dayjs(defaultStart).format("YYYY-MM-DD"));
   const [loading, setLoading] = useState(false);
 
+  const remainingSessions =
+    subscription.sessionsRemaining != null && subscription.sessionsRemaining > 0
+      ? subscription.sessionsRemaining
+      : 0;
+
+  const enteredCount = sessionCount ? parseInt(sessionCount) : NaN;
+  const baseCount = Number.isFinite(enteredCount)
+    ? enteredCount
+    : (subscription.sessionCount ?? 0);
+  const carriedTotal = baseCount + remainingSessions;
+
   const handleSubmit = async () => {
     setLoading(true);
     try {
@@ -91,6 +102,12 @@ export default function RenewSubscriptionDialog({
             سيتم إنهاء دورة الاشتراك الحالية وإنشاء دورة جديدة مع الحفاظ على
             سجل المدفوعات السابق.
           </p>
+          {remainingSessions > 0 && (
+            <div className="rounded-md bg-amber-50 border border-amber-200 text-amber-800 p-2 text-xs mt-1">
+              سيتم ترحيل {remainingSessions} حصة متبقية من الدورة الحالية
+              وإضافتها إلى عدد حصص الاشتراك الجديد.
+            </div>
+          )}
         </div>
 
         <div className="space-y-4">
@@ -110,6 +127,11 @@ export default function RenewSubscriptionDialog({
                 value={sessionCount}
                 onChange={(e) => setSessionCount(e.target.value)}
               />
+              {remainingSessions > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  الإجمالي بعد الترحيل: {carriedTotal} حصة
+                </p>
+              )}
             </div>
           </div>
 

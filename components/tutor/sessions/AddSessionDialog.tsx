@@ -47,7 +47,7 @@ export function AddSessionDialog({
     [],
   );
   const [students, setStudents] = useState<
-    { id: number; name: string; creditBalance: number }[]
+    { id: number; name: string; sessionsRemaining: number | null }[]
   >([]);
 
   const [mode, setMode] = useState<"group" | "private">("group");
@@ -101,12 +101,18 @@ export function AddSessionDialog({
   const lowBalanceStudents = useMemo(() => {
     if (isTrial) return [];
     if (mode === "group" && selectedGroup) {
-      return selectedGroup.activeMembers.filter((m) => m.creditBalance <= 0);
+      return selectedGroup.activeMembers.filter(
+        (m) => m.sessionsRemaining != null && m.sessionsRemaining <= 0,
+      );
     } else if (mode === "private" && selectedStudentId) {
       const student = students.find(
         (s) => s.id === parseInt(selectedStudentId),
       );
-      return student && student.creditBalance <= 0 ? [student] : [];
+      return student &&
+        student.sessionsRemaining != null &&
+        student.sessionsRemaining <= 0
+        ? [student]
+        : [];
     }
     return [];
   }, [isTrial, mode, selectedGroup, selectedStudentId, students]);
@@ -317,16 +323,15 @@ export function AddSessionDialog({
             >
               <AlertCircle className="h-4 w-4 text-red-600" />
               <AlertDescription className="text-red-800 dark:text-red-300 text-xs">
-                تحذير: الطلاب التاليون ليس لديهم رصيد كافٍ وقد تزيد الحصة من
-                المبلغ المستحق عليهم:
+                تحذير: الطلاب التاليون لا توجد حصص متبقية في اشتراكهم الحالي:
                 <ul className="list-disc list-inside mt-1">
                   {lowBalanceStudents.map((s) => (
                     <li key={s.id}>
-                      {s.name} (الرصيد: {s.creditBalance})
+                      {s.name} (المتبقي: {s.sessionsRemaining})
                     </li>
                   ))}
                 </ul>
-                يُنصح بمطالبتهم بتجديد الاشتراك.
+                يُنصح بتجديد الاشتراك.
               </AlertDescription>
             </Alert>
           )}

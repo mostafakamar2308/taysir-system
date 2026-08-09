@@ -18,6 +18,8 @@ export type DashboardStudent = {
   timezone: string;
   status: StudentStatus;
   creditBalance: number;
+  sessionsUsed: number;
+  sessionsTotal: number | null;
   groups: DashboardStudentGroup[];
 };
 

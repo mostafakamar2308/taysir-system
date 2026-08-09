@@ -167,7 +167,11 @@ export default function SessionsTab({ student, tutors }: Props) {
         studentName={student.name}
         tutors={tutors}
         preselectedTutorId={student.groups[0]?.tutorId ?? null}
-        creditBalance={student.creditBalance}
+        sessionsRemaining={
+          student.sessionsTotal != null
+            ? Math.max(0, student.sessionsTotal - student.sessionsUsed)
+            : null
+        }
       />
     </div>
   );

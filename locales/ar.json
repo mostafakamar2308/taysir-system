@@ -468,7 +468,7 @@
  "AddSessionDialog": {
   "triggerLabel": "إضافة حصة",
   "sessionsLeft": "جلسات متبقية",
-  "studentHint": "اختر طالبًا واحدًا أو أكثر. الطلاب الذين ليس لديهم رصيد غير متاحين ما لم تكن الجلسة تجريبية.",
+  "studentHint": "اختر طالبًا واحدًا أو أكثر. الطلاب الذين لا توجد حصص متبقية لهم غير متاحين ما لم تكن الجلسة تجريبية.",
   "searchPlaceholder": "ابحث عن طالب...",
   "students": "الطلاب",
   "title": "إضافة حصة جديدة",
@@ -502,7 +502,7 @@
   "saving": "جاري الحفظ...",
   "validation": {
    "required": "يرجى اختيار الطالب وإدخال التاريخ والوقت",
-   "noBalance": "الطلاب التاليون ليس لديهم رصيد كافٍ: {names}"
+   "noBalance": "الطلاب التاليون لا توجد حصص متبقية في اشتراكهم الحالي: {names}"
   },
   "toast": {
    "success": "تمت إضافة الحصة",
@@ -1063,15 +1063,19 @@
   "unknown": "غير معروف",
   "markAsRead": "تحديد كمقروء",
   "readAt": "قرأت في {time}",
-  "conversationClosed": "هذه المحادثة مغلقة.",
-  "inputPlaceholder": "اكتب رسالتك...",
-  "inputPlaceholderDisabled": "المحادثة مغلقة",
-  "roles": {
-   "tutor": "معلم",
-   "student": "طالب",
-   "admin": "مدير"
-  }
- },
+   "conversationClosed": "هذه المحادثة مغلقة.",
+   "inputPlaceholder": "اكتب رسالتك...",
+   "inputPlaceholderDisabled": "المحادثة مغلقة",
+   "with": "مع",
+   "memberCount": "{count} عضو",
+   "roles": {
+    "tutor": "معلم",
+    "student": "طالب",
+    "admin": "مدير",
+    "supervisor": "مشرف",
+    "group": "مجموعة"
+   }
+  },
  "register": {
   "title": "احجز استشارتك المجانية لتطوير وحماية أكاديميتك",
   "subtitle": "املأ النموذج التالي لنفهم احتياجاتك بدقة قبل المكالمة. يستغرق التعبئة أقل من دقيقة.",

@@ -72,6 +72,8 @@ export interface StudentProfile {
   timezone: string;
   status: StudentStatus;
   creditBalance: number;
+  sessionsUsed: number;
+  sessionsTotal: number | null;
   source: string | null;
   academyId: number;
   currencyId: number;

@@ -102,14 +102,14 @@ export interface SessionGroup {
   activeMembers: {
     id: number;
     name: string;
-    creditBalance: number;
+    sessionsRemaining: number | null;
   }[];
 }
 
 export interface SessionStudent {
   id: number;
   name: string;
-  creditBalance: number;
+  sessionsRemaining: number | null;
   tutorId: number | null;
   tutorName: string | null;
 }

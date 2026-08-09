@@ -33,7 +33,7 @@ interface AddSessionDialogProps {
   studentName: string;
   tutors: { id: number; name: string | null }[];
   preselectedTutorId?: number | null;
-  creditBalance?: number | null;
+  sessionsRemaining?: number | null;
 }
 
 export default function AddSessionDialog({
@@ -43,7 +43,7 @@ export default function AddSessionDialog({
   studentName,
   tutors,
   preselectedTutorId,
-  creditBalance,
+  sessionsRemaining,
 }: AddSessionDialogProps) {
   const router = useRouter();
   const { toast } = useToast();
@@ -59,7 +59,7 @@ export default function AddSessionDialog({
   const [isTrial, setIsTrial] = useState(false);
 
   const lowBalance =
-    !isTrial && creditBalance != null && creditBalance <= 0;
+    !isTrial && sessionsRemaining != null && sessionsRemaining <= 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -147,8 +147,8 @@ export default function AddSessionDialog({
             >
               <AlertCircle className="h-4 w-4 text-red-600" />
               <AlertDescription className="text-red-800 dark:text-red-300 text-xs">
-                تحذير: الطالب ليس لديه رصيد كافٍ (الرصيد: {creditBalance}).
-                قد تزيد الحصة من المبلغ المستحق عليه.
+                تحذير: لا توجد حصص متبقية للطالب في الاشتراك الحالي. قد تزيد
+                الحصة من المبلغ المستحق عليه.
               </AlertDescription>
             </Alert>
           )}

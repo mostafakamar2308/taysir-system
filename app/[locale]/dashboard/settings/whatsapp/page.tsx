@@ -20,11 +20,19 @@ export default async function Page() {
   const [students, tutors] = await Promise.all([
     db.student.findMany({
       where: { academyId },
-      select: { id: true, user: { select: { name: true, phone: true } } },
+      select: {
+        id: true,
+        status: true,
+        user: { select: { name: true, phone: true } },
+      },
     }),
     db.tutor.findMany({
       where: { academyId },
-      select: { id: true, user: { select: { name: true, phone: true } } },
+      select: {
+        id: true,
+        active: true,
+        user: { select: { name: true, phone: true } },
+      },
     }),
   ]);
 
@@ -36,11 +44,13 @@ export default async function Page() {
           id: t.id,
           name: t.user.name,
           phone: t.user.phone,
+          status: t.status,
         }))}
         tutors={tutors.map((t) => ({
           id: t.id,
           name: t.user.name,
           phone: t.user.phone,
+          active: t.active,
         }))}
       />
     </div>

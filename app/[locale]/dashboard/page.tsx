@@ -9,6 +9,7 @@ import { SubscriptionStatus } from "@/types/subscription";
 import { HistoryActionType } from "@/types/history";
 import DashboardClient from "@/components/dashboard/overview/viewer";
 import { countActiveInPeriod } from "@/lib/history";
+import { getRemainingSessionsForStudents } from "@/actions/studentFinances";
 
 export default async function DashboardPage() {
   const currentUser = await user();
@@ -351,6 +352,7 @@ export default async function DashboardPage() {
       )
       .map((p) => ({
         sessionId: sess.id,
+        studentId: p.studentId,
         tutorId: sess.group.currentTutor.id,
         tutorName: sess.group.currentTutor.user.name || "",
         tutorPhone: sess.group.currentTutor.user.phone,
@@ -386,7 +388,7 @@ export default async function DashboardPage() {
     .map((sub) => {
       const billing = sub.nextBillingDate ?? sub.endDate!;
       return {
-        id: sub.groupStudent.student.id,
+        id: sub.id,
         studentName: sub.groupStudent.student.user.name || "",
         phone: sub.groupStudent.student.user.phone || "",
         planTitle: sub.plan?.title ?? sub.groupStudent.group.title,
@@ -405,7 +407,7 @@ export default async function DashboardPage() {
     .map((sub) => {
       const billing = sub.nextBillingDate ?? sub.endDate!;
       return {
-        id: sub.groupStudent.student.id,
+        id: sub.id,
         studentName: sub.groupStudent.student.user.name || "",
         phone: sub.groupStudent.student.user.phone || "",
         planTitle: sub.plan?.title ?? sub.groupStudent.group.title,
@@ -478,6 +480,9 @@ export default async function DashboardPage() {
     where: { academyId },
     include: { user: { select: { name: true } } },
   });
+  const remainingMap = await getRemainingSessionsForStudents(
+    allStudents.map((s) => s.id),
+  );
 
   return (
     <DashboardClient
@@ -495,7 +500,7 @@ export default async function DashboardPage() {
       students={allStudents.map((s) => ({
         id: s.id,
         name: s.user.name || "",
-        balance: s.creditBalance,
+        sessionsRemaining: remainingMap.get(s.id) ?? null,
       }))}
       specialities={specialities.map((s) => ({ id: s.id, title: s.title }))}
       defaultCurrency={{

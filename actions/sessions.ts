@@ -16,6 +16,7 @@ import { StudentStatus } from "@/types/student";
 import { recordStudentStatusChangeHistory } from "@/lib/history";
 import { user } from "@/lib/auth";
 import { Prisma } from "@/generated/prisma/client";
+import { getRemainingSessionsForStudents } from "./studentFinances";
 
 type CreateSessionInput = {
   groupId?: number; // for group mode
@@ -563,7 +564,6 @@ export async function getSessionFormOptions(
               select: {
                 id: true,
                 user: { select: { name: true } },
-                creditBalance: true,
               },
             },
           },
@@ -585,11 +585,14 @@ export async function getSessionFormOptions(
       select: {
         id: true,
         user: { select: { name: true } },
-        creditBalance: true,
       },
       orderBy: { user: { name: "asc" } },
     }),
   ]);
+
+  const remainingMap = await getRemainingSessionsForStudents(
+    students.map((s) => s.id),
+  );
 
   const groupOptions: SessionGroup[] = groups.map((g) => ({
     id: g.id,
@@ -600,7 +603,7 @@ export async function getSessionFormOptions(
     activeMembers: g.members.map((m) => ({
       id: m.student.id,
       name: m.student.user.name ?? "",
-      creditBalance: m.student.creditBalance,
+      sessionsRemaining: remainingMap.get(m.student.id) ?? null,
     })),
   }));
 
@@ -612,7 +615,7 @@ export async function getSessionFormOptions(
   const studentOptions = students.map((s) => ({
     id: s.id,
     name: s.user.name ?? "",
-    creditBalance: s.creditBalance,
+    sessionsRemaining: remainingMap.get(s.id) ?? null,
   }));
 
   return { groups: groupOptions, tutors: tutorOptions, students: studentOptions };

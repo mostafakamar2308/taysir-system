@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import type { DashboardStudent } from "@/types/student";
 import type { SortDir, SortField } from "@/types/lib";
 import type { Prisma } from "@/generated/prisma/client";
+import { SubscriptionStatus } from "@/types/subscription";
+import { countSessionsUsed } from "@/lib/studentFinances";
 
 const VALID_SORT_FIELDS: SortField[] = ["name", "age", "status"];
 const VALID_SORT_DIRS: SortDir[] = ["asc", "desc"];
@@ -89,6 +91,22 @@ export default async function StudentsPage({
               _count: { select: { members: { where: { active: true } } } },
             },
           },
+          subscriptions: {
+            where: { status: SubscriptionStatus.active },
+            select: { id: true, sessionCount: true, startDate: true, endDate: true },
+          },
+        },
+      },
+      sessionParticipants: {
+        select: {
+          session: {
+            select: {
+              startTime: true,
+              groupId: true,
+              cancelledBy: true,
+              isTrial: true,
+            },
+          },
         },
       },
     },
@@ -103,6 +121,21 @@ export default async function StudentsPage({
       tutorName: m.group.currentTutor.user.name ?? "غير معروف",
       isPrivate: m.group._count.members === 1,
     }));
+    let sessionsTotal: number | null = 0;
+    let sessionsUsed = 0;
+    for (const m of student.groupMemberships) {
+      for (const sub of m.subscriptions) {
+        if (sub.sessionCount == null) continue;
+        sessionsTotal += sub.sessionCount;
+        sessionsUsed += countSessionsUsed(
+          sub.startDate,
+          sub.endDate,
+          m.group.id,
+          student.sessionParticipants,
+        );
+      }
+    }
+    if (sessionsTotal === 0) sessionsTotal = null;
     return {
       id: student.id,
       name: student.user.name || "",
@@ -113,6 +146,8 @@ export default async function StudentsPage({
       timezone: student.user.timezone,
       status: student.status,
       creditBalance: student.creditBalance,
+      sessionsUsed,
+      sessionsTotal,
       groups,
     };
   });

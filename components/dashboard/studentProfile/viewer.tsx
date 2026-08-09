@@ -26,6 +26,7 @@ import { StudentFinancialSummary } from "@/types/studentFinances";
 import OverviewTab from "@/components/dashboard/studentProfile/overviewTab";
 import SessionsTab from "@/components/dashboard/studentProfile/sessionsTab";
 import FinancesTab from "@/components/dashboard/studentProfile/financesTab";
+import ReportsTab from "@/components/dashboard/studentProfile/reportsTab";
 
 interface StudentProfileClientProps {
   student: StudentProfile;
@@ -167,7 +168,11 @@ export default function StudentProfileClient({
         studentName={student.name}
         tutors={tutors}
         preselectedTutorId={student.groups[0]?.tutorId ?? null}
-        creditBalance={student.creditBalance}
+        sessionsRemaining={
+          student.sessionsTotal != null
+            ? Math.max(0, student.sessionsTotal - student.sessionsUsed)
+            : null
+        }
       />
 
       {/* Tabs */}
@@ -176,6 +181,7 @@ export default function StudentProfileClient({
           {[
             { val: "overview", label: "نظرة عامة" },
             { val: "sessions", label: "الحصص" },
+            { val: "reports", label: "التقارير والتقدم" },
             { val: "finances", label: "المالية" },
           ].map((t) => (
             <TabsTrigger
@@ -193,6 +199,9 @@ export default function StudentProfileClient({
         </TabsContent>
         <TabsContent value="sessions">
           <SessionsTab student={student} tutors={tutors} />
+        </TabsContent>
+        <TabsContent value="reports">
+          <ReportsTab student={student} />
         </TabsContent>
         <TabsContent value="finances">
           {financialSummary ? (

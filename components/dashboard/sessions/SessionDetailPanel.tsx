@@ -14,6 +14,7 @@ import { ExternalLink } from "lucide-react";
 import { formatDate, formatTime } from "@/lib/dates";
 import type { AdminSession } from "@/types/session";
 import { AttendanceStatus, SessionStatus } from "@/types/session";
+import { ReportContent } from "@/components/dashboard/sessions/reportContent";
 
 interface Props {
   session: AdminSession;
@@ -50,6 +51,7 @@ const attendanceColors: Record<number, string> = {
 export function SessionDetailPanel({ session, open, onOpenChange }: Props) {
   const isCompleted = session.status === SessionStatus.COMPLETED;
   const isScheduled = session.status === SessionStatus.SCHEDULED;
+  const reportParticipants = session.participants.filter((p) => p.report);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -64,7 +66,8 @@ export function SessionDetailPanel({ session, open, onOpenChange }: Props) {
         <Tabs defaultValue="overview">
           <TabsList className="w-full flex *:grow">
             <TabsTrigger value="overview">نظرة عامة</TabsTrigger>
-            <TabsTrigger value="attendance">الحضور والتقارير</TabsTrigger>
+            <TabsTrigger value="attendance">الحضور</TabsTrigger>
+            <TabsTrigger value="report">التقرير</TabsTrigger>
             {session.assignment && (
               <TabsTrigger value="assignment">الواجب</TabsTrigger>
             )}
@@ -202,6 +205,39 @@ export function SessionDetailPanel({ session, open, onOpenChange }: Props) {
                 </tbody>
               </table>
             </div>
+          </TabsContent>
+
+          {/* Report Tab */}
+          <TabsContent value="report" className="space-y-4 mt-4">
+            {reportParticipants.length === 0 ? (
+              <p className="text-center text-muted-foreground py-6 text-sm">
+                لا توجد تقارير لهذه الحصة
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {reportParticipants.map((p) => (
+                  <div key={p.id} className="border rounded-lg p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="font-semibold text-sm">
+                        {p.name}
+                        <span className="text-xs text-muted-foreground font-normal mr-2">
+                          تقرير المعلم
+                        </span>
+                      </p>
+                      {p.report!.rating != null && (
+                        <Badge
+                          variant="outline"
+                          className="bg-primary/10 text-primary"
+                        >
+                          {p.report!.rating} / 5
+                        </Badge>
+                      )}
+                    </div>
+                    <ReportContent report={p.report!} />
+                  </div>
+                ))}
+              </div>
+            )}
           </TabsContent>
 
           {/* Assignment Tab */}
