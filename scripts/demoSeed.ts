@@ -58,6 +58,9 @@ const monthKey = (d: dayjs.Dayjs) => d.format("YYYY-MM");
 
 async function cleanup() {
   console.log("🧹 Starting database cleanup...");
+  await db.groupChatMessage.deleteMany();
+  await db.groupChatMember.deleteMany();
+  await db.groupChatRoom.deleteMany();
   await db.chatMessage.deleteMany();
   await db.chatRoom.deleteMany();
   await db.pushSubscription.deleteMany();
@@ -107,14 +110,10 @@ const SPECIALITY_TITLES = [
 ];
 
 const PLAN_DEFS = [
-  { title: "باقة البدء", sessionCount: 2, price: 150 },
-  { title: "باقة التأسيس", sessionCount: 4, price: 240 },
-  { title: "باقة الفردي", sessionCount: 6, price: 300 },
-  { title: "باقة الشهرية", sessionCount: 8, price: 400 },
-  { title: "باقة المتميزة", sessionCount: 10, price: 500 },
-  { title: "باقة الاحتراف", sessionCount: 12, price: 600 },
-  { title: "باقة المكثفة", sessionCount: 16, price: 800 },
-  { title: "باقة المتقدمين", sessionCount: 20, price: 1000 },
+  { title: "باقة الأسبوعية (حصتان)", sessionCount: 8, price: 600 },
+  { title: "باقة الأسبوعية (ثلاث حصص)", sessionCount: 12, price: 900 },
+  { title: "باقة المتميزة (حصتان)", sessionCount: 8, price: 640 },
+  { title: "باقة الاحتراف (ثلاث حصص)", sessionCount: 12, price: 960 },
 ];
 
 const TUTOR_NAMES = [
@@ -130,6 +129,10 @@ const TUTOR_NAMES = [
   "ليلى فاروق",
   "كريم العزبي",
   "نادية عادل",
+  "هشام عبد العزيز",
+  "إيمان رجب",
+  "مصطفى النادي",
+  "أسماء الجمل",
 ];
 
 const TUTOR_DEFS = [
@@ -145,6 +148,10 @@ const TUTOR_DEFS = [
   { subject: "العلوم", privateRate: 130, groupRate: 85 },
   { subject: "الرياضيات", privateRate: 100, groupRate: 60 },
   { subject: "اللغة الإنجليزية", privateRate: 220, groupRate: 140 },
+  { subject: "العلوم", privateRate: 135, groupRate: 85 },
+  { subject: "اللغة العربية", privateRate: 170, groupRate: 115 },
+  { subject: "القرآن الكريم", privateRate: 230, groupRate: 170 },
+  { subject: "الرياضيات", privateRate: 140, groupRate: 95 },
 ];
 
 type ClassGroupDef = {
@@ -155,6 +162,7 @@ type ClassGroupDef = {
   studentSessionPrice: number;
   size: number;
   sessionsPerMonth: number;
+  sessionsPerWeek?: number;
   time: number;
   weekdays: number[];
   duration: number;
@@ -164,22 +172,374 @@ type ClassGroupDef = {
 };
 
 const CLASS_GROUP_DEFS: ClassGroupDef[] = [
-  { key: "ar-egypt", title: "عربي - منهج مصري", tutorIdx: 0, tutorHourlyRate: 100, studentSessionPrice: 80, size: 7, sessionsPerMonth: 4, time: 16, weekdays: [2], duration: 90 },
-  { key: "en-us", title: "English - American Curriculum", tutorIdx: 1, tutorHourlyRate: 140, studentSessionPrice: 120, size: 9, sessionsPerMonth: 4, time: 18, weekdays: [1], duration: 90 },
-  { key: "math-egypt", title: "رياضيات - منهج مصري", tutorIdx: 2, tutorHourlyRate: 100, studentSessionPrice: 80, size: 7, sessionsPerMonth: 8, time: 16, weekdays: [2, 4], duration: 90 },
-  { key: "science-egypt", title: "علوم - منهج مصري", tutorIdx: 3, tutorHourlyRate: 90, studentSessionPrice: 70, size: 5, sessionsPerMonth: 4, time: 13, weekdays: [3], duration: 90 },
-  { key: "quran-tajweed", title: "قرآن - تجويد", tutorIdx: 4, tutorHourlyRate: 180, studentSessionPrice: 150, size: 3, sessionsPerMonth: 4, time: 8, weekdays: [0], duration: 90 },
-  { key: "ar-gulf", title: "عربي - منهج خليجي", tutorIdx: 5, tutorHourlyRate: 130, studentSessionPrice: 100, size: 9, sessionsPerMonth: 4, time: 20, weekdays: [2], duration: 90, membershipChanges: "both" },
-  { key: "en-gulf", title: "English - Gulf Curriculum", tutorIdx: 6, tutorHourlyRate: 160, studentSessionPrice: 140, size: 11, sessionsPerMonth: 8, time: 18, weekdays: [1, 4], duration: 90, membershipChanges: "someLeft" },
-  { key: "math-us", title: "رياضيات - منهج أمريكي", tutorIdx: 7, tutorHourlyRate: 120, studentSessionPrice: 100, size: 7, sessionsPerMonth: 4, time: 16, weekdays: [3], duration: 90 },
-  { key: "quran-hifz", title: "قرآن - حفظ", tutorIdx: 8, tutorHourlyRate: 200, studentSessionPrice: 180, size: 3, sessionsPerMonth: 4, time: 8, weekdays: [6], duration: 90 },
-  { key: "science-us", title: "علوم - منهج أمريكي", tutorIdx: 9, tutorHourlyRate: 100, studentSessionPrice: 80, size: 5, sessionsPerMonth: 4, time: 13, weekdays: [0], duration: 90, membershipChanges: "addLater" },
-  { key: "math-foundation", title: "رياضيات - تأسيس", tutorIdx: 10, tutorHourlyRate: 60, studentSessionPrice: 60, size: 5, sessionsPerMonth: 4, time: 10, weekdays: [5], duration: 90 },
-  { key: "en-conv", title: "English - Conversation", tutorIdx: 11, tutorHourlyRate: 150, studentSessionPrice: 130, size: 3, sessionsPerMonth: 2, time: 20, weekdays: [4], duration: 90 },
-  { key: "ar-nahw", title: "عربي - نحو متقدم", tutorIdx: 0, tutorHourlyRate: 110, studentSessionPrice: 90, size: 3, sessionsPerMonth: 2, time: 16, weekdays: [1], duration: 90 },
-  { key: "math-tafadol", title: "رياضيات - تفاضل", tutorIdx: 2, tutorHourlyRate: 90, studentSessionPrice: 75, size: 2, sessionsPerMonth: 2, time: 18, weekdays: [3], duration: 90, rateChange: { fromOffsetDays: 45, rate: 80 } },
-  { key: "science-biology", title: "علوم - أحياء", tutorIdx: 9, tutorHourlyRate: 85, studentSessionPrice: 70, size: 5, sessionsPerMonth: 2, time: 13, weekdays: [1], duration: 90 },
-  { key: "quran-murajaa", title: "قرآن - مراجعة", tutorIdx: 4, tutorHourlyRate: 150, studentSessionPrice: 120, size: 4, sessionsPerMonth: 2, time: 8, weekdays: [5], duration: 90 },
+  {
+    key: "ar-egypt",
+    title: "عربي - منهج مصري",
+    tutorIdx: 0,
+    tutorHourlyRate: 100,
+    studentSessionPrice: 75,
+    size: 7,
+    sessionsPerMonth: 8,
+    sessionsPerWeek: 2,
+    time: 16,
+    weekdays: [2, 4],
+    duration: 90,
+  },
+  {
+    key: "en-us",
+    title: "English - American Curriculum",
+    tutorIdx: 1,
+    tutorHourlyRate: 140,
+    studentSessionPrice: 90,
+    size: 9,
+    sessionsPerMonth: 12,
+    sessionsPerWeek: 3,
+    time: 18,
+    weekdays: [1, 3, 5],
+    duration: 90,
+  },
+  {
+    key: "math-egypt",
+    title: "رياضيات - منهج مصري",
+    tutorIdx: 2,
+    tutorHourlyRate: 100,
+    studentSessionPrice: 75,
+    size: 7,
+    sessionsPerMonth: 12,
+    sessionsPerWeek: 3,
+    time: 16,
+    weekdays: [2, 4, 6],
+    duration: 90,
+  },
+  {
+    key: "science-egypt",
+    title: "علوم - منهج مصري",
+    tutorIdx: 3,
+    tutorHourlyRate: 90,
+    studentSessionPrice: 65,
+    size: 5,
+    sessionsPerMonth: 8,
+    sessionsPerWeek: 2,
+    time: 13,
+    weekdays: [0, 3],
+    duration: 90,
+  },
+  {
+    key: "quran-tajweed",
+    title: "قرآن - تجويد",
+    tutorIdx: 4,
+    tutorHourlyRate: 180,
+    studentSessionPrice: 80,
+    size: 3,
+    sessionsPerMonth: 8,
+    sessionsPerWeek: 2,
+    time: 8,
+    weekdays: [0, 4],
+    duration: 90,
+  },
+  {
+    key: "ar-gulf",
+    title: "عربي - منهج خليجي",
+    tutorIdx: 5,
+    tutorHourlyRate: 130,
+    studentSessionPrice: 85,
+    size: 9,
+    sessionsPerMonth: 8,
+    sessionsPerWeek: 2,
+    time: 20,
+    weekdays: [1, 2],
+    duration: 90,
+    membershipChanges: "both",
+  },
+  {
+    key: "en-gulf",
+    title: "English - Gulf Curriculum",
+    tutorIdx: 6,
+    tutorHourlyRate: 160,
+    studentSessionPrice: 95,
+    size: 11,
+    sessionsPerMonth: 12,
+    sessionsPerWeek: 3,
+    time: 18,
+    weekdays: [1, 3, 4],
+    duration: 90,
+    membershipChanges: "someLeft",
+  },
+  {
+    key: "math-us",
+    title: "رياضيات - منهج أمريكي",
+    tutorIdx: 7,
+    tutorHourlyRate: 120,
+    studentSessionPrice: 80,
+    size: 7,
+    sessionsPerMonth: 8,
+    sessionsPerWeek: 2,
+    time: 16,
+    weekdays: [3, 5],
+    duration: 90,
+  },
+  {
+    key: "quran-hifz",
+    title: "قرآن - حفظ",
+    tutorIdx: 8,
+    tutorHourlyRate: 200,
+    studentSessionPrice: 90,
+    size: 3,
+    sessionsPerMonth: 8,
+    sessionsPerWeek: 2,
+    time: 8,
+    weekdays: [2, 6],
+    duration: 90,
+  },
+  {
+    key: "science-us",
+    title: "علوم - منهج أمريكي",
+    tutorIdx: 9,
+    tutorHourlyRate: 100,
+    studentSessionPrice: 70,
+    size: 5,
+    sessionsPerMonth: 8,
+    sessionsPerWeek: 2,
+    time: 13,
+    weekdays: [0, 2],
+    duration: 90,
+    membershipChanges: "addLater",
+  },
+  {
+    key: "math-foundation",
+    title: "رياضيات - تأسيس",
+    tutorIdx: 10,
+    tutorHourlyRate: 60,
+    studentSessionPrice: 60,
+    size: 5,
+    sessionsPerMonth: 8,
+    sessionsPerWeek: 2,
+    time: 10,
+    weekdays: [4, 5],
+    duration: 90,
+  },
+  {
+    key: "en-conv",
+    title: "English - Conversation",
+    tutorIdx: 11,
+    tutorHourlyRate: 150,
+    studentSessionPrice: 90,
+    size: 3,
+    sessionsPerMonth: 8,
+    sessionsPerWeek: 2,
+    time: 20,
+    weekdays: [4, 5],
+    duration: 90,
+  },
+  {
+    key: "ar-nahw",
+    title: "عربي - نحو متقدم",
+    tutorIdx: 0,
+    tutorHourlyRate: 110,
+    studentSessionPrice: 70,
+    size: 3,
+    sessionsPerMonth: 8,
+    sessionsPerWeek: 2,
+    time: 16,
+    weekdays: [1, 3],
+    duration: 90,
+  },
+  {
+    key: "math-tafadol",
+    title: "رياضيات - تفاضل",
+    tutorIdx: 2,
+    tutorHourlyRate: 90,
+    studentSessionPrice: 70,
+    size: 2,
+    sessionsPerMonth: 8,
+    sessionsPerWeek: 2,
+    time: 18,
+    weekdays: [3, 5],
+    duration: 90,
+    rateChange: { fromOffsetDays: 45, rate: 80 },
+  },
+  {
+    key: "science-biology",
+    title: "علوم - أحياء",
+    tutorIdx: 9,
+    tutorHourlyRate: 85,
+    studentSessionPrice: 65,
+    size: 5,
+    sessionsPerMonth: 8,
+    sessionsPerWeek: 2,
+    time: 13,
+    weekdays: [1, 4],
+    duration: 90,
+  },
+  {
+    key: "quran-murajaa",
+    title: "قرآن - مراجعة",
+    tutorIdx: 4,
+    tutorHourlyRate: 150,
+    studentSessionPrice: 80,
+    size: 4,
+    sessionsPerMonth: 8,
+    sessionsPerWeek: 2,
+    time: 8,
+    weekdays: [5, 6],
+    duration: 90,
+  },
+  {
+    key: "ar-egypt2",
+    title: "عربي - منهج مصري (مستوى متقدم)",
+    tutorIdx: 13,
+    tutorHourlyRate: 110,
+    studentSessionPrice: 80,
+    size: 7,
+    sessionsPerMonth: 8,
+    sessionsPerWeek: 2,
+    time: 17,
+    weekdays: [1, 4],
+    duration: 90,
+  },
+  {
+    key: "en-us2",
+    title: "English - American Curriculum (Level 2)",
+    tutorIdx: 11,
+    tutorHourlyRate: 160,
+    studentSessionPrice: 95,
+    size: 8,
+    sessionsPerMonth: 12,
+    sessionsPerWeek: 3,
+    time: 19,
+    weekdays: [0, 2, 4],
+    duration: 90,
+  },
+  {
+    key: "math-egypt2",
+    title: "رياضيات - منهج مصري (مستوى متقدم)",
+    tutorIdx: 10,
+    tutorHourlyRate: 95,
+    studentSessionPrice: 80,
+    size: 8,
+    sessionsPerMonth: 12,
+    sessionsPerWeek: 3,
+    time: 17,
+    weekdays: [1, 3, 5],
+    duration: 90,
+  },
+  {
+    key: "science-egypt2",
+    title: "علوم - منهج مصري (مستوى متقدم)",
+    tutorIdx: 12,
+    tutorHourlyRate: 85,
+    studentSessionPrice: 70,
+    size: 6,
+    sessionsPerMonth: 8,
+    sessionsPerWeek: 2,
+    time: 14,
+    weekdays: [2, 5],
+    duration: 90,
+  },
+  {
+    key: "quran-tajweed2",
+    title: "قرآن - تجويد (مستوى متقدم)",
+    tutorIdx: 14,
+    tutorHourlyRate: 200,
+    studentSessionPrice: 85,
+    size: 4,
+    sessionsPerMonth: 8,
+    sessionsPerWeek: 2,
+    time: 9,
+    weekdays: [1, 5],
+    duration: 90,
+  },
+  {
+    key: "ar-gulf2",
+    title: "عربي - منهج خليجي (مستوى متقدم)",
+    tutorIdx: 5,
+    tutorHourlyRate: 140,
+    studentSessionPrice: 90,
+    size: 8,
+    sessionsPerMonth: 8,
+    sessionsPerWeek: 2,
+    time: 20,
+    weekdays: [3, 6],
+    duration: 90,
+  },
+  {
+    key: "en-gulf2",
+    title: "English - Gulf Curriculum (Level 2)",
+    tutorIdx: 6,
+    tutorHourlyRate: 170,
+    studentSessionPrice: 95,
+    size: 9,
+    sessionsPerMonth: 12,
+    sessionsPerWeek: 3,
+    time: 19,
+    weekdays: [2, 4, 6],
+    duration: 90,
+  },
+  {
+    key: "math-us2",
+    title: "رياضيات - منهج أمريكي (Level 2)",
+    tutorIdx: 7,
+    tutorHourlyRate: 130,
+    studentSessionPrice: 85,
+    size: 7,
+    sessionsPerMonth: 8,
+    sessionsPerWeek: 2,
+    time: 17,
+    weekdays: [0, 4],
+    duration: 90,
+  },
+  {
+    key: "science-us2",
+    title: "علوم - منهج أمريكي (Level 2)",
+    tutorIdx: 15,
+    tutorHourlyRate: 100,
+    studentSessionPrice: 75,
+    size: 6,
+    sessionsPerMonth: 8,
+    sessionsPerWeek: 2,
+    time: 14,
+    weekdays: [1, 5],
+    duration: 90,
+  },
+  {
+    key: "math-foundation2",
+    title: "رياضيات - تأسيس (مستوى متقدم)",
+    tutorIdx: 15,
+    tutorHourlyRate: 70,
+    studentSessionPrice: 60,
+    size: 6,
+    sessionsPerMonth: 8,
+    sessionsPerWeek: 2,
+    time: 11,
+    weekdays: [3, 6],
+    duration: 90,
+  },
+  {
+    key: "en-advanced",
+    title: "English - Advanced",
+    tutorIdx: 11,
+    tutorHourlyRate: 180,
+    studentSessionPrice: 100,
+    size: 6,
+    sessionsPerMonth: 12,
+    sessionsPerWeek: 3,
+    time: 18,
+    weekdays: [0, 3, 5],
+    duration: 90,
+  },
+  {
+    key: "quran-hifz2",
+    title: "قرآن - حفظ (مستوى متقدم)",
+    tutorIdx: 8,
+    tutorHourlyRate: 210,
+    studentSessionPrice: 90,
+    size: 4,
+    sessionsPerMonth: 8,
+    sessionsPerWeek: 2,
+    time: 9,
+    weekdays: [2, 6],
+    duration: 90,
+  },
 ];
 
 const EMPTY_GROUP_DEF: ClassGroupDef = {
@@ -190,19 +550,44 @@ const EMPTY_GROUP_DEF: ClassGroupDef = {
   studentSessionPrice: 70,
   size: 0,
   sessionsPerMonth: 0,
+  sessionsPerWeek: 2,
   time: 16,
-  weekdays: [2],
+  weekdays: [2, 4],
   duration: 90,
 };
 
-const INACTIVE_GROUP_DEFS: (ClassGroupDef & { membershipsInactive: boolean })[] = [
+const INACTIVE_GROUP_DEFS: (ClassGroupDef & {
+  membershipsInactive: boolean;
+})[] = [
   {
-    key: "inactive-ar", title: "عربي - مجموعة قديمة", tutorIdx: 0, tutorHourlyRate: 100, studentSessionPrice: 80, size: 2,
-    sessionsPerMonth: 3, time: 16, weekdays: [2], duration: 90, active: false, membershipsInactive: true,
+    key: "inactive-ar",
+    title: "عربي - مجموعة قديمة",
+    tutorIdx: 0,
+    tutorHourlyRate: 100,
+    studentSessionPrice: 80,
+    size: 2,
+    sessionsPerMonth: 8,
+    sessionsPerWeek: 2,
+    time: 16,
+    weekdays: [2, 4],
+    duration: 90,
+    active: false,
+    membershipsInactive: true,
   },
   {
-    key: "inactive-en", title: "English - مجموعة قديمة", tutorIdx: 1, tutorHourlyRate: 130, studentSessionPrice: 110, size: 3,
-    sessionsPerMonth: 3, time: 18, weekdays: [1], duration: 90, active: false, membershipsInactive: false,
+    key: "inactive-en",
+    title: "English - مجموعة قديمة",
+    tutorIdx: 1,
+    tutorHourlyRate: 130,
+    studentSessionPrice: 90,
+    size: 3,
+    sessionsPerMonth: 8,
+    sessionsPerWeek: 2,
+    time: 18,
+    weekdays: [1, 3],
+    duration: 90,
+    active: false,
+    membershipsInactive: false,
   },
 ];
 
@@ -213,6 +598,7 @@ type PrivateGroupDef = {
   tutorHourlyRate: number;
   price: number;
   sessionsPerMonth: number;
+  sessionsPerWeek: number;
   time: number;
   duration: number;
   active?: boolean;
@@ -220,24 +606,137 @@ type PrivateGroupDef = {
 };
 
 const PRIVATE_GROUP_DEFS: PrivateGroupDef[] = [
-  { key: "pvt-s2", studentIdx: 2, tutorIdx: 1, tutorHourlyRate: 140, price: 500, sessionsPerMonth: 6, time: 18, duration: 60 },
-  { key: "pvt-s1", studentIdx: 1, tutorIdx: 0, tutorHourlyRate: 160, price: 350, sessionsPerMonth: 4, time: 16, duration: 60 },
-  { key: "pvt-s3", studentIdx: 3, tutorIdx: 4, tutorHourlyRate: 240, price: 600, sessionsPerMonth: 4, time: 20, duration: 60 },
-  { key: "pvt-s7", studentIdx: 7, tutorIdx: 4, tutorHourlyRate: 220, price: 550, sessionsPerMonth: 4, time: 8, duration: 60 },
-  { key: "pvt-s10", studentIdx: 10, tutorIdx: 0, tutorHourlyRate: 150, price: 400, sessionsPerMonth: 4, time: 10, duration: 60 },
-  { key: "pvt-s15", studentIdx: 15, tutorIdx: 7, tutorHourlyRate: 150, price: 450, sessionsPerMonth: 5, time: 16, duration: 60 },
-  { key: "pvt-s20", studentIdx: 20, tutorIdx: 1, tutorHourlyRate: 190, price: 500, sessionsPerMonth: 5, time: 18, duration: 60 },
-  { key: "pvt-s26", studentIdx: 26, tutorIdx: 2, tutorHourlyRate: 150, price: 500, sessionsPerMonth: 5, time: 20, duration: 60 },
-  { key: "pvt-s30", studentIdx: 30, tutorIdx: 7, tutorHourlyRate: 130, price: 350, sessionsPerMonth: 4, time: 13, duration: 60 },
-  { key: "pvt-s34", studentIdx: 34, tutorIdx: 2, tutorHourlyRate: 130, price: 400, sessionsPerMonth: 4, time: 16, duration: 60 },
-  { key: "pvt-hist-s1", studentIdx: 1, tutorIdx: 9, tutorHourlyRate: 120, price: 300, sessionsPerMonth: 4, time: 13, duration: 60, active: false, historical: true },
+  {
+    key: "pvt-s2",
+    studentIdx: 2,
+    tutorIdx: 1,
+    tutorHourlyRate: 140,
+    price: 720,
+    sessionsPerMonth: 8,
+    sessionsPerWeek: 2,
+    time: 18,
+    duration: 60,
+  },
+  {
+    key: "pvt-s1",
+    studentIdx: 1,
+    tutorIdx: 0,
+    tutorHourlyRate: 160,
+    price: 560,
+    sessionsPerMonth: 8,
+    sessionsPerWeek: 2,
+    time: 16,
+    duration: 60,
+  },
+  {
+    key: "pvt-s3",
+    studentIdx: 3,
+    tutorIdx: 4,
+    tutorHourlyRate: 240,
+    price: 960,
+    sessionsPerMonth: 12,
+    sessionsPerWeek: 3,
+    time: 20,
+    duration: 60,
+  },
+  {
+    key: "pvt-s7",
+    studentIdx: 7,
+    tutorIdx: 4,
+    tutorHourlyRate: 220,
+    price: 1080,
+    sessionsPerMonth: 12,
+    sessionsPerWeek: 3,
+    time: 8,
+    duration: 60,
+  },
+  {
+    key: "pvt-s10",
+    studentIdx: 10,
+    tutorIdx: 0,
+    tutorHourlyRate: 150,
+    price: 640,
+    sessionsPerMonth: 8,
+    sessionsPerWeek: 2,
+    time: 10,
+    duration: 60,
+  },
+  {
+    key: "pvt-s15",
+    studentIdx: 15,
+    tutorIdx: 7,
+    tutorHourlyRate: 150,
+    price: 900,
+    sessionsPerMonth: 12,
+    sessionsPerWeek: 3,
+    time: 16,
+    duration: 60,
+  },
+  {
+    key: "pvt-s20",
+    studentIdx: 20,
+    tutorIdx: 1,
+    tutorHourlyRate: 190,
+    price: 1020,
+    sessionsPerMonth: 12,
+    sessionsPerWeek: 3,
+    time: 18,
+    duration: 60,
+  },
+  {
+    key: "pvt-s26",
+    studentIdx: 26,
+    tutorIdx: 2,
+    tutorHourlyRate: 150,
+    price: 1080,
+    sessionsPerMonth: 12,
+    sessionsPerWeek: 3,
+    time: 20,
+    duration: 60,
+  },
+  {
+    key: "pvt-s30",
+    studentIdx: 30,
+    tutorIdx: 7,
+    tutorHourlyRate: 130,
+    price: 600,
+    sessionsPerMonth: 8,
+    sessionsPerWeek: 2,
+    time: 13,
+    duration: 60,
+  },
+  {
+    key: "pvt-s34",
+    studentIdx: 34,
+    tutorIdx: 2,
+    tutorHourlyRate: 130,
+    price: 640,
+    sessionsPerMonth: 8,
+    sessionsPerWeek: 2,
+    time: 16,
+    duration: 60,
+  },
+  {
+    key: "pvt-hist-s1",
+    studentIdx: 1,
+    tutorIdx: 9,
+    tutorHourlyRate: 120,
+    price: 480,
+    sessionsPerMonth: 8,
+    sessionsPerWeek: 2,
+    time: 13,
+    duration: 60,
+    active: false,
+    historical: true,
+  },
 ];
 
 const TRIAL_PRIVATE_DEFS: { studentIdx: number; tutorIdx: number }[] = [
-  { studentIdx: 65, tutorIdx: 2 },
-  { studentIdx: 66, tutorIdx: 5 },
-  { studentIdx: 67, tutorIdx: 7 },
-  { studentIdx: 68, tutorIdx: 9 },
+  { studentIdx: 135, tutorIdx: 2 },
+  { studentIdx: 136, tutorIdx: 5 },
+  { studentIdx: 137, tutorIdx: 7 },
+  { studentIdx: 138, tutorIdx: 9 },
+  { studentIdx: 139, tutorIdx: 0 },
 ];
 
 // Featured students with hand-crafted financial scenarios.
@@ -245,45 +744,74 @@ const FEATURED_PLAN: Record<
   number,
   {
     prices: Record<string, number>;
-    payments: { amount: number; method: number; split?: number[]; dateOffset?: number; groupKey?: string }[];
+    payments: {
+      amount: number;
+      method: number;
+      split?: number[];
+      dateOffset?: number;
+      groupKey?: string;
+    }[];
     pendingOutstanding?: boolean;
   }
 > = {
   0: {
-    prices: { "ar-egypt": 100, "en-us": 180, "math-egypt": 120 },
+    prices: { "ar-egypt": 600, "en-us": 900, "math-egypt": 900 },
     payments: [
-      { amount: 400, method: PaymentMethod.CASH, split: [100, 180, 120], dateOffset: 10 },
+      {
+        amount: 2400,
+        method: PaymentMethod.CASH,
+        split: [600, 900, 900],
+        dateOffset: 10,
+      },
     ],
   },
   1: {
-    prices: { "quran-tajweed": 500, "ar-nahw": 350 },
+    prices: { "quran-tajweed": 900, "ar-nahw": 640 },
     payments: [
-      { amount: 500, method: PaymentMethod.BANK_TRANSFER, dateOffset: 8, groupKey: "quran-tajweed" },
-      { amount: 350, method: PaymentMethod.CASH, dateOffset: 8, groupKey: "ar-nahw" },
-      { amount: 200, method: PaymentMethod.CARD, dateOffset: 4, groupKey: "pvt-s1" },
+      {
+        amount: 900,
+        method: PaymentMethod.BANK_TRANSFER,
+        dateOffset: 8,
+        groupKey: "quran-tajweed",
+      },
+      {
+        amount: 640,
+        method: PaymentMethod.CASH,
+        dateOffset: 8,
+        groupKey: "ar-nahw",
+      },
+      {
+        amount: 560,
+        method: PaymentMethod.CARD,
+        dateOffset: 4,
+        groupKey: "pvt-s1",
+      },
     ],
     pendingOutstanding: true,
   },
   2: {
-    prices: { "pvt-s2": 500 },
+    prices: { "pvt-s2": 720 },
     payments: [
-      { amount: 200, method: PaymentMethod.CASH, dateOffset: 7 },
-      { amount: 150, method: PaymentMethod.ONLINE, dateOffset: 4 },
+      { amount: 480, method: PaymentMethod.CASH, dateOffset: 7 },
+      { amount: 240, method: PaymentMethod.ONLINE, dateOffset: 4 },
     ],
     pendingOutstanding: true,
   },
   3: {
     prices: {},
     payments: [
-      { amount: 200, method: PaymentMethod.CARD, split: [100, 60, 40], dateOffset: 6 },
+      {
+        amount: 960,
+        method: PaymentMethod.CARD,
+        split: [480, 240, 240],
+        dateOffset: 6,
+      },
     ],
     pendingOutstanding: true,
   },
   24: {
-    prices: { "math-foundation": 240 },
-    payments: [
-      { amount: 240, method: PaymentMethod.CASH, dateOffset: 12 },
-    ],
+    prices: { "math-foundation": 600 },
+    payments: [{ amount: 600, method: PaymentMethod.CASH, dateOffset: 12 }],
   },
 };
 
@@ -322,16 +850,49 @@ async function createBaseData() {
   ]);
 
   const [sar, usd, egp] = await Promise.all([
-    db.currency.create({ data: { code: "SAR", name: "ريال سعودي", symbol: "ر.س" } }),
-    db.currency.create({ data: { code: "USD", name: "دولار أمريكي", symbol: "$" } }),
-    db.currency.create({ data: { code: "EGP", name: "جنيه مصري", symbol: "ج.م" } }),
+    db.currency.create({
+      data: { code: "SAR", name: "ريال سعودي", symbol: "ر.س" },
+    }),
+    db.currency.create({
+      data: { code: "USD", name: "دولار أمريكي", symbol: "$" },
+    }),
+    db.currency.create({
+      data: { code: "EGP", name: "جنيه مصري", symbol: "ج.م" },
+    }),
   ]);
   console.log("✅ Currencies created");
 
   await Promise.all([
-    db.saasPlan.create({ data: { billingPeriod: 30, dollarPrice: 15, egyptianPrice: 30, maxStudents: 200, maxTutors: 200, name: "الخطة الأولي" } }),
-    db.saasPlan.create({ data: { billingPeriod: 30, dollarPrice: 15, egyptianPrice: 30, maxStudents: 200, maxTutors: 200, name: "الخطة الثانية" } }),
-    db.saasPlan.create({ data: { billingPeriod: 30, dollarPrice: 15, egyptianPrice: 30, maxStudents: 200, maxTutors: 200, name: "الخطة الثالثة" } }),
+    db.saasPlan.create({
+      data: {
+        billingPeriod: 30,
+        dollarPrice: 15,
+        egyptianPrice: 30,
+        maxStudents: 200,
+        maxTutors: 200,
+        name: "الخطة الأولي",
+      },
+    }),
+    db.saasPlan.create({
+      data: {
+        billingPeriod: 30,
+        dollarPrice: 15,
+        egyptianPrice: 30,
+        maxStudents: 200,
+        maxTutors: 200,
+        name: "الخطة الثانية",
+      },
+    }),
+    db.saasPlan.create({
+      data: {
+        billingPeriod: 30,
+        dollarPrice: 15,
+        egyptianPrice: 30,
+        maxStudents: 200,
+        maxTutors: 200,
+        name: "الخطة الثالثة",
+      },
+    }),
   ]);
   console.log("✅ Saas plans created");
 
@@ -380,7 +941,9 @@ async function createBaseData() {
       phone: "+201018303125",
     },
   });
-  await db.admin.create({ data: { userId: adminUser.id, academyId: academy.id } });
+  await db.admin.create({
+    data: { userId: adminUser.id, academyId: academy.id },
+  });
   console.log("✅ Academy + admin created");
 
   const supervisorNames = ["محمد المشرف", "سلمى المشرفة", "خالد المشرف"];
@@ -395,12 +958,24 @@ async function createBaseData() {
         phone: "+201018303125",
       },
     });
-    const s = await db.supervisor.create({ data: { userId: u.id, academyId: academy.id } });
+    const s = await db.supervisor.create({
+      data: { userId: u.id, academyId: academy.id },
+    });
     supervisors.push(s);
   }
   console.log(`✅ ${supervisors.length} supervisors created`);
 
-  return { academy, adminUser, adminUserId: adminUser.id, supervisors, egp, sar, usd, specialityByTitle, salaryCostCenterId: undefined as number | undefined };
+  return {
+    academy,
+    adminUser,
+    adminUserId: adminUser.id,
+    supervisors,
+    egp,
+    sar,
+    usd,
+    specialityByTitle,
+    salaryCostCenterId: undefined as number | undefined,
+  };
 }
 
 async function createPlans(base: Awaited<ReturnType<typeof createBaseData>>) {
@@ -468,7 +1043,9 @@ async function createTutors(
         zoomAuthenticated,
         zoomUrl,
         defaultSupervisorId: base.supervisors[i % base.supervisors.length].id,
-        specialities: { connect: [{ id: base.specialityByTitle.get(def.subject)!.id }] },
+        specialities: {
+          connect: [{ id: base.specialityByTitle.get(def.subject)!.id }],
+        },
       },
     });
     if (zoomUrl) zoomByTutor.set(tutor.id, zoomUrl);
@@ -484,7 +1061,13 @@ async function createTutors(
   }
 
   const noRecentUser = await db.user.create({
-    data: { email: "tutor.demo13@academy.com", password, name: "طارق النجار", role: Role.Tutor, phone: "+201018303125" },
+    data: {
+      email: "tutor.demo17@academy.com",
+      password,
+      name: "طارق النجار",
+      role: Role.Tutor,
+      phone: "+201018303125",
+    },
   });
   const noRecent = await db.tutor.create({
     data: {
@@ -496,13 +1079,30 @@ async function createTutors(
       active: true,
       bio: "رياضيات — معلم قديم",
       defaultSupervisorId: base.supervisors[0].id,
-      specialities: { connect: [{ id: base.specialityByTitle.get("الرياضيات")!.id }] },
+      specialities: {
+        connect: [{ id: base.specialityByTitle.get("الرياضيات")!.id }],
+      },
     },
   });
-  records.push({ id: noRecent.id, userId: noRecentUser.id, name: "طارق النجار", subject: "الرياضيات", privateRate: 140, groupRate: 95, active: true, noRecent: true });
+  records.push({
+    id: noRecent.id,
+    userId: noRecentUser.id,
+    name: "طارق النجار",
+    subject: "الرياضيات",
+    privateRate: 140,
+    groupRate: 95,
+    active: true,
+    noRecent: true,
+  });
 
   const inactiveUser = await db.user.create({
-    data: { email: "tutor.demo14@academy.com", password, name: "رانيا القاضي", role: Role.Tutor, phone: "+201018303125" },
+    data: {
+      email: "tutor.demo18@academy.com",
+      password,
+      name: "رانيا القاضي",
+      role: Role.Tutor,
+      phone: "+201018303125",
+    },
   });
   const inactive = await db.tutor.create({
     data: {
@@ -514,10 +1114,20 @@ async function createTutors(
       active: false,
       bio: "إنجليزية — غير نشطة حالياً",
       defaultSupervisorId: base.supervisors[1].id,
-      specialities: { connect: [{ id: base.specialityByTitle.get("اللغة الإنجليزية")!.id }] },
+      specialities: {
+        connect: [{ id: base.specialityByTitle.get("اللغة الإنجليزية")!.id }],
+      },
     },
   });
-  records.push({ id: inactive.id, userId: inactiveUser.id, name: "رانيا القاضي", subject: "اللغة الإنجليزية", privateRate: 120, groupRate: 80, active: false });
+  records.push({
+    id: inactive.id,
+    userId: inactiveUser.id,
+    name: "رانيا القاضي",
+    subject: "اللغة الإنجليزية",
+    privateRate: 120,
+    groupRate: 80,
+    active: false,
+  });
 
   console.log(`✅ ${records.length} tutors created`);
   return records;
@@ -537,38 +1147,48 @@ async function createStudents(
   base: Awaited<ReturnType<typeof createBaseData>>,
   password: string,
 ): Promise<StudentRecord[]> {
-  const countries = ["مصر", "مصر", "مصر", "مصر", "السعودية", "السعودية", "الكويت", "الكويت", "الإمارات", "قطر", "الأردن", "ليبيا", "اليمن", "مصر", "مصر"];
+  const countries = [
+    "مصر",
+    "مصر",
+    "مصر",
+    "مصر",
+    "السعودية",
+    "السعودية",
+    "الكويت",
+    "الكويت",
+    "الإمارات",
+    "قطر",
+    "الأردن",
+    "ليبيا",
+    "اليمن",
+    "مصر",
+    "مصر",
+  ];
   const students: StudentRecord[] = [];
-  for (let i = 0; i < 75; i++) {
+  for (let i = 0; i < 150; i++) {
     const status =
-      i < 60
+      i < 130
         ? StudentStatus.subscribed
-        : i < 65
+        : i < 135
           ? StudentStatus.lead
-          : i < 69
+          : i < 140
             ? StudentStatus.trial
-            : i < 72
+            : i < 144
               ? StudentStatus.churned
               : StudentStatus.paused;
-    const currency: "EGP" | "SAR" | "USD" =
-      i === 3 || i === 4 || i === 5 ? "SAR" : i === 6 || i === 7 || i === 8 ? "USD" : "EGP";
+    const currency: "EGP" | "SAR" | "USD" = "EGP";
     const user = await db.user.create({
       data: {
         email: `student.demo${i + 1}@academy.com`,
         password,
         name: faker.person.fullName(),
         role: Role.Student,
-        phone: faker.phone.number(),
+        phone: `+201018303125`,
         timezone: "Africa/Cairo",
         preferredLanguage: "ar",
       },
     });
-    const country =
-      i === 3 || i === 4 || i === 5
-        ? "السعودية"
-        : i === 6 || i === 7 || i === 8
-          ? "الكويت"
-          : countries[i % countries.length];
+    const country = countries[i % countries.length];
     const student = await db.student.create({
       data: {
         userId: user.id,
@@ -576,11 +1196,19 @@ async function createStudents(
         age: randomInt(6, 16),
         country,
         status,
-        currencyId: currency === "SAR" ? base.sar.id : currency === "USD" ? base.usd.id : base.egp.id,
+        currencyId: base.egp.id,
         source: i % 2 === 0 ? "إعلانات فيسبوك" : "ترشيح واتساب",
       },
     });
-    students.push({ id: student.id, userId: user.id, idx: i, name: user.name ?? "", status, currency, currencyId: currency === "SAR" ? base.sar.id : currency === "USD" ? base.usd.id : base.egp.id });
+    students.push({
+      id: student.id,
+      userId: user.id,
+      idx: i,
+      name: user.name ?? "",
+      status,
+      currency,
+      currencyId: base.egp.id,
+    });
   }
 
   for (const i of CUSTOM_BILLING_STUDENTS) {
@@ -589,7 +1217,9 @@ async function createStudents(
       data: { billingDate: NOW.add(randomInt(5, 20), "day").toDate() },
     });
   }
-  console.log(`✅ ${students.length} students created (${CUSTOM_BILLING_STUDENTS.length} with custom billing date)`);
+  console.log(
+    `✅ ${students.length} students created (${CUSTOM_BILLING_STUDENTS.length} with custom billing date)`,
+  );
   return students;
 }
 
@@ -625,6 +1255,12 @@ async function createGroups(
         active: def.active ?? true,
       },
     });
+    const room = await db.groupChatRoom.create({
+      data: { groupId: g.id, academyId: base.academy.id },
+    });
+    await db.groupChatMember.create({
+      data: { roomId: room.id, userId: tutor.userId },
+    });
     records.set(def.key, {
       id: g.id,
       key: def.key,
@@ -656,6 +1292,7 @@ type Membership = {
   leftAt?: dayjs.Dayjs;
   active: boolean;
   customPrice?: number;
+  sessionsPerMonth?: number;
   kind: "class" | "private" | "trial" | "churned" | "paused" | "inactiveGroup";
 };
 
@@ -664,7 +1301,10 @@ function allocateSizes(declared: number[], total: number): number[] {
   const sizes = declared.map((s) => Math.floor((s * total) / sum));
   const diff = total - sizes.reduce((a, b) => a + b, 0);
   const rem = declared
-    .map((s, i) => ({ i, frac: (s * total) / sum - Math.floor((s * total) / sum) }))
+    .map((s, i) => ({
+      i,
+      frac: (s * total) / sum - Math.floor((s * total) / sum),
+    }))
     .sort((a, b) => b.frac - a.frac);
   for (let k = 0; k < diff; k++) sizes[rem[k % rem.length].i]++;
   return sizes;
@@ -683,17 +1323,18 @@ async function assignMemberships(
     24: ["math-foundation"],
   };
 
-  const targets = new Array<number>(60).fill(1);
+  const targets = new Array<number>(130).fill(1);
   targets[0] = 3;
   targets[1] = 3;
   targets[2] = 2;
   targets[3] = 3;
   targets[4] = 3;
   targets[5] = 3;
-  for (let i = 6; i <= 22; i++) targets[i] = 2;
+  for (let i = 6; i <= 49; i++) targets[i] = 2;
 
   const assigned = new Map<number, string[]>();
-  for (const [si, keys] of Object.entries(seeds)) assigned.set(Number(si), [...keys]);
+  for (const [si, keys] of Object.entries(seeds))
+    assigned.set(Number(si), [...keys]);
   const remainingTargets = targets.map((t, i) => t - (seeds[i]?.length ?? 0));
   const totalRemaining = remainingTargets.reduce((a, b) => a + b, 0);
   const declaredSizes = CLASS_GROUP_DEFS.map((d) => d.size);
@@ -704,7 +1345,7 @@ async function assignMemberships(
     while (slots > 0) {
       let best = -1;
       let bestRem = -1;
-      for (let i = 0; i < 60; i++) {
+      for (let i = 0; i < 130; i++) {
         const list = assigned.get(i) ?? [];
         if (list.includes(def.key)) continue;
         if (remainingTargets[i] <= 0) continue;
@@ -724,7 +1365,24 @@ async function assignMemberships(
 
   const memberships: Membership[] = [];
 
-  const pushMembership = async (m: Omit<Membership, "id" | "studentId" | "studentName" | "currency" | "currencyId">) => {
+  const ensureGroupRoom = async (groupId: number) => {
+    const existing = await db.groupChatRoom.findUnique({ where: { groupId } });
+    if (existing) return existing;
+    const group = await db.group.findUnique({
+      where: { id: groupId },
+      select: { academyId: true },
+    });
+    return db.groupChatRoom.create({
+      data: { groupId, academyId: group!.academyId },
+    });
+  };
+
+  const pushMembership = async (
+    m: Omit<
+      Membership,
+      "id" | "studentId" | "studentName" | "currency" | "currencyId"
+    >,
+  ) => {
     const s = students[m.studentIdx];
     const rec = await db.groupStudent.create({
       data: {
@@ -736,6 +1394,20 @@ async function assignMemberships(
         customSessionPrice: m.customPrice,
       },
     });
+    const room = await ensureGroupRoom(m.groupId);
+    await db.groupChatMember.upsert({
+      where: { roomId_userId: { roomId: room.id, userId: s.userId } },
+      update: {
+        active: m.active,
+        leftAt: m.leftAt?.toDate() ?? (m.active ? null : undefined),
+      },
+      create: {
+        roomId: room.id,
+        userId: s.userId,
+        active: m.active,
+        leftAt: m.leftAt?.toDate(),
+      },
+    });
     memberships.push({
       ...m,
       id: rec.id,
@@ -743,10 +1415,13 @@ async function assignMemberships(
       studentName: s.name,
       currency: s.currency,
       currencyId: s.currencyId,
+      sessionsPerMonth:
+        groupRecords.get(m.groupKey.replace(/#.*$/, ""))?.sessionsPerMonth,
     });
   };
 
-  const classOrder: { key: string; def: ClassGroupDef }[] = CLASS_GROUP_DEFS.map((def) => ({ key: def.key, def }));
+  const classOrder: { key: string; def: ClassGroupDef }[] =
+    CLASS_GROUP_DEFS.map((def) => ({ key: def.key, def }));
   const membersByGroup = new Map<string, number[]>();
   for (const { def } of classOrder) {
     const studentsInGroup: number[] = [];
@@ -773,17 +1448,27 @@ async function assignMemberships(
         kind: "class",
       });
     }
-    if (def.membershipChanges === "someLeft" || def.membershipChanges === "both") {
+    if (
+      def.membershipChanges === "someLeft" ||
+      def.membershipChanges === "both"
+    ) {
       const leaveCount = def.membershipChanges === "someLeft" ? 2 : 1;
       for (let k = 0; k < leaveCount; k++) {
         const si = list[list.length - 1 - k];
-        const member = memberships.find((m) => m.groupKey === def.key && m.studentIdx === si)!;
+        const member = memberships.find(
+          (m) => m.groupKey === def.key && m.studentIdx === si,
+        )!;
         await db.groupStudent.update({
           where: { id: member.id },
           data: { active: false, leftAt: NOW.subtract(30, "day").toDate() },
         });
         member.active = false;
         member.leftAt = NOW.subtract(30, "day");
+        const room = await ensureGroupRoom(group.id);
+        await db.groupChatMember.updateMany({
+          where: { roomId: room.id, userId: students[si].userId, active: true },
+          data: { active: false, leftAt: NOW.subtract(30, "day").toDate() },
+        });
       }
     }
   }
@@ -810,7 +1495,10 @@ async function assignMemberships(
       tutorHourlyRate: def.tutorHourlyRate,
       studentSessionPrice: Math.round(def.price / def.sessionsPerMonth),
       time: def.time,
-      weekdays: [def.time % 7],
+      weekdays: Array.from(
+        { length: def.sessionsPerWeek },
+        (_, k) => (def.time + k) % 7,
+      ),
       duration: def.duration,
       sessionsPerMonth: def.sessionsPerMonth,
     });
@@ -824,6 +1512,12 @@ async function assignMemberships(
       active: def.historical ? false : true,
       customPrice: def.price,
       kind: "private",
+    });
+    const pRoom = await ensureGroupRoom(g.id);
+    await db.groupChatMember.upsert({
+      where: { roomId_userId: { roomId: pRoom.id, userId: tutor.userId } },
+      update: {},
+      create: { roomId: pRoom.id, userId: tutor.userId },
     });
   }
 
@@ -860,11 +1554,19 @@ async function assignMemberships(
       active: true,
       kind: "trial",
     });
+    const tRoom = await ensureGroupRoom(g.id);
+    await db.groupChatMember.upsert({
+      where: { roomId_userId: { roomId: tRoom.id, userId: tutor.userId } },
+      update: {},
+      create: { roomId: tRoom.id, userId: tutor.userId },
+    });
   }
 
   for (const def of INACTIVE_GROUP_DEFS) {
     const g = groupRecords.get(def.key)!;
-    const candidates = students.filter((s) => s.status === StudentStatus.subscribed && s.idx % 3 !== 0).slice(0, def.size);
+    const candidates = students
+      .filter((s) => s.status === StudentStatus.subscribed && s.idx % 3 !== 0)
+      .slice(0, def.size);
     for (const s of candidates) {
       const active = def.membershipsInactive ? false : true;
       await pushMembership({
@@ -879,8 +1581,8 @@ async function assignMemberships(
     }
   }
 
-  const churnedIdx = [69, 70, 71];
-  const churnedGroups = ["ar-egypt", "en-us", "math-egypt"];
+  const churnedIdx = [140, 141, 142, 143];
+  const churnedGroups = ["ar-egypt", "en-us", "math-egypt", "science-egypt"];
   for (let k = 0; k < churnedIdx.length; k++) {
     const key = churnedGroups[k];
     const group = groupRecords.get(key)!;
@@ -896,8 +1598,15 @@ async function assignMemberships(
     });
   }
 
-  const pausedIdx = [72, 73, 74];
-  const pausedGroups = ["ar-egypt", "math-foundation", "en-conv"];
+  const pausedIdx = [144, 145, 146, 147, 148, 149];
+  const pausedGroups = [
+    "ar-egypt",
+    "math-foundation",
+    "en-conv",
+    "math-egypt",
+    "en-us",
+    "science-egypt",
+  ];
   for (let k = 0; k < pausedIdx.length; k++) {
     const key = pausedGroups[k];
     const group = groupRecords.get(key)!;
@@ -912,7 +1621,9 @@ async function assignMemberships(
     });
   }
 
-  console.log(`✅ ${memberships.length} memberships assigned (${groupRecords.size} groups total)`);
+  console.log(
+    `✅ ${memberships.length} memberships assigned (${groupRecords.size} groups total)`,
+  );
   return { memberships, privateRecords };
 }
 
@@ -926,13 +1637,20 @@ type SessionCtx = {
 };
 
 function rateForGroupAt(def: GroupRecord, date: dayjs.Dayjs) {
-  if (def.rateChange && date.isAfter(NOW.subtract(def.rateChange.fromOffsetDays, "day"))) {
+  if (
+    def.rateChange &&
+    date.isAfter(NOW.subtract(def.rateChange.fromOffsetDays, "day"))
+  ) {
     return def.rateChange.rate;
   }
   return def.tutorHourlyRate;
 }
 
-function sessionDatesForMonth(def: GroupRecord, monthStart: dayjs.Dayjs, monthEnd: dayjs.Dayjs) {
+function sessionDatesForMonth(
+  def: GroupRecord,
+  monthStart: dayjs.Dayjs,
+  monthEnd: dayjs.Dayjs,
+) {
   const occ = new Map<number, dayjs.Dayjs[]>();
   let d = monthStart;
   while (d.isBefore(monthEnd.add(1, "day"))) {
@@ -999,7 +1717,9 @@ async function createSessionForGroup(
       tutorId: group.tutorId,
       tutorRate: rate,
       groupId: group.id,
-      supervisorId: ctx.supervisorByTutor.get(group.tutorId) ?? ctx.supervisorByTutor.values().next().value!,
+      supervisorId:
+        ctx.supervisorByTutor.get(group.tutorId) ??
+        ctx.supervisorByTutor.values().next().value!,
       academyId: ctx.academyId,
       zoomUrl: ctx.zoomByTutor.get(group.tutorId) ?? null,
       ...(cancelled ? { cancelledBy: ctx.adminUserId } : {}),
@@ -1015,9 +1735,13 @@ async function createSessionForGroup(
     } else if (cancelled) {
       att = null;
     } else if (date.isBefore(NOW)) {
-      if (opts.attendanceOverride && opts.attendanceOverride[pi] !== undefined) {
+      if (
+        opts.attendanceOverride &&
+        opts.attendanceOverride[pi] !== undefined
+      ) {
         att = opts.attendanceOverride[pi];
-        if (att === AttendanceStatus.ABSENT_EXCUSED) reason = EXCUSE_REASONS[pi % EXCUSE_REASONS.length];
+        if (att === AttendanceStatus.ABSENT_EXCUSED)
+          reason = EXCUSE_REASONS[pi % EXCUSE_REASONS.length];
       } else {
         const r = rng();
         if (r < 0.6) att = AttendanceStatus.ATTENDED;
@@ -1053,7 +1777,8 @@ async function createSessionForGroup(
     }
     const earned = (rate * group.duration) / 60;
     const mkey = monthKey(date);
-    const byMonth = ctx.tutorEarned.get(group.tutorId) ?? new Map<string, number>();
+    const byMonth =
+      ctx.tutorEarned.get(group.tutorId) ?? new Map<string, number>();
     byMonth.set(mkey, (byMonth.get(mkey) ?? 0) + earned);
     ctx.tutorEarned.set(group.tutorId, byMonth);
   }
@@ -1076,24 +1801,39 @@ async function createSessions(
     tutorEarned: new Map(),
   };
   for (const [i, t] of tutors.entries()) {
-    ctx.supervisorByTutor.set(t.id, base.supervisors[i % base.supervisors.length].id);
+    ctx.supervisorByTutor.set(
+      t.id,
+      base.supervisors[i % base.supervisors.length].id,
+    );
   }
 
   for (const def of CLASS_GROUP_DEFS) {
     const group = groupRecords.get(def.key)!;
     ctx.usageByGroup.set(group.id, []);
+    console.log(`  ⏳ Seeding sessions for ${def.title}...`);
     for (let m = 4; m >= 0; m--) {
       const monthStart = NOW.subtract(m, "month").startOf("month");
-      const monthEnd = m === 0 ? NOW.subtract(1, "day") : monthStart.endOf("month");
+      const monthEnd =
+        m === 0 ? NOW.subtract(1, "day") : monthStart.endOf("month");
       if (monthEnd.isBefore(monthStart)) continue;
       const dates = sessionDatesForMonth(group, monthStart, monthEnd);
       for (const date of dates) {
         const isLastPast = m === 0 && date === dates[dates.length - 1];
         const override =
           def.key === "ar-egypt" && isLastPast
-            ? [AttendanceStatus.ATTENDED, AttendanceStatus.ATTENDED, AttendanceStatus.ABSENT_UNEXCUSED, AttendanceStatus.ABSENT_EXCUSED, AttendanceStatus.ATTENDED, AttendanceStatus.LATE, AttendanceStatus.ATTENDED]
+            ? [
+                AttendanceStatus.ATTENDED,
+                AttendanceStatus.ATTENDED,
+                AttendanceStatus.ABSENT_UNEXCUSED,
+                AttendanceStatus.ABSENT_EXCUSED,
+                AttendanceStatus.ATTENDED,
+                AttendanceStatus.LATE,
+                AttendanceStatus.ATTENDED,
+              ]
             : undefined;
-        await createSessionForGroup(ctx, group, memberships, date, { attendanceOverride: override });
+        await createSessionForGroup(ctx, group, memberships, date, {
+          attendanceOverride: override,
+        });
       }
     }
   }
@@ -1110,7 +1850,13 @@ async function createSessions(
     },
   });
   const oldMember = await db.groupStudent.create({
-    data: { groupId: oldGroup.id, studentId: (memberships[0] as Membership).studentId, active: false, joinedAt: NOW.subtract(420, "day").toDate(), leftAt: NOW.subtract(330, "day").toDate() },
+    data: {
+      groupId: oldGroup.id,
+      studentId: (memberships[0] as Membership).studentId,
+      active: false,
+      joinedAt: NOW.subtract(420, "day").toDate(),
+      leftAt: NOW.subtract(330, "day").toDate(),
+    },
   });
   const oldDef: GroupRecord = {
     id: oldGroup.id,
@@ -1153,7 +1899,8 @@ async function createSessions(
     const months = def.historical ? [4, 3, 2] : [3, 2, 1, 0];
     for (const m of months) {
       const monthStart = NOW.subtract(m, "month").startOf("month");
-      const monthEnd = m === 0 ? NOW.subtract(1, "day") : monthStart.endOf("month");
+      const monthEnd =
+        m === 0 ? NOW.subtract(1, "day") : monthStart.endOf("month");
       if (monthEnd.isBefore(monthStart)) continue;
       for (const date of sessionDatesForMonth(group, monthStart, monthEnd)) {
         await createSessionForGroup(ctx, group, memberships, date);
@@ -1173,12 +1920,15 @@ async function createSessions(
     }
   }
 
-  for (let k = 0; k < 4; k++) {
-    const def = TRIAL_PRIVATE_DEFS[k];
+  for (const def of TRIAL_PRIVATE_DEFS) {
     const group = groupRecords.get(`trial-${def.studentIdx}`)!;
     ctx.usageByGroup.set(group.id, []);
-    const trialDate = NOW.subtract(randomInt(3, 9), "day").hour(randomInt(10, 20));
-    await createSessionForGroup(ctx, group, memberships, trialDate, { isTrial: true });
+    const trialDate = NOW.subtract(randomInt(3, 9), "day").hour(
+      randomInt(10, 20),
+    );
+    await createSessionForGroup(ctx, group, memberships, trialDate, {
+      isTrial: true,
+    });
   }
 
   const todayGroups = ["ar-egypt", "math-egypt", "quran-tajweed"];
@@ -1187,7 +1937,12 @@ async function createSessions(
     const group = groupRecords.get(todayGroups[i])!;
     const date = NOW.hour(todayTimes[i]).minute(0).second(0);
     if (date.isBefore(NOW)) {
-      await createSessionForGroup(ctx, group, memberships, NOW.hour(todayTimes[i] + 2).minute(0));
+      await createSessionForGroup(
+        ctx,
+        group,
+        memberships,
+        NOW.hour(todayTimes[i] + 2).minute(0),
+      );
     } else {
       await createSessionForGroup(ctx, group, memberships, date);
     }
@@ -1204,7 +1959,9 @@ async function createSessions(
   const sameDayTutors = [2, 4, 0];
   for (const ti of sameDayTutors) {
     const tutor = tutors[ti];
-    const tutorGroups = [...groupRecords.values()].filter((g) => g.tutorId === tutor.id && g.key !== "old-group" && g.time !== 8);
+    const tutorGroups = [...groupRecords.values()].filter(
+      (g) => g.tutorId === tutor.id && g.key !== "old-group" && g.time !== 8,
+    );
     const day = NOW.subtract(randomInt(8, 12), "day");
     for (const g of tutorGroups.slice(0, 3)) {
       const date = day.hour(g.time).minute(0).second(0);
@@ -1214,7 +1971,9 @@ async function createSessions(
     }
   }
 
-  const totalSessions = await db.session.count({ where: { academyId: base.academy.id } });
+  const totalSessions = await db.session.count({
+    where: { academyId: base.academy.id },
+  });
   console.log(`✅ ${totalSessions} sessions created`);
   return ctx;
 }
@@ -1232,48 +1991,53 @@ type SubSpec = {
   planId: number | null;
   currencyId: number;
   payFraction?: number;
-  payments?: { amount: number; method: number; dateOffset?: number; split?: number[] }[];
+  payments?: {
+    amount: number;
+    method: number;
+    dateOffset?: number;
+    split?: number[];
+  }[];
   pendingOutstanding?: boolean;
 };
 
 const SCENARIO_POOL: string[] = shuffle([
-  ...new Array<string>(12).fill("overdue"),
-  ...new Array<string>(9).fill("partial"),
-  ...new Array<string>(7).fill("unpaid"),
+  ...new Array<string>(4).fill("overdue"),
+  ...new Array<string>(5).fill("partial"),
+  ...new Array<string>(4).fill("unpaid"),
   ...new Array<string>(3).fill("dueToday"),
   ...new Array<string>(6).fill("upcoming"),
   ...new Array<string>(8).fill("exhausted"),
-  ...new Array<string>(3).fill("overUsed"),
-  ...new Array<string>(4).fill("lowUse0"),
-  ...new Array<string>(4).fill("lowUse25"),
-  ...new Array<string>(3).fill("lowUse75"),
+  ...new Array<string>(4).fill("overUsed"),
+  ...new Array<string>(3).fill("lowUse0"),
+  ...new Array<string>(3).fill("lowUse25"),
+  ...new Array<string>(2).fill("lowUse75"),
   ...new Array<string>(4).fill("cancelled"),
   ...new Array<string>(2).fill("pending"),
   ...new Array<string>(4).fill("expiredOnly"),
   ...new Array<string>(3).fill("noSub"),
-  ...new Array<string>(5).fill("paid"),
+  ...new Array<string>(24).fill("paid"),
 ]);
 
 function billingOffsetFor(scenario: string, idx: number): number {
   switch (scenario) {
     case "partial":
-      return [-3, -7, 7][idx % 3];
+      return [-2, 3, -5][idx % 3];
     case "unpaid":
-      return [3, 7, 10][idx % 3];
+      return [-1, 2, 0][idx % 3];
     case "overdue":
-      return [-3, -5, -7, -10, -14, -21][idx % 6];
+      return [-2, -4, -6, -9, -13][idx % 5];
     case "dueToday":
       return 0;
     case "upcoming":
-      return [2, 3, 4, 5, 6][idx % 5];
+      return [1, 2, 4, 6][idx % 4];
     case "cancelled":
     case "paused":
     case "ended":
       return 15;
     case "pending":
-      return 10;
+      return 5;
     default:
-      return [10, 15, 20, 25, 30][idx % 5];
+      return [3, 5, 7, 10][idx % 4];
   }
 }
 
@@ -1292,7 +2056,8 @@ async function createSubscriptionsAndRevenues(
     [13, [5, 15, 25]],
   ]);
 
-  const featuredPrices = (studentIdx: number) => FEATURED_PLAN[studentIdx]?.prices ?? {};
+  const featuredPrices = (studentIdx: number) =>
+    FEATURED_PLAN[studentIdx]?.prices ?? {};
   let poolIdx = 0;
   let revenueCount = 0;
 
@@ -1314,6 +2079,7 @@ async function createSubscriptionsAndRevenues(
         status,
         method: method ?? null,
         dueDate: dueDate.toDate(),
+        createdAt: (dueDate.isAfter(NOW) ? NOW : dueDate).toDate(),
         description,
         academyId: base.academy.id,
         studentId,
@@ -1325,13 +2091,24 @@ async function createSubscriptionsAndRevenues(
     revenueCount++;
   };
 
-  const countInWindow = (groupId: number, from: dayjs.Dayjs, to: dayjs.Dayjs) => {
+  const countInWindow = (
+    groupId: number,
+    from: dayjs.Dayjs,
+    to: dayjs.Dayjs,
+  ) => {
     const times = ctx.usageByGroup.get(groupId) ?? [];
-    return times.filter((t) => !t.isBefore(from) && !t.isAfter(to) && !t.isAfter(NOW)).length;
+    return times.filter(
+      (t) => !t.isBefore(from) && !t.isAfter(to) && !t.isAfter(NOW),
+    ).length;
   };
 
   const defaultMethod = () => {
-    const methods = [PaymentMethod.CASH, PaymentMethod.CARD, PaymentMethod.BANK_TRANSFER, PaymentMethod.ONLINE];
+    const methods = [
+      PaymentMethod.CASH,
+      PaymentMethod.CARD,
+      PaymentMethod.BANK_TRANSFER,
+      PaymentMethod.ONLINE,
+    ];
     return methods[randomInt(0, methods.length - 1)];
   };
 
@@ -1339,17 +2116,27 @@ async function createSubscriptionsAndRevenues(
     const featured = FEATURED_PLAN[m.studentIdx];
     const prices = featuredPrices(m.studentIdx);
     const isFeaturedMembership =
-      !!featured && (Object.keys(prices).length === 0 || prices[m.groupKey] !== undefined);
+      !!featured &&
+      (Object.keys(prices).length === 0 || prices[m.groupKey] !== undefined);
 
     let scenario = "paid";
     let price = m.customPrice ?? 0;
-    let plan = plans[m.studentIdx % plans.length];
-    let cycles = deepHistory.has(m.studentIdx) ? randomInt(4, 5) : randomInt(1, 3);
+    const planForTier = (sessionsPerMonth?: number) =>
+      plans.find((p) => p.sessionCount === (sessionsPerMonth ?? 8)) ??
+      plans[0];
+    let plan = planForTier(m.sessionsPerMonth);
+    let cycles = deepHistory.has(m.studentIdx)
+      ? randomInt(6, 9)
+      : randomInt(1, 3);
 
     if (m.kind === "trial") {
       continue;
     }
-    if (m.kind === "churned" || (m.kind === "inactiveGroup" && !m.active) || (m.kind === "private" && !m.active)) {
+    if (
+      m.kind === "churned" ||
+      (m.kind === "inactiveGroup" && !m.active) ||
+      (m.kind === "private" && !m.active)
+    ) {
       scenario = "ended";
       cycles = Math.min(cycles, 2);
     } else if (m.kind === "paused") {
@@ -1358,7 +2145,11 @@ async function createSubscriptionsAndRevenues(
       scenario = "paid";
     }
 
-    if (m.kind === "class" || m.kind === "private" || (m.kind === "inactiveGroup" && m.active)) {
+    if (
+      m.kind === "class" ||
+      m.kind === "private" ||
+      (m.kind === "inactiveGroup" && m.active)
+    ) {
       if (scenario === "ended" || scenario === "paused") {
         price = m.customPrice ?? plan.price;
       } else if (isFeaturedMembership && prices[m.groupKey] !== undefined) {
@@ -1366,11 +2157,13 @@ async function createSubscriptionsAndRevenues(
         scenario = "featured";
       } else if (m.customPrice) {
         price = m.customPrice;
-        plan = plans[m.studentIdx % plans.length];
+        plan = planForTier(m.sessionsPerMonth);
         scenario = "featured";
       } else {
         price = plan.price;
-        const isFeaturedStudent = FEATURED_STUDENT_KEYS.includes(m.studentIdx) && Object.keys(prices).length === 0;
+        const isFeaturedStudent =
+          FEATURED_STUDENT_KEYS.includes(m.studentIdx) &&
+          Object.keys(prices).length === 0;
         if (m.kind === "inactiveGroup") {
           scenario = "paid";
         } else if (!isFeaturedStudent) {
@@ -1394,33 +2187,53 @@ async function createSubscriptionsAndRevenues(
       }
     }
 
-    if (m.kind === "class" || m.kind === "private" || (m.kind === "inactiveGroup" && m.active)) {
+    if (
+      m.kind === "class" ||
+      m.kind === "private" ||
+      (m.kind === "inactiveGroup" && m.active)
+    ) {
       const memberSpread = spreadBilling.get(m.studentIdx);
       const billingOffset =
         scenario === "featured"
           ? 15
           : memberSpread
-            ? (memberSpread[memberships.filter((x) => x.studentIdx === m.studentIdx && x.active).map((x) => x.groupKey).indexOf(m.groupKey)] ?? 15)
+            ? (memberSpread[
+                memberships
+                  .filter((x) => x.studentIdx === m.studentIdx && x.active)
+                  .map((x) => x.groupKey)
+                  .indexOf(m.groupKey)
+              ] ?? 15)
             : billingOffsetFor(scenario, m.studentIdx);
 
       const spec: SubSpec = {
         scenario,
         price,
-        sessionCount: scenario === "paid" && m.studentIdx % 9 === 0 ? null : plan.sessionCount,
+        sessionCount:
+          scenario === "paid" && m.studentIdx % 9 === 0
+            ? null
+            : plan.sessionCount,
         billingOffset,
         cycles,
         planId: plan.id,
         currencyId: m.currencyId,
-        payFraction: scenario === "partial" ? [0.4, 0.55, 0.7, 0.85][m.studentIdx % 4] : undefined,
+        payFraction:
+          scenario === "partial"
+            ? [0.4, 0.55, 0.7, 0.85][m.studentIdx % 4]
+            : undefined,
       };
 
-      const cancelledDates = ["cancelled", "paused", "ended"].includes(scenario);
-      const billing = cancelledDates ? NOW.subtract(10, "day") : NOW.add(spec.billingOffset, "day");
+      const cancelledDates = ["cancelled", "paused", "ended"].includes(
+        scenario,
+      );
+      const billing = cancelledDates
+        ? NOW.subtract(10, "day")
+        : NOW.add(spec.billingOffset, "day");
       const start = billing.subtract(30, "day");
       const end = billing;
 
       for (let k = spec.cycles; k >= 1; k--) {
-        const hStart = NOW.subtract(k * 30 + 10, "day").startOf("day");
+        const anchorShift = m.studentIdx % 2;
+        const hStart = NOW.subtract(k + anchorShift, "month").startOf("month");
         const hEnd = hStart.add(30, "day");
         const hSub = await db.subscription.create({
           data: {
@@ -1452,14 +2265,20 @@ async function createSubscriptionsAndRevenues(
       if (scenario === "expiredOnly" || scenario === "noSub") continue;
 
       const subStatus =
-        scenario === "cancelled" || scenario === "paused" || scenario === "ended"
+        scenario === "cancelled" ||
+        scenario === "paused" ||
+        scenario === "ended"
           ? SubscriptionStatus.cancelled
           : scenario === "pending"
             ? SubscriptionStatus.pending
             : SubscriptionStatus.active;
 
       let sessionCount = spec.sessionCount;
-      if (["exhausted", "overUsed", "lowUse0", "lowUse25", "lowUse75"].includes(scenario)) {
+      if (
+        ["exhausted", "overUsed", "lowUse0", "lowUse25", "lowUse75"].includes(
+          scenario,
+        )
+      ) {
         const S = countInWindow(m.groupId, start, end);
         switch (scenario) {
           case "exhausted":
@@ -1498,13 +2317,19 @@ async function createSubscriptionsAndRevenues(
       if (scenario === "paid" || scenario === "featured") {
         if (scenario === "featured" && featured) {
           const featuredPayments = featured.payments ?? [];
-          const targeted = featuredPayments.filter((p) => p.groupKey && p.groupKey === m.groupKey);
-          const shared = featuredPayments.filter((p) => !p.groupKey && !p.split);
+          const targeted = featuredPayments.filter(
+            (p) => p.groupKey && p.groupKey === m.groupKey,
+          );
+          const shared = featuredPayments.filter(
+            (p) => !p.groupKey && !p.split,
+          );
           const splitPayment = featuredPayments.find((p) => p.split);
           const membersKeys = memberships
             .filter((x) => x.studentIdx === m.studentIdx && x.active)
             .map((x) => x.groupKey);
-          const myShare = splitPayment?.split ? (splitPayment.split[membersKeys.indexOf(m.groupKey)] ?? 0) : 0;
+          const myShare = splitPayment?.split
+            ? (splitPayment.split[membersKeys.indexOf(m.groupKey)] ?? 0)
+            : 0;
           if (myShare > 0) {
             await createRevenue(
               m.studentId,
@@ -1532,7 +2357,9 @@ async function createSubscriptionsAndRevenues(
             );
           }
           if (featured.pendingOutstanding) {
-            const paidAmounts = [...targeted, ...shared].reduce((a, p) => a + p.amount, 0) + myShare;
+            const paidAmounts =
+              [...targeted, ...shared].reduce((a, p) => a + p.amount, 0) +
+              myShare;
             const outstanding = Math.max(0, spec.price - paidAmounts);
             if (outstanding > 0) {
               await createRevenue(
@@ -1566,10 +2393,40 @@ async function createSubscriptionsAndRevenues(
           }
           if (twoPayments) {
             const first = Math.round(spec.price * 0.6);
-            await createRevenue(m.studentId, first, spec.currencyId, NOW.add(spec.billingOffset - 5, "day"), sub.id, spec.planId, `دفعة أولى للاشتراك`, PaymentStatus.PAID, defaultMethod());
-            await createRevenue(m.studentId, spec.price - first, spec.currencyId, NOW.add(spec.billingOffset - 1, "day"), sub.id, spec.planId, "دفعة مكملة للاشتراك", PaymentStatus.PAID, defaultMethod());
+            await createRevenue(
+              m.studentId,
+              first,
+              spec.currencyId,
+              NOW.add(spec.billingOffset - 5, "day"),
+              sub.id,
+              spec.planId,
+              `دفعة أولى للاشتراك`,
+              PaymentStatus.PAID,
+              defaultMethod(),
+            );
+            await createRevenue(
+              m.studentId,
+              spec.price - first,
+              spec.currencyId,
+              NOW.add(spec.billingOffset - 1, "day"),
+              sub.id,
+              spec.planId,
+              "دفعة مكملة للاشتراك",
+              PaymentStatus.PAID,
+              defaultMethod(),
+            );
           } else {
-            await createRevenue(m.studentId, spec.price, spec.currencyId, NOW.add(spec.billingOffset - 5, "day"), sub.id, spec.planId, `دفعة اشتراك ${spec.price}`, PaymentStatus.PAID, defaultMethod());
+            await createRevenue(
+              m.studentId,
+              spec.price,
+              spec.currencyId,
+              NOW.add(spec.billingOffset - 5, "day"),
+              sub.id,
+              spec.planId,
+              `دفعة اشتراك ${spec.price}`,
+              PaymentStatus.PAID,
+              defaultMethod(),
+            );
           }
           if (m.studentIdx % 13 === 0) {
             await createRevenue(
@@ -1587,8 +2444,28 @@ async function createSubscriptionsAndRevenues(
         }
       } else if (scenario === "partial") {
         const paidAmount = Math.round(spec.price * (spec.payFraction ?? 0.6));
-        await createRevenue(m.studentId, paidAmount, spec.currencyId, NOW.add(spec.billingOffset - 3, "day"), sub.id, spec.planId, "دفعة جزئية للاشتراك", PaymentStatus.PAID, defaultMethod());
-        await createRevenue(m.studentId, spec.price - paidAmount, spec.currencyId, billing, sub.id, spec.planId, "رصيد مستحق على الاشتراك", PaymentStatus.PENDING, null);
+        await createRevenue(
+          m.studentId,
+          paidAmount,
+          spec.currencyId,
+          NOW.add(spec.billingOffset - 3, "day"),
+          sub.id,
+          spec.planId,
+          "دفعة جزئية للاشتراك",
+          PaymentStatus.PAID,
+          defaultMethod(),
+        );
+        await createRevenue(
+          m.studentId,
+          spec.price - paidAmount,
+          spec.currencyId,
+          billing,
+          sub.id,
+          spec.planId,
+          "رصيد مستحق على الاشتراك",
+          PaymentStatus.PENDING,
+          null,
+        );
       } else if (
         scenario === "unpaid" ||
         scenario === "overdue" ||
@@ -1596,21 +2473,74 @@ async function createSubscriptionsAndRevenues(
         scenario === "upcoming" ||
         scenario === "pending"
       ) {
-        await createRevenue(m.studentId, spec.price, spec.currencyId, billing, sub.id, spec.planId, "فاتورة اشتراك مستحقة", PaymentStatus.PENDING, null);
-      } else if (scenario === "exhausted" || scenario === "overUsed" || scenario === "lowUse0" || scenario === "lowUse25" || scenario === "lowUse75") {
+        await createRevenue(
+          m.studentId,
+          spec.price,
+          spec.currencyId,
+          billing,
+          sub.id,
+          spec.planId,
+          "فاتورة اشتراك مستحقة",
+          PaymentStatus.PENDING,
+          null,
+        );
+      } else if (
+        scenario === "exhausted" ||
+        scenario === "overUsed" ||
+        scenario === "lowUse0" ||
+        scenario === "lowUse25" ||
+        scenario === "lowUse75"
+      ) {
         const fullyPaid = m.studentIdx % 3 !== 0;
         if (fullyPaid) {
-          await createRevenue(m.studentId, spec.price, spec.currencyId, NOW.add(spec.billingOffset - 5, "day"), sub.id, spec.planId, `دفعة اشتراك ${spec.price}`, PaymentStatus.PAID, defaultMethod());
+          await createRevenue(
+            m.studentId,
+            spec.price,
+            spec.currencyId,
+            NOW.add(spec.billingOffset - 5, "day"),
+            sub.id,
+            spec.planId,
+            `دفعة اشتراك ${spec.price}`,
+            PaymentStatus.PAID,
+            defaultMethod(),
+          );
         } else {
           const paidAmount = Math.round(spec.price * 0.5);
-          await createRevenue(m.studentId, paidAmount, spec.currencyId, NOW.add(spec.billingOffset - 3, "day"), sub.id, spec.planId, "دفعة جزئية للاشتراك", PaymentStatus.PAID, defaultMethod());
-          await createRevenue(m.studentId, spec.price - paidAmount, spec.currencyId, billing, sub.id, spec.planId, "رصيد مستحق على الاشتراك", PaymentStatus.PENDING, null);
+          await createRevenue(
+            m.studentId,
+            paidAmount,
+            spec.currencyId,
+            NOW.add(spec.billingOffset - 3, "day"),
+            sub.id,
+            spec.planId,
+            "دفعة جزئية للاشتراك",
+            PaymentStatus.PAID,
+            defaultMethod(),
+          );
+          await createRevenue(
+            m.studentId,
+            spec.price - paidAmount,
+            spec.currencyId,
+            billing,
+            sub.id,
+            spec.planId,
+            "رصيد مستحق على الاشتراك",
+            PaymentStatus.PENDING,
+            null,
+          );
         }
       }
     } else {
-      if (m.kind === "paused" || m.kind === "churned" || (m.kind === "inactiveGroup" && !m.active)) {
+      if (
+        m.kind === "paused" ||
+        m.kind === "churned" ||
+        (m.kind === "inactiveGroup" && !m.active)
+      ) {
         for (let k = cycles; k >= 1; k--) {
-          const hStart = NOW.subtract(k * 30 + 10, "day").startOf("day");
+          const anchorShift = m.studentIdx % 2;
+          const hStart = NOW.subtract(k + anchorShift, "month").startOf(
+            "month",
+          );
           const hEnd = hStart.add(30, "day");
           const hSub = await db.subscription.create({
             data: {
@@ -1626,7 +2556,17 @@ async function createSubscriptionsAndRevenues(
               status: SubscriptionStatus.expired,
             },
           });
-          await createRevenue(m.studentId, 0, m.currencyId, hStart, hSub.id, plans[0].id, "اشتراك سابق", PaymentStatus.PAID, defaultMethod());
+          await createRevenue(
+            m.studentId,
+            0,
+            m.currencyId,
+            hStart,
+            hSub.id,
+            plans[0].id,
+            "اشتراك سابق",
+            PaymentStatus.PAID,
+            defaultMethod(),
+          );
         }
         await db.subscription.create({
           data: {
@@ -1647,8 +2587,12 @@ async function createSubscriptionsAndRevenues(
   }
 
   void students;
-  const totalSubs = await db.subscription.count({ where: { groupStudent: { student: { academyId: base.academy.id } } } });
-  console.log(`✅ ${totalSubs} subscriptions, ${revenueCount} revenues created`);
+  const totalSubs = await db.subscription.count({
+    where: { groupStudent: { student: { academyId: base.academy.id } } },
+  });
+  console.log(
+    `✅ ${totalSubs} subscriptions, ${revenueCount} revenues created`,
+  );
   return ctx;
 }
 
@@ -1674,9 +2618,9 @@ async function createTutorPayments(
 
   for (const [i, t] of tutors.entries()) {
     if (t.noRecent || !t.active) continue;
-    if ([1, 3, 9].includes(i)) fullyPaid.add(t.id);
-    if ([5, 8].includes(i)) batched.add(t.id);
-    if ([0, 2, 4].includes(i)) partial.add(t.id);
+    if ([1, 3, 9, 11, 13, 15].includes(i)) fullyPaid.add(t.id);
+    if ([5, 8, 14].includes(i)) batched.add(t.id);
+    if ([0, 2, 4, 10, 12].includes(i)) partial.add(t.id);
     if ([6, 7].includes(i)) pendingOnly.add(t.id);
   }
 
@@ -1709,7 +2653,7 @@ async function createTutorPayments(
       }
 
       if (partial.has(t.id)) {
-        const fraction = mkey === monthKey(NOW) ? 0.4 : 0.65;
+        const fraction = mkey === monthKey(NOW) ? 0.7 : 0.65;
         const paid = Math.round(earned * fraction);
         await db.expense.create({
           data: {
@@ -1801,8 +2745,65 @@ async function createTutorPayments(
     }
   }
 
-  const totalExpenses = await db.expense.count({ where: { academyId: base.academy.id } });
+  const totalExpenses = await db.expense.count({
+    where: { academyId: base.academy.id },
+  });
   console.log(`✅ ${totalExpenses} tutor payment expenses created`);
+}
+
+async function createOperatingExpenses(
+  base: Awaited<ReturnType<typeof createBaseData>>,
+) {
+  const defs: { title: string; min: number; max: number }[] = [
+    { title: "الإعلانات", min: 2000, max: 4500 },
+    { title: "إشتراكات برامج", min: 1200, max: 2000 },
+    { title: "تصوير المحتوى", min: 1500, max: 3500 },
+    { title: "ضرائب", min: 1500, max: 3500 },
+    { title: "مرتبات الموظفين (غير المعلمين)", min: 7000, max: 9500 },
+    { title: "حوافز", min: 1000, max: 2500 },
+    { title: "أخرى", min: 1500, max: 3000 },
+  ];
+  const costCenters = await db.costCenter.findMany({
+    where: { title: { in: defs.map((d) => d.title) } },
+  });
+  const ccByTitle = new Map(costCenters.map((c) => [c.title, c.id]));
+  const methods = [
+    PaymentMethod.CASH,
+    PaymentMethod.CARD,
+    PaymentMethod.BANK_TRANSFER,
+    PaymentMethod.ONLINE,
+  ];
+
+  const nowMonthKey = monthKey(NOW);
+  let count = 0;
+  for (let m = 11; m >= 0; m--) {
+    const monthStart = NOW.subtract(m, "month").startOf("month");
+    const mkey = monthKey(monthStart);
+    for (const def of defs) {
+      const isCurrent = mkey === nowMonthKey;
+      const status =
+        isCurrent &&
+        (def.title === "حوافز" || def.title === "أخرى") &&
+        rng() < 0.5
+          ? PaymentStatus.PENDING
+          : PaymentStatus.PAID;
+      await db.expense.create({
+        data: {
+          date: monthStart.add(randomInt(0, 25), "day").toDate(),
+          description: `${def.title} — ${monthStart.format("MMMM YYYY")}`,
+          amount: randomInt(def.min, def.max),
+          currencyId: base.egp.id,
+          costCenterId: ccByTitle.get(def.title) ?? null,
+          method: methods[randomInt(0, methods.length - 1)],
+          status,
+          academyId: base.academy.id,
+          recordedBy: base.adminUserId,
+        },
+      });
+      count++;
+    }
+  }
+  console.log(`✅ ${count} operating expenses created`);
 }
 
 // ============================================================================
@@ -1816,7 +2817,11 @@ async function createExtras(
   memberships: Membership[],
 ) {
   const pastSessions = await db.session.findMany({
-    where: { academyId: base.academy.id, startTime: { lte: NOW.toDate() }, cancelledBy: null },
+    where: {
+      academyId: base.academy.id,
+      startTime: { lte: NOW.toDate() },
+      cancelledBy: null,
+    },
     select: { id: true, supervisorId: true, startTime: true },
     orderBy: { id: "asc" },
     take: 40,
@@ -1834,12 +2839,20 @@ async function createExtras(
     });
   }
 
-  const activeMemberships = memberships.filter((m) => m.active && m.studentIdx < 60);
-  const rooms = new Map<string, { tutorUserId: number; studentUserId: number }>();
+  const activeMemberships = memberships.filter(
+    (m) => m.active && m.studentIdx < 130,
+  );
+  const rooms = new Map<
+    string,
+    { tutorUserId: number; studentUserId: number }
+  >();
 
   const tutorByGroup = new Map<number, TutorRecord>();
   for (const m of memberships) {
-    const g = await db.group.findUnique({ where: { id: m.groupId }, select: { currentTutorId: true } });
+    const g = await db.group.findUnique({
+      where: { id: m.groupId },
+      select: { currentTutorId: true },
+    });
     if (g) {
       const t = tutors.find((x) => x.id === g.currentTutorId);
       if (t) tutorByGroup.set(m.groupId, t);
@@ -1851,12 +2864,20 @@ async function createExtras(
     if (!tutor) continue;
     const key = `${tutor.userId}:${students[m.studentIdx].userId}`;
     if (rooms.has(key)) continue;
-    rooms.set(key, { tutorUserId: tutor.userId, studentUserId: students[m.studentIdx].userId });
+    rooms.set(key, {
+      tutorUserId: tutor.userId,
+      studentUserId: students[m.studentIdx].userId,
+    });
   }
 
   for (const [key, room] of rooms) {
     const roomRec = await db.chatRoom.upsert({
-      where: { tutorUserId_studentUserId: { tutorUserId: room.tutorUserId, studentUserId: room.studentUserId } },
+      where: {
+        tutorUserId_studentUserId: {
+          tutorUserId: room.tutorUserId,
+          studentUserId: room.studentUserId,
+        },
+      },
       update: {},
       create: {
         tutorUserId: room.tutorUserId,
@@ -1868,7 +2889,10 @@ async function createExtras(
     const messages = [];
     for (let i = 0; i < messageCount; i++) {
       const senderId = i % 2 === 0 ? room.tutorUserId : room.studentUserId;
-      const createdAt = NOW.subtract(randomInt(1, 30), "day").add(randomInt(0, 20), "hour");
+      const createdAt = NOW.subtract(randomInt(1, 30), "day").add(
+        randomInt(0, 20),
+        "hour",
+      );
       messages.push({
         roomId: roomRec.id,
         senderId,
@@ -1883,7 +2907,46 @@ async function createExtras(
     void key;
   }
 
-  const noteStudents = shuffle(students.filter((s) => s.status === StudentStatus.subscribed).slice(0, 25));
+  // Group chat seeding
+  const groupRooms = await db.groupChatRoom.findMany({
+    where: { academyId: base.academy.id },
+  });
+  for (const room of groupRooms) {
+    const roomMembers = await db.groupChatMember.findMany({
+      where: { roomId: room.id, active: true },
+      select: { userId: true },
+    });
+    if (roomMembers.length === 0) continue;
+    const messageCount = randomInt(3, 8);
+    const messages = [];
+    for (let i = 0; i < messageCount; i++) {
+      const senderId = roomMembers[randomInt(0, roomMembers.length - 1)].userId;
+      const createdAt = NOW.subtract(randomInt(1, 25), "day").add(
+        randomInt(0, 18),
+        "hour",
+      );
+      messages.push({
+        roomId: room.id,
+        senderId,
+        content: faker.lorem.sentence(),
+        isRead: true,
+        createdAt: createdAt.toDate(),
+        updatedAt: createdAt.toDate(),
+      });
+    }
+    messages.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+    await db.groupChatMessage.createMany({ data: messages });
+    await db.groupChatRoom.update({
+      where: { id: room.id },
+      data: {
+        updatedAt: messages[messages.length - 1].createdAt,
+      },
+    });
+  }
+
+  const noteStudents = shuffle(
+    students.filter((s) => s.status === StudentStatus.subscribed).slice(0, 25),
+  );
   for (const s of noteStudents.slice(0, 15)) {
     await db.note.create({
       data: {
@@ -1937,7 +3000,10 @@ async function createExtras(
           targetType: TargetType.Student,
           targetId: s.id,
           action: HistoryActionType.LeadToTrial,
-          changes: { oldStatus: StudentStatus.lead, newStatus: StudentStatus.trial },
+          changes: {
+            oldStatus: StudentStatus.lead,
+            newStatus: StudentStatus.trial,
+          },
           metadata: { conversionDate: NOW.subtract(10, "day").toISOString() },
           recordedBy: base.adminUserId,
           recorderType: Role.Admin,
@@ -1945,7 +3011,7 @@ async function createExtras(
           createdAt: NOW.subtract(10, "day").toDate(),
         },
       });
-    } else if (s.status === StudentStatus.subscribed && s.idx < 60) {
+    } else if (s.status === StudentStatus.subscribed && s.idx < 130) {
       await db.history.create({
         data: {
           targetType: TargetType.Student,
@@ -1962,7 +3028,10 @@ async function createExtras(
           targetType: TargetType.Student,
           targetId: s.id,
           action: HistoryActionType.TrialToSubscription,
-          changes: { oldStatus: StudentStatus.trial, newStatus: StudentStatus.subscribed },
+          changes: {
+            oldStatus: StudentStatus.trial,
+            newStatus: StudentStatus.subscribed,
+          },
           metadata: { conversionDate: NOW.subtract(80, "day").toISOString() },
           recordedBy: base.adminUserId,
           recorderType: Role.Admin,
@@ -1998,7 +3067,11 @@ async function createExtras(
   }
 
   const assignable = await db.session.findMany({
-    where: { academyId: base.academy.id, cancelledBy: null, startTime: { lt: NOW.toDate() } },
+    where: {
+      academyId: base.academy.id,
+      cancelledBy: null,
+      startTime: { lt: NOW.toDate() },
+    },
     select: { id: true },
     orderBy: { id: "asc" },
     take: 30,
@@ -2053,14 +3126,22 @@ async function printSummary(base: Awaited<ReturnType<typeof createBaseData>>) {
     db.supervisor.count({ where: { academyId: base.academy.id } }),
     db.group.count({ where: { academyId: base.academy.id } }),
     db.session.count({ where: { academyId: base.academy.id } }),
-    db.subscription.count({ where: { groupStudent: { group: { academyId: base.academy.id } } } }),
+    db.subscription.count({
+      where: { groupStudent: { group: { academyId: base.academy.id } } },
+    }),
     db.revenue.count({ where: { academyId: base.academy.id } }),
     db.expense.count({ where: { academyId: base.academy.id } }),
-    db.sessionParticipant.count({ where: { session: { academyId: base.academy.id } } }),
-    db.sessionReport.count({ where: { participant: { session: { academyId: base.academy.id } } } }),
+    db.sessionParticipant.count({
+      where: { session: { academyId: base.academy.id } },
+    }),
+    db.sessionReport.count({
+      where: { participant: { session: { academyId: base.academy.id } } },
+    }),
     db.chatRoom.count({ where: { academyId: base.academy.id } }),
     db.chatMessage.count({ where: { room: { academyId: base.academy.id } } }),
-    db.tutorAttendance.count({ where: { session: { academyId: base.academy.id } } }),
+    db.tutorAttendance.count({
+      where: { session: { academyId: base.academy.id } },
+    }),
   ]);
   const overdue = await db.subscription.count({
     where: {
@@ -2101,8 +3182,12 @@ async function printSummary(base: Awaited<ReturnType<typeof createBaseData>>) {
   console.log(`ChatMessages   : ${counts[11]}`);
   console.log(`TutorAttendance: ${counts[12]}`);
   console.log(`Overdue (active, billing < now) subscriptions: ${overdue}`);
-  console.log(`Students with 2+ active subscriptions: ${Number(multiSubStudents[0]?.count ?? 0)}`);
-  console.log(`Tutors with 2+ distinct session rates: ${Number(mixedRateTutors[0]?.count ?? 0)}`);
+  console.log(
+    `Students with 2+ active subscriptions: ${Number(multiSubStudents[0]?.count ?? 0)}`,
+  );
+  console.log(
+    `Tutors with 2+ distinct session rates: ${Number(mixedRateTutors[0]?.count ?? 0)}`,
+  );
   console.log("==============================================");
 }
 
@@ -2119,10 +3204,16 @@ async function seedDemoAcademy() {
   const tutors = await createTutors(base, password);
   const students = await createStudents(base, password);
   const groupRecords = await createGroups(base, tutors);
-  const { memberships } = await assignMemberships(base, students, tutors, groupRecords);
+  const { memberships } = await assignMemberships(
+    base,
+    students,
+    tutors,
+    groupRecords,
+  );
   const ctx = await createSessions(base, tutors, memberships, groupRecords);
   await createSubscriptionsAndRevenues(base, plans, memberships, ctx, students);
   await createTutorPayments(base, tutors, ctx);
+  await createOperatingExpenses(base);
   await createExtras(base, students, tutors, memberships);
   await printSummary(base);
 }
