@@ -927,7 +927,8 @@
    "finance": "Finance",
    "sessionsAndKpis": "Sessions & KPIs",
    "settings": "Settings",
-   "sessions": "Sessions"
+   "sessions": "Sessions",
+   "quality": "Quality"
   },
   "items": {
    "dashboard": "Dashboard",
@@ -938,6 +939,7 @@
    "chat": "Chat",
    "students": "Students",
    "tutors": "Tutors",
+   "supervisors": "Supervisors",
    "finances": "Finances",
    "plans": "Plans",
    "currencies": "Currencies & Exchange Rates",
@@ -952,10 +954,12 @@
    "myEarnings": "My Earnings",
    "myProfile": "My Profile",
    "zoomSettings": "Zoom Settings",
-   "groups": "Groups"
+   "groups": "Groups",
+   "reportsQuality": "Reports & Quality"
   },
   "switchToEnglish": "English",
-  "switchToArabic": "العربية"
+  "switchToArabic": "العربية",
+  "supervisorPlatform": "Supervisor Platform"
  },
  "StudentDashboard": {
   "countdown": {
@@ -1040,19 +1044,19 @@
   "unknown": "Unknown",
   "markAsRead": "Mark as read",
   "readAt": "Read at {time}",
-   "conversationClosed": "This conversation is closed.",
-   "inputPlaceholder": "Type your message...",
-   "inputPlaceholderDisabled": "Conversation closed",
-   "with": "with",
-   "memberCount": "{count, plural, one {# member} other {# members}}",
-   "roles": {
-    "tutor": "Tutor",
-    "student": "Student",
-    "admin": "Admin",
-    "supervisor": "Supervisor",
-    "group": "Group"
-   }
-  },
+  "conversationClosed": "This conversation is closed.",
+  "inputPlaceholder": "Type your message...",
+  "inputPlaceholderDisabled": "Conversation closed",
+  "with": "with",
+  "memberCount": "{count, plural, one {# member} other {# members}}",
+  "roles": {
+   "tutor": "Tutor",
+   "student": "Student",
+   "admin": "Admin",
+   "supervisor": "Supervisor",
+   "group": "Group"
+  }
+ },
  "admin": {
   "leads": {
    "title": "Lead Management",
@@ -1135,6 +1139,158 @@
     "delivered": "Delivered",
     "read": "Read"
    }
+  }
+ },
+ "SupervisorDashboard": {
+  "title": "Supervisor Dashboard",
+  "subtitle": "Monitor sessions, quality and tutor attendance",
+  "summaryCards": {
+   "todaySessions": "Today's Sessions",
+   "upcomingSessions": "Upcoming Sessions",
+   "tutorsMonitored": "Supervised Tutors",
+   "pendingReviews": "Pending Reviews"
+  },
+  "pendingAlert": {
+   "title": "Actions pending",
+   "description": "{attendance} students need attendance, {reports} missing reports, {reviews} tutor attendance reviews"
+  },
+  "todaySection": {
+   "title": "Today's Sessions",
+   "empty": "No sessions today"
+  },
+  "upcomingSection": {
+   "title": "Upcoming Sessions",
+   "empty": "No upcoming sessions"
+  },
+  "sessionItem": {
+   "noAttendance": "Attendance missing",
+   "noReport": "Report missing",
+   "noTutorReview": "Tutor review missing",
+   "view": "View"
+  },
+  "buttons": {
+   "viewSessions": "View sessions",
+   "viewReports": "Go to reports"
+  }
+ },
+ "SupervisorSessions": {
+  "title": "Tutors' Sessions",
+  "subtitle": "Monitor sessions of the tutors under your supervision",
+  "weekNav": {
+   "today": "Today"
+  },
+  "filters": {
+   "all": "All statuses",
+   "scheduled": "Scheduled",
+   "completed": "Completed",
+   "cancelled": "Cancelled",
+   "missingAttendance": "Missing attendance",
+   "missingReports": "Missing reports"
+  },
+  "dayList": {
+   "noSessions": "No sessions on this day"
+  },
+  "status": {
+   "scheduled": "Scheduled",
+   "completed": "Completed",
+   "cancelled": "Cancelled"
+  },
+  "counts": {
+   "attended": "attended",
+   "reports": "reports"
+  },
+  "detail": {
+   "title": "Session Details",
+   "actions": {
+    "sendReminder": "Send reminder",
+    "sendZoomLink": "Send zoom link"
+   },
+   "toast": {
+    "reminderSent": "Reminder sent",
+    "zoomSent": "Zoom link sent",
+    "error": "Something went wrong",
+    "copySuccess": "Copied"
+   },
+   "tabs": {
+    "overview": "Overview",
+    "students": "Students",
+    "tutorAttendance": "Tutor attendance"
+   },
+   "overview": {
+    "status": "Status",
+    "time": "Time",
+    "tutor": "Tutor",
+    "group": "Group",
+    "students": "Students",
+    "topic": "Topic",
+    "meetingLink": "Session link",
+    "join": "Join",
+    "copy": "Copy"
+   },
+   "students": {
+    "attendance": "Attendance",
+    "report": "Report",
+    "notRecorded": "Not recorded",
+    "noReport": "Not written",
+    "recordAttendance": "Record attendance",
+    "selectStatus": "Select status",
+    "present": "Present",
+    "late": "Late",
+    "absentExcused": "Absent (excused)",
+    "absentUnexcused": "Absent (unexcused)",
+    "reasonLabel": "Reason",
+    "saveAttendance": "Save attendance",
+    "writeReport": "Write report",
+    "saveReport": "Save report",
+    "ratingLabel": "Rating (1-5)",
+    "outcomesLabel": "Session outcomes",
+    "strengthsLabel": "Strengths",
+    "weaknessesLabel": "Weaknesses",
+    "nextGoalsLabel": "Next session goals",
+    "commentsLabel": "Comments"
+   },
+   "tutorAttendance": {
+    "title": "Tutor attendance review",
+    "notReviewed": "Not reviewed yet",
+    "statusLabel": "Tutor attendance status",
+    "present": "Present",
+    "late": "Late",
+    "absentExcused": "Absent (excused)",
+    "absentUnexcused": "Absent (unexcused)",
+    "notesLabel": "Notes",
+    "save": "Save review",
+    "reviewedBy": "Reviewed by",
+    "reviewedAt": "on",
+    "noZoomLink": "This session has no zoom link",
+    "edit": "Edit",
+    "cancel": "Cancel"
+   },
+   "closeButton": "Close"
+  },
+  "sessionItemReviewMissing": "Tutor review missing"
+ },
+ "SupervisorReports": {
+  "title": "Reports & Quality",
+  "subtitle": "Track missing reports and review tutor attendance",
+  "missingReports": {
+   "title": "Missing reports",
+   "empty": "No missing reports",
+   "students": "Students",
+   "date": "Date"
+  },
+  "tutorReviews": {
+   "title": "Pending tutor attendance reviews",
+   "empty": "No pending reviews",
+   "date": "Date",
+   "notReviewed": "Not reviewed"
+  },
+  "buttons": {
+   "review": "Review",
+   "remindTutor": "Remind tutor",
+   "reminderSent": "Reminder sent"
+  },
+  "toast": {
+   "error": "Something went wrong"
   }
  }
 }

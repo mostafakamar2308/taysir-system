@@ -41,6 +41,7 @@ export default function Sidebar() {
     if (user.role === Role.SuperAdmin) return t("superAdminPlatform");
     if (user.role === Role.Admin) return t("adminPlatform");
     if (user.role === Role.Tutor) return t("tutorPlatform");
+    if (user.role === Role.Supervisor) return t("supervisorPlatform");
     return t("defaultPlatform");
   };
 

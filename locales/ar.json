@@ -939,7 +939,8 @@
    "finance": "المالية",
    "sessionsAndKpis": "الحصص ومؤشرات الأداء",
    "settings": "الإعدادات",
-   "sessions": "الحصص"
+   "sessions": "الحصص",
+   "quality": "الجودة"
   },
   "items": {
    "dashboard": "لوحة التحكم",
@@ -950,6 +951,7 @@
    "chat": "المحادثات",
    "students": "الطلاب",
    "tutors": "المعلمين",
+   "supervisors": "المشرفين",
    "finances": "الماليات",
    "plans": "الخطط",
    "currencies": "العملات وأسعار الصرف",
@@ -964,10 +966,12 @@
    "myEarnings": "أرباحي",
    "myProfile": "ملفي الشخصي",
    "zoomSettings": "إعدادات الزوم",
-   "groups": "المجموعات"
+   "groups": "المجموعات",
+   "reportsQuality": "التقارير والجودة"
   },
   "switchToEnglish": "English",
-  "switchToArabic": "العربية"
+  "switchToArabic": "العربية",
+  "supervisorPlatform": "منصة المشرف"
  },
  "StudentDashboard": {
   "countdown": {
@@ -1063,19 +1067,19 @@
   "unknown": "غير معروف",
   "markAsRead": "تحديد كمقروء",
   "readAt": "قرأت في {time}",
-   "conversationClosed": "هذه المحادثة مغلقة.",
-   "inputPlaceholder": "اكتب رسالتك...",
-   "inputPlaceholderDisabled": "المحادثة مغلقة",
-   "with": "مع",
-   "memberCount": "{count} عضو",
-   "roles": {
-    "tutor": "معلم",
-    "student": "طالب",
-    "admin": "مدير",
-    "supervisor": "مشرف",
-    "group": "مجموعة"
-   }
-  },
+  "conversationClosed": "هذه المحادثة مغلقة.",
+  "inputPlaceholder": "اكتب رسالتك...",
+  "inputPlaceholderDisabled": "المحادثة مغلقة",
+  "with": "مع",
+  "memberCount": "{count} عضو",
+  "roles": {
+   "tutor": "معلم",
+   "student": "طالب",
+   "admin": "مدير",
+   "supervisor": "مشرف",
+   "group": "مجموعة"
+  }
+ },
  "register": {
   "title": "احجز استشارتك المجانية لتطوير وحماية أكاديميتك",
   "subtitle": "املأ النموذج التالي لنفهم احتياجاتك بدقة قبل المكالمة. يستغرق التعبئة أقل من دقيقة.",
@@ -1208,6 +1212,158 @@
     "delivered": "تم التوصيل",
     "read": "مقروء"
    }
+  }
+ },
+ "SupervisorDashboard": {
+  "title": "لوحة المشرف",
+  "subtitle": "متابعة الحصص والجودة وحضور المعلمين",
+  "summaryCards": {
+   "todaySessions": "حصص اليوم",
+   "upcomingSessions": "الحصص القادمة",
+   "tutorsMonitored": "المعلمين المشرف عليهم",
+   "pendingReviews": "تقييمات معلقة"
+  },
+  "pendingAlert": {
+   "title": "مهام بانتظارك",
+   "description": "{attendance} طالب بانتظار تسجيل الحضور، {reports} تقرير ناقص، {reviews} تقييم حضور معلم"
+  },
+  "todaySection": {
+   "title": "حصص اليوم",
+   "empty": "لا توجد حصص اليوم"
+  },
+  "upcomingSection": {
+   "title": "الحصص القادمة",
+   "empty": "لا توجد حصص قادمة"
+  },
+  "sessionItem": {
+   "noAttendance": "حضور ناقص",
+   "noReport": "تقرير ناقص",
+   "noTutorReview": "تقييم معلم ناقص",
+   "view": "عرض"
+  },
+  "buttons": {
+   "viewSessions": "عرض الحصص",
+   "viewReports": "الانتقال إلى التقارير"
+  }
+ },
+ "SupervisorSessions": {
+  "title": "حصص المعلمين",
+  "subtitle": "متابعة حصص المعلمين الخاضعين لإشرافك",
+  "weekNav": {
+   "today": "اليوم"
+  },
+  "filters": {
+   "all": "جميع الحالات",
+   "scheduled": "مجدولة",
+   "completed": "مكتملة",
+   "cancelled": "ملغاة",
+   "missingAttendance": "حضور ناقص",
+   "missingReports": "تقارير ناقصة"
+  },
+  "dayList": {
+   "noSessions": "لا توجد حصص في هذا اليوم"
+  },
+  "status": {
+   "scheduled": "مجدولة",
+   "completed": "مكتملة",
+   "cancelled": "ملغاة"
+  },
+  "counts": {
+   "attended": "حضور",
+   "reports": "تقارير"
+  },
+  "detail": {
+   "title": "تفاصيل الحصة",
+   "actions": {
+    "sendReminder": "إرسال تذكير",
+    "sendZoomLink": "إرسال رابط زووم"
+   },
+   "toast": {
+    "reminderSent": "تم إرسال التذكير",
+    "zoomSent": "تم إرسال رابط الزووم",
+    "error": "حدث خطأ",
+    "copySuccess": "تم النسخ"
+   },
+   "tabs": {
+    "overview": "نظرة عامة",
+    "students": "الطلاب",
+    "tutorAttendance": "حضور المعلم"
+   },
+   "overview": {
+    "status": "الحالة",
+    "time": "الوقت",
+    "tutor": "المعلم",
+    "group": "المجموعة",
+    "students": "الطلاب",
+    "topic": "الموضوع",
+    "meetingLink": "رابط الحصة",
+    "join": "انضمام",
+    "copy": "نسخ"
+   },
+   "students": {
+    "attendance": "الحضور",
+    "report": "التقرير",
+    "notRecorded": "لم يسجل",
+    "noReport": "غير مكتوب",
+    "recordAttendance": "تسجيل الحضور",
+    "selectStatus": "اختر الحالة",
+    "present": "حاضر",
+    "late": "متأخر",
+    "absentExcused": "غائب بعذر",
+    "absentUnexcused": "غائب بدون عذر",
+    "reasonLabel": "السبب",
+    "saveAttendance": "حفظ الحضور",
+    "writeReport": "كتابة التقرير",
+    "saveReport": "حفظ التقرير",
+    "ratingLabel": "التقييم (1-5)",
+    "outcomesLabel": "نتائج الحصة",
+    "strengthsLabel": "نقاط القوة",
+    "weaknessesLabel": "نقاط الضعف",
+    "nextGoalsLabel": "أهداف الحصة القادمة",
+    "commentsLabel": "ملاحظات"
+   },
+   "tutorAttendance": {
+    "title": "تقييم حضور المعلم",
+    "notReviewed": "لم يتم التقييم بعد",
+    "statusLabel": "حالة حضور المعلم",
+    "present": "حاضر",
+    "late": "متأخر",
+    "absentExcused": "غائب بعذر",
+    "absentUnexcused": "غائب بدون عذر",
+    "notesLabel": "ملاحظات",
+    "save": "حفظ التقييم",
+    "reviewedBy": "تم التقييم بواسطة",
+    "reviewedAt": "بتاريخ",
+    "noZoomLink": "لا يوجد رابط زووم لهذه الحصة",
+    "edit": "تعديل",
+    "cancel": "إلغاء"
+   },
+   "closeButton": "إغلاق"
+  },
+  "sessionItemReviewMissing": "تقييم معلم ناقص"
+ },
+ "SupervisorReports": {
+  "title": "التقارير والجودة",
+  "subtitle": "متابعة التقارير الناقصة وتقييم حضور المعلمين",
+  "missingReports": {
+   "title": "تقارير ناقصة",
+   "empty": "لا توجد تقارير ناقصة",
+   "students": "الطلاب",
+   "date": "التاريخ"
+  },
+  "tutorReviews": {
+   "title": "تقييم حضور المعلمين المعلق",
+   "empty": "لا توجد تقييمات معلقة",
+   "date": "التاريخ",
+   "notReviewed": "لم يتم التقييم"
+  },
+  "buttons": {
+   "review": "متابعة",
+   "remindTutor": "تذكير المعلم",
+   "reminderSent": "تم إرسال التذكير"
+  },
+  "toast": {
+   "error": "حدث خطأ"
   }
  }
 }

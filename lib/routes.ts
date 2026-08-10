@@ -13,9 +13,11 @@ import {
   DollarSign,
   User,
   Users2,
+  ShieldCheck,
   Phone,
   Video,
   MessageSquare,
+  FileText,
 } from "lucide-react";
 import { Role } from "@/types/user";
 
@@ -89,6 +91,11 @@ export const getSidebarGroups = (role: number, locale: string = "ar") => {
             titleKey: "items.tutors",
             url: `/${locale}/dashboard/tutors`,
             icon: BookOpen,
+          },
+          {
+            titleKey: "items.supervisors",
+            url: `/${locale}/dashboard/supervisors`,
+            icon: ShieldCheck,
           },
           {
             titleKey: "items.groups",
@@ -219,6 +226,46 @@ export const getSidebarGroups = (role: number, locale: string = "ar") => {
             titleKey: "items.securitySettings",
             url: `/${locale}/dashboard/settings/security`,
             icon: Shield,
+          },
+        ],
+      },
+    ];
+  }
+
+  if (role === Role.Supervisor) {
+    return [
+      {
+        labelKey: "groups.main",
+        items: [
+          {
+            titleKey: "items.dashboard",
+            url: `/${locale}/dashboard/supervisor`,
+            icon: LayoutDashboard,
+          },
+          {
+            titleKey: "items.chat",
+            url: `/${locale}/dashboard/chat`,
+            icon: MessageSquare,
+          },
+        ],
+      },
+      {
+        labelKey: "groups.sessions",
+        items: [
+          {
+            titleKey: "items.sessionSchedule",
+            url: `/${locale}/dashboard/supervisor/sessions`,
+            icon: Calendar,
+          },
+        ],
+      },
+      {
+        labelKey: "groups.quality",
+        items: [
+          {
+            titleKey: "items.reportsQuality",
+            url: `/${locale}/dashboard/supervisor/reports`,
+            icon: FileText,
           },
         ],
       },

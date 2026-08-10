@@ -44,6 +44,8 @@ export function proxy(request: NextRequest) {
           dashboardPath = `/dashboard/tutor`;
         } else if (payload.role === Role.SuperAdmin) {
           dashboardPath = `/dashboard/admin/dashboard`;
+        } else if (payload.role === Role.Supervisor) {
+          dashboardPath = `/dashboard/supervisor`;
         }
         if (dashboardPath) {
           return NextResponse.redirect(
@@ -68,6 +70,15 @@ export function proxy(request: NextRequest) {
     if (
       pathWithoutLocale.startsWith("dashboard/admin") &&
       payload.role !== Role.SuperAdmin
+    ) {
+      return NextResponse.redirect(
+        new URL(`/${locale}/dashboard`, request.url),
+      );
+    }
+
+    if (
+      pathWithoutLocale.startsWith("dashboard/supervisor") &&
+      payload.role !== Role.Supervisor
     ) {
       return NextResponse.redirect(
         new URL(`/${locale}/dashboard`, request.url),
