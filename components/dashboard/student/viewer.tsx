@@ -90,8 +90,8 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
     if (!nextSession) return;
 
     const updateCountdown = () => {
-      const now = dayjs.utc();
-      const start = dayjs.utc(nextSession.startTime);
+      const now = dayjs();
+      const start = dayjs(nextSession.startTime);
       const diffSeconds = start.diff(now, "second");
 
       if (diffSeconds <= 0) {
@@ -172,9 +172,7 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
                 <p className="text-muted-foreground mt-1">
                   {t("welcome.nextSession", {
                     tutorName: nextSession!.tutorName,
-                    time: dayjs
-                      .utc(nextSession!.startTime)
-                      .format("dddd hh:mm A"),
+                    time: dayjs(nextSession!.startTime).format("dddd hh:mm A"),
                   })}
                 </p>
               ) : (
@@ -215,7 +213,7 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
               </p>
               <p className="text-3xl font-bold">
                 {monthlyAnalytics.renewalDate
-                  ? dayjs.utc(monthlyAnalytics.renewalDate).format("DD/MM/YYYY")
+                  ? dayjs(monthlyAnalytics.renewalDate).format("DD/MM/YYYY")
                   : "—"}
               </p>
             </CardContent>
@@ -227,9 +225,7 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
             <CardContent className="p-4">
               <h3 className="text-lg font-semibold mb-2">
                 آخر واجب –{" "}
-                {dayjs
-                  .utc(lastAssignment.sessionDate)
-                  .format("DD/MM/YYYY HH:mm")}
+                {dayjs(lastAssignment.sessionDate).format("DD/MM/YYYY HH:mm")}
                 {lastAssignment.topic && (
                   <span className="text-sm font-normal">
                     {" "}
@@ -253,9 +249,9 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
                   {lastAssignment.assignment.deadline && (
                     <span>
                       آخر موعد:{" "}
-                      {dayjs
-                        .utc(lastAssignment.assignment.deadline)
-                        .format("DD/MM/YYYY")}
+                      {dayjs(lastAssignment.assignment.deadline).format(
+                        "DD/MM/YYYY",
+                      )}
                     </span>
                   )}
                 </div>
@@ -316,9 +312,9 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
               <CardContent className="p-4">
                 <h3 className="text-lg font-semibold mb-2">
                   {t("lastReport.title", {
-                    date: dayjs
-                      .utc(lastReport.sessionDate)
-                      .format("DD/MM/YYYY HH:mm"),
+                    date: dayjs(lastReport.sessionDate).format(
+                      "DD/MM/YYYY HH:mm",
+                    ),
                   })}
                 </h3>
                 <SessionReportCard
@@ -390,12 +386,12 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
                         } hover:bg-primary/5 transition-colors`}
                       >
                         <TableCell className="font-medium">
-                          {dayjs.utc(s.startTime).format("DD/MM/YYYY")}
+                          {dayjs(s.startTime).format("DD/MM/YYYY")}
                         </TableCell>
                         <TableCell>
                           <span className="bg-muted px-2 py-1 rounded text-xs">
-                            {dayjs.utc(s.startTime).format("HH:mm")} -{" "}
-                            {dayjs.utc(s.endTime).format("HH:mm")}
+                            {dayjs(s.startTime).format("HH:mm")} -{" "}
+                            {dayjs(s.endTime).format("HH:mm")}
                           </span>
                         </TableCell>
                         <TableCell>{s.tutorName}</TableCell>
@@ -439,10 +435,8 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
                               {s.assignment!.title || "واجب"}
                             </h4>
                             <p className="text-sm text-muted-foreground">
-                              {dayjs
-                                .utc(s.startTime)
-                                .format("DD/MM/YYYY HH:mm")}{" "}
-                              – {s.tutorName}
+                              {dayjs(s.startTime).format("DD/MM/YYYY HH:mm")} –{" "}
+                              {s.tutorName}
                             </p>
                           </div>
                           {s.solution ? (
@@ -560,9 +554,9 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
                           {t("billing.startDate")}:
                         </span>
                         <span className="font-medium">
-                          {dayjs
-                            .utc(activeSubscription.startDate)
-                            .format("DD/MM/YYYY")}
+                          {dayjs(activeSubscription.startDate).format(
+                            "DD/MM/YYYY",
+                          )}
                         </span>
                       </div>
                       {activeSubscription.endDate && (
@@ -572,9 +566,9 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
                             {t("billing.endDate")}:
                           </span>
                           <span className="font-medium">
-                            {dayjs
-                              .utc(activeSubscription.endDate)
-                              .format("DD/MM/YYYY")}
+                            {dayjs(activeSubscription.endDate).format(
+                              "DD/MM/YYYY",
+                            )}
                           </span>
                         </div>
                       )}
@@ -624,7 +618,7 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
                                   } hover:bg-primary/5 transition-colors`}
                                 >
                                   <TableCell className="font-medium">
-                                    {dayjs.utc(p.date).format("DD/MM/YYYY")}
+                                    {dayjs(p.date).format("DD/MM/YYYY")}
                                   </TableCell>
                                   <TableCell>
                                     {p.amount} {p.currency}

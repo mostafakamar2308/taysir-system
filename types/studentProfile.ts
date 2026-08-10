@@ -80,6 +80,7 @@ export interface StudentProfile {
   currencySymbol: string;
   preferredLanguage: string | null;
   groups: {
+    groupId: number;
     tutorId: number;
     tutorUserId: number;
     tutorName: string;

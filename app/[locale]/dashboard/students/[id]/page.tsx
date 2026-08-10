@@ -74,6 +74,7 @@ export default async function StudentProfilePage({
 
   // Build groups array for profile header
   const groups = student.groupMemberships.map((m) => ({
+    groupId: m.group.id,
     tutorId: m.group.currentTutor.id,
     tutorUserId: m.group.currentTutor.userId,
     tutorName: m.group.currentTutor.user.name ?? "غير معروف",

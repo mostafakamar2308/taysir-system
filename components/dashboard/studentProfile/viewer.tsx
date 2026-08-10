@@ -15,7 +15,6 @@ import {
   MapPin,
   Clock,
   ArrowLeft,
-  Plus,
 } from "lucide-react";
 import { StudentStatus } from "@/types/student";
 import { statusColors, statusLabels } from "@/lib/enums";
@@ -99,7 +98,7 @@ export default function StudentProfileClient({
                     <span>لا يوجد معلم</span>
                   ) : (
                     student.groups.map((g, idx) => (
-                      <span key={g.tutorId}>
+                      <span key={g.groupId}>
                         <Link
                           href={`/dashboard/tutors/${g.tutorId}`}
                           className="text-primary hover:underline font-medium"
@@ -150,9 +149,6 @@ export default function StudentProfileClient({
                   <Link href="/dashboard/sessions">
                     <Calendar className="h-4 w-4 ml-2" /> الجدول
                   </Link>
-                </Button>
-                <Button size="sm" onClick={() => setAddSessionOpen(true)}>
-                  <Plus className="h-4 w-4 ml-2" /> إضافة حصة
                 </Button>
               </div>
             </div>
