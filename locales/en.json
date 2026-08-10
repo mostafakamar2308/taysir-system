@@ -655,6 +655,13 @@
  "TutorDashboard": {
   "title": "Dashboard",
   "subtitle": "Welcome to your tutor dashboard",
+  "banner": {
+   "message": "You have a session with {students} in {time}",
+   "joinButton": "Start Session"
+  },
+  "countdown": {
+   "now": "Now"
+  },
   "zoomAlert": {
    "title": "Connect your Zoom account",
    "description": "Please go to account settings to connect your Zoom account.",
@@ -1009,6 +1016,7 @@
    "sessions": "session(s)",
    "price": "Plan Price",
    "startDate": "Start Date",
+   "renewalDate": "Renewal Date",
    "endDate": "End Date",
    "paymentHistory": "Payment History",
    "noPayments": "No payment records",

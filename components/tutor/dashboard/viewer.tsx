@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { formatCurrency } from "@/lib/finances";
 import { formatDate, formatTime } from "@/lib/dates";
+import { SessionCountdownBanner } from "@/components/dashboard/common/sessionCountdownBanner";
 
 // ---------- new types (mirror server return) ----------
 export interface SessionParticipantSummary {
@@ -71,12 +72,37 @@ export default function DashboardClient({
   const [activeTab, setActiveTab] = useState("overview");
   const totalPending = pendingAttendance.length + pendingReports.length;
 
+  const bannerSessions = useMemo(
+    () =>
+      [...todaySessions, ...upcomingSessions].map((s) => ({
+        key: String(s.id),
+        startTime: s.startTime,
+        endTime: s.endTime,
+        joinUrl: s.meetingLink ?? null,
+        renderMessage: (time: string) =>
+          t("banner.message", {
+            students: s.participants.map((p) => p.studentName).join("، ") || "—",
+            time,
+          }),
+      })),
+    [todaySessions, upcomingSessions, t],
+  );
+
   return (
     <div className="p-4 md:p-6 space-y-6" dir="rtl">
       <div>
         <h1 className="text-2xl font-bold text-foreground">{t("title")}</h1>
         <p className="text-sm text-muted-foreground mt-1">{t("subtitle")}</p>
       </div>
+
+      {/* Live / upcoming session banner */}
+      {bannerSessions.length > 0 && (
+        <SessionCountdownBanner
+          sessions={bannerSessions}
+          nowLabel={t("countdown.now")}
+          joinLabel={t("banner.joinButton")}
+        />
+      )}
 
       {/* Zoom not connected alert */}
       {!zoomEnabled && (

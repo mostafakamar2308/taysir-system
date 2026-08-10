@@ -1,16 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import dayjs from "@/lib/dayjs";
 import {
-  ExternalLink,
-  Clock,
   CheckCircle,
   XCircle,
   AlertCircle,
@@ -34,6 +31,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { StudentDashboardProps } from "@/types/student/types";
+import { SessionCountdownBanner } from "../common/sessionCountdownBanner";
 import { UploadSolutionDialog } from "../common/uploadSolutionDialog";
 import { useRouter } from "next/navigation";
 
@@ -42,6 +40,7 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
   const {
     student,
     nextSession,
+    liveUpcomingSessions,
     monthlyAnalytics,
     lastReport,
     sessions,
@@ -52,10 +51,19 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
   } = props;
   const router = useRouter();
 
-  const [timeToNextSession, setTimeToNextSession] = useState<string | null>(
-    null,
+  const bannerSessions = useMemo(
+    () =>
+      liveUpcomingSessions.map((s) => ({
+        key: String(s.id),
+        startTime: s.startTime,
+        endTime: s.endTime,
+        joinUrl: s.zoomJoinUrl,
+        renderMessage: (time: string) =>
+          t("banner.message", { tutorName: s.tutorName, time }),
+      })),
+    [liveUpcomingSessions, t],
   );
-  const [showJoinButton, setShowJoinButton] = useState(false);
+
   const chartData = reports
     .filter((r) => r.rating !== null)
     .map((r) => ({
@@ -86,65 +94,17 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
     return { label: t(labelKey), variant, icon };
   };
 
-  useEffect(() => {
-    if (!nextSession) return;
-
-    const updateCountdown = () => {
-      const now = dayjs();
-      const start = dayjs(nextSession.startTime);
-      const diffSeconds = start.diff(now, "second");
-
-      if (diffSeconds <= 0) {
-        setTimeToNextSession(t("countdown.now"));
-        setShowJoinButton(true);
-        return;
-      }
-
-      const minutes = Math.floor(diffSeconds / 60);
-      const seconds = diffSeconds % 60;
-      setTimeToNextSession(`${minutes}:${seconds.toString().padStart(2, "0")}`);
-
-      if (diffSeconds <= 60) {
-        setShowJoinButton(true);
-      } else {
-        setShowJoinButton(false);
-      }
-    };
-
-    updateCountdown();
-    const interval = setInterval(updateCountdown, 1000);
-    return () => clearInterval(interval);
-  }, [nextSession, t]);
-
   const hasUpcomingSession = nextSession !== null;
 
   return (
     <div className="min-h-screen pb-10 relative" dir="rtl">
-      {/* Top banner */}
-      {hasUpcomingSession && (
-        <div className="bg-primary border text-white p-3 rounded-lg shadow-sm">
-          <div className="flex items-center gap-2">
-            <Clock className="h-5 w-5" />
-            <span>
-              {t("banner.message", {
-                tutorName: nextSession!.tutorName,
-                time: timeToNextSession || "-",
-              })}
-            </span>
-          </div>
-          {showJoinButton && nextSession!.zoomJoinUrl && (
-            <Button size="sm" variant="secondary" asChild>
-              <a
-                href={nextSession!.zoomJoinUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {t("banner.joinButton")}
-                <ExternalLink className="h-4 w-4 mr-1" />
-              </a>
-            </Button>
-          )}
-        </div>
+      {/* Live / upcoming session banner */}
+      {liveUpcomingSessions.length > 0 && (
+        <SessionCountdownBanner
+          sessions={bannerSessions}
+          nowLabel={t("countdown.now")}
+          joinLabel={t("banner.joinButton")}
+        />
       )}
       {pendingAssignmentsCount > 0 && (
         <div className="bg-amber-50 mt-2 border border-amber-300 text-amber-800 p-3 rounded-lg shadow-sm">
@@ -567,6 +527,19 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
                           </span>
                           <span className="font-medium">
                             {dayjs(activeSubscription.endDate).format(
+                              "DD/MM/YYYY",
+                            )}
+                          </span>
+                        </div>
+                      )}
+                      {activeSubscription.nextBillingDate && (
+                        <div className="flex items-center gap-2">
+                          <Repeat className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-muted-foreground">
+                            {t("billing.renewalDate")}:
+                          </span>
+                          <span className="font-medium text-primary">
+                            {dayjs(activeSubscription.nextBillingDate).format(
                               "DD/MM/YYYY",
                             )}
                           </span>

@@ -5,6 +5,7 @@ import { StudentDashboardClient } from "@/components/dashboard/student/viewer";
 import dayjs from "@/lib/dayjs";
 import { SubscriptionStatus } from "@/types/subscription";
 import { computeHomeworkData } from "@/lib/homework";
+import type { NextSession } from "@/types/student/types";
 
 export default async function StudentDashboardPage() {
   const currentUser = await user();
@@ -73,14 +74,38 @@ export default async function StudentDashboardPage() {
   const startOfMonth = dayjs.utc().startOf("month").toDate();
   const endOfMonth = dayjs.utc().endOf("month").toDate();
 
-  // Next session – earliest session startTime > now
-  const futureParticipants = student.sessionParticipants
-    .filter((p) => p.session.startTime > now)
+  // Live or upcoming sessions: not cancelled and not yet ended. A session that
+  // is currently running (started but not ended) takes priority, so a student
+  // who joins late still sees it in the banner instead of the next session.
+  const nowMs = now.getTime();
+  const sessionCandidates = student.sessionParticipants
+    .filter((p) => p.session.cancelledBy === null)
+    .map((p) => ({
+      p,
+      end: dayjs
+        .utc(p.session.startTime)
+        .add(p.session.durationMinutes, "minute")
+        .toDate(),
+    }))
+    .filter((c) => c.end.getTime() > nowMs)
     .sort(
-      (a, b) => a.session.startTime.getTime() - b.session.startTime.getTime(),
+      (a, b) =>
+        a.p.session.startTime.getTime() - b.p.session.startTime.getTime(),
     );
-  const nextParticipant = futureParticipants[0] ?? null;
+  const liveCandidate = sessionCandidates.find(
+    (c) => c.p.session.startTime.getTime() <= nowMs,
+  );
+  const nextParticipant = (liveCandidate ?? sessionCandidates[0])?.p ?? null;
   const nextSession = nextParticipant?.session ?? null;
+
+  const liveUpcomingSessions: NextSession[] = sessionCandidates.map((c) => ({
+    id: c.p.session.id,
+    startTime: c.p.session.startTime.toISOString(),
+    endTime: c.end.toISOString(),
+    tutorName: c.p.session.tutor.user.name ?? "معلم",
+    zoomJoinUrl: c.p.session.zoomUrl ?? null,
+    topic: c.p.session.topic,
+  }));
 
   // Last report – most recent session with a report
   const lastReportParticipant =
@@ -107,7 +132,15 @@ export default async function StudentDashboardPage() {
   const activeSubscription = activeMembership?.subscriptions[0] ?? null;
   const currentPlan = activeSubscription?.plan ?? null;
 
-  const renewalDate = activeSubscription?.endDate ?? null;
+  // Renewal date = the earliest upcoming billing date across all active
+  // memberships' active subscriptions (nextBillingDate ?? endDate), matching
+  // how the rest of the app derives the billing date.
+  const renewalDate =
+    student.groupMemberships
+      .flatMap((m) => m.subscriptions)
+      .map((sub) => sub.nextBillingDate ?? sub.endDate)
+      .filter((d): d is Date => Boolean(d))
+      .sort((a, b) => a.getTime() - b.getTime())[0] ?? null;
 
   const { pendingAssignments, lastAssignmentData, sessionsWithAssignment } =
     computeHomeworkData(student.sessionParticipants);
@@ -143,6 +176,7 @@ export default async function StudentDashboardPage() {
           topic: nextSession.topic,
         }
       : null,
+    liveUpcomingSessions,
     monthlyAnalytics: {
       totalMonthlySessions,
       remainingMonthlySessions,
@@ -182,6 +216,8 @@ export default async function StudentDashboardPage() {
           planCurrency: activeSubscription.currency.code,
           startDate: activeSubscription.startDate.toISOString(),
           endDate: activeSubscription.endDate?.toISOString() ?? null,
+          nextBillingDate:
+            activeSubscription.nextBillingDate?.toISOString() ?? null,
           payments: activeSubscription.payments.map((p) => ({
             amount: p.amount,
             currency: p.currency.code,

@@ -612,6 +612,13 @@
  "TutorDashboard": {
   "title": "لوحة التحكم",
   "subtitle": "مرحباً بك في لوحة تحكم المعلم",
+  "banner": {
+   "message": "لديك حصة مع {students} خلال {time}",
+   "joinButton": "ابدأ الحصة"
+  },
+  "countdown": {
+   "now": "الآن"
+  },
   "zoomAlert": {
    "title": "اربط برنامج الزوم الخاص بك",
    "description": "يرجى الذهاب إلى إعدادات الحساب لربط حساب الزوم الخاص بك.",
@@ -1032,6 +1039,7 @@
    "sessions": "حصة",
    "price": "سعر الخطة",
    "startDate": "البداية",
+   "renewalDate": "تاريخ التجديد",
    "endDate": "الانتهاء",
    "paymentHistory": "سجل المدفوعات",
    "noPayments": "لا توجد مدفوعات مسجلة",

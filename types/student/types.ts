@@ -70,6 +70,7 @@ export interface ActiveSubscription {
   planCurrency: string;
   startDate: string;
   endDate: string | null;
+  nextBillingDate: string | null;
   payments: PaymentRecord[];
 }
 
@@ -101,6 +102,7 @@ export interface SessionWithAssignment extends SessionItem {
 export interface StudentDashboardProps {
   student: StudentInfo;
   nextSession: NextSession | null;
+  liveUpcomingSessions: NextSession[];
   monthlyAnalytics: MonthlyAnalytics;
   lastReport: LastReport | null;
   sessions: SessionWithAssignment[];
