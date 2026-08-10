@@ -11,12 +11,20 @@ function formatPhoneToJid(phone: string): string {
 
 cron.schedule("0,30 * * * *", async () => {
   console.log("[Cron] Checking for session reminders...");
-  await sendSessionReminders();
+  try {
+    await sendSessionReminders();
+  } catch (error) {
+    console.error("[Cron] Session reminders failed:", error);
+  }
 });
 
 cron.schedule("0 20 * * *", async () => {
   console.log("[Cron] Sending report reminders...");
-  await sendReportReminders();
+  try {
+    await sendReportReminders();
+  } catch (error) {
+    console.error("[Cron] Report reminders failed:", error);
+  }
 });
 
 // ---------- Session reminders (multi‑student) ----------
@@ -33,69 +41,96 @@ async function sendSessionReminders() {
   });
 
   for (const academy of academies) {
-    const sessions = await db.session.findMany({
-      where: {
-        academyId: academy.id,
-        startTime: { gte: now.toDate(), lte: nextHour.toDate() },
-        cancelledBy: null,
-      },
-      include: {
-        participants: {
-          include: {
-            student: {
-              select: { user: { select: { name: true, phone: true } } },
+    try {
+      const sessions = await db.session.findMany({
+        where: {
+          academyId: academy.id,
+          startTime: { gte: now.toDate(), lte: nextHour.toDate() },
+          cancelledBy: null,
+        },
+        include: {
+          participants: {
+            include: {
+              student: {
+                select: { user: { select: { name: true, phone: true } } },
+              },
+            },
+          },
+          tutor: {
+            select: {
+              user: { select: { name: true, phone: true } },
+              zoomUrl: true,
             },
           },
         },
-        tutor: {
-          select: {
-            user: { select: { name: true, phone: true } },
-            zoomUrl: true,
-          },
-        },
-      },
-    });
+      });
 
-    const instanceName = academy.whatsappInstanceName!;
+      const instanceName = academy.whatsappInstanceName!;
 
-    for (const session of sessions) {
-      const sessionStart = dayjs.utc(session.startTime);
-      const diffMs = sessionStart.diff(now);
-      const minutesUntil = Math.max(1, Math.round(diffMs / 60000));
-      const timeText =
-        minutesUntil === 1 ? "دقيقة واحدة" : `${minutesUntil} دقائق`;
-      const startTimeStr = sessionStart.tz("Africa/Cairo").format("hh:mm A");
+      for (const session of sessions) {
+        const sessionStart = dayjs.utc(session.startTime);
+        const diffMs = sessionStart.diff(now);
+        const minutesUntil = Math.max(1, Math.round(diffMs / 60000));
+        const timeText =
+          minutesUntil === 1 ? "دقيقة واحدة" : `${minutesUntil} دقائق`;
+        const startTimeStr = sessionStart.tz("Africa/Cairo").format("hh:mm A");
 
-      // Send to every participant (student)
-      for (const p of session.participants) {
-        const phone = p.student.user.phone;
-        if (!phone) continue;
-        const studentMsg = `تذكير: لديك حصة "${session.topic || "حصتك"}" مع ${session.tutor?.user.name || "المعلم"} بعد ${timeText} (الساعة ${startTimeStr}). 
+        // Send to every participant (student)
+        for (const p of session.participants) {
+          const phone = p.student.user.phone;
+          if (!phone) continue;
+          const studentMsg = `تذكير: لديك حصة "${session.topic || "حصتك"}" مع ${session.tutor?.user.name || "المعلم"} بعد ${timeText} (الساعة ${startTimeStr}). 
         ${session.zoomUrl ? `لينك الحصة: ${session.zoomUrl}` : ""}
         `;
-        await whatsappQueue.add("session-reminder", {
-          academyId: academy.id,
-          instanceName,
-          recipientJid: formatPhoneToJid(phone),
-          message: studentMsg,
-        });
-      }
+          const log = await db.whatsAppMessage.create({
+            data: {
+              academyId: academy.id,
+              remoteJid: formatPhoneToJid(phone),
+              type: "text",
+              content: studentMsg,
+              status: "pending",
+            },
+          });
+          await whatsappQueue.add("session-reminder", {
+            academyId: academy.id,
+            instanceName,
+            recipientJid: formatPhoneToJid(phone),
+            message: studentMsg,
+            messageLogId: log.id,
+          });
+        }
 
-      // Send to tutor
-      if (session.tutor?.user.phone) {
-        const studentNames = session.participants
-          .map((p) => p.student.user.name)
-          .join("، ");
-        const tutorMsg = `تذكير: لديك حصة "${session.topic || "حصتك"}" مع الطلاب: ${studentNames} بعد ${timeText} (الساعة ${startTimeStr}).
+        // Send to tutor
+        if (session.tutor?.user.phone) {
+          const studentNames = session.participants
+            .map((p) => p.student.user.name)
+            .join("، ");
+          const tutorMsg = `تذكير: لديك حصة "${session.topic || "حصتك"}" مع الطلاب: ${studentNames} بعد ${timeText} (الساعة ${startTimeStr}).
         ${session.zoomUrl ? `لينك الحصة: ${session.zoomUrl}` : ""}
         `;
-        await whatsappQueue.add("session-reminder", {
-          academyId: academy.id,
-          instanceName,
-          recipientJid: formatPhoneToJid(session.tutor.user.phone),
-          message: tutorMsg,
-        });
+          const log = await db.whatsAppMessage.create({
+            data: {
+              academyId: academy.id,
+              remoteJid: formatPhoneToJid(session.tutor.user.phone),
+              type: "text",
+              content: tutorMsg,
+              status: "pending",
+            },
+          });
+          await whatsappQueue.add("session-reminder", {
+            academyId: academy.id,
+            instanceName,
+            recipientJid: formatPhoneToJid(session.tutor.user.phone),
+            message: tutorMsg,
+            messageLogId: log.id,
+          });
+        }
       }
+    } catch (error) {
+      console.error(
+        `[Cron] Session reminder failure for academy ${academy.id}:`,
+        error,
+      );
     }
   }
 }
@@ -116,62 +151,79 @@ async function sendReportReminders() {
   });
 
   for (const academy of academies) {
-    // Find participants who attended but have no report
-    const participantsMissingReport = await db.sessionParticipant.findMany({
-      where: {
-        session: {
-          academyId: academy.id,
-          startTime: { gte: startOfDayUTC, lte: endOfDayUTC },
-          cancelledBy: null,
+    try {
+      // Find participants who attended but have no report
+      const participantsMissingReport = await db.sessionParticipant.findMany({
+        where: {
+          session: {
+            academyId: academy.id,
+            startTime: { gte: startOfDayUTC, lte: endOfDayUTC },
+            cancelledBy: null,
+          },
+          studentAttendanceStatus: {
+            in: [AttendanceStatus.ATTENDED, AttendanceStatus.LATE],
+          },
+          report: null,
         },
-        studentAttendanceStatus: {
-          in: [AttendanceStatus.ATTENDED, AttendanceStatus.LATE],
-        },
-        report: null,
-      },
-      select: {
-        student: { select: { user: { select: { name: true } } } },
-        session: {
-          select: {
-            tutor: {
-              select: {
-                id: true,
-                user: { select: { name: true, phone: true } },
+        select: {
+          student: { select: { user: { select: { name: true } } } },
+          session: {
+            select: {
+              tutor: {
+                select: {
+                  id: true,
+                  user: { select: { name: true, phone: true } },
+                },
               },
             },
           },
         },
-      },
-    });
+      });
 
-    // Group by tutor → list of student names
-    const tutorMap = new Map<
-      number,
-      { name: string | null; phone: string | null; students: Set<string> }
-    >();
+      // Group by tutor → list of student names
+      const tutorMap = new Map<
+        number,
+        { name: string | null; phone: string | null; students: Set<string> }
+      >();
 
-    for (const p of participantsMissingReport) {
-      const tutorId = p.session.tutor.id;
-      if (!tutorMap.has(tutorId)) {
-        tutorMap.set(tutorId, {
-          name: p.session.tutor.user.name,
-          phone: p.session.tutor.user.phone,
-          students: new Set(),
+      for (const p of participantsMissingReport) {
+        const tutorId = p.session.tutor.id;
+        if (!tutorMap.has(tutorId)) {
+          tutorMap.set(tutorId, {
+            name: p.session.tutor.user.name,
+            phone: p.session.tutor.user.phone,
+            students: new Set(),
+          });
+        }
+        tutorMap.get(tutorId)!.students.add(p.student.user.name || "طالب");
+      }
+
+      for (const [, info] of tutorMap) {
+        if (!info.phone) continue;
+        const studentList = Array.from(info.students).join("، ");
+        const message = `تذكير: يرجى إضافة تقارير الحصص للطلاب التاليين:\n${studentList}`;
+        const log = await db.whatsAppMessage.create({
+          data: {
+            academyId: academy.id,
+            remoteJid: formatPhoneToJid(info.phone),
+            type: "text",
+            content: message,
+            status: "pending",
+          },
+        });
+        await whatsappQueue.add("report-reminder", {
+          academyId: academy.id,
+          instanceName: academy.whatsappInstanceName!,
+          recipientJid: formatPhoneToJid(info.phone),
+          message,
+          messageLogId: log.id,
         });
       }
-      tutorMap.get(tutorId)!.students.add(p.student.user.name || "طالب");
-    }
-
-    for (const [_, info] of tutorMap) {
-      if (!info.phone) continue;
-      const studentList = Array.from(info.students).join("، ");
-      const message = `تذكير: يرجى إضافة تقارير الحصص للطلاب التاليين:\n${studentList}`;
-      await whatsappQueue.add("report-reminder", {
-        academyId: academy.id,
-        instanceName: academy.whatsappInstanceName!,
-        recipientJid: formatPhoneToJid(info.phone),
-        message,
-      });
+    } catch (error) {
+      console.error(
+        `[Cron] Report reminder failure for academy ${academy.id}:`,
+        error,
+      );
     }
   }
 }
