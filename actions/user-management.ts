@@ -138,8 +138,10 @@ export async function toggleUserActive(userId: number) {
       data: { active: !user.tutor.active },
     });
   } else if (user.supervisor) {
-    // Supervisor might not have an active flag; you could add one or just skip
-    // For now, we'll just return success without doing anything
+    await db.supervisor.update({
+      where: { userId },
+      data: { active: !user.supervisor.active },
+    });
   }
 
   revalidatePath("/ar/dashboard/settings/users");

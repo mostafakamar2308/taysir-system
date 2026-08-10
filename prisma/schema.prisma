@@ -192,6 +192,7 @@ model Supervisor {
   userId Int  @unique
   user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  active    Boolean  @default(true)
   academyId Int
   academy   Academy @relation(fields: [academyId], references: [id])
 

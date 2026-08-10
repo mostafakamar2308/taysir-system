@@ -229,7 +229,7 @@ export async function createSession(input: CreateSessionInput) {
     group.currentTutor.defaultSupervisorId ??
     (
       await db.supervisor.findFirst({
-        where: { academyId: currentUser.academyId! },
+        where: { academyId: currentUser.academyId!, active: true },
         select: { id: true },
       })
     )?.id;
