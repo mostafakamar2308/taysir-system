@@ -80,6 +80,18 @@ export interface GroupSummary {
   members: { id: number; name: string }[];
 }
 
+export interface SupervisorReview {
+  id: number;
+  sessionId: number;
+  groupName: string;
+  topic: string | null;
+  date: string;
+  status: AttendanceStatus;
+  notes: string | null;
+  supervisorName: string | null;
+  reviewedAt: string;
+}
+
 export interface TutorProfile {
   id: number;
   name: string;
@@ -93,6 +105,7 @@ export interface TutorProfile {
   zoomUrl: string | null;
   currency: string;
   groups: GroupSummary[];
+  supervisorReviews: SupervisorReview[];
   monthlyStats: {
     totalSessions: number;
     attendedSessions: number;

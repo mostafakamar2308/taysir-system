@@ -82,6 +82,17 @@ export default function AddSupervisorDialog({
               <Input id="phone" name="phone" required />
             </div>
             <div>
+              <Label htmlFor="password">كلمة المرور *</Label>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                minLength={6}
+                placeholder="6 أحرف على الأقل"
+                required
+              />
+            </div>
+            <div>
               <Label htmlFor="timezone">المنطقة الزمنية *</Label>
               <Select name="timezone" defaultValue="Africa/Cairo">
                 <SelectTrigger>

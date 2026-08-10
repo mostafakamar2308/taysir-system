@@ -133,24 +133,14 @@ export default async function TutorDashboardPage() {
     (s) => s.startTime >= startOfMonth && s.startTime <= endOfMonth,
   );
 
-  let totalPrivateMinutes = 0;
-  let totalGroupMinutes = 0;
   const completedMonthSessions = monthSessions.filter(
     (s) => s.cancelledBy === null,
   );
 
-  for (const s of completedMonthSessions) {
-    const participantCount = s.participants.length;
-    if (participantCount <= 1) {
-      totalPrivateMinutes += s.durationMinutes;
-    } else {
-      totalGroupMinutes += s.durationMinutes;
-    }
-  }
-
-  const expectedEarnings =
-    (totalPrivateMinutes / 60) * tutor.baseHourlyRate +
-    (totalGroupMinutes / 60) * tutor.baseGroupHourlyRate;
+  const expectedEarnings = completedMonthSessions.reduce(
+    (sum, s) => sum + (s.tutorRate * s.durationMinutes) / 60,
+    0,
+  );
 
   // Paid expenses this month
   const paidExpenses = await db.expense.findMany({

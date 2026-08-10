@@ -14,6 +14,10 @@ const supervisorSchema = z.object({
   timezone: z.string().min(1, "المنطقة الزمنية مطلوبة"),
 });
 
+const createSupervisorSchema = supervisorSchema.extend({
+  password: z.string().min(6, "كلمة المرور يجب أن تكون 6 أحرف على الأقل"),
+});
+
 export async function createSupervisor(formData: FormData) {
   const token = await getTokenFromCookie();
   if (!token) throw new Error("غير مصرح");
@@ -25,16 +29,17 @@ export async function createSupervisor(formData: FormData) {
     email: formData.get("email"),
     phone: formData.get("phone") || null,
     timezone: formData.get("timezone") || "Africa/Cairo",
+    password: formData.get("password"),
   };
 
-  const validated = supervisorSchema.parse(rawData);
+  const validated = createSupervisorSchema.parse(rawData);
 
   const existing = await db.user.findUnique({
     where: { email: validated.email },
   });
   if (existing) throw new Error("البريد الإلكتروني مستخدم بالفعل");
 
-  const hashedPassword = await bcrypt.hash("24689110134", 10);
+  const hashedPassword = await bcrypt.hash(validated.password, 10);
   await db.$transaction(async (tx) => {
     const user = await tx.user.create({
       data: {

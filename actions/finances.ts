@@ -1388,6 +1388,7 @@ export async function getSalaryData(
 
   const privateMinutesMap = new Map<number, number>();
   const groupMinutesMap = new Map<number, number>();
+  const earningsMap = new Map<number, number>();
   const sessionCountMap = new Map<number, number>();
 
   for (const s of sessions) {
@@ -1395,6 +1396,10 @@ export async function getSalaryData(
     const count = s.participants.length;
     const dur = s.durationMinutes;
     sessionCountMap.set(tid, (sessionCountMap.get(tid) || 0) + 1);
+    earningsMap.set(
+      tid,
+      (earningsMap.get(tid) || 0) + (s.tutorRate * dur) / 60,
+    );
     if (count <= 1) {
       privateMinutesMap.set(tid, (privateMinutesMap.get(tid) || 0) + dur);
     } else {
@@ -1422,9 +1427,7 @@ export async function getSalaryData(
   const tutorSalaries = tutors.map((t) => {
     const privateMin = privateMinutesMap.get(t.id) || 0;
     const groupMin = groupMinutesMap.get(t.id) || 0;
-    const expected =
-      (privateMin / 60) * t.baseHourlyRate +
-      (groupMin / 60) * t.baseGroupHourlyRate;
+    const expected = earningsMap.get(t.id) || 0;
     const paid = paidAmountMap.get(t.id) || 0;
     const outstanding = Math.max(expected - paid, 0);
     return {

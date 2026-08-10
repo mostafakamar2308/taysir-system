@@ -28,6 +28,7 @@ const createTutorSchema = z.object({
   zoomUrl: z.string().optional().nullable(),
   zoomAuthenticated: z.boolean().default(false),
   currencyId: z.number(),
+  password: z.string().min(6, "كلمة المرور يجب أن تكون 6 أحرف على الأقل"),
 });
 
 export async function createTutor(formData: FormData) {
@@ -59,6 +60,7 @@ export async function createTutor(formData: FormData) {
     currencyId: parseInt(formData.get("currencyId") as string),
     zoomAuthenticated: formData.get("zoomAuthenticated") === "on",
     zoomUrl: formData.get("zoomUrl"),
+    password: formData.get("password"),
   };
 
   const validated = createTutorSchema.parse(rawData);
@@ -71,7 +73,7 @@ export async function createTutor(formData: FormData) {
   }
 
   // Create user first
-  const hashedPassword = await bcrypt.hash("default123", 10);
+  const hashedPassword = await bcrypt.hash(validated.password, 10);
   await db.$transaction(async (tx) => {
     const user = await tx.user.create({
       data: {

@@ -389,6 +389,8 @@
   "age": "العمر",
   "phone": "رقم الهاتف",
   "phoneHint": "برجاء كتابة الرقم بالصيغة الدولية",
+  "password": "كلمة المرور",
+  "passwordPlaceholder": "6 أحرف على الأقل",
   "country": "الدولة",
   "timezone-label": "المنطقة الزمنية",
   "timezonePlaceholder": "اختر المنطقة الزمنية",
@@ -438,6 +440,8 @@
   "email": "البريد الإلكتروني",
   "phone": "رقم الهاتف",
   "phoneHint": "برجاء كتابة الرقم بالصيغة الدولية",
+  "password": "كلمة المرور",
+  "passwordPlaceholder": "6 أحرف على الأقل",
   "timezone-label": "المنطقة الزمنية",
   "timezonePlaceholder": "اختر المنطقة الزمنية",
   "timezone": {

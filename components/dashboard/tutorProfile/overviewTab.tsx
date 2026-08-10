@@ -1,8 +1,10 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Calendar, CheckCircle2, ClipboardList } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Users, Calendar, CheckCircle2, ClipboardList, ClipboardCheck } from "lucide-react";
 import type { TutorProfile } from "@/types/tutor";
+import { attendanceStatusLabels, attendanceStatusColors } from "@/const/sessions";
 import dayjs from "@/lib/dayjs";
 import ScoreCard from "./scoreCard"; // we'll replace this component
 
@@ -82,6 +84,62 @@ export default function OverviewTab({ tutor }: Props) {
                   <span className="text-sm text-muted-foreground">
                     {dayjs(g.nextSessionDate).format("HH:mm")}
                   </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <ClipboardCheck className="h-5 w-5 text-primary" />
+            تقارير المشرف عن الحضور
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {tutor.supervisorReviews.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              لا توجد تقارير حضور من المشرفين
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {tutor.supervisorReviews.map((review) => (
+                <div
+                  key={review.id}
+                  className="p-3 border rounded space-y-2"
+                >
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{review.groupName}</span>
+                      <Badge
+                        variant="outline"
+                        className={attendanceStatusColors[review.status]}
+                      >
+                        {attendanceStatusLabels[review.status]}
+                      </Badge>
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      {dayjs(review.date).format("DD/MM/YYYY HH:mm")}
+                    </span>
+                  </div>
+                  {review.topic && (
+                    <p className="text-sm text-muted-foreground">
+                      {review.topic}
+                    </p>
+                  )}
+                  {review.notes && (
+                    <p className="text-sm whitespace-pre-wrap">{review.notes}</p>
+                  )}
+                  <div className="text-xs text-muted-foreground flex items-center justify-between gap-2 flex-wrap">
+                    <span>
+                      بواسطة: {review.supervisorName || "مشرف"}
+                      {review.reviewedAt
+                        ? ` - ${dayjs(review.reviewedAt).format("DD/MM/YYYY HH:mm")}`
+                        : ""}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>

@@ -28,6 +28,7 @@ const userSchema = z.object({
   phone: z.string().optional().nullable(),
   timezone: z.string().min(1, "المنطقة الزمنية مطلوبة"),
   preferredLanguage: z.string().optional().nullable(),
+  password: z.string().min(6, "كلمة المرور يجب أن تكون 6 أحرف على الأقل"),
 });
 
 // Schema for student-specific fields (stored in Student table)
@@ -211,6 +212,7 @@ export async function createStudent(formData: FormData) {
     phone: formData.get("phone") || null,
     timezone: formData.get("timezone"),
     preferredLanguage: formData.get("preferredLanguage") || null,
+    password: formData.get("password"),
   };
 
   const rawStudent = {
@@ -236,9 +238,8 @@ export async function createStudent(formData: FormData) {
   const validatedUser = userSchema.parse(rawUser);
   const validatedStudent = studentDataSchema.parse(rawStudent);
 
-  // Generate temporary password
-  const tempPassword = "default123";
-  const hashedPassword = await bcrypt.hash(tempPassword, 10);
+  // Hash provided password
+  const hashedPassword = await bcrypt.hash(validatedUser.password, 10);
 
   const result = await db.$transaction(async (tx) => {
     // 1. Create User

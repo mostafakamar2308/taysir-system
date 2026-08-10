@@ -4,9 +4,9 @@ import { useState, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import dayjs from "@/lib/dayjs";
 import type { AdminSession } from "@/types/session";
+import type { SessionClientData } from "@/types/tutor/session";
 import { WeeklyCalendarView } from "@/components/dashboard/sessions/WeeklyCalendarView";
 import { MobileSessionsList } from "@/components/dashboard/sessions/MobileSessionsList";
-import { SessionDetailPanel } from "@/components/dashboard/sessions/SessionDetailPanel";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -26,9 +26,11 @@ import { Badge } from "@/components/ui/badge";
 import { AddSessionDialog } from "./AddSessionDialog";
 import { EditSessionDialog } from "@/components/dashboard/sessions/EditSessionDialog";
 import { CancelSessionDialog } from "@/components/dashboard/sessions/CancelSessionDialog";
+import SessionDetailPanel from "./sessionDetailPanel";
 
 interface Props {
   initialSessions: AdminSession[];
+  initialSessionData: SessionClientData[];
   initialWeekStart: string;
   tutorId: number;
   academyId: number;
@@ -36,6 +38,7 @@ interface Props {
 
 export default function TutorSessionsViewer({
   initialSessions,
+  initialSessionData,
   initialWeekStart,
   tutorId,
   academyId,
@@ -56,7 +59,7 @@ export default function TutorSessionsViewer({
     null,
   );
   const [cancelSession, setCancelSession] = useState<AdminSession | null>(null);
-  const [selectedSession, setSelectedSession] = useState<AdminSession | null>(
+  const [detailSession, setDetailSession] = useState<SessionClientData | null>(
     null,
   );
 
@@ -218,7 +221,11 @@ export default function TutorSessionsViewer({
         <WeeklyCalendarView
           weekDates={weekDates}
           sessions={filteredSessions}
-          onSessionClick={setSelectedSession}
+          onSessionClick={(s) =>
+            setDetailSession(
+              initialSessionData.find((d) => d.id === s.id) ?? null,
+            )
+          }
           onEditSession={setEditingSession}
           onCancelSession={setCancelSession}
         />
@@ -227,19 +234,24 @@ export default function TutorSessionsViewer({
         <MobileSessionsList
           weekDates={weekDates}
           sessions={filteredSessions}
-          onSessionClick={setSelectedSession}
+          onSessionClick={(s) =>
+            setDetailSession(
+              initialSessionData.find((d) => d.id === s.id) ?? null,
+            )
+          }
           onEditSession={setEditingSession}
           onCancelSession={setCancelSession}
         />
       </div>
 
-      {selectedSession && (
+      {detailSession && (
         <SessionDetailPanel
-          session={selectedSession}
-          open={!!selectedSession}
+          session={detailSession}
+          open={!!detailSession}
           onOpenChange={(open) => {
-            if (!open) setSelectedSession(null);
+            if (!open) setDetailSession(null);
           }}
+          onUpdate={() => router.refresh()}
         />
       )}
 

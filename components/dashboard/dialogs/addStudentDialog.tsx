@@ -100,6 +100,17 @@ export default function AddStudentDialog({
                 <span className="text-xs text-slate-600">{t("phoneHint")}</span>
               </div>
               <div>
+                <Label htmlFor="password">{t("password")} *</Label>
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  minLength={6}
+                  placeholder={t("passwordPlaceholder")}
+                  required
+                />
+              </div>
+              <div>
                 <Label htmlFor="country">{t("country")}</Label>
                 <Input id="country" name="country" />
               </div>

@@ -439,6 +439,8 @@
   "age": "Age",
   "phone": "Phone",
   "phoneHint": "Please write the number in international format",
+  "password": "Password",
+  "passwordPlaceholder": "At least 6 characters",
   "country": "Country",
   "timezone-label": "Timezone",
   "timezonePlaceholder": "Select timezone",
@@ -488,6 +490,8 @@
   "email": "Email",
   "phone": "Phone",
   "phoneHint": "Please write the number in international format",
+  "password": "Password",
+  "passwordPlaceholder": "At least 6 characters",
   "timezone-label": "Timezone",
   "timezonePlaceholder": "Select timezone",
   "timezone": {

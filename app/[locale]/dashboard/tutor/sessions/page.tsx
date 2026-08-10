@@ -4,6 +4,7 @@ import { user } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getSessionStatus } from "@/lib/session";
 import type { AdminSession, AdminSessionParticipant } from "@/types/session";
+import { SessionClientData } from "@/types/tutor/session";
 import TutorSessionsViewer from "@/components/tutor/sessions/viewer";
 
 export default async function TutorSessionsPage({
@@ -37,7 +38,9 @@ export default async function TutorSessionsPage({
       },
       participants: {
         include: {
-          student: { select: { id: true, user: { select: { name: true } } } },
+          student: {
+            select: { id: true, user: { select: { name: true, phone: true } } },
+          },
           report: true,
         },
       },
@@ -148,9 +151,58 @@ export default async function TutorSessionsPage({
     };
   });
 
+  const clientData: SessionClientData[] = sessions.map((s) => ({
+    id: s.id,
+    startTime: s.startTime.toISOString(),
+    endTime: dayjs(s.startTime)
+      .add(s.durationMinutes, "minute")
+      .toISOString(),
+    durationMinutes: s.durationMinutes,
+    status: getSessionStatus({
+      cancelledBy: s.cancelledBy,
+      startTime: s.startTime,
+    }),
+    topic: s.topic,
+    notes: s.notes,
+    tutorId: s.tutorId,
+    tutorName: s.tutor.user.name ?? "",
+    isTrial: s.isTrial,
+    studentName:
+      s.participants.map((p) => p.student.user.name ?? "").join("، ") || "",
+    zoomMeetingId: null,
+    zoomJoinUrl: s.zoomUrl,
+    zoomStartUrl: s.zoomUrl,
+    participants: s.participants.map((p) => ({
+      participantId: p.id,
+      studentId: p.studentId,
+      studentName: p.student.user.name ?? "",
+      studentPhone: p.student.user.phone,
+      attendanceStatus: p.studentAttendanceStatus,
+      report: p.report
+        ? {
+            id: p.report.id,
+            rating: p.report.rating,
+            outcomes: p.report.outcomes,
+            strengths: p.report.strengths,
+            weaknesses: p.report.weaknesses,
+            nextGoals: p.report.nextGoals,
+            comments: p.report.comments,
+          }
+        : null,
+    })),
+    assignmentStats: {
+      totalParticipants: s.participants.length,
+      hasAssignment: !!s.assignment,
+      uploadedCount: s.assignment?.solutions.length ?? 0,
+      gradedCount:
+        s.assignment?.solutions.filter((sol) => sol.score !== null).length ?? 0,
+    },
+  }));
+
   return (
     <TutorSessionsViewer
       initialSessions={transformedSessions}
+      initialSessionData={clientData}
       initialWeekStart={saturday.format("YYYY-MM-DD")}
       tutorId={tutorId}
       academyId={academyId}

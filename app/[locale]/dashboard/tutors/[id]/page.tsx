@@ -3,7 +3,11 @@ import { notFound } from "next/navigation";
 import TutorProfileClient from "@/components/dashboard/tutorProfile/viewer";
 import dayjs from "@/lib/dayjs";
 import { AttendanceStatus } from "@/types/session";
-import type { TutorProfile, GroupSummary } from "@/types/tutor";
+import type {
+  TutorProfile,
+  GroupSummary,
+  SupervisorReview,
+} from "@/types/tutor";
 import { user } from "@/lib/auth";
 import { getTutorFinancialSummary } from "@/actions/tutorFinances";
 import type { TutorFinancesInput } from "@/types/tutorFinances";
@@ -98,15 +102,10 @@ export default async function TutorProfilePage({
     s.participants.some((p) => p.studentAttendanceStatus !== null),
   ).length;
 
-  const totalPrivateMinutes = monthSessions
-    .filter((s) => s.participants.length <= 1)
-    .reduce((sum, s) => sum + s.durationMinutes, 0);
-  const totalGroupMinutes = monthSessions
-    .filter((s) => s.participants.length > 1)
-    .reduce((sum, s) => sum + s.durationMinutes, 0);
-  const totalEarnings =
-    (totalPrivateMinutes / 60) * tutor.baseHourlyRate +
-    (totalGroupMinutes / 60) * tutor.baseGroupHourlyRate;
+  const totalEarnings = monthSessions.reduce(
+    (sum, s) => sum + (s.tutorRate * s.durationMinutes) / 60,
+    0,
+  );
 
   const paidThisMonth = tutor.expenses.reduce((sum, e) => sum + e.amount, 0);
   const pendingThisMonth = totalEarnings - paidThisMonth;
@@ -158,6 +157,36 @@ export default async function TutorProfilePage({
     },
   });
 
+  // --- Supervisor attendance reviews (TutorAttendance) ---
+  const attendanceReviews = await db.tutorAttendance.findMany({
+    where: { session: { tutorId: id }, notes: { not: null } },
+    orderBy: { reviewedAt: "desc" },
+    take: 10,
+    include: {
+      session: {
+        select: {
+          id: true,
+          startTime: true,
+          topic: true,
+          group: { select: { title: true } },
+        },
+      },
+      supervisor: { select: { user: { select: { name: true } } } },
+    },
+  });
+
+  const supervisorReviews: SupervisorReview[] = attendanceReviews.map((r) => ({
+    id: r.id,
+    sessionId: r.session.id,
+    groupName: r.session.group.title,
+    topic: r.session.topic,
+    date: r.session.startTime.toISOString(),
+    status: r.status as AttendanceStatus,
+    notes: r.notes,
+    supervisorName: r.supervisor?.user.name ?? null,
+    reviewedAt: r.reviewedAt?.toISOString() ?? "",
+  }));
+
   const performanceMetrics = {
     attendanceRate,
     reportAdherence,
@@ -205,6 +234,7 @@ export default async function TutorProfilePage({
     currency: tutor.currency.code,
     zoomUrl: tutor.zoomUrl,
     groups,
+    supervisorReviews,
     monthlyStats: {
       totalSessions,
       attendedSessions,

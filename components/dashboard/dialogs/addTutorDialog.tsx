@@ -98,6 +98,17 @@ export default function AddTutorDialog({
               <span className="text-xs text-slate-600">{t("phoneHint")}</span>
             </div>
             <div>
+              <Label htmlFor="password">{t("password")} *</Label>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                minLength={6}
+                placeholder={t("passwordPlaceholder")}
+                required
+              />
+            </div>
+            <div>
               <Label htmlFor="timezone">{t("timezone-label")} *</Label>
               <Select name="timezone" defaultValue="Africa/Cairo">
                 <SelectTrigger>
