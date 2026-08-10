@@ -4,7 +4,7 @@ export interface StudentInGroup {
   studentId: number;
   studentName: string;
   status: number; // StudentStatus
-  remainingSessions: number;
+  remainingSessions: number | null; // null = no countable active subscription
   active: boolean; // membership active
 }
 

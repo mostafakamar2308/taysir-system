@@ -11,7 +11,7 @@ import {
   removeStudentsFromGroup,
 } from "@/actions/groups";
 import AddStudentsDialog from "./addStudentsDialog";
-import type { StudentInGroup, GroupDetail } from "@/types/groupDetails";
+import type { GroupDetail } from "@/types/groupDetails";
 
 interface Props {
   group: GroupDetail;
@@ -65,7 +65,13 @@ export default function GroupStudentsCard({ group }: Props) {
                   <div className="font-medium">{s.studentName}</div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     {subscriptionBadge(s.active)}
-                    <span>• متبقي {s.remainingSessions} حصة</span>
+                    <span>
+                      • متبقي{" "}
+                      {s.remainingSessions == null
+                        ? "غير محدد"
+                        : s.remainingSessions}{" "}
+                      حصة
+                    </span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">

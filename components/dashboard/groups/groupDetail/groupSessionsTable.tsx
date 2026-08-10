@@ -56,8 +56,7 @@ export default function GroupSessionsTable({ sessions }: Props) {
                 </TableCell>
                 <TableCell>
                   {s.tutorAttendanceStatus != null ? "—" : "—"}
-                </TableCell>{" "}
-                {/* We don't have tutor name in session data? We'll add */}
+                </TableCell>
                 <TableCell>
                   {s.attendanceCount}/{s.totalParticipants}
                 </TableCell>

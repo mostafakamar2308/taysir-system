@@ -36,8 +36,11 @@ export default async function GroupsPage() {
     orderBy: { title: "asc" },
   });
 
+  // Focus on real groups only: hide private 1-on-1 groups (fewer than 2 members)
+  const visibleGroups = groups.filter((g) => g.members.length >= 2);
+
   // Fetch all session start times for these groups (only startTime + groupId)
-  const groupIds = groups.map((g) => g.id);
+  const groupIds = visibleGroups.map((g) => g.id);
   const sessions = await db.session.findMany({
     where: { groupId: { in: groupIds } },
     select: { startTime: true, groupId: true },
@@ -53,7 +56,7 @@ export default async function GroupsPage() {
 
   const now = dayjs.utc();
 
-  const transformed: DashboardGroup[] = groups.map((g) => {
+  const transformed: DashboardGroup[] = visibleGroups.map((g) => {
     const dates = sessionDatesByGroup.get(g.id) ?? [];
     dates.sort((a, b) => a.valueOf() - b.valueOf());
 

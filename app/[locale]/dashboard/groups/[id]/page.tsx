@@ -9,6 +9,7 @@ import type {
   StudentInGroup,
   GroupSession,
 } from "@/types/groupDetails";
+import { getRemainingSessionsForStudents } from "@/actions/studentFinances";
 
 export default async function GroupDetailPage({
   params,
@@ -59,14 +60,19 @@ export default async function GroupDetailPage({
 
   if (!group || group.academyId !== academyId) notFound();
 
+  // Remaining sessions per student, scoped to this group's subscriptions
+  const remainingMap = await getRemainingSessionsForStudents(
+    group.members.map((m) => m.studentId),
+    groupId,
+  );
+
   // Students in group
   const students: StudentInGroup[] = group.members.map((m) => {
     return {
       studentId: m.studentId,
       studentName: m.student.user.name ?? "—",
       status: m.student.status,
-      remainingSessions:
-        m.student.creditBalance / (group.studentSessionPrice || 50),
+      remainingSessions: remainingMap.get(m.studentId) ?? null,
       active: m.active,
     };
   });
@@ -147,5 +153,13 @@ export default async function GroupDetailPage({
     sessions,
   };
 
-  return <GroupDetailClient group={detail} />;
+  const tutors = (
+    await db.tutor.findMany({
+      where: { academyId, active: true },
+      select: { id: true, user: { select: { name: true } } },
+      orderBy: { user: { name: "asc" } },
+    })
+  ).map((t) => ({ id: t.id, name: t.user.name }));
+
+  return <GroupDetailClient group={detail} tutors={tutors} />;
 }

@@ -359,8 +359,11 @@ export async function renewSubscription(
 
 // Returns the total remaining sessions across active subscriptions for each
 // student (null when the student has no countable active subscription).
+// When groupId is provided, only subscriptions of the student's membership in
+// that group are counted (per-group remaining sessions).
 export async function getRemainingSessionsForStudents(
   studentIds: number[],
+  groupId?: number,
 ): Promise<Map<number, number | null>> {
   const uniqueIds = Array.from(new Set(studentIds));
   if (uniqueIds.length === 0) return new Map();
@@ -370,7 +373,7 @@ export async function getRemainingSessionsForStudents(
     select: {
       id: true,
       groupMemberships: {
-        where: { active: true },
+        where: { active: true, ...(groupId ? { groupId } : {}) },
         select: {
           group: { select: { id: true } },
           subscriptions: {
