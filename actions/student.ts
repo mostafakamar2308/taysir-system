@@ -10,6 +10,7 @@ import {
 import { getTokenFromCookie, verifyToken } from "@/lib/jwt";
 import db from "@/lib/prisma";
 import { getSessionStatus } from "@/lib/session";
+import { markStudentSubscribed } from "@/lib/studentStatus";
 import { PaymentStatus } from "@/types/payment";
 import { StudentStatus } from "@/types/student";
 import { GetStudentResult } from "@/types/student";
@@ -850,6 +851,13 @@ export async function renewSubscription(
       },
     });
   });
+
+  await markStudentSubscribed(
+    db,
+    subscription.groupStudent.studentId,
+    currentUser.id,
+    subscription.groupStudent.group.academyId,
+  );
 
   revalidatePath(`/ar/dashboard/students/${subscription.groupStudent.studentId}`);
   revalidatePath("/ar/dashboard");

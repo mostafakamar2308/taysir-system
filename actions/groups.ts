@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { user } from "@/lib/auth";
 import dayjs from "@/lib/dayjs";
 import { SubscriptionStatus } from "@/types/subscription";
+import { markStudentSubscribed } from "@/lib/studentStatus";
 import { Prisma } from "@/generated/prisma/client";
 import type { TutorOption, StudentOption } from "@/types/group";
 
@@ -80,6 +81,9 @@ async function autoCreateSubscription(
   groupStudentId: number,
   price: number,
   currencyId: number,
+  studentId: number,
+  recordedBy: number,
+  academyId: number,
 ) {
   const existing = await tx.subscription.findFirst({
     where: { groupStudentId, status: SubscriptionStatus.active },
@@ -89,7 +93,7 @@ async function autoCreateSubscription(
 
   const startDate = new Date();
   const endDate = dayjs().add(30, "day").toDate();
-  return tx.subscription.create({
+  const sub = await tx.subscription.create({
     data: {
       groupStudentId,
       price,
@@ -101,6 +105,9 @@ async function autoCreateSubscription(
       status: SubscriptionStatus.active,
     },
   });
+
+  await markStudentSubscribed(tx, studentId, recordedBy, academyId);
+  return sub;
 }
 
 // Fetch all active tutors for the academy (for dropdowns)
@@ -272,6 +279,9 @@ export async function addStudentsToGroup(
           gs.id,
           price,
           student?.currencyId ?? 1,
+          sid,
+          admin!.id,
+          academyId,
         );
       }
     }
@@ -360,7 +370,15 @@ export async function toggleStudentMembership(
       });
       const price = group.studentSessionPrice;
       if (price && price > 0) {
-        await autoCreateSubscription(tx, gs.id, price, student.currencyId);
+        await autoCreateSubscription(
+          tx,
+          gs.id,
+          price,
+          student.currencyId,
+          studentId,
+          admin!.id,
+          academyId,
+        );
       }
       await addGroupChatMember(tx, room.id, student.userId);
     } else {
@@ -433,6 +451,8 @@ export async function createSubscriptionForEnrollment(
       status: SubscriptionStatus.active,
     },
   });
+
+  await markStudentSubscribed(db, gs.studentId, admin!.id, academyId);
 
   revalidatePath("/ar/dashboard/groups");
   revalidatePath(`/ar/dashboard/students/${gs.studentId}`);

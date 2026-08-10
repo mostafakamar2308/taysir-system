@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { PaymentStatus } from "@/types/payment";
 import { SubscriptionStatus } from "@/types/subscription";
 import { Role } from "@/types/user";
+import { markStudentSubscribed } from "@/lib/studentStatus";
 import {
   computeStudentFinancialSummary,
   countSessionsUsed,
@@ -341,6 +342,13 @@ export async function renewSubscription(
       },
     });
   });
+
+  await markStudentSubscribed(
+    db,
+    sub.groupStudent.studentId,
+    admin.id,
+    academyId,
+  );
 
   revalidatePath("/ar/dashboard");
   revalidatePath(`/ar/dashboard/students/${sub.groupStudent.studentId}`);
