@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { SortDir, SortField } from "@/types/lib";
 import { DashboardStudent, StudentStatus } from "@/types/student";
+import { groupCountDisplay } from "@/lib/studentGroupDisplay";
 import { QuickActionsMenu } from "./quickActionsMenu";
 import Link from "next/link";
 
@@ -120,11 +121,7 @@ export function StudentTable({
         <TableBody className="bg-white">
           {students.map((s) => {
             const groupDisplay =
-              s.groups.length === 0
-                ? "—"
-                : s.groups.length === 1 && s.groups[0].isPrivate
-                  ? s.groups[0].tutorName
-                  : `${s.groups.length} مجموعات`;
+              s.groups.length === 0 ? "—" : groupCountDisplay(s.groups);
 
             return (
               <TableRow

@@ -2,6 +2,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { DashboardStudent, StudentStatus } from "@/types/student";
+import { groupCountDisplay } from "@/lib/studentGroupDisplay";
 import { Phone, Mail, Clock, User2, Users, BookOpen } from "lucide-react";
 import { QuickActionsMenu } from "./quickActionsMenu";
 import Link from "next/link";
@@ -32,11 +33,7 @@ const StudentCard = ({ student, tutors }: StudentCardProps) => {
   const tutorDisplay =
     student.groups.length === 0
       ? "لا يوجد معلم"
-      : student.groups.length === 1 && student.groups[0].isPrivate
-        ? student.groups[0].tutorName
-        : student.groups.length === 1
-          ? `${student.groups[0].tutorName} (مجموعة)`
-          : `${student.groups.length} مجموعات`;
+      : groupCountDisplay(student.groups);
 
   return (
     <Card className="border-none shadow-sm hover:shadow-md transition-shadow">

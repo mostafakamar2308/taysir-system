@@ -52,9 +52,19 @@ export default async function StudentsPage({
   }
   const membershipConditions: Prisma.GroupStudentWhereInput[] = [];
   if (tutorId && Number.isFinite(tutorId)) {
+    const privateGroups = await db.group.findMany({
+      where: { academyId, currentTutorId: tutorId },
+      select: {
+        id: true,
+        _count: { select: { members: { where: { active: true } } } },
+      },
+    });
+    const privateGroupIds = privateGroups
+      .filter((g) => g._count.members === 1)
+      .map((g) => g.id);
     membershipConditions.push({
       active: true,
-      group: { currentTutorId: tutorId },
+      groupId: privateGroupIds.length > 0 ? { in: privateGroupIds } : -1,
     });
   }
   if (groupId && Number.isFinite(groupId)) {
