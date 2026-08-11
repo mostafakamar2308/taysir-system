@@ -491,6 +491,15 @@ function SubscriptionCard({
           </div>
         )}
 
+        {sub.sessionsOverCount > 0 && (
+          <div className="flex items-center gap-1 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-2">
+            <CreditCard className="h-3.5 w-3.5" />
+            حصص إضافية: {sub.sessionsOverCount} حصة بتكلفة{" "}
+            {fmtMoney(sub.extraSessionsCost, sub.currencySymbol)} تُضاف إلى
+            المبلغ المستحق
+          </div>
+        )}
+
         {sub.outstanding > 0 && isActive && (
           <div className="text-xs text-muted-foreground">
             مدفوع هذا الدورة:{" "}

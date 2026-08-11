@@ -22,6 +22,8 @@ export interface SubscriptionFinancial {
   sessionCount: number | null;
   sessionsUsed: number;
   sessionsRemaining: number | null;
+  sessionsOverCount: number;
+  extraSessionsCost: number;
   billingCycle: number;
   startDate: string;
   endDate: string | null;

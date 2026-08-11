@@ -261,6 +261,26 @@ export async function createSession(input: CreateSessionInput) {
   }
   const defaultPrice = group.studentSessionPrice ?? 0;
 
+  // ── Remaining-session warnings (informational, never blocks) ──
+  const warnings: string[] = [];
+  if (!input.isTrial) {
+    const remaining = await getRemainingSessionsForStudents(
+      studentIds,
+      group!.id,
+    );
+    const noBalance = students.filter((s) => {
+      const r = remaining.get(s.id);
+      return r != null && r <= 0;
+    });
+    if (noBalance.length > 0) {
+      warnings.push(
+        `لا توجد حصص متبقية للطلاب: ${noBalance
+          .map((s) => s.user.name ?? "طالب")
+          .join("، ")}`,
+      );
+    }
+  }
+
   // ── Create session + participants ──────────────────────
   const session = await db.$transaction(async (tx) => {
     const created = await tx.session.create({
@@ -295,7 +315,7 @@ export async function createSession(input: CreateSessionInput) {
 
   revalidatePath("/ar/dashboard/sessions");
   revalidatePath("/ar/dashboard/tutor/sessions");
-  return session;
+  return { ...session, warnings };
 }
 
 export type UpdateSessionInput = {
@@ -590,22 +610,30 @@ export async function getSessionFormOptions(
     }),
   ]);
 
+  // Total remaining across all groups (used for private sessions).
   const remainingMap = await getRemainingSessionsForStudents(
     students.map((s) => s.id),
   );
 
-  const groupOptions: SessionGroup[] = groups.map((g) => ({
-    id: g.id,
-    title: g.title,
-    tutorId: g.currentTutor.id,
-    tutorName: g.currentTutor.user.name ?? "",
-    active: g.active,
-    activeMembers: g.members.map((m) => ({
-      id: m.student.id,
-      name: m.student.user.name ?? "",
-      sessionsRemaining: remainingMap.get(m.student.id) ?? null,
-    })),
-  }));
+  // Per-group remaining sessions so group sessions warn based on the balance
+  // within the selected group's subscription, not totals across other groups.
+  const groupOptions: SessionGroup[] = [];
+  for (const g of groups) {
+    const memberIds = g.members.map((m) => m.student.id);
+    const perGroupMap = await getRemainingSessionsForStudents(memberIds, g.id);
+    groupOptions.push({
+      id: g.id,
+      title: g.title,
+      tutorId: g.currentTutor.id,
+      tutorName: g.currentTutor.user.name ?? "",
+      active: g.active,
+      activeMembers: g.members.map((m) => ({
+        id: m.student.id,
+        name: m.student.user.name ?? "",
+        sessionsRemaining: perGroupMap.get(m.student.id) ?? null,
+      })),
+    });
+  }
 
   const tutorOptions = tutors.map((t) => ({
     id: t.id,

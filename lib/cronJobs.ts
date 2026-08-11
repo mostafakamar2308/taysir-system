@@ -3,6 +3,7 @@ import db from "@/lib/prisma";
 import { whatsappQueue } from "@/lib/queue/whatsappQueue";
 import dayjs from "@/lib/dayjs";
 import { AttendanceStatus } from "@/types/session";
+import { buildAdminPaymentsSummary } from "@/lib/adminPaymentsSummary";
 
 function formatPhoneToJid(phone: string): string {
   const cleaned = phone.replace(/\D/g, "");
@@ -26,6 +27,20 @@ cron.schedule("0 20 * * *", async () => {
     console.error("[Cron] Report reminders failed:", error);
   }
 });
+
+// Weekly (Monday 9am Cairo) admin payment summary over WhatsApp.
+cron.schedule(
+  "0 9 * * 1",
+  async () => {
+    console.log("[Cron] Sending admin payment summaries...");
+    try {
+      await sendAdminPaymentSummaries();
+    } catch (error) {
+      console.error("[Cron] Admin payment summaries failed:", error);
+    }
+  },
+  { timezone: "Africa/Cairo" },
+);
 
 // ---------- Session reminders (multi‑student) ----------
 async function sendSessionReminders() {
@@ -222,6 +237,53 @@ async function sendReportReminders() {
     } catch (error) {
       console.error(
         `[Cron] Report reminder failure for academy ${academy.id}:`,
+        error,
+      );
+    }
+  }
+}
+
+// ---------- Weekly admin payment summary ----------
+async function sendAdminPaymentSummaries() {
+  const academies = await db.academy.findMany({
+    where: {
+      whatsappConnectionStatus: "connected",
+      whatsappInstanceName: { not: null },
+    },
+    select: {
+      id: true,
+      whatsappInstanceName: true,
+      admin: { select: { user: { select: { phone: true } } } },
+    },
+  });
+
+  for (const academy of academies) {
+    try {
+      const adminPhone = academy.admin?.user.phone;
+      if (!adminPhone) continue;
+
+      const message = await buildAdminPaymentsSummary(academy.id);
+      if (!message) continue;
+
+      const log = await db.whatsAppMessage.create({
+        data: {
+          academyId: academy.id,
+          remoteJid: formatPhoneToJid(adminPhone),
+          type: "text",
+          content: message,
+          status: "pending",
+        },
+      });
+      await whatsappQueue.add("admin-payment-summary", {
+        academyId: academy.id,
+        instanceName: academy.whatsappInstanceName!,
+        recipientJid: formatPhoneToJid(adminPhone),
+        message,
+        messageLogId: log.id,
+      });
+    } catch (error) {
+      console.error(
+        `[Cron] Admin payment summary failure for academy ${academy.id}:`,
         error,
       );
     }

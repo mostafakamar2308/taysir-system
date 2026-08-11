@@ -74,6 +74,7 @@ export async function getStudentFinancialSummary(
       db.sessionParticipant.findMany({
         where: { studentId },
         select: {
+          price: true,
           session: {
             select: {
               startTime: true,
@@ -384,6 +385,7 @@ export async function getRemainingSessionsForStudents(
       },
       sessionParticipants: {
         select: {
+          price: true,
           session: {
             select: {
               startTime: true,

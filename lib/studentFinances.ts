@@ -32,6 +32,7 @@ export interface SubInput {
 }
 
 export interface SessionInput {
+  price: number;
   session: {
     startTime: Date;
     groupId: number;
@@ -127,6 +128,29 @@ export function countSessionsUsed(
   return used;
 }
 
+// Sessions actually used against a subscription window, sorted by start time
+// (earliest first) so the excess sessions beyond the count can be priced.
+function sessionsUsedInWindow(
+  startDate: Date,
+  endDate: Date | null,
+  groupId: number,
+  participants: SessionInput[],
+  now: Date,
+): SessionInput[] {
+  const used = participants.filter((p) => {
+    const s = p.session;
+    if (s.groupId !== groupId || s.cancelledBy != null || s.isTrial) return false;
+    const t = startOfDay(s.startTime);
+    if (t.isBefore(startOfDay(startDate))) return false;
+    if (endDate && t.isAfter(startOfDay(endDate))) return false;
+    if (t.isAfter(startOfDay(now))) return false;
+    return true;
+  });
+  return used.sort(
+    (a, b) => a.session.startTime.getTime() - b.session.startTime.getTime(),
+  );
+}
+
 // ---------- Main calculation ----------
 
 export function computeStudentFinancialSummary(
@@ -138,11 +162,6 @@ export function computeStudentFinancialSummary(
 
   const conv = (amount: number, currencyId: number) =>
     convertAmount(amount, currencyId, defaultCurrency.id, rateMap);
-
-  // Sessions actually used per subscription window (non-cancelled, non-trial,
-  // already held, inside the subscription's date range).
-  const sessionsUsedFor = (sub: SubInput) =>
-    countSessionsUsed(sub.startDate, sub.endDate, sub.groupId, input.sessionParticipants, now);
 
   // Paid amount per subscription (PAID revenues linked to that row).
   const paidBySub = new Map<number, number>();
@@ -157,18 +176,40 @@ export function computeStudentFinancialSummary(
   const isRelevant = (sub: SubInput) =>
     sub.status === SubscriptionStatus.active && sub.membershipActive;
 
+  // Extra-session cost (in the academy's default currency) per subscription.
+  const extraCostById = new Map<number, number>();
+
   const subscriptions: SubscriptionFinancial[] = input.subscriptions.map((sub) => {
     const sessionCount = sub.sessionCount ?? null;
-    const sessionsUsed = sessionsUsedFor(sub);
+    const windowSessions = sessionsUsedInWindow(
+      sub.startDate,
+      sub.endDate,
+      sub.groupId,
+      input.sessionParticipants,
+      now,
+    );
+    const sessionsUsed = windowSessions.length;
     const sessionsRemaining =
       sessionCount == null ? null : Math.max(0, sessionCount - sessionsUsed);
+    const sessionsOverCount =
+      sessionCount == null ? 0 : Math.max(0, sessionsUsed - sessionCount);
+    // Excess sessions beyond the paid count are billed at their frozen price.
+    const extraSessionsCost =
+      sessionsOverCount > 0
+        ? windowSessions
+            .slice(-sessionsOverCount)
+            .reduce((sum, p) => sum + p.price, 0)
+        : 0;
     const paidThisCycle = paidBySub.get(sub.id) ?? 0;
     const priceInDefault = conv(sub.price, sub.currencyId);
-    const outstanding = Math.max(0, priceInDefault - paidThisCycle);
+    const extraInDefault = conv(extraSessionsCost, sub.currencyId);
+    const outstanding = Math.max(0, priceInDefault + extraInDefault - paidThisCycle);
     const billing = sub.nextBillingDate ?? sub.endDate;
     const cycleState = computeCycleState(billing, priceInDefault, paidThisCycle, now);
     const hasSessionWarning =
       isRelevant(sub) && sessionCount != null && sessionsRemaining === 0;
+
+    extraCostById.set(sub.id, extraInDefault);
 
     return {
       id: sub.id,
@@ -183,6 +224,8 @@ export function computeStudentFinancialSummary(
       sessionCount,
       sessionsUsed,
       sessionsRemaining,
+      sessionsOverCount,
+      extraSessionsCost,
       billingCycle: sub.billingCycle,
       startDate: sub.startDate.toISOString(),
       endDate: sub.endDate?.toISOString() ?? null,
@@ -198,7 +241,10 @@ export function computeStudentFinancialSummary(
 
   const relevant = input.subscriptions.filter(isRelevant);
 
-  const totalDue = relevant.reduce((sum, s) => sum + conv(s.price, s.currencyId), 0);
+  const totalDue = relevant.reduce(
+    (sum, s) => sum + conv(s.price, s.currencyId) + (extraCostById.get(s.id) ?? 0),
+    0,
+  );
   const totalPaidCycle = relevant.reduce(
     (sum, s) => sum + (paidBySub.get(s.id) ?? 0),
     0,
@@ -206,15 +252,20 @@ export function computeStudentFinancialSummary(
   const outstanding = Math.max(0, totalDue - totalPaidCycle);
   const overdue = relevant.reduce((sum, s) => {
     const billing = s.nextBillingDate ?? s.endDate;
-    if (!billing) return sum;
     const price = conv(s.price, s.currencyId);
+    const extra = extraCostById.get(s.id) ?? 0;
     const paid = paidBySub.get(s.id) ?? 0;
-    if (price - paid <= 0.001) return sum;
-    const bill = startOfDay(billing);
-    if (bill.isBefore(startOfDay(now))) {
-      return sum + Math.max(0, price - paid);
+    if (price + extra - paid <= 0.001) return sum;
+    let due = 0;
+    // Subscription price is overdue once its billing date passes.
+    if (billing) {
+      const bill = startOfDay(billing);
+      if (bill.isBefore(startOfDay(now))) due += Math.max(0, price - paid);
     }
-    return sum;
+    // Excess sessions were already delivered beyond the paid count, so the
+    // unbilled portion is due immediately.
+    due += Math.max(0, extra - Math.max(0, paid - Math.max(0, price)));
+    return sum + Math.max(0, due);
   }, 0);
 
   const totalPaidHistorical = input.revenues.reduce(
@@ -280,6 +331,12 @@ export function computeStudentFinancialSummary(
       warnings.push({
         type: "warning",
         message: `نفدت حصص اشتراك ${sub.groupTitle} بينما الاشتراك لا يزال نشطًا`,
+      });
+    }
+    if (sub.sessionsOverCount > 0) {
+      warnings.push({
+        type: "warning",
+        message: `تم استخدام ${sub.sessionsOverCount} حصة إضافية في اشتراك ${sub.groupTitle} وستُضاف تكلفتها (${sub.extraSessionsCost.toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ${sub.currencySymbol}) للمبلغ المستحق`,
       });
     }
   }

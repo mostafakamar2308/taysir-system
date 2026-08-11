@@ -109,6 +109,7 @@ export default async function StudentsPage({
       },
       sessionParticipants: {
         select: {
+          price: true,
           session: {
             select: {
               startTime: true,
