@@ -99,10 +99,12 @@ export default function CurrenciesClient({
     setLoading(true);
     try {
       if (editingCurrency) {
-        await updateCurrency(editingCurrency.id, formData);
+        const res = await updateCurrency(editingCurrency.id, formData);
+        if (!res.ok) throw new Error(res.error);
         toast({ title: "تم تحديث العملة" });
       } else {
-        await createCurrency(formData);
+        const res = await createCurrency(formData);
+        if (!res.ok) throw new Error(res.error);
         toast({ title: "تمت إضافة العملة" });
       }
       setDialogOpen(false);
@@ -123,7 +125,8 @@ export default function CurrenciesClient({
     if (!deleteId) return;
     setLoading(true);
     try {
-      await deleteCurrency(deleteId);
+      const res = await deleteCurrency(deleteId);
+      if (!res.ok) throw new Error(res.error);
       toast({ title: "تم حذف العملة" });
       setDeleteId(null);
       router.refresh();

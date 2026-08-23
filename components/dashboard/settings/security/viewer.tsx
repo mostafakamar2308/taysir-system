@@ -48,7 +48,8 @@ export default function SecurityClient() {
       formData.append("currentPassword", currentPassword);
       formData.append("newPassword", newPassword);
 
-      await changePassword(formData);
+      const res = await changePassword(formData);
+      if (!res.ok) throw new Error(res.error);
       toast({ title: "تم التغيير", description: "تم تغيير كلمة المرور بنجاح" });
       setCurrentPassword("");
       setNewPassword("");

@@ -3,17 +3,18 @@
 import db from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getTokenFromCookie, verifyToken } from "@/lib/jwt";
+import { withResult, fail } from "@/lib/action-result";
 
-export async function setZoomLink(formData: FormData) {
+export const setZoomLink = withResult(async (formData: FormData) => {
   const token = await getTokenFromCookie();
-  if (!token) throw new Error("غير مصرح");
+  if (!token) return fail("غير مصرح");
   const payload = verifyToken(token);
-  if (!payload || !payload.tutorId) throw new Error("غير مصرح");
+  if (!payload || !payload.tutorId) return fail("غير مصرح");
 
   const zoomUrl = formData.get("zoomUrl") as string;
 
   if (!zoomUrl || !zoomUrl.startsWith("https://")) {
-    throw new Error("يرجى إدخال رابط Zoom صحيح يبدأ بـ https://");
+    return fail("يرجى إدخال رابط Zoom صحيح يبدأ بـ https://");
   }
 
   await db.tutor.update({
@@ -25,13 +26,13 @@ export async function setZoomLink(formData: FormData) {
   });
 
   revalidatePath("/ar/dashboard/tutor/zoom");
-}
+});
 
-export async function unlinkZoom() {
+export const unlinkZoom = withResult(async () => {
   const token = await getTokenFromCookie();
-  if (!token) throw new Error("غير مصرح");
+  if (!token) return fail("غير مصرح");
   const payload = verifyToken(token);
-  if (!payload || !payload.tutorId) throw new Error("غير مصرح");
+  if (!payload || !payload.tutorId) return fail("غير مصرح");
 
   await db.tutor.update({
     where: { id: payload.tutorId },
@@ -46,4 +47,4 @@ export async function unlinkZoom() {
   });
 
   revalidatePath("/ar/dashboard/tutor/zoom");
-}
+});

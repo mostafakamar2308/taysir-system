@@ -103,13 +103,13 @@ export default function SalariesTab({
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const salaryData = await getSalaryData(
+      const res = await getSalaryData(
         academyId,
         selectedYear,
         selectedMonth,
         tutorIdFilter,
       );
-      setData(salaryData);
+      setData(res.ok ? res.data ?? null : null);
     } catch {
       toast.error("فشل تحميل بيانات الرواتب");
     } finally {
@@ -129,7 +129,10 @@ export default function SalariesTab({
     }
     try {
       setPaying(true);
-      const defaultCurrencyId = await getDefaultCurrencyId(academyId);
+      const defaultCurrencyRes = await getDefaultCurrencyId(academyId);
+      const defaultCurrencyId = defaultCurrencyRes.ok
+        ? defaultCurrencyRes.data
+        : null;
       if (!defaultCurrencyId) throw new Error("Default currency not found");
       await payTutor(
         academyId,

@@ -52,13 +52,14 @@ export default function EditSubscriptionDialog({
   const handleSubmit = async () => {
     setLoading(true);
     try {
-      await updateSubscription(subscription.id, {
+      const res = await updateSubscription(subscription.id, {
         price: parseFloat(price),
         sessionCount: sessionCount ? parseInt(sessionCount) : null,
         billingCycle: parseInt(billingCycle) || undefined,
         nextBillingDate: nextBillingDate || null,
         endDate: endDate || null,
       });
+      if (!res.ok) throw new Error(res.error);
       toast.success("تم تحديث الاشتراك");
       onOpenChange(false);
       onSuccess?.();

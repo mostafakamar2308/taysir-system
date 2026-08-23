@@ -235,14 +235,14 @@ export default function ExpensesTab({
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [kpisData, pendingData, historyData] = await Promise.all([
+      const [kpisRes, pendingRes, historyRes] = await Promise.all([
         getExpensesKPIs(academyId, period, year, month),
         getPendingExpenses(academyId, period, year, month, costCenterParam),
         getExpensesHistory(academyId, period, year, month, costCenterParam),
       ]);
-      setKpis(kpisData);
-      setPendingExpenses(pendingData);
-      setHistory(historyData);
+      setKpis(kpisRes.ok ? kpisRes.data ?? null : null);
+      setPendingExpenses(pendingRes.ok ? pendingRes.data ?? [] : []);
+      setHistory(historyRes.ok ? historyRes.data ?? [] : []);
     } catch {
       toast.error("حدث خطأ أثناء جلب بيانات المصروفات");
     } finally {

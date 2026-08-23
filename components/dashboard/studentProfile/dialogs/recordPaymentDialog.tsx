@@ -96,7 +96,7 @@ export default function RecordPaymentDialog({
     }
     setLoading(true);
     try {
-      await recordStudentPayment(studentId, {
+      const res = await recordStudentPayment(studentId, {
         amount: parsedAmount,
         method: parseInt(method),
         date,
@@ -107,6 +107,7 @@ export default function RecordPaymentDialog({
           }))
           .filter((a) => a.amount > 0),
       });
+      if (!res.ok) throw new Error(res.error);
       toast.success("تم تسجيل الدفعة");
       onOpenChange(false);
       onSuccess?.();

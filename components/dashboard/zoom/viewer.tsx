@@ -27,7 +27,8 @@ export default function ZoomSettingsPage({
   const handleSubmit = async (formData: FormData) => {
     setLoading(true);
     try {
-      await setZoomLink(formData);
+      const res = await setZoomLink(formData);
+      if (!res.ok) throw new Error(res.error);
       toast({ title: "تم حفظ رابط Zoom" });
     } catch (err) {
       if (err instanceof Error)
@@ -44,7 +45,8 @@ export default function ZoomSettingsPage({
   const handleUnlink = async () => {
     setLoading(true);
     try {
-      await unlinkZoom();
+      const res = await unlinkZoom();
+      if (!res.ok) throw new Error(res.error);
       toast({ title: "تم إلغاء رابط Zoom" });
     } catch (err) {
       if (err instanceof Error)

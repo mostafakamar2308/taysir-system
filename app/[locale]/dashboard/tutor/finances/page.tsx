@@ -11,12 +11,8 @@ export default async function TutorFinancesPage() {
   }
   const tutorId = currentUser.tutorId;
 
-  let finances;
-  try {
-    finances = await getTutorSelfFinances();
-  } catch {
-    redirect("/login");
-  }
+  const finances = await getTutorSelfFinances();
+  if (!finances.ok) redirect("/login");
 
   return (
     <div className="space-y-6" dir="rtl">
@@ -29,7 +25,7 @@ export default async function TutorFinancesPage() {
       <FinancesTab
         tutorId={tutorId}
         tutorName={currentUser.name ?? ""}
-        data={finances.data}
+        data={finances.data.data}
         isAdmin={false}
       />
     </div>

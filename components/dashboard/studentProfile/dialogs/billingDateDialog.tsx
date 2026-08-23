@@ -47,7 +47,8 @@ export default function BillingDateDialog({
     }
     setLoading(true);
     try {
-      await setStudentBillingDate(studentId, date);
+      const res = await setStudentBillingDate(studentId, date);
+      if (!res.ok) throw new Error(res.error);
       toast.success("تم ضبط تاريخ الفوترة");
       onOpenChange(false);
       onSuccess?.();
@@ -61,7 +62,8 @@ export default function BillingDateDialog({
   const handleClear = async () => {
     setLoading(true);
     try {
-      await setStudentBillingDate(studentId, null);
+      const res = await setStudentBillingDate(studentId, null);
+      if (!res.ok) throw new Error(res.error);
       toast.success("تمت إعادة تاريخ الفوترة إلى الافتراضي");
       onOpenChange(false);
       onSuccess?.();

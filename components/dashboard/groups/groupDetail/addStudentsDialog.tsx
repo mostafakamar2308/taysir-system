@@ -34,7 +34,9 @@ export default function AddStudentsDialog({
 
   useEffect(() => {
     if (open) {
-      getAcademyStudents().then(setAllStudents).catch(console.error);
+      getAcademyStudents().then((res) => {
+        if (res.ok) setAllStudents(res.data ?? []);
+      }).catch(console.error);
       // No need to reset selectedIds – the component remounts via the key prop
     }
   }, [open]);
@@ -43,7 +45,8 @@ export default function AddStudentsDialog({
     if (selectedIds.length === 0) return;
     setLoading(true);
     try {
-      await addStudentsToGroup(groupId, selectedIds.map(Number));
+      const res = await addStudentsToGroup(groupId, selectedIds.map(Number));
+      if (!res.ok) throw new Error(res.error);
       toast({ title: "تمت إضافة الطلاب" });
       onOpenChange(false);
       onSuccess();

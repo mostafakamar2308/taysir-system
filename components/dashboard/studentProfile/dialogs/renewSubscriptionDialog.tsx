@@ -59,12 +59,13 @@ export default function RenewSubscriptionDialog({
   const handleSubmit = async () => {
     setLoading(true);
     try {
-      await renewSubscription(subscription.id, {
+      const res = await renewSubscription(subscription.id, {
         price: parseFloat(price),
         sessionCount: sessionCount ? parseInt(sessionCount) : null,
         billingCycle: parseInt(billingCycle) || 30,
         startDate,
       });
+      if (!res.ok) throw new Error(res.error);
       toast.success("تم تجديد الاشتراك والحفاظ على السجل السابق");
       onOpenChange(false);
       onSuccess?.();

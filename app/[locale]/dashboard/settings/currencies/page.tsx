@@ -1,5 +1,5 @@
 import { user } from "@/lib/auth";
-import { redirect } from "next/navigation";
+import { redirect, notFound } from "next/navigation";
 import { Role } from "@/types/user";
 import { getAcademySettings } from "@/actions/academySettings";
 import CurrenciesClient from "@/components/dashboard/settings/currencies/viewer";
@@ -9,7 +9,9 @@ export default async function CurrenciesPage() {
   if (!currentUser || currentUser.role !== Role.Admin || !currentUser.academyId)
     redirect("/login");
 
-  const settings = await getAcademySettings(currentUser.academyId);
+  const settingsRes = await getAcademySettings(currentUser.academyId);
+  if (!settingsRes.ok) notFound();
+  const settings = settingsRes.data;
 
   return (
     <CurrenciesClient

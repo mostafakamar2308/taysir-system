@@ -9,6 +9,7 @@ import {
 import dayjs from "@/lib/dayjs";
 import { revalidatePath } from "next/cache";
 import { AttendanceStatus } from "@/types/session";
+import { withResult, fail } from "@/lib/action-result";
 
 function formatPhoneToJid(phone: string): string {
   const cleaned = phone.replace(/\D/g, "");
@@ -56,7 +57,7 @@ type ReminderSession = {
 
 async function loadSessionForReminder(sessionId: number) {
   const supervisor = await getCurrentSupervisor();
-  if (!supervisor) throw new Error("غير مصرح");
+  if (!supervisor) return fail("غير مصرح");
 
   const session = await db.session.findUnique({
     where: { id: sessionId },
@@ -83,7 +84,7 @@ async function loadSessionForReminder(sessionId: number) {
     },
   });
 
-  if (!session) throw new Error("الحصة غير موجودة");
+  if (!session) return fail("الحصة غير موجودة");
   await assertSupervisorCanAccessSession(supervisor.id, session);
   return { supervisor, session };
 }
@@ -97,11 +98,11 @@ function assertWhatsappReady(
     session.academy.whatsappConnectionStatus !== "connected" ||
     !session.academy.whatsappInstanceName
   ) {
-    throw new Error("واتساب غير متصل");
+    return fail("واتساب غير متصل");
   }
 }
 
-export async function sendSessionReminder(sessionId: number) {
+export const sendSessionReminder = withResult(async (sessionId: number) => {
   const { session } = await loadSessionForReminder(sessionId);
   assertWhatsappReady(session);
 
@@ -140,13 +141,13 @@ export async function sendSessionReminder(sessionId: number) {
 
   revalidatePath("/ar/dashboard/supervisor/sessions");
   return { sent };
-}
+});
 
-export async function sendZoomLink(sessionId: number) {
+export const sendZoomLink = withResult(async (sessionId: number) => {
   const { session } = await loadSessionForReminder(sessionId);
   assertWhatsappReady(session);
 
-  if (!session.zoomUrl) throw new Error("لا يوجد رابط زووم لهذه الحصة");
+  if (!session.zoomUrl) return fail("لا يوجد رابط زووم لهذه الحصة");
 
   const instanceName = session.academy.whatsappInstanceName;
   const startTimeStr = dayjs
@@ -177,13 +178,13 @@ export async function sendZoomLink(sessionId: number) {
 
   revalidatePath("/ar/dashboard/supervisor/sessions");
   return { sent };
-}
+});
 
-export async function sendReportReminder(sessionId: number) {
+export const sendReportReminder = withResult(async (sessionId: number) => {
   const { session } = await loadSessionForReminder(sessionId);
   assertWhatsappReady(session);
 
-  if (!session.tutor.user.phone) throw new Error("لا يوجد رقم هاتف للمعلم");
+  if (!session.tutor.user.phone) return fail("لا يوجد رقم هاتف للمعلم");
 
   const studentNames = session.participants
     .filter(
@@ -195,7 +196,7 @@ export async function sendReportReminder(sessionId: number) {
     )
     .map((p) => p.student.user.name ?? "طالب");
 
-  if (studentNames.length === 0) throw new Error("لا يوجد تقارير ناقصة لهذه الحصة");
+  if (studentNames.length === 0) return fail("لا يوجد تقارير ناقصة لهذه الحصة");
 
   const message = `تذكير: يرجى إضافة تقارير الحصة "${session.topic || "الحصة"}" للطلاب التاليين:\n${studentNames.join("، ")}`;
 
@@ -208,4 +209,4 @@ export async function sendReportReminder(sessionId: number) {
 
   revalidatePath("/ar/dashboard/supervisor/sessions");
   return { sent: 1 };
-}
+});

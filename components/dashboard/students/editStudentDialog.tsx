@@ -51,7 +51,8 @@ export default function EditStudentDialog({
 
   useEffect(() => {
     async function fetchStudent() {
-      setStudent(await getStudent(studentId));
+      const res = await getStudent(studentId);
+      if (res.ok) setStudent(res.data ?? null);
     }
     if (controlledOpen) fetchStudent();
   }, [studentId, controlledOpen]);
@@ -61,7 +62,8 @@ export default function EditStudentDialog({
     setLoading(true);
     try {
       const selectedTutor = formData.get("tutorId") as string | null;
-      await updateStudent(student.id, formData);
+      const res = await updateStudent(student.id, formData);
+      if (!res.ok) throw new Error(res.error);
 
       const currentTutorId = student.groupMemberships[0]?.tutorId ?? null;
       const newTutorId =
@@ -69,7 +71,8 @@ export default function EditStudentDialog({
           ? parseInt(selectedTutor)
           : null;
       if (newTutorId !== currentTutorId) {
-        await assignTutor(student.id, newTutorId);
+        const res2 = await assignTutor(student.id, newTutorId);
+        if (!res2.ok) throw new Error(res2.error);
       }
 
       toast({ title: "تم تحديث بيانات الطالب" });

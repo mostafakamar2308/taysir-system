@@ -61,10 +61,13 @@ export default async function GroupDetailPage({
   if (!group || group.academyId !== academyId) notFound();
 
   // Remaining sessions per student, scoped to this group's subscriptions
-  const remainingMap = await getRemainingSessionsForStudents(
+  const remainingRes = await getRemainingSessionsForStudents(
     group.members.map((m) => m.studentId),
     groupId,
   );
+  const remainingMap = remainingRes.ok
+    ? remainingRes.data ?? new Map<number, number | null>()
+    : new Map<number, number | null>();
 
   // Students in group
   const students: StudentInGroup[] = group.members.map((m) => {

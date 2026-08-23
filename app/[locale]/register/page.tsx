@@ -17,7 +17,7 @@ export default function RegisterPage() {
     setServerError(null);
     const result = await registerLead(data);
 
-    if (result.success) {
+    if (result.ok) {
       setIsSubmitted(true);
     } else {
       setServerError(result.error || "An error occurred");

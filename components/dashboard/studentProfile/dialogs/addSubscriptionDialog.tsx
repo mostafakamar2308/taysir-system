@@ -68,8 +68,8 @@ export default function AddSubscriptionDialog({
   useEffect(() => {
     let cancelled = false;
     getPlans(academyId)
-      .then((data) => {
-        if (!cancelled) setPlans(data);
+      .then((res) => {
+        if (!cancelled) setPlans(res.ok ? res.data ?? [] : []);
       })
       .catch(() => {
         if (!cancelled) setPlans([]);
@@ -97,7 +97,7 @@ export default function AddSubscriptionDialog({
     }
     setLoading(true);
     try {
-      await createSubscriptionForEnrollment(parseInt(groupStudentId), {
+      const res = await createSubscriptionForEnrollment(parseInt(groupStudentId), {
         price: parseFloat(price),
         currencyId,
         planId: planId && planId !== "none" ? parseInt(planId) : null,
@@ -105,6 +105,7 @@ export default function AddSubscriptionDialog({
         billingCycle: parseInt(billingCycle) || 30,
         startDate,
       });
+      if (!res.ok) throw new Error(res.error);
       toast.success("تم إضافة الاشتراك");
       onOpenChange(false);
       onSuccess?.();

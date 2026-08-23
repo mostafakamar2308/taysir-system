@@ -32,7 +32,8 @@ export function UploadSolutionDialog({ participantId, onSuccess }: Props) {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      await uploadSolution(participantId, formData);
+      const res = await uploadSolution(participantId, formData);
+      if (!res.ok) throw new Error(res.error);
       toast({ title: "تم رفع الحل بنجاح" });
       setOpen(false);
       onSuccess?.();

@@ -53,7 +53,8 @@ export default function PlansClient({
   const handleDelete = async () => {
     if (!deleteId) return;
     try {
-      await deletePlan(deleteId);
+      const res = await deletePlan(deleteId);
+      if (!res.ok) throw new Error(res.error);
       toast({ title: "تم حذف الخطة" });
       router.refresh();
     } catch (error) {

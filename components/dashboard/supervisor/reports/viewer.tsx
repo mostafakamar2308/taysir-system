@@ -31,7 +31,8 @@ export default function SupervisorReportsViewer({
   const handleRemindTutor = async (sessionId: number) => {
     setLoading(true);
     try {
-      await sendReportReminder(sessionId);
+      const res = await sendReportReminder(sessionId);
+      if (!res.ok) throw new Error(res.error);
       toast({ title: t("buttons.reminderSent") });
     } catch (error) {
       toast({

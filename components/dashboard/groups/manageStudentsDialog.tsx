@@ -38,7 +38,9 @@ export default function ManageStudentsDialog({
 
   useEffect(() => {
     if (open) {
-      getAcademyStudents().then(setAllStudents).catch(console.error);
+      getAcademyStudents().then((res) => {
+        if (res.ok) setAllStudents(res.data ?? []);
+      }).catch(console.error);
       setSelectedIds(
         group.members.filter((m) => m.active).map((m) => String(m.studentId)),
       );
@@ -58,9 +60,14 @@ export default function ManageStudentsDialog({
         (id) => !newSelection.includes(id),
       );
 
-      if (toAdd.length > 0) await addStudentsToGroup(group.id, toAdd);
-      if (toRemove.length > 0)
-        await removeStudentsFromGroup(group.id, toRemove);
+      if (toAdd.length > 0) {
+        const res = await addStudentsToGroup(group.id, toAdd);
+        if (!res.ok) throw new Error(res.error);
+      }
+      if (toRemove.length > 0) {
+        const res = await removeStudentsFromGroup(group.id, toRemove);
+        if (!res.ok) throw new Error(res.error);
+      }
 
       toast({ title: "تم تحديث الطلاب" });
       onOpenChange(false);

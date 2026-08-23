@@ -54,7 +54,8 @@ export default function AddTutorDialog({
     try {
       formData.append("academyId", academyId.toString());
       formData.append("specialities", specialitiesSelected.join(","));
-      await createTutor(formData);
+      const res = await createTutor(formData);
+      if (!res.ok) throw new Error(res.error);
       toast({ title: t("toast.success") });
       setOpen(false);
       router.refresh();

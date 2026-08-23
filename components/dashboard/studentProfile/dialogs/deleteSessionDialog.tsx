@@ -33,7 +33,8 @@ export default function DeleteSessionDialog({
   const handleDelete = async () => {
     setLoading(true);
     try {
-      await deleteSession(sessionId);
+      const res = await deleteSession(sessionId);
+      if (!res.ok) throw new Error(res.error);
       toast({ title: "تم حذف الحصة" });
       onOpenChange(false);
       onDeleted?.();

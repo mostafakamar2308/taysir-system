@@ -6,6 +6,7 @@ import dayjs from "@/lib/dayjs";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { user } from "@/lib/auth";
+import { withResult, fail } from "@/lib/action-result";
 
 const expenseSchema = z.object({
   date: z.date(),
@@ -21,9 +22,9 @@ const expenseSchema = z.object({
   salaryMonth: z.string().nullable().optional(),
 });
 
-export async function createExpense(formData: FormData) {
+export const createExpense = withResult(async (formData: FormData) => {
   const currentUser = await user();
-  if (!currentUser) throw new Error("غير مصرح");
+  if (!currentUser) return fail("غير مصرح");
 
   const rawData = {
     date: dayjs.utc(formData.get("date") as string).toDate(),
@@ -43,16 +44,19 @@ export async function createExpense(formData: FormData) {
     salaryMonth: (formData.get("salaryMonth") as string) || null,
   };
 
-  const validated = expenseSchema.parse(rawData);
+  const validated = expenseSchema.safeParse(rawData);
+  if (!validated.success) {
+    return fail(validated.error.issues[0]?.message ?? "بيانات غير صحيحة");
+  }
 
   await db.expense.create({
-    data: { ...validated, academyId: currentUser.academyId! },
+    data: { ...validated.data, academyId: currentUser.academyId! },
   });
 
   revalidatePath("/ar/dashboard/finances");
-}
+});
 
-export async function updateExpense(id: number, formData: FormData) {
+export const updateExpense = withResult(async (id: number, formData: FormData) => {
   const rawData = {
     date: new Date(formData.get("date") as string),
     description: formData.get("description") as string,
@@ -71,19 +75,22 @@ export async function updateExpense(id: number, formData: FormData) {
     salaryMonth: (formData.get("salaryMonth") as string) || null,
   };
 
-  const validated = expenseSchema.partial().parse(rawData);
+  const validated = expenseSchema.partial().safeParse(rawData);
+  if (!validated.success) {
+    return fail(validated.error.issues[0]?.message ?? "بيانات غير صحيحة");
+  }
 
-  await db.expense.update({ where: { id }, data: validated });
+  await db.expense.update({ where: { id }, data: validated.data });
 
   revalidatePath("/ar/dashboard/finances");
-}
+});
 
-export async function deleteExpense(id: number) {
+export const deleteExpense = withResult(async (id: number) => {
   await db.expense.delete({ where: { id } });
   revalidatePath("/ar/dashboard/finances");
-}
+});
 
-export async function updateExpenseStatus(id: number, status: PaymentStatus) {
+export const updateExpenseStatus = withResult(async (id: number, status: PaymentStatus) => {
   await db.expense.update({ where: { id }, data: { status: status } });
   revalidatePath("/ar/dashboard/finances");
-}
+});

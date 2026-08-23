@@ -42,7 +42,9 @@ export default function AddGroupDialog({
   // Fetch tutors only when the dialog opens – no state resets needed
   useEffect(() => {
     if (open) {
-      getAcademyTutors().then(setTutors).catch(console.error);
+      getAcademyTutors().then((res) => {
+        if (res.ok) setTutors(res.data ?? []);
+      }).catch(console.error);
     }
   }, [open]);
 
@@ -61,7 +63,8 @@ export default function AddGroupDialog({
     formData.set("tutorHourlyRate", tutorHourlyRate);
     setLoading(true);
     try {
-      await createGroup(formData);
+      const res = await createGroup(formData);
+      if (!res.ok) throw new Error(res.error);
       toast({ title: "تم إنشاء المجموعة" });
       onOpenChange(false);
       onSuccess();

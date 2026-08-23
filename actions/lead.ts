@@ -4,6 +4,7 @@ import { LeadData, leadSchema } from "@/lib/schemas/lead";
 import db from "@/lib/prisma";
 import { whatsappQueue } from "@/lib/queue/whatsappQueue";
 import { constructWhatsAppMessage } from "@/lib/whatsapp-templates";
+import { withResult, fail } from "@/lib/action-result";
 
 const SYSTEM_ACADEMY_ID = parseInt(process.env.SYSTEM_ACADEMY_ID || "1", 10);
 
@@ -30,13 +31,10 @@ function determineTier(teacherCount: string): "A" | "B" | "C" {
   }
 }
 
-export async function registerLead(data: unknown) {
+export const registerLead = withResult(async (data: unknown) => {
   const result = leadSchema.safeParse(data);
   if (!result.success) {
-    return {
-      error: "Validation failed",
-      issues: result.error.flatten().fieldErrors,
-    };
+    return fail("فشل التحقق من البيانات");
   }
 
   const leadData = result.data;
@@ -105,9 +103,9 @@ export async function registerLead(data: unknown) {
     return { success: true };
   } catch (error) {
     console.error("Lead registration error:", error);
-    return { error: "حدث خطأ أثناء التسجيل، حاول مرة أخرى" };
+    return fail("حدث خطأ أثناء التسجيل، حاول مرة أخرى");
   }
-}
+});
 
 const sendAdminEmail = async (leadData: LeadData) => {
   const adminEmail = process.env.ADMIN_EMAIL || "mostafakamar.dev@gmail.com";

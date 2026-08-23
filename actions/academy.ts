@@ -7,6 +7,7 @@ import { z } from "zod";
 import bcrypt from "bcrypt";
 import { Role } from "@/types/user";
 import dayjs from "@/lib/dayjs";
+import { withResult, fail } from "@/lib/action-result";
 
 const createAcademySchema = z.object({
   name: z.string().min(1),
@@ -23,20 +24,23 @@ const updateAcademySchema = z.object({
   saasPlanId: z.number().nullable().optional(),
 });
 
-export async function createAcademy(data: z.infer<typeof createAcademySchema>) {
+export const createAcademy = withResult(async (data: z.infer<typeof createAcademySchema>) => {
   const token = await getTokenFromCookie();
-  if (!token) throw new Error("غير مصرح");
+  if (!token) return fail("غير مصرح");
   const payload = verifyToken(token);
-  if (!payload || payload.role !== Role.SuperAdmin) throw new Error("غير مصرح");
+  if (!payload || payload.role !== Role.SuperAdmin) return fail("غير مصرح");
 
-  const validated = createAcademySchema.parse(data);
-  const hashedPassword = await bcrypt.hash(validated.adminPassword, 10);
+  const validated = createAcademySchema.safeParse(data);
+  if (!validated.success) {
+    return fail(validated.error.issues[0]?.message ?? "بيانات غير صحيحة");
+  }
+  const hashedPassword = await bcrypt.hash(validated.data.adminPassword, 10);
 
   // Create the admin user
   const adminUser = await db.user.create({
     data: {
-      name: validated.adminName,
-      email: validated.adminEmail,
+      name: validated.data.adminName,
+      email: validated.data.adminEmail,
       password: hashedPassword,
       role: Role.Admin,
       timezone: "Africa/Cairo",
@@ -47,21 +51,21 @@ export async function createAcademy(data: z.infer<typeof createAcademySchema>) {
   let saasPlanStartDate: Date | null = null;
   let saasPlanEndDate: Date | null = null;
   const plan = await db.saasPlan.findUnique({
-    where: { id: validated.saasPlanId },
+    where: { id: validated.data.saasPlanId },
   });
-  if (!plan) throw new Error("No Plan with this ID");
-  if (validated.isFreeTrial && validated.saasPlanId) {
+  if (!plan) return fail("لا توجد خطة بهذا المعرف");
+  if (validated.data.isFreeTrial && validated.data.saasPlanId) {
     saasPlanStartDate = new Date();
     saasPlanEndDate = dayjs().add(plan.billingPeriod, "day").toDate();
   }
 
   const currency = await db.currency.findFirst({});
-  if (!currency) throw new Error("No currency");
+  if (!currency) return fail("لا توجد عملة");
 
   const academy = await db.academy.create({
     data: {
-      name: validated.name,
-      saasPlanId: validated.saasPlanId,
+      name: validated.data.name,
+      saasPlanId: validated.data.saasPlanId,
       saasPlanStartDate,
       saasPlanEndDate,
       maxStudents: plan?.maxStudents,
@@ -81,49 +85,51 @@ export async function createAcademy(data: z.infer<typeof createAcademySchema>) {
 
   revalidatePath("/ar/dashboard/admin/academies");
   return academy;
-}
+});
 
-export async function updateAcademy(
+export const updateAcademy = withResult(async (
   id: number,
   data: z.infer<typeof updateAcademySchema>,
-) {
-  const token = await getTokenFromCookie();
-  if (!token) throw new Error("غير مصرح");
-  const payload = verifyToken(token);
-  if (!payload || payload.role !== Role.SuperAdmin) throw new Error("غير مصرح");
+) => {
+    const token = await getTokenFromCookie();
+    if (!token) return fail("غير مصرح");
+    const payload = verifyToken(token);
+    if (!payload || payload.role !== Role.SuperAdmin) return fail("غير مصرح");
 
-  const validated = updateAcademySchema.parse(data);
-
-  await db.academy.update({
-    where: { id },
-    data: {
-      name: validated.name,
-      saasPlanId: validated.saasPlanId,
-    },
-  });
-
-  // If adminId is provided, we need to update the admin relationship
-  if (validated.adminId !== undefined) {
-    const existingAdmin = await db.admin.findUnique({
-      where: { academyId: id },
-    });
-    if (!existingAdmin) throw new Error("No Admin was found");
+    const validated = updateAcademySchema.safeParse(data);
+    if (!validated.success) {
+      return fail(validated.error.issues[0]?.message ?? "بيانات غير صحيحة");
+    }
     await db.academy.update({
-      where: { id: existingAdmin.id },
-      data: { adminId: validated.adminId },
+      where: { id },
+      data: {
+        name: validated.data.name,
+        saasPlanId: validated.data.saasPlanId,
+      },
     });
-  }
 
-  revalidatePath("/ar/dashboard/admin/academies");
-  revalidatePath(`/ar/dashboard/admin/academies/${id}`);
-}
+    // If adminId is provided, we need to update the admin relationship
+    if (validated.data.adminId !== undefined) {
+      const existingAdmin = await db.admin.findUnique({
+        where: { academyId: id },
+      });
+      if (!existingAdmin) return fail("لم يتم العثور على مشرف");
+      await db.academy.update({
+        where: { id: existingAdmin.id },
+        data: { adminId: validated.data.adminId },
+      });
+    }
 
-export async function deleteAcademy(id: number) {
+    revalidatePath("/ar/dashboard/admin/academies");
+    revalidatePath(`/ar/dashboard/admin/academies/${id}`);
+});
+
+export const deleteAcademy = withResult(async (id: number) => {
   const token = await getTokenFromCookie();
-  if (!token) throw new Error("غير مصرح");
+  if (!token) return fail("غير مصرح");
   const payload = verifyToken(token);
-  if (!payload || payload.role !== Role.SuperAdmin) throw new Error("غير مصرح");
+  if (!payload || payload.role !== Role.SuperAdmin) return fail("غير مصرح");
 
   await db.academy.delete({ where: { id } });
   revalidatePath("/ar/dashboard/admin/academies");
-}
+});

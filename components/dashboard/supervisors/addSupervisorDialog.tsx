@@ -38,7 +38,8 @@ export default function AddSupervisorDialog({
   async function handleSubmit(formData: FormData) {
     setLoading(true);
     try {
-      await createSupervisor(formData);
+      const res = await createSupervisor(formData);
+      if (!res.ok) throw new Error(res.error);
       toast({ title: "تمت إضافة المشرف بنجاح" });
       setOpen(false);
       router.refresh();

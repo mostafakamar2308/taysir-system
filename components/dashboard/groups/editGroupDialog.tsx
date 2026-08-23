@@ -48,7 +48,9 @@ export default function EditGroupDialog({
   // Fetch tutors only when the dialog opens
   useEffect(() => {
     if (open) {
-      getAcademyTutors().then(setTutors).catch(console.error);
+      getAcademyTutors().then((res) => {
+        if (res.ok) setTutors(res.data ?? []);
+      }).catch(console.error);
     }
   }, [open]);
 
@@ -66,7 +68,8 @@ export default function EditGroupDialog({
     formData.set("tutorHourlyRate", tutorHourlyRate);
     setLoading(true);
     try {
-      await updateGroup(group.id, formData);
+      const res = await updateGroup(group.id, formData);
+      if (!res.ok) throw new Error(res.error);
       toast({ title: "تم حفظ التغييرات" });
       onOpenChange(false);
       onSuccess();

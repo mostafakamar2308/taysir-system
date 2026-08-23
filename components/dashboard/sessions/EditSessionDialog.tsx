@@ -62,7 +62,9 @@ export function EditSessionDialog({
   useEffect(() => {
     if (open) {
       getSessionFormOptions(academyId)
-        .then((data) => setTutors(data.tutors))
+        .then((res) => {
+          if (res.ok) setTutors(res.data?.tutors ?? []);
+        })
         .catch(console.error);
     }
   }, [open, academyId]);
@@ -73,7 +75,7 @@ export function EditSessionDialog({
     e.preventDefault();
     setLoading(true);
     try {
-      await updateSession({
+      const res = await updateSession({
         id: session.id,
         topic,
         isTrial,
@@ -86,6 +88,7 @@ export function EditSessionDialog({
               duration,
             }),
       });
+      if (!res.ok) throw new Error(res.error);
       toast({ title: "تم تحديث الحصة" });
       onOpenChange(false);
     } catch (err) {

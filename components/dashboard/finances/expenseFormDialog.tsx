@@ -141,9 +141,11 @@ export default function ExpenseFormDialog({
       };
 
       if (editingExpense) {
-        await updateExpense(editingExpense.id, payload);
+        const res = await updateExpense(editingExpense.id, payload);
+        if (!res.ok) throw new Error(res.error);
       } else {
-        await createExpense(payload);
+        const res = await createExpense(payload);
+        if (!res.ok) throw new Error(res.error);
       }
       onOpenChange(false);
       router.refresh();

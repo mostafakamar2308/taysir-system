@@ -75,7 +75,8 @@ export default function CurrenciesClient({
       return;
     }
     try {
-      await updateExchangeRate(academyId, currencyId, rate);
+      const res = await updateExchangeRate(academyId, currencyId, rate);
+      if (!res.ok) throw new Error(res.error);
       setCurrencies((prev) =>
         prev.map((c) => (c.id === currencyId ? { ...c, rate } : c)),
       );
@@ -99,7 +100,8 @@ export default function CurrenciesClient({
       return;
     }
     try {
-      await updateDefaultCurrency(academyId, newId);
+      const res = await updateDefaultCurrency(academyId, newId);
+      if (!res.ok) throw new Error(res.error);
       toast({ title: "تم تغيير العملة الافتراضية" });
       router.refresh(); // will re-fetch all data
     } catch (error) {

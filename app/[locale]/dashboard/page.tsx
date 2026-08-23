@@ -480,9 +480,12 @@ export default async function DashboardPage() {
     where: { academyId },
     include: { user: { select: { name: true } } },
   });
-  const remainingMap = await getRemainingSessionsForStudents(
+  const remainingRes = await getRemainingSessionsForStudents(
     allStudents.map((s) => s.id),
   );
+  const remainingMap = remainingRes.ok
+    ? remainingRes.data ?? new Map<number, number | null>()
+    : new Map<number, number | null>();
 
   return (
     <DashboardClient

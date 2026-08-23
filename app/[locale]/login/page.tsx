@@ -41,7 +41,7 @@ export default function LoginPage() {
     formData.append("remember", String(remember));
 
     const result = await login(formData);
-    if (result?.error) {
+    if (!result.ok) {
       setError(result.error);
       setIsLoading(false);
     }

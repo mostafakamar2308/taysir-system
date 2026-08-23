@@ -61,7 +61,8 @@ export default function AddPlanDialog({
       formData.append("billingPeriod", billingPeriod);
       formData.append("currencyId", currencyId);
       formData.append("academyId", academyId.toString());
-      await createPlan(formData);
+      const res = await createPlan(formData);
+      if (!res.ok) throw new Error(res.error);
       toast({ title: "تمت إضافة الخطة" });
       onOpenChange(false);
       router.refresh();

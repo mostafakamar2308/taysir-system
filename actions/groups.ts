@@ -7,7 +7,7 @@ import dayjs from "@/lib/dayjs";
 import { SubscriptionStatus } from "@/types/subscription";
 import { markStudentSubscribed } from "@/lib/studentStatus";
 import { Prisma } from "@/generated/prisma/client";
-import type { TutorOption, StudentOption } from "@/types/group";
+import { withResult, fail } from "@/lib/action-result";
 
 async function ensureAdmin() {
   const currentUser = await user();
@@ -111,7 +111,7 @@ async function autoCreateSubscription(
 }
 
 // Fetch all active tutors for the academy (for dropdowns)
-export async function getAcademyTutors(): Promise<TutorOption[]> {
+export const getAcademyTutors = withResult(async () => {
   const admin = await ensureAdmin();
 
   const academyId = admin?.academyId;
@@ -130,10 +130,10 @@ export async function getAcademyTutors(): Promise<TutorOption[]> {
     name: t.user.name ?? "",
     baseGroupHourlyRate: t.baseGroupHourlyRate,
   }));
-}
+});
 
 // Fetch all students for the academy (for add to group)
-export async function getAcademyStudents(): Promise<StudentOption[]> {
+export const getAcademyStudents = withResult(async () => {
   const admin = await ensureAdmin();
   const academyId = admin?.academyId;
   if (!academyId) return [];
@@ -143,13 +143,13 @@ export async function getAcademyStudents(): Promise<StudentOption[]> {
     orderBy: { user: { name: "asc" } },
   });
   return students.map((s) => ({ id: s.id, name: s.user.name ?? "" }));
-}
+});
 
 // Create group
-export async function createGroup(formData: FormData) {
+export const createGroup = withResult(async (formData: FormData) => {
   const admin = await ensureAdmin();
   const academyId = admin?.academyId;
-  if (!academyId) throw new Error("غير مصرح");
+  if (!academyId) return fail("غير مصرح");
 
   const title = formData.get("title") as string;
   const tutorId = parseInt(formData.get("tutorId") as string);
@@ -158,13 +158,13 @@ export async function createGroup(formData: FormData) {
     ? parseFloat(tutorHourlyRateStr)
     : null;
 
-  if (!title || !tutorId) throw new Error("العنوان والمعلم مطلوبان");
+  if (!title || !tutorId) return fail("العنوان والمعلم مطلوبان");
 
   const tutor = await db.tutor.findUnique({
     where: { id: tutorId },
     select: { userId: true },
   });
-  if (!tutor) throw new Error("المعلم غير موجود");
+  if (!tutor) return fail("المعلم غير موجود");
 
   await db.$transaction(async (tx) => {
     const group = await tx.group.create({
@@ -186,222 +186,230 @@ export async function createGroup(formData: FormData) {
   });
 
   revalidatePath("/ar/dashboard/groups");
-}
+});
 
 // Update group (title, tutor, rate)
-export async function updateGroup(groupId: number, formData: FormData) {
-  const admin = await ensureAdmin();
-  const academyId = admin?.academyId;
-  if (!academyId) throw new Error("غير مصرح");
+export const updateGroup = withResult(
+  async (groupId: number, formData: FormData) => {
+    const admin = await ensureAdmin();
+    const academyId = admin?.academyId;
+    if (!academyId) return fail("غير مصرح");
 
-  const group = await db.group.findUnique({
-    where: { id: groupId },
-    select: { academyId: true, currentTutorId: true },
-  });
-  if (!group || group.academyId !== academyId) throw new Error("غير مصرح");
-
-  const title = formData.get("title") as string;
-  const tutorId = parseInt(formData.get("tutorId") as string);
-  const tutorHourlyRateStr = formData.get("tutorHourlyRate") as string | null;
-  const tutorHourlyRate = tutorHourlyRateStr
-    ? parseFloat(tutorHourlyRateStr)
-    : null;
-
-  if (!title || !tutorId) throw new Error("العنوان والمعلم مطلوبان");
-
-  await db.$transaction(async (tx) => {
-    await tx.group.update({
+    const group = await db.group.findUnique({
       where: { id: groupId },
-      data: {
-        title,
-        currentTutorId: tutorId,
-        tutorHourlyRate,
-      },
+      select: { academyId: true, currentTutorId: true },
+    });
+    if (!group || group.academyId !== academyId) return fail("غير مصرح");
+
+    const title = formData.get("title") as string;
+    const tutorId = parseInt(formData.get("tutorId") as string);
+    const tutorHourlyRateStr = formData.get("tutorHourlyRate") as string | null;
+    const tutorHourlyRate = tutorHourlyRateStr
+      ? parseFloat(tutorHourlyRateStr)
+      : null;
+
+    if (!title || !tutorId) return fail("العنوان والمعلم مطلوبان");
+
+    await db.$transaction(async (tx) => {
+      await tx.group.update({
+        where: { id: groupId },
+        data: {
+          title,
+          currentTutorId: tutorId,
+          tutorHourlyRate,
+        },
+      });
+
+      const room = await ensureGroupChatRoom(tx, groupId, academyId);
+
+      if (group.currentTutorId !== tutorId) {
+        const oldTutor = await tx.tutor.findUnique({
+          where: { id: group.currentTutorId },
+          select: { userId: true },
+        });
+        if (oldTutor) await deactivateGroupChatMember(tx, room.id, oldTutor.userId);
+
+        const newTutor = await tx.tutor.findUnique({
+          where: { id: tutorId },
+          select: { userId: true },
+        });
+        if (newTutor) await addGroupChatMember(tx, room.id, newTutor.userId);
+      }
     });
 
-    const room = await ensureGroupChatRoom(tx, groupId, academyId);
-
-    if (group.currentTutorId !== tutorId) {
-      const oldTutor = await tx.tutor.findUnique({
-        where: { id: group.currentTutorId },
-        select: { userId: true },
-      });
-      if (oldTutor) await deactivateGroupChatMember(tx, room.id, oldTutor.userId);
-
-      const newTutor = await tx.tutor.findUnique({
-        where: { id: tutorId },
-        select: { userId: true },
-      });
-      if (newTutor) await addGroupChatMember(tx, room.id, newTutor.userId);
-    }
-  });
-
-  revalidatePath("/ar/dashboard/groups");
-}
+    revalidatePath("/ar/dashboard/groups");
+  },
+);
 
 // Add students to group (by student IDs).
 // Auto-creates an active Subscription per enrollment when the group has a
 // determinable default student price (> 0).
-export async function addStudentsToGroup(
-  groupId: number,
-  studentIds: number[],
-) {
-  const admin = await ensureAdmin();
-  const academyId = admin?.academyId;
-  if (!academyId) throw new Error("غير مصرح");
+export const addStudentsToGroup = withResult(
+  async (
+    groupId: number,
+    studentIds: number[],
+  ) => {
+    const admin = await ensureAdmin();
+    const academyId = admin?.academyId;
+    if (!academyId) return fail("غير مصرح");
 
-  const group = await db.group.findUnique({
-    where: { id: groupId },
-    select: {
-      academyId: true,
-      studentSessionPrice: true,
-      currentTutor: { select: { userId: true } },
-    },
-  });
-  if (!group || group.academyId !== academyId) throw new Error("غير مصرح");
+    const group = await db.group.findUnique({
+      where: { id: groupId },
+      select: {
+        academyId: true,
+        studentSessionPrice: true,
+        currentTutor: { select: { userId: true } },
+      },
+    });
+    if (!group || group.academyId !== academyId) return fail("غير مصرح");
 
-  await db.$transaction(async (tx) => {
-    for (const sid of studentIds) {
-      const gs = await tx.groupStudent.upsert({
-        where: { groupId_studentId: { groupId, studentId: sid } },
-        update: { active: true, leftAt: null },
-        create: { groupId, studentId: sid },
-      });
-
-      const price = group.studentSessionPrice;
-      if (price && price > 0) {
-        const student = await tx.student.findUnique({
-          where: { id: sid },
-          select: { currencyId: true },
+    await db.$transaction(async (tx) => {
+      for (const sid of studentIds) {
+        const gs = await tx.groupStudent.upsert({
+          where: { groupId_studentId: { groupId, studentId: sid } },
+          update: { active: true, leftAt: null },
+          create: { groupId, studentId: sid },
         });
-        await autoCreateSubscription(
-          tx,
-          gs.id,
-          price,
-          student?.currencyId ?? 1,
-          sid,
-          admin!.id,
-          academyId,
-        );
+
+        const price = group.studentSessionPrice;
+        if (price && price > 0) {
+          const student = await tx.student.findUnique({
+            where: { id: sid },
+            select: { currencyId: true },
+          });
+          await autoCreateSubscription(
+            tx,
+            gs.id,
+            price,
+            student?.currencyId ?? 1,
+            sid,
+            admin!.id,
+            academyId,
+          );
+        }
       }
-    }
 
-    await syncGroupChatMembers(
-      tx,
-      groupId,
-      academyId,
-      studentIds,
-      group.currentTutor.userId,
-    );
-  });
+      await syncGroupChatMembers(
+        tx,
+        groupId,
+        academyId,
+        studentIds,
+        group.currentTutor.userId,
+      );
+    });
 
-  revalidatePath("/ar/dashboard/groups");
-}
+    revalidatePath("/ar/dashboard/groups");
+  },
+);
 
 // Remove students from group (deactivate membership)
-export async function removeStudentsFromGroup(
-  groupId: number,
-  studentIds: number[],
-) {
-  const admin = await ensureAdmin();
-  const academyId = admin?.academyId;
-  if (!academyId) throw new Error("غير مصرح");
+export const removeStudentsFromGroup = withResult(
+  async (
+    groupId: number,
+    studentIds: number[],
+  ) => {
+    const admin = await ensureAdmin();
+    const academyId = admin?.academyId;
+    if (!academyId) return fail("غير مصرح");
 
-  const group = await db.group.findUnique({
-    where: { id: groupId },
-    select: { academyId: true },
-  });
-  if (!group || group.academyId !== academyId) throw new Error("غير مصرح");
-
-  await db.$transaction(async (tx) => {
-    await tx.groupStudent.updateMany({
-      where: { groupId, studentId: { in: studentIds } },
-      data: { active: false, leftAt: new Date() },
+    const group = await db.group.findUnique({
+      where: { id: groupId },
+      select: { academyId: true },
     });
+    if (!group || group.academyId !== academyId) return fail("غير مصرح");
 
-    const room = await tx.groupChatRoom.findUnique({ where: { groupId } });
-    if (room) {
-      const students = await tx.student.findMany({
-        where: { id: { in: studentIds } },
-        select: { userId: true },
-      });
-      for (const s of students) {
-        await deactivateGroupChatMember(tx, room.id, s.userId);
-      }
-    }
-  });
-
-  revalidatePath("/ar/dashboard/groups");
-}
-
-// Activate / deactivate membership
-export async function toggleStudentMembership(
-  groupId: number,
-  studentId: number,
-  active: boolean,
-) {
-  const admin = await ensureAdmin();
-  const academyId = admin?.academyId;
-  if (!academyId) throw new Error("غير مصرح");
-
-  const group = await db.group.findUnique({
-    where: { id: groupId },
-    select: {
-      academyId: true,
-      studentSessionPrice: true,
-      currentTutor: { select: { userId: true } },
-    },
-  });
-  if (!group || group.academyId !== academyId) throw new Error("غير مصرح");
-
-  await db.$transaction(async (tx) => {
-    const room = await ensureGroupChatRoom(tx, groupId, academyId);
-    const student = await tx.student.findUnique({
-      where: { id: studentId },
-      select: { userId: true, currencyId: true },
-    });
-    if (!student) throw new Error("الطالب غير موجود");
-
-    if (active) {
-      const gs = await tx.groupStudent.upsert({
-        where: { groupId_studentId: { groupId, studentId } },
-        update: { active: true, leftAt: null },
-        create: { groupId, studentId },
-      });
-      const price = group.studentSessionPrice;
-      if (price && price > 0) {
-        await autoCreateSubscription(
-          tx,
-          gs.id,
-          price,
-          student.currencyId,
-          studentId,
-          admin!.id,
-          academyId,
-        );
-      }
-      await addGroupChatMember(tx, room.id, student.userId);
-    } else {
+    await db.$transaction(async (tx) => {
       await tx.groupStudent.updateMany({
-        where: { groupId, studentId },
+        where: { groupId, studentId: { in: studentIds } },
         data: { active: false, leftAt: new Date() },
       });
-      await tx.subscription.updateMany({
-        where: {
-          groupStudent: { groupId, studentId },
-          status: SubscriptionStatus.active,
-        },
-        data: {
-          status: SubscriptionStatus.cancelled,
-          endDate: new Date(),
-        },
-      });
-      await deactivateGroupChatMember(tx, room.id, student.userId);
-    }
-  });
 
-  revalidatePath("/ar/dashboard/groups");
-}
+      const room = await tx.groupChatRoom.findUnique({ where: { groupId } });
+      if (room) {
+        const students = await tx.student.findMany({
+          where: { id: { in: studentIds } },
+          select: { userId: true },
+        });
+        for (const s of students) {
+          await deactivateGroupChatMember(tx, room.id, s.userId);
+        }
+      }
+    });
+
+    revalidatePath("/ar/dashboard/groups");
+  },
+);
+
+// Activate / deactivate membership
+export const toggleStudentMembership = withResult(
+  async (
+    groupId: number,
+    studentId: number,
+    active: boolean,
+  ) => {
+    const admin = await ensureAdmin();
+    const academyId = admin?.academyId;
+    if (!academyId) return fail("غير مصرح");
+
+    const group = await db.group.findUnique({
+      where: { id: groupId },
+      select: {
+        academyId: true,
+        studentSessionPrice: true,
+        currentTutor: { select: { userId: true } },
+      },
+    });
+    if (!group || group.academyId !== academyId) return fail("غير مصرح");
+
+    await db.$transaction(async (tx) => {
+      const room = await ensureGroupChatRoom(tx, groupId, academyId);
+      const student = await tx.student.findUnique({
+        where: { id: studentId },
+        select: { userId: true, currencyId: true },
+      });
+      if (!student) return fail("الطالب غير موجود");
+
+      if (active) {
+        const gs = await tx.groupStudent.upsert({
+          where: { groupId_studentId: { groupId, studentId } },
+          update: { active: true, leftAt: null },
+          create: { groupId, studentId },
+        });
+        const price = group.studentSessionPrice;
+        if (price && price > 0) {
+          await autoCreateSubscription(
+            tx,
+            gs.id,
+            price,
+            student.currencyId,
+            studentId,
+            admin!.id,
+            academyId,
+          );
+        }
+        await addGroupChatMember(tx, room.id, student.userId);
+      } else {
+        await tx.groupStudent.updateMany({
+          where: { groupId, studentId },
+          data: { active: false, leftAt: new Date() },
+        });
+        await tx.subscription.updateMany({
+          where: {
+            groupStudent: { groupId, studentId },
+            status: SubscriptionStatus.active,
+          },
+          data: {
+            status: SubscriptionStatus.cancelled,
+            endDate: new Date(),
+          },
+        });
+        await deactivateGroupChatMember(tx, room.id, student.userId);
+      }
+    });
+
+    revalidatePath("/ar/dashboard/groups");
+  },
+);
 
 // ---------- Subscription management (per enrollment) ----------
 
@@ -415,65 +423,109 @@ async function getManagedGroupStudent(
   });
 }
 
-export async function createSubscriptionForEnrollment(
-  groupStudentId: number,
-  data: {
-    price: number;
-    currencyId: number;
-    planId?: number | null;
-    sessionCount?: number | null;
-    billingCycle?: number;
-    startDate?: string;
-  },
-) {
-  const admin = await ensureAdmin();
-  const academyId = admin?.academyId;
-  if (!academyId) throw new Error("غير مصرح");
-
-  const gs = await getManagedGroupStudent(groupStudentId, academyId);
-  if (!gs || gs.group.academyId !== academyId) throw new Error("غير مصرح");
-
-  const start = data.startDate ? dayjs(data.startDate).toDate() : new Date();
-  const billingCycle = data.billingCycle || 30;
-  const endDate = dayjs(start).add(billingCycle, "day").toDate();
-
-  const sub = await db.subscription.create({
+export const createSubscriptionForEnrollment = withResult(
+  async (
+    groupStudentId: number,
     data: {
-      groupStudentId,
-      planId: data.planId ?? null,
-      price: data.price,
-      currencyId: data.currencyId,
-      sessionCount: data.sessionCount ?? null,
-      billingCycle,
-      startDate: start,
-      endDate,
-      nextBillingDate: endDate,
-      status: SubscriptionStatus.active,
+      price: number;
+      currencyId: number;
+      planId?: number | null;
+      sessionCount?: number | null;
+      billingCycle?: number;
+      startDate?: string;
     },
-  });
+  ) => {
+    const admin = await ensureAdmin();
+    const academyId = admin?.academyId;
+    if (!academyId) return fail("غير مصرح");
 
-  await markStudentSubscribed(db, gs.studentId, admin!.id, academyId);
+    const gs = await getManagedGroupStudent(groupStudentId, academyId);
+    if (!gs || gs.group.academyId !== academyId) return fail("غير مصرح");
 
-  revalidatePath("/ar/dashboard/groups");
-  revalidatePath(`/ar/dashboard/students/${gs.studentId}`);
-  return sub;
-}
+    const start = data.startDate ? dayjs(data.startDate).toDate() : new Date();
+    const billingCycle = data.billingCycle || 30;
+    const endDate = dayjs(start).add(billingCycle, "day").toDate();
 
-export async function updateSubscription(
-  subscriptionId: number,
-  data: {
-    price?: number;
-    planId?: number | null;
-    sessionCount?: number | null;
-    billingCycle?: number;
-    endDate?: string | null;
-    nextBillingDate?: string | null;
-    status?: number;
+    const sub = await db.subscription.create({
+      data: {
+        groupStudentId,
+        planId: data.planId ?? null,
+        price: data.price,
+        currencyId: data.currencyId,
+        sessionCount: data.sessionCount ?? null,
+        billingCycle,
+        startDate: start,
+        endDate,
+        nextBillingDate: endDate,
+        status: SubscriptionStatus.active,
+      },
+    });
+
+    await markStudentSubscribed(db, gs.studentId, admin!.id, academyId);
+
+    revalidatePath("/ar/dashboard/groups");
+    revalidatePath(`/ar/dashboard/students/${gs.studentId}`);
+    return sub;
   },
-) {
+);
+
+export const updateSubscription = withResult(
+  async (
+    subscriptionId: number,
+    data: {
+      price?: number;
+      planId?: number | null;
+      sessionCount?: number | null;
+      billingCycle?: number;
+      endDate?: string | null;
+      nextBillingDate?: string | null;
+      status?: number;
+    },
+  ) => {
+    const admin = await ensureAdmin();
+    const academyId = admin?.academyId;
+    if (!academyId) return fail("غير مصرح");
+
+    const sub = await db.subscription.findUnique({
+      where: { id: subscriptionId },
+      include: {
+        groupStudent: {
+          select: {
+            studentId: true,
+            group: { select: { academyId: true } },
+          },
+        },
+      },
+    });
+    if (!sub || sub.groupStudent.group.academyId !== academyId)
+      return fail("غير مصرح");
+
+    await db.subscription.update({
+      where: { id: subscriptionId },
+      data: {
+        price: data.price,
+        planId: data.planId,
+        sessionCount: data.sessionCount,
+        billingCycle: data.billingCycle,
+        endDate: data.endDate ? new Date(data.endDate) : data.endDate === null ? null : undefined,
+        nextBillingDate: data.nextBillingDate
+          ? new Date(data.nextBillingDate)
+          : data.nextBillingDate === null
+            ? null
+            : undefined,
+        status: data.status,
+      },
+    });
+
+    revalidatePath("/ar/dashboard/groups");
+    revalidatePath(`/ar/dashboard/students/${sub.groupStudent.studentId}`);
+  },
+);
+
+export const cancelSubscription = withResult(async (subscriptionId: number) => {
   const admin = await ensureAdmin();
   const academyId = admin?.academyId;
-  if (!academyId) throw new Error("غير مصرح");
+  if (!academyId) return fail("غير مصرح");
 
   const sub = await db.subscription.findUnique({
     where: { id: subscriptionId },
@@ -487,47 +539,7 @@ export async function updateSubscription(
     },
   });
   if (!sub || sub.groupStudent.group.academyId !== academyId)
-    throw new Error("غير مصرح");
-
-  await db.subscription.update({
-    where: { id: subscriptionId },
-    data: {
-      price: data.price,
-      planId: data.planId,
-      sessionCount: data.sessionCount,
-      billingCycle: data.billingCycle,
-      endDate: data.endDate ? new Date(data.endDate) : data.endDate === null ? null : undefined,
-      nextBillingDate: data.nextBillingDate
-        ? new Date(data.nextBillingDate)
-        : data.nextBillingDate === null
-          ? null
-          : undefined,
-      status: data.status,
-    },
-  });
-
-  revalidatePath("/ar/dashboard/groups");
-  revalidatePath(`/ar/dashboard/students/${sub.groupStudent.studentId}`);
-}
-
-export async function cancelSubscription(subscriptionId: number) {
-  const admin = await ensureAdmin();
-  const academyId = admin?.academyId;
-  if (!academyId) throw new Error("غير مصرح");
-
-  const sub = await db.subscription.findUnique({
-    where: { id: subscriptionId },
-    include: {
-      groupStudent: {
-        select: {
-          studentId: true,
-          group: { select: { academyId: true } },
-        },
-      },
-    },
-  });
-  if (!sub || sub.groupStudent.group.academyId !== academyId)
-    throw new Error("غير مصرح");
+    return fail("غير مصرح");
 
   await db.subscription.update({
     where: { id: subscriptionId },
@@ -536,10 +548,10 @@ export async function cancelSubscription(subscriptionId: number) {
 
   revalidatePath("/ar/dashboard/groups");
   revalidatePath(`/ar/dashboard/students/${sub.groupStudent.studentId}`);
-}
+});
 
 // Active subscription + payments for one enrollment
-export async function getEnrollmentSubscription(groupStudentId: number) {
+export const getEnrollmentSubscription = withResult(async (groupStudentId: number) => {
   const admin = await ensureAdmin();
   const academyId = admin?.academyId;
   if (!academyId) return null;
@@ -592,4 +604,4 @@ export async function getEnrollmentSubscription(groupStudentId: number) {
       dueDate: p.dueDate.toISOString(),
     })),
   };
-}
+});

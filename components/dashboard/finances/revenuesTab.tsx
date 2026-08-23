@@ -223,7 +223,7 @@ export default function RevenuesTab({
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [kpisData, overdueData, renewalData, historyData] =
+      const [kpisRes, overdueRes, renewalRes, historyRes] =
         await Promise.all([
           getRevenueKPIs(academyId, period, year, month, {
             studentId: studentIdNum,
@@ -240,10 +240,14 @@ export default function RevenuesTab({
             methodNum,
           ),
         ]);
-      setKpis(kpisData);
-      setOverdueRevenue(overdueData);
-      setRenewals(renewalData);
-      setHistory(historyData);
+      setKpis(kpisRes.ok ? kpisRes.data ?? null : null);
+      setOverdueRevenue(overdueRes.ok ? overdueRes.data ?? [] : []);
+      setRenewals(
+        renewalRes.ok
+          ? renewalRes.data ?? { upcoming: [], overdue: [] }
+          : { upcoming: [], overdue: [] },
+      );
+      setHistory(historyRes.ok ? historyRes.data ?? [] : []);
     } catch {
       toast.error("حدث خطأ أثناء جلب البيانات");
     } finally {

@@ -31,7 +31,8 @@ export default function ReversePaymentDialog({
   const handleConfirm = async () => {
     setLoading(true);
     try {
-      await reverseTutorPayment(expenseId);
+      const res = await reverseTutorPayment(expenseId);
+      if (!res.ok) throw new Error(res.error);
       toast({ title: "تم استرجاع الدفعة" });
       onOpenChange(false);
       onSuccess();

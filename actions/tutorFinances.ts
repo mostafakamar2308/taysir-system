@@ -4,6 +4,7 @@ import db from "@/lib/prisma";
 import { user } from "@/lib/auth";
 import dayjs from "@/lib/dayjs";
 import { revalidatePath } from "next/cache";
+import { withResult, fail } from "@/lib/action-result";
 import { PaymentStatus } from "@/types/payment";
 import { Role } from "@/types/user";
 import {
@@ -11,14 +12,13 @@ import {
 } from "@/lib/tutorFinances";
 import { getTutorPeriodRange } from "@/lib/tutorPeriod";
 import type {
-  TutorFinancialSummary,
   TutorFinancesInput,
 } from "@/types/tutorFinances";
 
 async function requireAdmin() {
   const currentUser = await user();
   if (!currentUser?.academyId || currentUser.role !== Role.Admin)
-    throw new Error("غير مصرح");
+    return fail("غير مصرح");
   return currentUser;
 }
 
@@ -27,7 +27,7 @@ async function getConversionMap(academyId: number) {
     where: { id: academyId },
     select: { defaultCurrencyId: true },
   });
-  if (!academy?.defaultCurrencyId) throw new Error("Default currency not set");
+  if (!academy?.defaultCurrencyId) return fail("العملة الافتراضية غير محددة");
   const rates = await db.academyCurrencyRate.findMany({ where: { academyId } });
   const rateMap: Record<number, number> = {};
   rates.forEach((r) => (rateMap[r.currencyId] = r.rate));
@@ -56,7 +56,7 @@ async function loadTutorFinances(tutorId: number, academyId: number) {
     where: { id: tutorId },
     select: { id: true, academyId: true, currencyId: true },
   });
-  if (!tutor || tutor.academyId !== academyId) throw new Error("غير مصرح");
+  if (!tutor || tutor.academyId !== academyId) return fail("غير مصرح");
 
   const [sessions, payments, conversion] = await Promise.all([
     db.session.findMany({
@@ -141,26 +141,23 @@ async function loadTutorFinances(tutorId: number, academyId: number) {
   return { data, summary };
 }
 
-export async function getTutorFinancialSummary(
-  tutorId: number,
-): Promise<{ data: TutorFinancesInput; summary: TutorFinancialSummary }> {
-  const admin = await requireAdmin();
-  return loadTutorFinances(tutorId, admin.academyId!);
-}
+export const getTutorFinancialSummary = withResult(
+  async (tutorId: number) => {
+    const admin = await requireAdmin();
+    return loadTutorFinances(tutorId, admin.academyId!);
+  },
+);
 
-export async function getTutorSelfFinances(): Promise<{
-  data: TutorFinancesInput;
-  summary: TutorFinancialSummary;
-}> {
+export const getTutorSelfFinances = withResult(async () => {
   const currentUser = await user();
-  if (!currentUser?.tutorId) throw new Error("غير مصرح");
+  if (!currentUser?.tutorId) return fail("غير مصرح");
   const tutor = await db.tutor.findUnique({
     where: { id: currentUser.tutorId },
     select: { academyId: true },
   });
-  if (!tutor?.academyId) throw new Error("غير مصرح");
+  if (!tutor?.academyId) return fail("غير مصرح");
   return loadTutorFinances(currentUser.tutorId, tutor.academyId);
-}
+});
 
 // ---------- Record payment (one Expense row per allocated period) ----------
 
@@ -169,75 +166,77 @@ export interface TutorPaymentAllocationInput {
   amount: number;
 }
 
-export async function recordTutorPayment(
-  tutorId: number,
-  payload: {
-    amount: number;
-    method: number | null;
-    date: string;
-    notes?: string | null;
-    allocations: TutorPaymentAllocationInput[];
+export const recordTutorPayment = withResult(
+  async (
+    tutorId: number,
+    payload: {
+      amount: number;
+      method: number | null;
+      date: string;
+      notes?: string | null;
+      allocations: TutorPaymentAllocationInput[];
+    },
+  ) => {
+    const admin = await requireAdmin();
+    const academyId = admin.academyId!;
+
+    const tutor = await db.tutor.findUnique({
+      where: { id: tutorId },
+      select: { id: true, academyId: true, currencyId: true, user: { select: { name: true } } },
+    });
+    if (!tutor || tutor.academyId !== academyId) return fail("غير مصرح");
+
+    const allocations = payload.allocations.filter((a) => a.amount > 0);
+    if (allocations.length === 0) return fail("اختر توزيعًا للدفعة");
+
+    const monthRe = /^\d{4}-\d{2}$/;
+    if (allocations.some((a) => !monthRe.test(a.month)))
+      return fail("فترة غير صالحة");
+
+    const total = allocations.reduce((sum, a) => sum + a.amount, 0);
+    if (Math.abs(total - payload.amount) > 0.01)
+      return fail("مجموع التوزيع لا يساوي المبلغ المدفوع");
+
+    const dueDate = dayjs.utc(payload.date).toDate();
+    const currencyId = (await db.academy.findUnique({
+      where: { id: academyId },
+      select: { defaultCurrencyId: true },
+    }))?.defaultCurrencyId ?? tutor.currencyId;
+    const costCenterId = await findSalaryCostCenterId();
+    const tutorName = tutor.user.name ?? `#${tutor.id}`;
+
+    await db.$transaction(async (tx) => {
+      for (const a of allocations) {
+        await tx.expense.create({
+          data: {
+            date: dueDate,
+            description: `دفعة للمعلم ${tutorName} — ${dayjs
+              .utc(`${a.month}-01`)
+              .format("MMMM YYYY")}`,
+            costCenterId,
+            amount: a.amount,
+            currencyId,
+            method: payload.method,
+            status: PaymentStatus.PAID,
+            notes: payload.notes ?? null,
+            tutorId,
+            salaryMonth: a.month,
+            academyId,
+            recordedBy: admin.id,
+          },
+        });
+      }
+    });
+
+    revalidatePath(tutorPath(tutorId));
+    revalidatePath("/ar/dashboard/tutor/finances");
+    revalidatePath("/ar/dashboard/finances");
   },
-) {
-  const admin = await requireAdmin();
-  const academyId = admin.academyId!;
-
-  const tutor = await db.tutor.findUnique({
-    where: { id: tutorId },
-    select: { id: true, academyId: true, currencyId: true, user: { select: { name: true } } },
-  });
-  if (!tutor || tutor.academyId !== academyId) throw new Error("غير مصرح");
-
-  const allocations = payload.allocations.filter((a) => a.amount > 0);
-  if (allocations.length === 0) throw new Error("اختر توزيعًا للدفعة");
-
-  const monthRe = /^\d{4}-\d{2}$/;
-  if (allocations.some((a) => !monthRe.test(a.month)))
-    throw new Error("فترة غير صالحة");
-
-  const total = allocations.reduce((sum, a) => sum + a.amount, 0);
-  if (Math.abs(total - payload.amount) > 0.01)
-    throw new Error("مجموع التوزيع لا يساوي المبلغ المدفوع");
-
-  const dueDate = dayjs.utc(payload.date).toDate();
-  const currencyId = (await db.academy.findUnique({
-    where: { id: academyId },
-    select: { defaultCurrencyId: true },
-  }))?.defaultCurrencyId ?? tutor.currencyId;
-  const costCenterId = await findSalaryCostCenterId();
-  const tutorName = tutor.user.name ?? `#${tutor.id}`;
-
-  await db.$transaction(async (tx) => {
-    for (const a of allocations) {
-      await tx.expense.create({
-        data: {
-          date: dueDate,
-          description: `دفعة للمعلم ${tutorName} — ${dayjs
-            .utc(`${a.month}-01`)
-            .format("MMMM YYYY")}`,
-          costCenterId,
-          amount: a.amount,
-          currencyId,
-          method: payload.method,
-          status: PaymentStatus.PAID,
-          notes: payload.notes ?? null,
-          tutorId,
-          salaryMonth: a.month,
-          academyId,
-          recordedBy: admin.id,
-        },
-      });
-    }
-  });
-
-  revalidatePath(tutorPath(tutorId));
-  revalidatePath("/ar/dashboard/tutor/finances");
-  revalidatePath("/ar/dashboard/finances");
-}
+);
 
 // ---------- Reverse a payment (auditable, never deleted) ----------
 
-export async function reverseTutorPayment(expenseId: number) {
+export const reverseTutorPayment = withResult(async (expenseId: number) => {
   const admin = await requireAdmin();
   const academyId = admin.academyId!;
 
@@ -248,7 +247,7 @@ export async function reverseTutorPayment(expenseId: number) {
     },
   });
   if (!expense || !expense.tutor || expense.tutor.academyId !== academyId)
-    throw new Error("غير مصرح");
+    return fail("غير مصرح");
 
   await db.expense.update({
     where: { id: expenseId },
@@ -258,4 +257,4 @@ export async function reverseTutorPayment(expenseId: number) {
   revalidatePath(tutorPath(expense.tutor.id));
   revalidatePath("/ar/dashboard/tutor/finances");
   revalidatePath("/ar/dashboard/finances");
-}
+});

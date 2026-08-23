@@ -75,7 +75,8 @@ export default function EditTutorDialog({
       Object.entries(formData).forEach(([key, val]) => {
         form.append(key, String(val));
       });
-      await updateTutor(tutor.id, form);
+      const res = await updateTutor(tutor.id, form);
+      if (!res.ok) throw new Error(res.error);
       toast({ title: "تم تحديث بيانات المعلم" });
       onOpenChange(false);
       router.refresh();

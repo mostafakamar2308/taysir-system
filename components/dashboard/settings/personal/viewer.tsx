@@ -82,7 +82,8 @@ export default function ProfileClient({ user }: { user: User }) {
       formData.append("timezone", timezone);
       formData.append("preferredLanguage", language);
 
-      await updateProfile(formData);
+      const res = await updateProfile(formData);
+      if (!res.ok) throw new Error(res.error);
       toast({ title: "تم الحفظ", description: "تم تحديث الملف الشخصي بنجاح" });
       router.refresh();
     } catch (error) {

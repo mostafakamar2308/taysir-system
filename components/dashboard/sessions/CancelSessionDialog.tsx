@@ -27,7 +27,8 @@ export function CancelSessionDialog({ open, onOpenChange, sessionId }: Props) {
   const handleDelete = async () => {
     setLoading(true);
     try {
-      await deleteSession(sessionId);
+      const res = await deleteSession(sessionId);
+      if (!res.ok) throw new Error(res.error);
       toast({ title: "تم إلغاء الحصة" });
       onOpenChange(false);
     } catch (err) {

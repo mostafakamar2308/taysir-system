@@ -6,6 +6,7 @@ import { z } from "zod";
 import bcrypt from "bcrypt";
 import { Role } from "@/types/user";
 import { getTokenFromCookie, verifyToken } from "@/lib/jwt";
+import { withResult, fail } from "@/lib/action-result";
 
 const createUserSchema = z.object({
   name: z.string().min(1, "الاسم مطلوب"),
@@ -22,12 +23,12 @@ const updateUserSchema = z.object({
   role: z.number().min(2).max(3),
 });
 
-export async function createUser(formData: FormData) {
+export const createUser = withResult(async (formData: FormData) => {
   const token = await getTokenFromCookie();
-  if (!token) throw new Error("غير مصرح");
+  if (!token) return fail("غير مصرح");
   const payload = verifyToken(token);
-  if (!payload) throw new Error("غير مصرح");
-  if (payload.role !== 1) throw new Error("غير مصرح"); // Only academy admin can add users
+  if (!payload) return fail("غير مصرح");
+  if (payload.role !== 1) return fail("غير مصرح"); // Only academy admin can add users
 
   const name = formData.get("name") as string;
   const email = formData.get("email") as string;
@@ -36,7 +37,7 @@ export async function createUser(formData: FormData) {
   const currencyId = parseInt(formData.get("role") as string);
   const academyId = payload.academyId!; // from the admin's token
 
-  const validated = createUserSchema.parse({
+  const validated = createUserSchema.safeParse({
     name,
     email,
     password,
@@ -44,93 +45,101 @@ export async function createUser(formData: FormData) {
     academyId,
     currencyId,
   });
+  if (!validated.success) {
+    return fail(validated.error.issues[0]?.message ?? "بيانات غير صحيحة");
+  }
 
   // Check if user already exists
   const existing = await db.user.findUnique({ where: { email } });
-  if (existing) throw new Error("البريد الإلكتروني مستخدم بالفعل");
+  if (existing) return fail("البريد الإلكتروني مستخدم بالفعل");
 
-  const hashedPassword = await bcrypt.hash(validated.password, 10);
+  const hashedPassword = await bcrypt.hash(validated.data.password, 10);
 
   const user = await db.user.create({
     data: {
-      email: validated.email,
+      email: validated.data.email,
       password: hashedPassword,
-      name: validated.name,
-      role: validated.role,
+      name: validated.data.name,
+      role: validated.data.role,
       timezone: "Africa/Cairo",
     },
   });
 
   // Create the corresponding role record
-  if (validated.role === Role.Supervisor) {
+  if (validated.data.role === Role.Supervisor) {
     await db.supervisor.create({
       data: {
         userId: user.id,
-        academyId: validated.academyId,
+        academyId: validated.data.academyId,
       },
     });
-  } else if (validated.role === Role.Tutor) {
+  } else if (validated.data.role === Role.Tutor) {
     await db.tutor.create({
       data: {
         userId: user.id,
-        academyId: validated.academyId,
+        academyId: validated.data.academyId,
         baseHourlyRate: 50,
         baseGroupHourlyRate: 50,
         active: true,
-        currencyId: validated.currencyId,
+        currencyId: validated.data.currencyId,
       },
     });
   }
 
   revalidatePath("/ar/dashboard/settings/users");
   return { success: true };
-}
+});
 
-export async function updateUser(userId: number, formData: FormData) {
+export const updateUser = withResult(
+  async (userId: number, formData: FormData) => {
+    const token = await getTokenFromCookie();
+    if (!token) return fail("غير مصرح");
+    const payload = verifyToken(token);
+    if (!payload) return fail("غير مصرح");
+    if (payload.role !== 1) return fail("غير مصرح"); // Only academy admin
+
+    const name = formData.get("name") as string;
+    const email = formData.get("email") as string;
+    const role = parseInt(formData.get("role") as string);
+
+    const validated = updateUserSchema.safeParse({ name, email, role });
+    if (!validated.success) {
+      return fail(validated.error.issues[0]?.message ?? "بيانات غير صحيحة");
+    }
+
+    // Check email uniqueness if changed
+    const existing = await db.user.findFirst({
+      where: { email: validated.data.email, NOT: { id: userId } },
+    });
+    if (existing) return fail("البريد الإلكتروني مستخدم بالفعل");
+
+    await db.user.update({
+      where: { id: userId },
+      data: {
+        name: validated.data.name,
+        email: validated.data.email,
+        role: validated.data.role,
+      },
+    });
+
+    // Update role-specific records if needed (e.g., if role changed, but for simplicity we skip)
+    revalidatePath("/ar/dashboard/settings/users");
+    return { success: true };
+  },
+);
+
+export const toggleUserActive = withResult(async (userId: number) => {
   const token = await getTokenFromCookie();
-  if (!token) throw new Error("غير مصرح");
+  if (!token) return fail("غير مصرح");
   const payload = verifyToken(token);
-  if (!payload) throw new Error("غير مصرح");
-  if (payload.role !== 1) throw new Error("غير مصرح"); // Only academy admin
-
-  const name = formData.get("name") as string;
-  const email = formData.get("email") as string;
-  const role = parseInt(formData.get("role") as string);
-
-  const validated = updateUserSchema.parse({ name, email, role });
-
-  // Check email uniqueness if changed
-  const existing = await db.user.findFirst({
-    where: { email: validated.email, NOT: { id: userId } },
-  });
-  if (existing) throw new Error("البريد الإلكتروني مستخدم بالفعل");
-
-  await db.user.update({
-    where: { id: userId },
-    data: {
-      name: validated.name,
-      email: validated.email,
-      role: validated.role,
-    },
-  });
-
-  // Update role-specific records if needed (e.g., if role changed, but for simplicity we skip)
-  revalidatePath("/ar/dashboard/settings/users");
-  return { success: true };
-}
-
-export async function toggleUserActive(userId: number) {
-  const token = await getTokenFromCookie();
-  if (!token) throw new Error("غير مصرح");
-  const payload = verifyToken(token);
-  if (!payload) throw new Error("غير مصرح");
-  if (payload.role !== 1) throw new Error("غير مصرح");
+  if (!payload) return fail("غير مصرح");
+  if (payload.role !== 1) return fail("غير مصرح");
 
   const user = await db.user.findUnique({
     where: { id: userId },
     include: { tutor: true, supervisor: true },
   });
-  if (!user) throw new Error("المستخدم غير موجود");
+  if (!user) return fail("المستخدم غير موجود");
 
   if (user.tutor) {
     await db.tutor.update({
@@ -146,17 +155,17 @@ export async function toggleUserActive(userId: number) {
 
   revalidatePath("/ar/dashboard/settings/users");
   return { success: true };
-}
+});
 
-export async function resetPassword(userId: number) {
+export const resetPassword = withResult(async (userId: number) => {
   const token = await getTokenFromCookie();
-  if (!token) throw new Error("غير مصرح");
+  if (!token) return fail("غير مصرح");
   const payload = verifyToken(token);
-  if (!payload) throw new Error("غير مصرح");
-  if (payload.role !== 1) throw new Error("غير مصرح");
+  if (!payload) return fail("غير مصرح");
+  if (payload.role !== 1) return fail("غير مصرح");
 
   const user = await db.user.findUnique({ where: { id: userId } });
-  if (!user) throw new Error("المستخدم غير موجود");
+  if (!user) return fail("المستخدم غير موجود");
 
   const tempPassword = "Pass@123";
   const hashed = await bcrypt.hash(tempPassword, 10);
@@ -169,4 +178,4 @@ export async function resetPassword(userId: number) {
   // In a real app, you would send an email with the new password
   // Here we just return it (for demo, you'd normally not return it)
   return { tempPassword };
-}
+});

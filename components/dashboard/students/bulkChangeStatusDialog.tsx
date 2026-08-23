@@ -53,7 +53,8 @@ export default function BulkChangeStatusDialog({
     }
     setLoading(true);
     try {
-      await bulkChangeStatus(studentIds, parseInt(status));
+      const res = await bulkChangeStatus(studentIds, parseInt(status));
+      if (!res.ok) throw new Error(res.error);
       toast({ title: "تم تغيير حالة الطلاب المحددين" });
       onSuccess?.();
       onOpenChange(false);

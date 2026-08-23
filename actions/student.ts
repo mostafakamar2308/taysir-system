@@ -8,14 +8,13 @@ import {
   recordStudentTutorChangeHistory,
 } from "@/lib/history";
 import { getTokenFromCookie, verifyToken } from "@/lib/jwt";
+import { withResult, fail } from "@/lib/action-result";
 import db from "@/lib/prisma";
 import { getSessionStatus } from "@/lib/session";
 import { markStudentSubscribed } from "@/lib/studentStatus";
 import { PaymentStatus } from "@/types/payment";
 import { StudentStatus } from "@/types/student";
-import { GetStudentResult } from "@/types/student";
 import { SubscriptionStatus } from "@/types/subscription";
-import { SessionRecord } from "@/types/studentProfile";
 import { Role } from "@/types/user";
 import dayjs from "dayjs";
 import { revalidatePath } from "next/cache";
@@ -156,7 +155,7 @@ async function setStudentTutor(
       where: { id: tutorId },
       select: { id: true, userId: true },
     });
-    if (!tutor) throw new Error("المعلم غير موجود");
+    if (!tutor) return fail("المعلم غير موجود");
 
     const groupId = await ensurePrivateGroup(
       tx,
@@ -202,9 +201,9 @@ async function setStudentTutor(
 }
 
 // ── Create ───────────────────────────────────────────────────────
-export async function createStudent(formData: FormData) {
+export const createStudent = withResult(async (formData: FormData) => {
   const currentUser = await user();
-  if (!currentUser || !currentUser.academyId) throw new Error("غير مصرح");
+  if (!currentUser || !currentUser.academyId) return fail("غير مصرح");
 
   // Extract raw data from FormData
   const rawUser = {
@@ -236,22 +235,28 @@ export async function createStudent(formData: FormData) {
   };
 
   // Validate both parts
-  const validatedUser = userSchema.parse(rawUser);
-  const validatedStudent = studentDataSchema.parse(rawStudent);
+  const validatedUser = userSchema.safeParse(rawUser);
+  if (!validatedUser.success) {
+    return fail(validatedUser.error.issues[0]?.message ?? "بيانات غير صحيحة");
+  }
+  const validatedStudent = studentDataSchema.safeParse(rawStudent);
+  if (!validatedStudent.success) {
+    return fail(validatedStudent.error.issues[0]?.message ?? "بيانات غير صحيحة");
+  }
 
   // Hash provided password
-  const hashedPassword = await bcrypt.hash(validatedUser.password, 10);
+  const hashedPassword = await bcrypt.hash(validatedUser.data.password, 10);
 
   const result = await db.$transaction(async (tx) => {
     // 1. Create User
     const user = await tx.user.create({
       data: {
-        name: validatedUser.name,
-        email: validatedUser.email,
+        name: validatedUser.data.name,
+        email: validatedUser.data.email,
         password: hashedPassword,
-        phone: validatedUser.phone,
-        timezone: validatedUser.timezone,
-        preferredLanguage: validatedUser.preferredLanguage || "ar",
+        phone: validatedUser.data.phone,
+        timezone: validatedUser.data.timezone,
+        preferredLanguage: validatedUser.data.preferredLanguage || "ar",
         role: Role.Student,
       },
     });
@@ -261,11 +266,11 @@ export async function createStudent(formData: FormData) {
       data: {
         userId: user.id,
         academyId: currentUser.academyId!,
-        age: validatedStudent.age,
-        country: validatedStudent.country,
-        status: validatedStudent.status,
-        currencyId: validatedStudent.currencyId,
-        source: validatedStudent.source,
+        age: validatedStudent.data.age,
+        country: validatedStudent.data.country,
+        status: validatedStudent.data.status,
+        currencyId: validatedStudent.data.currencyId,
+        source: validatedStudent.data.source,
       },
     });
 
@@ -284,7 +289,7 @@ export async function createStudent(formData: FormData) {
   });
 
   // If status is "lead", record lead history
-  if (validatedStudent.status === StudentStatus.lead) {
+  if (validatedStudent.data.status === StudentStatus.lead) {
     await recordLeadCreatedHistory(
       result.student.id,
       currentUser.id,
@@ -293,7 +298,7 @@ export async function createStudent(formData: FormData) {
   }
 
   revalidatePath("/ar/dashboard/students");
-}
+});
 
 const userUpdateSchema = z.object({
   name: z.string().min(1, "الاسم مطلوب"),
@@ -310,16 +315,16 @@ const studentUpdateSchema = z.object({
   source: z.string().optional().nullable(),
 });
 
-export async function updateStudent(id: number, formData: FormData) {
+export const updateStudent = withResult(async (id: number, formData: FormData) => {
   const currentUser = await user();
-  if (!currentUser || !currentUser.academyId) throw new Error("غير مصرح");
+  if (!currentUser || !currentUser.academyId) return fail("غير مصرح");
 
   // 1. Fetch existing student to get userId
   const existingStudent = await db.student.findUnique({
     where: { id },
     include: { user: true },
   });
-  if (!existingStudent) throw new Error("الطالب غير موجود");
+  if (!existingStudent) return fail("الطالب غير موجود");
 
   // 2. Extract and validate user fields from formData
   const rawUser = {
@@ -329,7 +334,10 @@ export async function updateStudent(id: number, formData: FormData) {
     timezone: formData.get("timezone") as string,
     preferredLanguage: formData.get("preferredLanguage") || null,
   };
-  const validatedUser = userUpdateSchema.parse(rawUser);
+  const validatedUser = userUpdateSchema.safeParse(rawUser);
+  if (!validatedUser.success) {
+    return fail(validatedUser.error.issues[0]?.message ?? "بيانات غير صحيحة");
+  }
 
   // 3. Extract and validate student fields
   const rawStudent = {
@@ -339,35 +347,38 @@ export async function updateStudent(id: number, formData: FormData) {
     country: formData.get("country") || null,
     source: formData.get("source") || null,
   };
-  const validatedStudent = studentUpdateSchema.parse(rawStudent);
+  const validatedStudent = studentUpdateSchema.safeParse(rawStudent);
+  if (!validatedStudent.success) {
+    return fail(validatedStudent.error.issues[0]?.message ?? "بيانات غير صحيحة");
+  }
 
   // 4. Perform updates in a transaction
   await db.$transaction(async (tx) => {
     await tx.user.update({
       where: { id: existingStudent.userId },
       data: {
-        name: validatedUser.name,
-        email: validatedUser.email,
-        phone: validatedUser.phone,
-        timezone: validatedUser.timezone,
-        preferredLanguage: validatedUser.preferredLanguage || undefined,
+        name: validatedUser.data.name,
+        email: validatedUser.data.email,
+        phone: validatedUser.data.phone,
+        timezone: validatedUser.data.timezone,
+        preferredLanguage: validatedUser.data.preferredLanguage || undefined,
       },
     });
 
     await tx.student.update({
       where: { id },
       data: {
-        age: validatedStudent.age,
-        country: validatedStudent.country,
-        source: validatedStudent.source,
+        age: validatedStudent.data.age,
+        country: validatedStudent.data.country,
+        source: validatedStudent.data.source,
       },
     });
   });
 
   revalidatePath("/ar/dashboard/students");
-}
+});
 
-export async function getStudent(id: number): Promise<GetStudentResult | null> {
+export const getStudent = withResult(async (id: number) => {
   const student = await db.student.findUnique({
     where: { id },
     include: {
@@ -405,63 +416,61 @@ export async function getStudent(id: number): Promise<GetStudentResult | null> {
       isPrivate: m.group._count.members === 1,
     })),
   };
-}
+});
 
 // ── Status changes (no subscriptions) ────────────────────────────
-export async function changeStudentStatus(
-  studentId: number,
-  status: number,
-  note?: string,
-) {
-  const token = await getTokenFromCookie();
-  if (!token) throw new Error("غير مصرح");
-  const payload = verifyToken(token);
-  if (!payload) throw new Error("غير مصرح");
+export const changeStudentStatus = withResult(
+  async (studentId: number, status: number, note?: string) => {
+    const token = await getTokenFromCookie();
+    if (!token) return fail("غير مصرح");
+    const payload = verifyToken(token);
+    if (!payload) return fail("غير مصرح");
 
-  const student = await db.student.findUnique({
-    where: { id: studentId },
-  });
-  if (!student) throw new Error("هذا الطالب غير موجود");
-
-  await db.student.update({
-    where: { id: studentId },
-    data: { status },
-  });
-
-  await recordStudentStatusChangeHistory(
-    studentId,
-    student.status,
-    status,
-    payload.id,
-    student.academyId,
-  );
-
-  if (note?.trim()) {
-    await db.note.create({
-      data: {
-        content: note,
-        targetType: 0, // student
-        targetId: studentId,
-        authorId: payload.id,
-      },
+    const student = await db.student.findUnique({
+      where: { id: studentId },
     });
-  }
+    if (!student) return fail("هذا الطالب غير موجود");
 
-  revalidatePath("/ar/dashboard/students");
-  revalidatePath(`/ar/dashboard/students/${studentId}`);
-}
+    await db.student.update({
+      where: { id: studentId },
+      data: { status },
+    });
 
-export async function assignTutor(studentId: number, tutorId: number | null) {
+    await recordStudentStatusChangeHistory(
+      studentId,
+      student.status,
+      status,
+      payload.id,
+      student.academyId,
+    );
+
+    if (note?.trim()) {
+      await db.note.create({
+        data: {
+          content: note,
+          targetType: 0, // student
+          targetId: studentId,
+          authorId: payload.id,
+        },
+      });
+    }
+
+    revalidatePath("/ar/dashboard/students");
+    revalidatePath(`/ar/dashboard/students/${studentId}`);
+  },
+);
+
+export const assignTutor = withResult(async (studentId: number, tutorId: number | null) => {
   const token = await getTokenFromCookie();
-  if (!token) throw new Error("غير مصرح");
+  if (!token) return fail("غير مصرح");
   const payload = verifyToken(token);
-  if (!payload || !payload.academyId) throw new Error("غير مصرح");
+  if (!payload || !payload.academyId) return fail("غير مصرح");
 
   const student = await db.student.findUnique({
     where: { id: studentId },
     include: { user: { select: { id: true, name: true } } },
   });
-  if (!student) throw new Error("الطالب غير موجود");
+  if (!student) return fail("الطالب غير موجود");
 
   const oldTutorId = await db.$transaction(async (tx) =>
     setStudentTutor(
@@ -483,13 +492,13 @@ export async function assignTutor(studentId: number, tutorId: number | null) {
 
   revalidatePath("/ar/dashboard/students");
   revalidatePath(`/ar/dashboard/students/${studentId}`);
-}
+});
 
-export async function addNote(studentId: number, content: string) {
+export const addNote = withResult(async (studentId: number, content: string) => {
   const token = await getTokenFromCookie();
-  if (!token) throw new Error("غير مصرح");
+  if (!token) return fail("غير مصرح");
   const payload = verifyToken(token);
-  if (!payload) throw new Error("غير مصرح");
+  if (!payload) return fail("غير مصرح");
 
   await db.note.create({
     data: {
@@ -501,55 +510,54 @@ export async function addNote(studentId: number, content: string) {
   });
 
   revalidatePath(`/ar/dashboard/students/${studentId}`);
-}
+});
 
-export async function bulkAssignTutor(
-  studentIds: number[],
-  tutorId: number | null,
-) {
-  const token = await getTokenFromCookie();
-  if (!token) throw new Error("غير مصرح");
-  const payload = verifyToken(token);
-  if (!payload || !payload.academyId) throw new Error("غير مصرح");
+export const bulkAssignTutor = withResult(
+  async (studentIds: number[], tutorId: number | null) => {
+    const token = await getTokenFromCookie();
+    if (!token) return fail("غير مصرح");
+    const payload = verifyToken(token);
+    if (!payload || !payload.academyId) return fail("غير مصرح");
 
-  const students = await db.student.findMany({
-    where: { id: { in: studentIds } },
-    include: { user: { select: { id: true, name: true } } },
-  });
+    const students = await db.student.findMany({
+      where: { id: { in: studentIds } },
+      include: { user: { select: { id: true, name: true } } },
+    });
 
-  const changes: { studentId: number; oldTutorId: number | null }[] = [];
+    const changes: { studentId: number; oldTutorId: number | null }[] = [];
 
-  await db.$transaction(async (tx) => {
-    for (const student of students) {
-      const oldTutorId = await setStudentTutor(
-        tx,
-        student,
-        student.user.name ?? "",
+    await db.$transaction(async (tx) => {
+      for (const student of students) {
+        const oldTutorId = await setStudentTutor(
+          tx,
+          student,
+          student.user.name ?? "",
+          tutorId,
+          payload.academyId!,
+        );
+        changes.push({ studentId: student.id, oldTutorId });
+      }
+    });
+
+    for (const change of changes) {
+      await recordStudentTutorChangeHistory(
+        change.studentId,
+        change.oldTutorId,
         tutorId,
-        payload.academyId!,
+        payload.id,
+        payload.academyId,
       );
-      changes.push({ studentId: student.id, oldTutorId });
     }
-  });
 
-  for (const change of changes) {
-    await recordStudentTutorChangeHistory(
-      change.studentId,
-      change.oldTutorId,
-      tutorId,
-      payload.id,
-      payload.academyId,
-    );
-  }
+    revalidatePath("/ar/dashboard/students");
+  },
+);
 
-  revalidatePath("/ar/dashboard/students");
-}
-
-export async function bulkChangeStatus(studentIds: number[], status: number) {
+export const bulkChangeStatus = withResult(async (studentIds: number[], status: number) => {
   const token = await getTokenFromCookie();
-  if (!token) throw new Error("غير مصرح");
+  if (!token) return fail("غير مصرح");
   const payload = verifyToken(token);
-  if (!payload) throw new Error("غير مصرح");
+  if (!payload) return fail("غير مصرح");
 
   // Fetch current statuses
   const students = await db.student.findMany({
@@ -576,13 +584,13 @@ export async function bulkChangeStatus(studentIds: number[], status: number) {
   }
 
   revalidatePath("/ar/dashboard/students");
-}
+});
 
-export async function bulkAddNote(studentIds: number[], content: string) {
+export const bulkAddNote = withResult(async (studentIds: number[], content: string) => {
   const token = await getTokenFromCookie();
-  if (!token) throw new Error("غير مصرح");
+  if (!token) return fail("غير مصرح");
   const payload = verifyToken(token);
-  if (!payload) throw new Error("غير مصرح");
+  if (!payload) return fail("غير مصرح");
 
   await db.note.createMany({
     data: studentIds.map((studentId) => ({
@@ -594,16 +602,16 @@ export async function bulkAddNote(studentIds: number[], content: string) {
   });
 
   revalidatePath("/ar/dashboard/students");
-}
+});
 
-export async function changePlan(groupStudentId: number, newPlanId: number) {
+export const changePlan = withResult(async (groupStudentId: number, newPlanId: number) => {
   const token = await getTokenFromCookie();
-  if (!token) throw new Error("غير مصرح");
+  if (!token) return fail("غير مصرح");
   const payload = verifyToken(token);
-  if (!payload) throw new Error("غير مصرح");
+  if (!payload) return fail("غير مصرح");
 
   const plan = await db.plan.findUnique({ where: { id: newPlanId } });
-  if (!plan) throw new Error("الباقة غير موجودة");
+  if (!plan) return fail("الباقة غير موجودة");
 
   const groupStudent = await db.groupStudent.findUnique({
     where: { id: groupStudentId },
@@ -617,10 +625,10 @@ export async function changePlan(groupStudentId: number, newPlanId: number) {
       },
     },
   });
-  if (!groupStudent) throw new Error("الالتحاق غير موجود");
+  if (!groupStudent) return fail("الالتحاق غير موجود");
 
   const activeSub = groupStudent.subscriptions[0];
-  if (!activeSub) throw new Error("لا يوجد اشتراك نشط لهذا الطالب");
+  if (!activeSub) return fail("لا يوجد اشتراك نشط لهذا الطالب");
 
   const now = dayjs().toDate();
   const endDate = dayjs().add(plan.billingPeriod, "day").toDate();
@@ -690,249 +698,254 @@ export async function changePlan(groupStudentId: number, newPlanId: number) {
   revalidatePath(`/ar/dashboard/students/${groupStudent.student.id}`);
   revalidatePath("/ar/dashboard/students");
   return null;
-}
+});
 
-export async function recordPayment(
-  studentId: number,
-  subscriptionId: number,
-  amount: number,
-  method: number,
-  description?: string,
-) {
-  const token = await getTokenFromCookie();
-  if (!token) throw new Error("غير مصرح");
-  const payload = verifyToken(token);
-  if (!payload) throw new Error("غير مصرح");
+export const recordPayment = withResult(
+  async (
+    studentId: number,
+    subscriptionId: number,
+    amount: number,
+    method: number,
+    description?: string,
+  ) => {
+    const token = await getTokenFromCookie();
+    if (!token) return fail("غير مصرح");
+    const payload = verifyToken(token);
+    if (!payload) return fail("غير مصرح");
 
-  // Get subscription to find its plan's currency
-  const subscription = await db.subscription.findUnique({
-    where: { id: subscriptionId },
-    include: {
-      plan: { select: { title: true } },
-      groupStudent: {
-        select: { studentId: true, group: { select: { academyId: true } } },
-      },
-    },
-  });
-  if (!subscription) throw new Error("الاشتراك غير موجود");
-  if (subscription.groupStudent.studentId !== studentId)
-    throw new Error("الاشتراك لا ينتمي لهذا الطالب");
-
-  const payment = await db.revenue.create({
-    data: {
-      amount,
-      currencyId: subscription.currencyId,
-      status: PaymentStatus.PAID,
-      method,
-      dueDate: new Date(),
-      description:
-        description ||
-        (subscription.plan?.title
-          ? `دفعة اشتراك ${subscription.plan.title}`
-          : "دفعة اشتراك"),
-      studentId,
-      subscriptionId,
-      planId: subscription.planId,
-      academyId: subscription.groupStudent.group.academyId,
-    },
-  });
-
-  revalidatePath(`/ar/dashboard/students/${studentId}`);
-  return payment;
-}
-
-export async function resolvePayment(
-  paymentId: number,
-  method: number | null,
-  invoiceUrl: string | null,
-) {
-  const token = await getTokenFromCookie();
-  if (!token) throw new Error("غير مصرح");
-  const payload = verifyToken(token);
-  if (!payload) throw new Error("غير مصرح");
-
-  const payment = await db.revenue.findUnique({
-    where: { id: paymentId },
-    include: { student: { select: { id: true } } },
-  });
-  if (!payment) throw new Error("الدفعة غير موجودة");
-  if (payment.status !== PaymentStatus.PENDING)
-    throw new Error("يمكن فقط تسوية الدفعات المعلقة");
-
-  await db.revenue.update({
-    where: { id: paymentId },
-    data: {
-      method,
-      invoiceUrl,
-      status: PaymentStatus.PAID,
-      recordedBy: payload.id,
-    },
-  });
-
-  revalidatePath(`/dashboard/students/${payment.student.id}`);
-  revalidatePath("/dashboard/finances");
-}
-
-export async function renewSubscription(
-  subscriptionId: number,
-  opts?: { paid?: boolean; method?: number },
-) {
-  const currentUser = await user();
-  if (!currentUser || currentUser.role !== Role.Admin)
-    throw new Error("غير مصرح");
-
-  const subscription = await db.subscription.findUnique({
-    where: { id: subscriptionId },
-    select: {
-      id: true,
-      price: true,
-      currencyId: true,
-      planId: true,
-      sessionCount: true,
-      billingCycle: true,
-      status: true,
-      groupStudent: {
-        select: {
-          id: true,
-          studentId: true,
-          group: { select: { academyId: true } },
+    // Get subscription to find its plan's currency
+    const subscription = await db.subscription.findUnique({
+      where: { id: subscriptionId },
+      include: {
+        plan: { select: { title: true } },
+        groupStudent: {
+          select: { studentId: true, group: { select: { academyId: true } } },
         },
       },
-    },
-  });
-  if (!subscription) throw new Error("الاشتراك غير موجود");
-  if (subscription.status !== SubscriptionStatus.active)
-    throw new Error("لا يوجد اشتراك نشط للتجديد");
-
-  const paid = opts?.paid ?? false;
-  const billingDays = subscription.billingCycle || 30;
-  const startDate = dayjs.utc().startOf("day").toDate();
-  const endDate = dayjs
-    .utc()
-    .startOf("day")
-    .add(billingDays, "day")
-    .toDate();
-
-  await db.$transaction(async (tx) => {
-    // Revoke the current active subscription (one active row per enrollment)
-    await tx.subscription.update({
-      where: { id: subscription.id },
-      data: { status: SubscriptionStatus.expired, endDate: startDate },
     });
+    if (!subscription) return fail("الاشتراك غير موجود");
+    if (subscription.groupStudent.studentId !== studentId)
+      return fail("الاشتراك لا ينتمي لهذا الطالب");
 
-    // Create the new cycle row, preserving the agreed terms
-    const sub = await tx.subscription.create({
+    const payment = await db.revenue.create({
       data: {
-        groupStudentId: subscription.groupStudent.id,
+        amount,
+        currencyId: subscription.currencyId,
+        status: PaymentStatus.PAID,
+        method,
+        dueDate: new Date(),
+        description:
+          description ||
+          (subscription.plan?.title
+            ? `دفعة اشتراك ${subscription.plan.title}`
+            : "دفعة اشتراك"),
+        studentId,
+        subscriptionId,
         planId: subscription.planId,
-        price: subscription.price,
-        currencyId: subscription.currencyId,
-        sessionCount: subscription.sessionCount,
-        billingCycle: subscription.billingCycle,
-        startDate,
-        endDate,
-        nextBillingDate: endDate,
-        status: SubscriptionStatus.active,
-      },
-    });
-
-    await tx.revenue.create({
-      data: {
-        amount: subscription.price,
-        currencyId: subscription.currencyId,
         academyId: subscription.groupStudent.group.academyId,
-        studentId: subscription.groupStudent.studentId,
-        description: `تجديد إشتراك شهر ${dayjs().format("MMMM YYYY")} `,
-        subscriptionId: sub.id,
-        planId: subscription.planId,
-        recordedBy: currentUser.id,
-        dueDate: paid ? dayjs.utc().toDate() : endDate,
-        status: paid ? PaymentStatus.PAID : PaymentStatus.PENDING,
       },
     });
-  });
 
-  await markStudentSubscribed(
-    db,
-    subscription.groupStudent.studentId,
-    currentUser.id,
-    subscription.groupStudent.group.academyId,
-  );
+    revalidatePath(`/ar/dashboard/students/${studentId}`);
+    return payment;
+  },
+);
 
-  revalidatePath(`/ar/dashboard/students/${subscription.groupStudent.studentId}`);
-  revalidatePath("/ar/dashboard");
-}
+export const resolvePayment = withResult(
+  async (
+    paymentId: number,
+    method: number | null,
+    invoiceUrl: string | null,
+  ) => {
+    const token = await getTokenFromCookie();
+    if (!token) return fail("غير مصرح");
+    const payload = verifyToken(token);
+    if (!payload) return fail("غير مصرح");
 
-export async function getStudentSessionsForWeek(
-  studentId: number,
-  weekStart: string,
-): Promise<SessionRecord[]> {
-  const start = dayjs.utc(weekStart).startOf("day");
-  const end = start.add(7, "day");
+    const payment = await db.revenue.findUnique({
+      where: { id: paymentId },
+      include: { student: { select: { id: true } } },
+    });
+    if (!payment) return fail("الدفعة غير موجودة");
+    if (payment.status !== PaymentStatus.PENDING)
+      return fail("يمكن فقط تسوية الدفعات المعلقة");
 
-  const participants = await db.sessionParticipant.findMany({
-    where: {
-      studentId,
-      session: { startTime: { gte: start.toDate(), lt: end.toDate() } },
-    },
-    include: {
-      session: {
-        include: {
-          group: {
-            select: {
-              id: true,
-              title: true,
-              currentTutor: { include: { user: true } },
-            },
+    await db.revenue.update({
+      where: { id: paymentId },
+      data: {
+        method,
+        invoiceUrl,
+        status: PaymentStatus.PAID,
+        recordedBy: payload.id,
+      },
+    });
+
+    revalidatePath(`/dashboard/students/${payment.student.id}`);
+    revalidatePath("/dashboard/finances");
+  },
+);
+
+export const renewSubscription = withResult(
+  async (
+    subscriptionId: number,
+    opts?: { paid?: boolean; method?: number },
+  ) => {
+    const currentUser = await user();
+    if (!currentUser || currentUser.role !== Role.Admin)
+      return fail("غير مصرح");
+
+    const subscription = await db.subscription.findUnique({
+      where: { id: subscriptionId },
+      select: {
+        id: true,
+        price: true,
+        currencyId: true,
+        planId: true,
+        sessionCount: true,
+        billingCycle: true,
+        status: true,
+        groupStudent: {
+          select: {
+            id: true,
+            studentId: true,
+            group: { select: { academyId: true } },
           },
         },
       },
-      report: true,
-      homeworkSolutions: { take: 1, orderBy: { createdAt: "desc" } },
-    },
-    orderBy: { session: { startTime: "asc" } },
-  });
+    });
+    if (!subscription) return fail("الاشتراك غير موجود");
+    if (subscription.status !== SubscriptionStatus.active)
+      return fail("لا يوجد اشتراك نشط للتجديد");
 
-  return participants.map((p) => {
-    const solution = p.homeworkSolutions[0] ?? null;
-    return {
-      id: p.session.id,
-      startTime: p.session.startTime.toISOString(),
-      endTime: dayjs(p.session.startTime)
-        .add(p.session.durationMinutes, "minute")
-        .toISOString(),
-      durationMinutes: p.session.durationMinutes,
-      status: getSessionStatus(p.session),
-      topic: p.session.topic,
-      notes: p.session.notes,
-      tutorId: p.session.group.currentTutor.id,
-      tutorName: p.session.group.currentTutor.user.name ?? "",
-      groupId: p.session.group.id,
-      groupName: p.session.group.title,
-      attendance: {
-        id: p.id,
-        status: p.studentAttendanceStatus,
-        reason: p.reason ?? null,
+    const paid = opts?.paid ?? false;
+    const billingDays = subscription.billingCycle || 30;
+    const startDate = dayjs.utc().startOf("day").toDate();
+    const endDate = dayjs
+      .utc()
+      .startOf("day")
+      .add(billingDays, "day")
+      .toDate();
+
+    await db.$transaction(async (tx) => {
+      // Revoke the current active subscription (one active row per enrollment)
+      await tx.subscription.update({
+        where: { id: subscription.id },
+        data: { status: SubscriptionStatus.expired, endDate: startDate },
+      });
+
+      // Create the new cycle row, preserving the agreed terms
+      const sub = await tx.subscription.create({
+        data: {
+          groupStudentId: subscription.groupStudent.id,
+          planId: subscription.planId,
+          price: subscription.price,
+          currencyId: subscription.currencyId,
+          sessionCount: subscription.sessionCount,
+          billingCycle: subscription.billingCycle,
+          startDate,
+          endDate,
+          nextBillingDate: endDate,
+          status: SubscriptionStatus.active,
+        },
+      });
+
+      await tx.revenue.create({
+        data: {
+          amount: subscription.price,
+          currencyId: subscription.currencyId,
+          academyId: subscription.groupStudent.group.academyId,
+          studentId: subscription.groupStudent.studentId,
+          description: `تجديد إشتراك شهر ${dayjs().format("MMMM YYYY")} `,
+          subscriptionId: sub.id,
+          planId: subscription.planId,
+          recordedBy: currentUser.id,
+          dueDate: paid ? dayjs.utc().toDate() : endDate,
+          status: paid ? PaymentStatus.PAID : PaymentStatus.PENDING,
+        },
+      });
+    });
+
+    await markStudentSubscribed(
+      db,
+      subscription.groupStudent.studentId,
+      currentUser.id,
+      subscription.groupStudent.group.academyId,
+    );
+
+    revalidatePath(`/ar/dashboard/students/${subscription.groupStudent.studentId}`);
+    revalidatePath("/ar/dashboard");
+  },
+);
+
+export const getStudentSessionsForWeek = withResult(
+  async (studentId: number, weekStart: string) => {
+    const start = dayjs.utc(weekStart).startOf("day");
+    const end = start.add(7, "day");
+
+    const participants = await db.sessionParticipant.findMany({
+      where: {
+        studentId,
+        session: { startTime: { gte: start.toDate(), lt: end.toDate() } },
       },
-      report: p.report
-        ? {
-            id: p.report.id,
-            rating: p.report.rating,
-            outcomes: p.report.outcomes,
-            strengths: p.report.strengths,
-            weaknesses: p.report.weaknesses,
-            nextGoals: p.report.nextGoals,
-            comments: p.report.comments,
-          }
-        : null,
-      homeworkSolution: solution
-        ? {
-            id: solution.id,
-            score: solution.score,
-            submittedAt: solution.submittedAt.toISOString(),
-            gradedAt: solution.gradedAt?.toISOString() ?? null,
-          }
-        : null,
-    };
-  });
-}
+      include: {
+        session: {
+          include: {
+            group: {
+              select: {
+                id: true,
+                title: true,
+                currentTutor: { include: { user: true } },
+              },
+            },
+          },
+        },
+        report: true,
+        homeworkSolutions: { take: 1, orderBy: { createdAt: "desc" } },
+      },
+      orderBy: { session: { startTime: "asc" } },
+    });
+
+    return participants.map((p) => {
+      const solution = p.homeworkSolutions[0] ?? null;
+      return {
+        id: p.session.id,
+        startTime: p.session.startTime.toISOString(),
+        endTime: dayjs(p.session.startTime)
+          .add(p.session.durationMinutes, "minute")
+          .toISOString(),
+        durationMinutes: p.session.durationMinutes,
+        status: getSessionStatus(p.session),
+        topic: p.session.topic,
+        notes: p.session.notes,
+        tutorId: p.session.group.currentTutor.id,
+        tutorName: p.session.group.currentTutor.user.name ?? "",
+        groupId: p.session.group.id,
+        groupName: p.session.group.title,
+        attendance: {
+          id: p.id,
+          status: p.studentAttendanceStatus,
+          reason: p.reason ?? null,
+        },
+        report: p.report
+          ? {
+              id: p.report.id,
+              rating: p.report.rating,
+              outcomes: p.report.outcomes,
+              strengths: p.report.strengths,
+              weaknesses: p.report.weaknesses,
+              nextGoals: p.report.nextGoals,
+              comments: p.report.comments,
+            }
+          : null,
+        homeworkSolution: solution
+          ? {
+              id: solution.id,
+              score: solution.score,
+              submittedAt: solution.submittedAt.toISOString(),
+              gradedAt: solution.gradedAt?.toISOString() ?? null,
+            }
+          : null,
+      };
+    });
+  },
+);

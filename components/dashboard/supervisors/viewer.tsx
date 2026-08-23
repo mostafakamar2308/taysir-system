@@ -58,7 +58,8 @@ export default function SupervisorsViewer({
   async function handleToggleActive(supervisor: DashboardSupervisor) {
     setTogglingId(supervisor.id);
     try {
-      await toggleSupervisorActive(supervisor.id);
+      const res = await toggleSupervisorActive(supervisor.id);
+      if (!res.ok) throw new Error(res.error);
       toast({
         title: supervisor.active
           ? "تم تعطيل المشرف"

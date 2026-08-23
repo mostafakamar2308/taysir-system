@@ -75,7 +75,7 @@ export default function AddSessionDialog({
 
     setLoading(true);
     try {
-      await createSession({
+      const res = await createSession({
         studentId,
         tutorId: parseInt(tutorId),
         date,
@@ -85,6 +85,7 @@ export default function AddSessionDialog({
         notes: notes || undefined,
         isTrial,
       });
+      if (!res.ok) throw new Error(res.error);
       toast({ title: "تم إضافة الحصة" });
       onOpenChange(false);
       router.refresh();

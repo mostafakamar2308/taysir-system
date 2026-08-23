@@ -82,7 +82,7 @@ export default function AddGroupSessionDialog({
     setLoading(true);
     try {
       const startISO = dayjs(`${date}T${startTime}`).utc().toISOString();
-      await createSession({
+      const res = await createSession({
         groupId,
         tutorId: parseInt(selectedTutorId),
         date,
@@ -92,6 +92,7 @@ export default function AddGroupSessionDialog({
         notes: notes || undefined,
         isTrial,
       });
+      if (!res.ok) throw new Error(res.error);
       toast({ title: "تم إنشاء الحصة" });
       onOpenChange(false);
       router.refresh();

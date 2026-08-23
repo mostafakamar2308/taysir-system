@@ -4,14 +4,15 @@ import db from "@/lib/prisma";
 import bcrypt from "bcrypt";
 import { signToken, setTokenCookie, removeTokenCookie } from "@/lib/jwt";
 import { redirect } from "next/navigation";
+import { withResult, fail } from "@/lib/action-result";
 import { Role } from "@/types/user";
 
-export async function login(formData: FormData) {
+export const login = withResult(async (formData: FormData) => {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
 
   if (!email || !password) {
-    return { error: "يرجى إدخال البريد الإلكتروني وكلمة المرور" };
+    return fail("يرجى إدخال البريد الإلكتروني وكلمة المرور");
   }
 
   const user = await db.user.findUnique({
@@ -25,12 +26,12 @@ export async function login(formData: FormData) {
   });
 
   if (!user) {
-    return { error: "البريد الإلكتروني غير صحيح" };
+    return fail("البريد الإلكتروني غير صحيح");
   }
 
   const valid = await bcrypt.compare(password, user.password);
   if (!valid) {
-    return { error: "كلمة المرور غير صحيحة" };
+    return fail("كلمة المرور غير صحيحة");
   }
 
   // Determine academyId if applicable
@@ -71,7 +72,7 @@ export async function login(formData: FormData) {
   } else {
     redirect("/ar/dashboard/student");
   }
-}
+});
 
 export async function logout() {
   await removeTokenCookie();

@@ -83,13 +83,14 @@ export default function PayTutorDialog({
     }
     setLoading(true);
     try {
-      await recordTutorPayment(tutorId, {
+      const res = await recordTutorPayment(tutorId, {
         amount: total,
         method: parseInt(method),
         date,
         notes: notes || null,
         allocations,
       });
+      if (!res.ok) throw new Error(res.error);
       toast({ title: "تم تسجيل الدفعة" });
       onOpenChange(false);
       onSuccess();

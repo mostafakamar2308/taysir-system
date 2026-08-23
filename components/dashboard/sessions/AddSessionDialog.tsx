@@ -60,10 +60,11 @@ export function AddSessionDialog({ open, onOpenChange, academyId }: Props) {
   useEffect(() => {
     if (open) {
       getSessionFormOptions(academyId)
-        .then((data) => {
-          setGroups(data.groups);
-          setTutors(data.tutors);
-          setStudents(data.students);
+        .then((res) => {
+          if (!res.ok || !res.data) return;
+          setGroups(res.data.groups);
+          setTutors(res.data.tutors);
+          setStudents(res.data.students);
 
           setSelectedGroupId("");
           setSelectedTutorId("");
@@ -137,7 +138,7 @@ export function AddSessionDialog({ open, onOpenChange, academyId }: Props) {
     try {
       const startISO = dayjs(`${date}T${startTime}`).utc().toISOString();
       if (mode === "group") {
-        await createSession({
+        const res = await createSession({
           groupId: parseInt(selectedGroupId),
           tutorId: parseInt(selectedTutorId),
           date,
@@ -147,8 +148,9 @@ export function AddSessionDialog({ open, onOpenChange, academyId }: Props) {
           notes: notes || undefined,
           isTrial,
         });
+        if (!res.ok) throw new Error(res.error);
       } else {
-        await createSession({
+        const res = await createSession({
           studentId: parseInt(selectedStudentId),
           tutorId: parseInt(selectedTutorId),
           date,
@@ -158,6 +160,7 @@ export function AddSessionDialog({ open, onOpenChange, academyId }: Props) {
           notes: notes || undefined,
           isTrial,
         });
+        if (!res.ok) throw new Error(res.error);
       }
       toast({ title: "تم إنشاء الحصة" });
       onOpenChange(false);

@@ -46,7 +46,8 @@ export default function BulkAssignTutorDialog({
     }
     setLoading(true);
     try {
-      await bulkAssignTutor(studentIds, parseInt(tutorId));
+      const res = await bulkAssignTutor(studentIds, parseInt(tutorId));
+      if (!res.ok) throw new Error(res.error);
       toast({
         title: "تم تعيين المعلمين",
         description: `تم تعيين معلم لـ ${studentIds.length} طالب`,

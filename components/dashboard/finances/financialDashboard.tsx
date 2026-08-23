@@ -236,12 +236,12 @@ export default function FinancialDashboard({
     setLoading(true);
     try {
       const [
-        alertsData,
-        kpisData,
-        quarterlyKpiData,
-        timeData,
-        retentionData,
-        planData,
+        alertsRes,
+        kpisRes,
+        quarterRes,
+        timeRes,
+        retentionRes,
+        planRes,
       ] = await Promise.all([
         getDashboardAlerts(academyId, period, year, month),
         getDashboardKPIs(academyId, period, year, month),
@@ -254,12 +254,16 @@ export default function FinancialDashboard({
         getSubscriptionRetention(academyId),
         getPlanEfficiency(academyId, period, year, month),
       ]);
-      setAlerts(alertsData);
-      setKpis(kpisData);
-      setQuarterKpiData(quarterlyKpiData);
-      setChartData(timeData);
-      setRetention(retentionData);
-      setPlanEff(planData);
+      setAlerts(alertsRes.ok ? alertsRes.data ?? null : null);
+      setKpis(kpisRes.ok ? kpisRes.data ?? null : null);
+      setQuarterKpiData(quarterRes.ok ? quarterRes.data ?? null : null);
+      setChartData(timeRes.ok ? timeRes.data ?? [] : []);
+      setRetention(
+        retentionRes.ok
+          ? retentionRes.data ?? { matrix: {}, cohortSizes: {} }
+          : { matrix: {}, cohortSizes: {} },
+      );
+      setPlanEff(planRes.ok ? planRes.data ?? [] : []);
     } catch (error) {
       console.error("Dashboard data error:", error);
     } finally {

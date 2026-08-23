@@ -46,7 +46,8 @@ export default function EditSupervisorDialog({
   async function handleSubmit(formData: FormData) {
     setLoading(true);
     try {
-      await updateSupervisor(supervisor.id, formData);
+      const res = await updateSupervisor(supervisor.id, formData);
+      if (!res.ok) throw new Error(res.error);
       toast({ title: "تم تحديث المشرف بنجاح" });
       setOpen(false);
       router.refresh();

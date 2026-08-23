@@ -144,10 +144,12 @@ export default function RevenueFormDialog({
       };
 
       if (editingPayment) {
-        await updateRevenue(editingPayment.id, payload);
+        const res = await updateRevenue(editingPayment.id, payload);
+        if (!res.ok) throw new Error(res.error);
         toast({ title: "تم تحديث الإيراد" });
       } else {
-        await createRevenueFromDashboard(payload);
+        const res = await createRevenueFromDashboard(payload);
+        if (!res.ok) throw new Error(res.error);
         toast({ title: "تم إضافة الإيراد" });
       }
       onOpenChange(false);

@@ -6,95 +6,98 @@ import { user } from "@/lib/auth";
 import { Role } from "@/types/user";
 import { uploadFile } from "@/lib/uploadFile";
 import { unlink } from "fs/promises";
+import { withResult, fail } from "@/lib/action-result";
 import { sendSingleMessage } from "./tutor/sendMessage";
 
 // ─── Tutor/Admin upload assignment ──────────────────────────
-export async function uploadAssignment(sessionId: number, formData: FormData) {
-  const currentUser = await user();
-  if (!currentUser || !currentUser.academyId) throw new Error("غير مصرح");
+export const uploadAssignment = withResult(
+  async (sessionId: number, formData: FormData) => {
+    const currentUser = await user();
+    if (!currentUser || !currentUser.academyId) return fail("غير مصرح");
 
-  const session = await db.session.findUnique({
-    where: { id: sessionId },
-    select: { tutorId: true, academyId: true },
-  });
-  if (!session || session.academyId !== currentUser.academyId)
-    throw new Error("الحصة غير موجودة");
+    const session = await db.session.findUnique({
+      where: { id: sessionId },
+      select: { tutorId: true, academyId: true },
+    });
+    if (!session || session.academyId !== currentUser.academyId)
+      return fail("الحصة غير موجودة");
 
-  const isTutor =
-    currentUser.role === Role.Tutor && currentUser.tutorId === session.tutorId;
-  const isAdmin = currentUser.role === Role.Admin;
-  if (!isTutor && !isAdmin) throw new Error("غير مصرح");
+    const isTutor =
+      currentUser.role === Role.Tutor && currentUser.tutorId === session.tutorId;
+    const isAdmin = currentUser.role === Role.Admin;
+    if (!isTutor && !isAdmin) return fail("غير مصرح");
 
-  const file = formData.get("file") as File;
-  if (!file) throw new Error("الملف مطلوب");
+    const file = formData.get("file") as File;
+    if (!file) return fail("الملف مطلوب");
 
-  const title = formData.get("title") as string | null;
-  const description = formData.get("description") as string | null;
-  const deadline = formData.get("deadline") as string | null;
-  const maxScore = formData.get("maxScore")
-    ? parseInt(formData.get("maxScore") as string)
-    : 10;
+    const title = formData.get("title") as string | null;
+    const description = formData.get("description") as string | null;
+    const deadline = formData.get("deadline") as string | null;
+    const maxScore = formData.get("maxScore")
+      ? parseInt(formData.get("maxScore") as string)
+      : 10;
 
-  // Check existing assignment
-  const existing = await db.assignment.findUnique({ where: { sessionId } });
-  if (existing) throw new Error("يوجد واجب بالفعل لهذه الحصة. احذفه أولاً.");
+    // Check existing assignment
+    const existing = await db.assignment.findUnique({ where: { sessionId } });
+    if (existing) return fail("يوجد واجب بالفعل لهذه الحصة. احذفه أولاً.");
 
-  const upload = await uploadFile(file, "assignments");
+    const upload = await uploadFile(file, "assignments");
 
-  await db.assignment.create({
-    data: {
-      sessionId,
-      title,
-      description,
-      deadline: deadline ? new Date(deadline) : null,
-      maxScore,
-      filePath: upload.filePath,
-      originalFileName: upload.originalFileName,
-      fileSize: upload.fileSize,
-      mimeType: upload.mimeType,
-    },
-  });
+    await db.assignment.create({
+      data: {
+        sessionId,
+        title,
+        description,
+        deadline: deadline ? new Date(deadline) : null,
+        maxScore,
+        filePath: upload.filePath,
+        originalFileName: upload.originalFileName,
+        fileSize: upload.fileSize,
+        mimeType: upload.mimeType,
+      },
+    });
 
-  const participants = await db.sessionParticipant.findMany({
-    where: { sessionId },
-    include: {
-      student: { select: { user: { select: { phone: true, name: true } } } },
-    },
-  });
+    const participants = await db.sessionParticipant.findMany({
+      where: { sessionId },
+      include: {
+        student: { select: { user: { select: { phone: true, name: true } } } },
+      },
+    });
 
-  for (const p of participants) {
-    const phone = p.student.user.phone;
-    if (!phone) continue;
-    const studentName = p.student.user.name ?? "طالب";
-    const message = `السلام عليكم ${studentName}، تم رفع واجب جديد لحصتك بعنوان "${title || "بدون عنوان"}". يمكنك رفع الحل من حسابك.`;
-    try {
-      await sendSingleMessage(phone, message);
-    } catch (e) {
-      console.error("Failed to notify student about new assignment:", e);
+    for (const p of participants) {
+      const phone = p.student.user.phone;
+      if (!phone) continue;
+      const studentName = p.student.user.name ?? "طالب";
+      const message = `السلام عليكم ${studentName}، تم رفع واجب جديد لحصتك بعنوان "${title || "بدون عنوان"}". يمكنك رفع الحل من حسابك.`;
+      try {
+        await sendSingleMessage(phone, message);
+      } catch (e) {
+        console.error("Failed to notify student about new assignment:", e);
+      }
     }
-  }
 
-  revalidatePath("/ar/dashboard/sessions");
-}
+    revalidatePath("/ar/dashboard/sessions");
+  },
+);
 
 // ─── Delete assignment (tutor/admin) ────────────────────────
-export async function deleteAssignment(sessionId: number) {
+export const deleteAssignment = withResult(async (sessionId: number) => {
   const currentUser = await user();
-  if (!currentUser || !currentUser.academyId) throw new Error("غير مصرح");
+  if (!currentUser || !currentUser.academyId) return fail("غير مصرح");
 
   const session = await db.session.findUnique({
     where: { id: sessionId },
     select: { tutorId: true, academyId: true, assignment: true },
   });
   if (!session || session.academyId !== currentUser.academyId)
-    throw new Error("الحصة غير موجودة");
+    return fail("الحصة غير موجودة");
 
   const isTutor =
     currentUser.role === Role.Tutor && currentUser.tutorId === session.tutorId;
   const isAdmin = currentUser.role === Role.Admin;
-  if (!isTutor && !isAdmin) throw new Error("غير مصرح");
+  if (!isTutor && !isAdmin) return fail("غير مصرح");
 
-  if (!session.assignment) throw new Error("لا يوجد واجب لهذه الحصة");
+  if (!session.assignment) return fail("لا يوجد واجب لهذه الحصة");
 
   // Delete file from disk
   try {
@@ -106,15 +109,17 @@ export async function deleteAssignment(sessionId: number) {
   await db.assignment.delete({ where: { sessionId } });
 
   revalidatePath("/ar/dashboard/sessions");
-}
+});
 
 export type AssignmentWithSolutions = NonNullable<
-  Awaited<ReturnType<typeof getAssignmentForSession>>
+  Awaited<ReturnType<typeof getAssignmentForSessionData>>
 >;
 
-export async function getAssignmentForSession(sessionId: number) {
+export const getAssignmentForSession = withResult(getAssignmentForSessionData);
+
+async function getAssignmentForSessionData(sessionId: number) {
   const currentUser = await user();
-  if (!currentUser || !currentUser.academyId) throw new Error("غير مصرح");
+  if (!currentUser || !currentUser.academyId) return fail("غير مصرح");
 
   const assignment = await db.assignment.findUnique({
     where: { sessionId },
@@ -139,7 +144,7 @@ export async function getAssignmentForSession(sessionId: number) {
     select: { academyId: true, tutorId: true },
   });
   if (!session || session.academyId !== currentUser.academyId)
-    throw new Error("غير مصرح");
+    return fail("غير مصرح");
 
   return {
     id: assignment.id,
@@ -164,35 +169,37 @@ export async function getAssignmentForSession(sessionId: number) {
   };
 }
 
-export async function gradeSolution(
-  solutionId: number,
-  score: number,
-  feedback?: string,
-) {
-  const currentUser = await user();
-  if (!currentUser) throw new Error("غير مصرح");
+export const gradeSolution = withResult(
+  async (
+    solutionId: number,
+    score: number,
+    feedback?: string,
+  ) => {
+    const currentUser = await user();
+    if (!currentUser) return fail("غير مصرح");
 
-  const solution = await db.homeworkSolution.findUnique({
-    where: { id: solutionId },
-    include: {
-      assignment: {
-        include: { session: { select: { tutorId: true, academyId: true } } },
+    const solution = await db.homeworkSolution.findUnique({
+      where: { id: solutionId },
+      include: {
+        assignment: {
+          include: { session: { select: { tutorId: true, academyId: true } } },
+        },
       },
-    },
-  });
-  if (!solution) throw new Error("الحل غير موجود");
+    });
+    if (!solution) return fail("الحل غير موجود");
 
-  const isTutor = currentUser.tutorId === solution.assignment.session.tutorId;
-  const isAdmin = currentUser.role === Role.Admin;
-  if (!isTutor && !isAdmin) throw new Error("غير مصرح بالتقييم");
+    const isTutor = currentUser.tutorId === solution.assignment.session.tutorId;
+    const isAdmin = currentUser.role === Role.Admin;
+    if (!isTutor && !isAdmin) return fail("غير مصرح بالتقييم");
 
-  if (score < 0 || score > (solution.assignment.maxScore || 10))
-    throw new Error("الدرجة خارج النطاق");
+    if (score < 0 || score > (solution.assignment.maxScore || 10))
+      return fail("الدرجة خارج النطاق");
 
-  await db.homeworkSolution.update({
-    where: { id: solutionId },
-    data: { score, feedback, gradedAt: new Date(), gradedBy: currentUser.id },
-  });
+    await db.homeworkSolution.update({
+      where: { id: solutionId },
+      data: { score, feedback, gradedAt: new Date(), gradedBy: currentUser.id },
+    });
 
-  revalidatePath("/ar/dashboard/tutor/sessions");
-}
+    revalidatePath("/ar/dashboard/tutor/sessions");
+  },
+);

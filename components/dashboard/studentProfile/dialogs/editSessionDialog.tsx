@@ -64,13 +64,14 @@ export default function EditSessionDialog({
     const start = dayjs(`${date}T${startTime}`);
     setLoading(true);
     try {
-      await updateSession({
+      const res = await updateSession({
         id: session.id,
         startTime: start.toISOString(),
         duration: parseInt(duration),
         topic: topic,
         notes: notes,
       });
+      if (!res.ok) throw new Error(res.error);
       toast({ title: "تم تحديث الحصة" });
       onOpenChange(false);
       router.refresh();

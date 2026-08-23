@@ -122,9 +122,11 @@ export default function UserManagementClient({
       if (!editing) {
         formData.append("password", formPassword);
         // academyId is not added; the server action gets it from token
-        await createUser(formData);
+        const res = await createUser(formData);
+        if (!res.ok) throw new Error(res.error);
       } else {
-        await updateUser(editing.id, formData);
+        const res = await updateUser(editing.id, formData);
+        if (!res.ok) throw new Error(res.error);
       }
       toast({ title: editing ? "تم التحديث" : "تمت الإضافة" });
       setDialogOpen(false);
@@ -143,7 +145,8 @@ export default function UserManagementClient({
 
   const handleToggleActive = async (userId: number) => {
     try {
-      await toggleUserActive(userId);
+      const res = await toggleUserActive(userId);
+      if (!res.ok) throw new Error(res.error);
       toast({ title: "تم تحديث الحالة" });
       router.refresh();
     } catch (error) {
@@ -157,21 +160,20 @@ export default function UserManagementClient({
   };
 
   const handleResetPassword = async (userId: number) => {
-    try {
-      const result = await resetPassword(userId);
-      // In a real app, you'd send an email; here we show the new password in a toast (for demo only)
+    const result = await resetPassword(userId);
+    if (!result.ok) {
       toast({
-        title: "تم إعادة تعيين كلمة المرور",
-        description: `كلمة المرور الجديدة: ${result.tempPassword}`,
+        title: "خطأ",
+        description: result.error,
+        variant: "destructive",
       });
-    } catch (error) {
-      if (error instanceof Error)
-        toast({
-          title: "خطأ",
-          description: error.message,
-          variant: "destructive",
-        });
+      return;
     }
+    // In a real app, you'd send an email; here we show the new password in a toast (for demo only)
+    toast({
+      title: "تم إعادة تعيين كلمة المرور",
+      description: `كلمة المرور الجديدة: ${result.data?.tempPassword}`,
+    });
   };
 
   return (

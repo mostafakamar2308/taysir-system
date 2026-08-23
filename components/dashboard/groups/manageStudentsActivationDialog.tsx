@@ -42,7 +42,8 @@ export default function ActivateStudentsDialog({
   const handleToggle = async (studentId: number, active: boolean) => {
     setLoading(true);
     try {
-      await toggleStudentMembership(group.id, studentId, active);
+      const res = await toggleStudentMembership(group.id, studentId, active);
+      if (!res.ok) throw new Error(res.error);
       // Optimistically update local state
       setActivations((prev) => ({ ...prev, [studentId]: active }));
       onSuccess(); // will refresh the page data

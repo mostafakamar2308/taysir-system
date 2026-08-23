@@ -55,7 +55,8 @@ export default function AssignTutorsDialog({
     else next.delete(tutorId);
     setAssignedIds(next);
     try {
-      await assignTutors(supervisorId, Array.from(next));
+      const res = await assignTutors(supervisorId, Array.from(next));
+      if (!res.ok) throw new Error(res.error);
       router.refresh();
     } catch (error) {
       console.error(error);

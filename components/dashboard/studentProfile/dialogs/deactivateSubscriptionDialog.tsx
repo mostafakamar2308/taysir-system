@@ -32,7 +32,8 @@ export default function DeactivateSubscriptionDialog({
   const handleConfirm = async () => {
     setLoading(true);
     try {
-      await cancelSubscription(subscription.id);
+      const res = await cancelSubscription(subscription.id);
+      if (!res.ok) throw new Error(res.error);
       toast.success(`تم إلغاء اشتراك ${subscription.groupTitle}`);
       onOpenChange(false);
       onSuccess?.();

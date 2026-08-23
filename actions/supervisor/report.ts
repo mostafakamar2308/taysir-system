@@ -6,8 +6,9 @@ import {
   assertSupervisorCanAccessSession,
   getCurrentSupervisor,
 } from "@/lib/supervisor";
+import { withResult, fail } from "@/lib/action-result";
 
-export async function upsertSessionReportBySupervisor(
+export const upsertSessionReportBySupervisor = withResult(async (
   participantId: number,
   data: {
     rating?: number;
@@ -17,31 +18,31 @@ export async function upsertSessionReportBySupervisor(
     nextGoals?: string | null;
     comments?: string | null;
   },
-) {
-  const supervisor = await getCurrentSupervisor();
-  if (!supervisor) throw new Error("غير مصرح");
+) => {
+    const supervisor = await getCurrentSupervisor();
+    if (!supervisor) return fail("غير مصرح");
 
-  const participant = await db.sessionParticipant.findUnique({
-    where: { id: participantId },
-    include: {
-      session: {
-        select: {
-          supervisorId: true,
-          tutor: { select: { defaultSupervisorId: true } },
+    const participant = await db.sessionParticipant.findUnique({
+      where: { id: participantId },
+      include: {
+        session: {
+          select: {
+            supervisorId: true,
+            tutor: { select: { defaultSupervisorId: true } },
+          },
         },
       },
-    },
-  });
-  if (!participant) throw new Error("المشارك غير موجود");
-  await assertSupervisorCanAccessSession(supervisor.id, participant.session);
+    });
+    if (!participant) return fail("المشارك غير موجود");
+    await assertSupervisorCanAccessSession(supervisor.id, participant.session);
 
-  await db.sessionReport.upsert({
-    where: { participantId },
-    update: data,
-    create: { participantId, ...data },
-  });
+    await db.sessionReport.upsert({
+      where: { participantId },
+      update: data,
+      create: { participantId, ...data },
+    });
 
-  revalidatePath("/ar/dashboard/supervisor/sessions");
-  revalidatePath("/ar/dashboard/supervisor");
-  revalidatePath("/ar/dashboard/supervisor/reports");
-}
+    revalidatePath("/ar/dashboard/supervisor/sessions");
+    revalidatePath("/ar/dashboard/supervisor");
+    revalidatePath("/ar/dashboard/supervisor/reports");
+});

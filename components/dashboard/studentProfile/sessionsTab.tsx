@@ -43,8 +43,8 @@ export default function SessionsTab({ student, tutors }: Props) {
     const fetchSessions = async () => {
       setLoading(true);
       try {
-        const data = await getStudentSessionsForWeek(student.id, weekStart);
-        setSessions(data);
+        const res = await getStudentSessionsForWeek(student.id, weekStart);
+        setSessions(res.ok ? res.data ?? [] : []);
       } catch (err) {
         console.error(err);
       } finally {
@@ -78,10 +78,9 @@ export default function SessionsTab({ student, tutors }: Props) {
   };
 
   const handleSessionClick = async (sessionId: number) => {
-    try {
-      const full = await getSessionDetailsForManagement(sessionId);
-      setDetailSession(full);
-    } catch {
+    const res = await getSessionDetailsForManagement(sessionId);
+    setDetailSession(res.ok ? res.data : null);
+    if (!res.ok) {
       toast({ title: "خطأ في تحميل التفاصيل", variant: "destructive" });
     }
   };

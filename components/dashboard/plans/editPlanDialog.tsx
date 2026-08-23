@@ -75,7 +75,8 @@ export default function EditPlanDialog({
       formData.append("price", price);
       formData.append("billingPeriod", billingPeriod);
       formData.append("currencyId", currencyId);
-      await updatePlan(plan.id, formData);
+      const res = await updatePlan(plan.id, formData);
+      if (!res.ok) throw new Error(res.error);
       toast({ title: "تم تحديث الخطة" });
       onOpenChange(false);
       router.refresh();

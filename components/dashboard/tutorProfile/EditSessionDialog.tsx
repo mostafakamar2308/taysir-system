@@ -62,7 +62,9 @@ export function TutorEditSessionDialog({
   useEffect(() => {
     if (open) {
       getSessionFormOptions(academyId, tutorId)
-        .then((data) => setTutors(data.tutors))
+        .then((res) => {
+          if (res.ok) setTutors(res.data?.tutors ?? []);
+        })
         .catch(console.error);
     }
   }, [open, academyId, tutorId]);
@@ -71,7 +73,7 @@ export function TutorEditSessionDialog({
     e.preventDefault();
     setLoading(true);
     try {
-      await updateSession({
+      const res = await updateSession({
         id: session.sessionId,
         topic,
         notes,
@@ -85,6 +87,7 @@ export function TutorEditSessionDialog({
               duration,
             }),
       });
+      if (!res.ok) throw new Error(res.error);
       toast({ title: "تم تحديث الحصة" });
       onOpenChange(false);
     } catch (err) {

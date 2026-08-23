@@ -4,7 +4,6 @@ import db from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import dayjs from "@/lib/dayjs";
 import {
-  AdminSession,
   AdminSessionParticipant,
   AttendanceStatus,
   SessionGroup,
@@ -17,6 +16,15 @@ import { recordStudentStatusChangeHistory } from "@/lib/history";
 import { user } from "@/lib/auth";
 import { Prisma } from "@/generated/prisma/client";
 import { getRemainingSessionsForStudents } from "./studentFinances";
+import { withResult, fail } from "@/lib/action-result";
+
+async function getRemainingSessionsMap(
+  studentIds: number[],
+  groupId?: number,
+): Promise<Map<number, number | null>> {
+  const res = await getRemainingSessionsForStudents(studentIds, groupId);
+  return res.ok ? res.data ?? new Map() : new Map();
+}
 
 type CreateSessionInput = {
   groupId?: number; // for group mode
@@ -49,9 +57,9 @@ type GroupWithMembers = Prisma.GroupGetPayload<{
 
 type ActiveMemberStudent = GroupWithMembers["members"][number]["student"];
 
-export async function createSession(input: CreateSessionInput) {
+export const createSession = withResult(async (input: CreateSessionInput) => {
   const currentUser = await user();
-  if (!currentUser || !currentUser.academyId) throw new Error("غير مصرح");
+  if (!currentUser || !currentUser.academyId) return fail("غير مصرح");
 
   // Tutor can only create sessions for themselves
   if (currentUser.role === Role.Tutor) {
@@ -60,7 +68,7 @@ export async function createSession(input: CreateSessionInput) {
       select: { id: true },
     });
     if (input.tutorId !== tutor?.id) {
-      throw new Error("غير مصرح: يمكنك فقط إضافة حصص لنفسك");
+      return fail("غير مصرح: يمكنك فقط إضافة حصص لنفسك");
     }
   }
 
@@ -69,7 +77,7 @@ export async function createSession(input: CreateSessionInput) {
   const computedEnd = start.add(input.duration, "minute").toDate();
 
   if (start.isBefore(dayjs()))
-    throw new Error("لا يمكن أن تكون الحصة في الماضى");
+    return fail("لا يمكن أن تكون الحصة في الماضى");
 
   // ── Fetch group / student based on mode ─────────────────
   let group: GroupWithMembers;
@@ -96,7 +104,7 @@ export async function createSession(input: CreateSessionInput) {
     })) as GroupWithMembers; // Prisma returns the exact shape, cast is safe
 
     if (!group || group.academyId !== currentUser.academyId)
-      throw new Error("المجموعة غير موجودة");
+      return fail("المجموعة غير موجودة");
     students = group.members.map((m) => m.student);
     studentIds = students.map((s) => s.id);
   } else if (input.studentId) {
@@ -105,7 +113,7 @@ export async function createSession(input: CreateSessionInput) {
       include: { user: true },
     });
     if (!student || student.academyId !== currentUser.academyId)
-      throw new Error("الطالب غير موجود");
+      return fail("الطالب غير موجود");
 
     students = [student];
     studentIds = [student.id];
@@ -174,7 +182,7 @@ export async function createSession(input: CreateSessionInput) {
       });
     }
   } else {
-    throw new Error("يجب اختيار مجموعة أو طالب");
+    return fail("يجب اختيار مجموعة أو طالب");
   }
 
   // ── Conflict check ──────────────────────────────────────
@@ -202,7 +210,7 @@ export async function createSession(input: CreateSessionInput) {
     const conflictNames = overlapping.flatMap((c) =>
       c.participants.map((p) => p.student.user.name),
     );
-    throw new Error(`تعارض في المواعيد: ${conflictNames.join("، ")}`);
+    return fail(`تعارض في المواعيد: ${conflictNames.join("، ")}`);
   }
 
   // ── Trial status change ─────────────────────────────────
@@ -233,7 +241,7 @@ export async function createSession(input: CreateSessionInput) {
         select: { id: true },
       })
     )?.id;
-  if (!supervisorId) throw new Error("لا يوجد مشرف متاح في الأكاديمية");
+  if (!supervisorId) return fail("لا يوجد مشرف متاح في الأكاديمية");
 
   // ── Effective tutor rate ────────────────────────────────
   const isPrivate = students.length === 1;
@@ -264,10 +272,7 @@ export async function createSession(input: CreateSessionInput) {
   // ── Remaining-session warnings (informational, never blocks) ──
   const warnings: string[] = [];
   if (!input.isTrial) {
-    const remaining = await getRemainingSessionsForStudents(
-      studentIds,
-      group!.id,
-    );
+    const remaining = await getRemainingSessionsMap(studentIds, group!.id);
     const noBalance = students.filter((s) => {
       const r = remaining.get(s.id);
       return r != null && r <= 0;
@@ -316,7 +321,7 @@ export async function createSession(input: CreateSessionInput) {
   revalidatePath("/ar/dashboard/sessions");
   revalidatePath("/ar/dashboard/tutor/sessions");
   return { ...session, warnings };
-}
+});
 
 export type UpdateSessionInput = {
   id: number;
@@ -329,12 +334,12 @@ export type UpdateSessionInput = {
   tutorId?: number; // may override
 };
 
-export async function updateSession(input: UpdateSessionInput) {
+export const updateSession = withResult(async (input: UpdateSessionInput) => {
   const existing = await db.session.findUnique({
     where: { id: input.id },
     include: { group: { select: { currentTutorId: true } } },
   });
-  if (!existing) throw new Error("Session not found");
+  if (!existing) return fail("الجلسة غير موجودة");
 
   const newStart = input.startTime
     ? dayjs.utc(input.startTime).toDate()
@@ -356,174 +361,174 @@ export async function updateSession(input: UpdateSessionInput) {
   });
 
   revalidatePath("/ar/dashboard/sessions");
-}
+});
 
-export async function updateAttendance(
+export const updateAttendance = withResult(async (
   participantId: number,
   studentStatus: AttendanceStatus,
   reason?: string,
-) {
-  const participant = await db.sessionParticipant.findUnique({
-    where: { id: participantId },
-    include: { session: true },
-  });
-  if (!participant) throw new Error("المشارك غير موجود");
+) => {
+    const participant = await db.sessionParticipant.findUnique({
+      where: { id: participantId },
+      include: { session: true },
+    });
+    if (!participant) return fail("المشارك غير موجود");
 
-  await db.sessionParticipant.update({
-    where: { id: participantId },
-    data: {
-      studentAttendanceStatus: studentStatus,
-      reason: reason ?? null,
-    },
-  });
+    await db.sessionParticipant.update({
+      where: { id: participantId },
+      data: {
+        studentAttendanceStatus: studentStatus,
+        reason: reason ?? null,
+      },
+    });
 
-  revalidatePath("/ar/dashboard/sessions");
-  return participant;
-}
+    revalidatePath("/ar/dashboard/sessions");
+    return participant;
+});
 
-export async function getSessionDetailsForManagement(
+export const getSessionDetailsForManagement = withResult(async (
   sessionId: number,
-): Promise<AdminSession | null> {
-  const session = await db.session.findUnique({
-    where: { id: sessionId },
-    include: {
-      group: { select: { id: true, title: true } },
-      tutor: { select: { id: true, user: { select: { name: true } } } },
-      supervisor: {
-        select: { id: true, user: { select: { name: true } } },
-      },
-      participants: {
-        include: {
-          student: { select: { id: true, user: { select: { name: true } } } },
-          report: true,
-          homeworkSolutions: true, // if you need them for the assignment tab, otherwise can omit
+) => {
+    const session = await db.session.findUnique({
+      where: { id: sessionId },
+      include: {
+        group: { select: { id: true, title: true } },
+        tutor: { select: { id: true, user: { select: { name: true } } } },
+        supervisor: {
+          select: { id: true, user: { select: { name: true } } },
         },
-      },
-      assignment: {
-        include: {
-          solutions: {
-            include: {
-              participant: { select: { id: true } },
+        participants: {
+          include: {
+            student: { select: { id: true, user: { select: { name: true } } } },
+            report: true,
+            homeworkSolutions: true, // if you need them for the assignment tab, otherwise can omit
+          },
+        },
+        assignment: {
+          include: {
+            solutions: {
+              include: {
+                participant: { select: { id: true } },
+              },
             },
           },
         },
-      },
-      tutorAttendance: {
-        include: {
-          supervisor: { select: { user: { select: { name: true } } } },
+        tutorAttendance: {
+          include: {
+            supervisor: { select: { user: { select: { name: true } } } },
+          },
         },
       },
-    },
-  });
+    });
 
-  if (!session) return null;
+    if (!session) return null;
 
-  const endTime = dayjs(session.startTime)
-    .add(session.durationMinutes, "minute")
-    .toISOString();
+    const endTime = dayjs(session.startTime)
+      .add(session.durationMinutes, "minute")
+      .toISOString();
 
-  const participants: AdminSessionParticipant[] = session.participants.map(
-    (p) => {
-      const solution = session.assignment?.solutions.find(
-        (s) => s.participantId === p.id,
-      );
-      return {
-        id: p.id,
-        studentId: p.studentId,
-        name: p.student.user.name ?? "",
-        status: p.studentAttendanceStatus, // AttendanceStatus | null
-        reason: p.reason,
-        price: p.price,
-        paymentStatus: p.paymentStatus,
-        report: p.report
-          ? {
-              id: p.report.id,
-              rating: p.report.rating,
-              outcome: p.report.outcomes, // note: field name changed from 'outcomes'
-              strengths: p.report.strengths,
-              weaknesses: p.report.weaknesses,
-              nextGoals: p.report.nextGoals,
-              comments: p.report.comments,
-            }
-          : null,
-        homeworkSolution: solution
-          ? {
-              id: solution.id,
-              assignmentId: solution.assignmentId,
-              participantId: solution.participantId,
-              fileUrl: `/api/file/solution/${solution.id}`,
-              score: solution.score,
-              feedback: solution.feedback,
-              submittedAt: solution.submittedAt.toISOString(),
-              gradedAt: solution.gradedAt?.toISOString() ?? null,
-              gradedBy: solution.gradedBy,
-            }
-          : null,
-      };
-    },
-  );
+    const participants: AdminSessionParticipant[] = session.participants.map(
+      (p) => {
+        const solution = session.assignment?.solutions.find(
+          (s) => s.participantId === p.id,
+        );
+        return {
+          id: p.id,
+          studentId: p.studentId,
+          name: p.student.user.name ?? "",
+          status: p.studentAttendanceStatus, // AttendanceStatus | null
+          reason: p.reason,
+          price: p.price,
+          paymentStatus: p.paymentStatus,
+          report: p.report
+            ? {
+                id: p.report.id,
+                rating: p.report.rating,
+                outcome: p.report.outcomes, // note: field name changed from 'outcomes'
+                strengths: p.report.strengths,
+                weaknesses: p.report.weaknesses,
+                nextGoals: p.report.nextGoals,
+                comments: p.report.comments,
+              }
+            : null,
+          homeworkSolution: solution
+            ? {
+                id: solution.id,
+                assignmentId: solution.assignmentId,
+                participantId: solution.participantId,
+                fileUrl: `/api/file/solution/${solution.id}`,
+                score: solution.score,
+                feedback: solution.feedback,
+                submittedAt: solution.submittedAt.toISOString(),
+                gradedAt: solution.gradedAt?.toISOString() ?? null,
+                gradedBy: solution.gradedBy,
+              }
+            : null,
+        };
+      },
+    );
 
-  return {
-    id: session.id,
-    startTime: session.startTime.toISOString(),
-    endTime,
-    durationMinutes: session.durationMinutes,
-    topic: session.topic,
-    isTrial: session.isTrial,
-    cancelledBy: session.cancelledBy,
+    return {
+      id: session.id,
+      startTime: session.startTime.toISOString(),
+      endTime,
+      durationMinutes: session.durationMinutes,
+      topic: session.topic,
+      isTrial: session.isTrial,
+      cancelledBy: session.cancelledBy,
 
-    status: getSessionStatus(session),
+      status: getSessionStatus(session),
 
-    zoomUrl: session.zoomUrl,
+      zoomUrl: session.zoomUrl,
 
-    groupId: session.groupId,
-    groupName: session.group.title,
+      groupId: session.groupId,
+      groupName: session.group.title,
 
-    tutorId: session.tutorId,
-    tutorName: session.tutor.user.name ?? "",
-    tutorRate: session.tutorRate,
+      tutorId: session.tutorId,
+      tutorName: session.tutor.user.name ?? "",
+      tutorRate: session.tutorRate,
 
-    tutorAttendance: session.tutorAttendance
-      ? {
-          id: session.tutorAttendance.id,
-          name: session.tutorAttendance.supervisor?.user.name ?? null,
-          status: session.tutorAttendance.status,
-          notes: session.tutorAttendance.notes,
-          reviewedAt: session.tutorAttendance.reviewedAt?.toISOString() ?? null,
-        }
-      : null,
+      tutorAttendance: session.tutorAttendance
+        ? {
+            id: session.tutorAttendance.id,
+            name: session.tutorAttendance.supervisor?.user.name ?? null,
+            status: session.tutorAttendance.status,
+            notes: session.tutorAttendance.notes,
+            reviewedAt: session.tutorAttendance.reviewedAt?.toISOString() ?? null,
+          }
+        : null,
 
-    supervisorId: session.supervisorId,
-    supervisorName: session.supervisor.user.name ?? "",
+      supervisorId: session.supervisorId,
+      supervisorName: session.supervisor.user.name ?? "",
 
-    participants,
-    assignment: session.assignment
-      ? {
-          id: session.assignment.id,
-          title: session.assignment.title,
-          description: session.assignment.description,
-          deadline: session.assignment.deadline?.toISOString() ?? "",
-          maxScore: session.assignment.maxScore,
-          fileUrl: `/api/file/assignment/${session.assignment.id}`,
-        }
-      : null,
+      participants,
+      assignment: session.assignment
+        ? {
+            id: session.assignment.id,
+            title: session.assignment.title,
+            description: session.assignment.description,
+            deadline: session.assignment.deadline?.toISOString() ?? "",
+            maxScore: session.assignment.maxScore,
+            fileUrl: `/api/file/assignment/${session.assignment.id}`,
+          }
+        : null,
 
-    createdAt: session.createdAt.toISOString(),
-  };
-}
+      createdAt: session.createdAt.toISOString(),
+    };
+});
 
-export async function cancelSession(sessionId: number, cancelledBy: number) {
+export const cancelSession = withResult(async (sessionId: number, cancelledBy: number) => {
   const token = await getTokenFromCookie();
-  if (!token) throw new Error("غير مصرح");
+  if (!token) return fail("غير مصرح");
   const payload = verifyToken(token);
-  if (!payload || !payload.academyId) throw new Error("غير مصرح");
+  if (!payload || !payload.academyId) return fail("غير مصرح");
 
   const session = await db.session.findUnique({
     where: { id: sessionId },
     include: { participants: true },
   });
   if (!session || session.cancelledBy !== null)
-    throw new Error("لا يمكن إلغاء هذه الحصة");
+    return fail("لا يمكن إلغاء هذه الحصة");
 
   await db.session.update({
     where: { id: sessionId },
@@ -534,19 +539,19 @@ export async function cancelSession(sessionId: number, cancelledBy: number) {
   for (const p of session.participants) {
     revalidatePath(`/ar/dashboard/students/${p.studentId}`);
   }
-}
+});
 
-export async function deleteSession(sessionId: number) {
+export const deleteSession = withResult(async (sessionId: number) => {
   const token = await getTokenFromCookie();
-  if (!token) throw new Error("غير مصرح");
+  if (!token) return fail("غير مصرح");
   const payload = verifyToken(token);
-  if (!payload || !payload.academyId) throw new Error("غير مصرح");
+  if (!payload || !payload.academyId) return fail("غير مصرح");
 
   const session = await db.session.findUnique({
     where: { id: sessionId },
   });
-  if (!session) throw new Error("الحصة غير موجودة");
-  if (session.cancelledBy !== null) throw new Error("الحصة ملغية بالفعل");
+  if (!session) return fail("الحصة غير موجودة");
+  if (session.cancelledBy !== null) return fail("الحصة ملغية بالفعل");
 
   await db.session.update({
     where: { id: sessionId },
@@ -554,97 +559,97 @@ export async function deleteSession(sessionId: number) {
   });
 
   revalidatePath("/ar/dashboard/sessions");
-}
+});
 
-export async function getSessionFormOptions(
+export const getSessionFormOptions = withResult(async (
   academyId: number,
   tutorId?: number,
-) {
-  const currentUser = await user();
-  if (!currentUser || currentUser.academyId !== academyId)
-    throw new Error("غير مصرح");
+) => {
+    const currentUser = await user();
+    if (!currentUser || currentUser.academyId !== academyId)
+      return fail("غير مصرح");
 
-  const groupWhere = {
-    academyId,
-    active: true,
-    ...(tutorId ? { currentTutorId: tutorId } : {}),
-  };
+    const groupWhere = {
+      academyId,
+      active: true,
+      ...(tutorId ? { currentTutorId: tutorId } : {}),
+    };
 
-  const [groups, tutors, students] = await Promise.all([
-    db.group.findMany({
-      where: groupWhere,
-      include: {
-        currentTutor: {
-          select: { id: true, user: { select: { name: true } } },
-        },
-        members: {
-          where: { active: true },
-          include: {
-            student: {
-              select: {
-                id: true,
-                user: { select: { name: true } },
+    const [groups, tutors, students] = await Promise.all([
+      db.group.findMany({
+        where: groupWhere,
+        include: {
+          currentTutor: {
+            select: { id: true, user: { select: { name: true } } },
+          },
+          members: {
+            where: { active: true },
+            include: {
+              student: {
+                select: {
+                  id: true,
+                  user: { select: { name: true } },
+                },
               },
             },
           },
         },
-      },
-      orderBy: { title: "asc" },
-    }),
-    db.tutor.findMany({
-      where: {
-        academyId,
-        active: true,
-        ...(tutorId ? { id: tutorId } : {}),
-      },
-      select: { id: true, user: { select: { name: true } } },
-      orderBy: { user: { name: "asc" } },
-    }),
-    db.student.findMany({
-      where: { academyId },
-      select: {
-        id: true,
-        user: { select: { name: true } },
-      },
-      orderBy: { user: { name: "asc" } },
-    }),
-  ]);
+        orderBy: { title: "asc" },
+      }),
+      db.tutor.findMany({
+        where: {
+          academyId,
+          active: true,
+          ...(tutorId ? { id: tutorId } : {}),
+        },
+        select: { id: true, user: { select: { name: true } } },
+        orderBy: { user: { name: "asc" } },
+      }),
+      db.student.findMany({
+        where: { academyId },
+        select: {
+          id: true,
+          user: { select: { name: true } },
+        },
+        orderBy: { user: { name: "asc" } },
+      }),
+    ]);
 
-  // Total remaining across all groups (used for private sessions).
-  const remainingMap = await getRemainingSessionsForStudents(
-    students.map((s) => s.id),
-  );
+    // Total remaining across all groups (used for private sessions).
+    const remainingMap = await getRemainingSessionsMap(
+      students.map((s) => s.id),
+    );
 
-  // Per-group remaining sessions so group sessions warn based on the balance
-  // within the selected group's subscription, not totals across other groups.
-  const groupOptions: SessionGroup[] = [];
-  for (const g of groups) {
-    const memberIds = g.members.map((m) => m.student.id);
-    const perGroupMap = await getRemainingSessionsForStudents(memberIds, g.id);
-    groupOptions.push({
-      id: g.id,
-      title: g.title,
-      tutorId: g.currentTutor.id,
-      tutorName: g.currentTutor.user.name ?? "",
-      active: g.active,
-      activeMembers: g.members.map((m) => ({
-        id: m.student.id,
-        name: m.student.user.name ?? "",
-        sessionsRemaining: perGroupMap.get(m.student.id) ?? null,
-      })),
-    });
-  }
+    // Per-group remaining sessions so group sessions warn based on the balance
+    // within the selected group's subscription, not totals across other groups.
+    const groupOptions: SessionGroup[] = [];
+    for (const g of groups) {
+      const memberIds = g.members.map((m) => m.student.id);
+      const perGroupMap = await getRemainingSessionsMap(memberIds, g.id);
+      groupOptions.push({
+        id: g.id,
+        title: g.title,
+        tutorId: g.currentTutor.id,
+        tutorName: g.currentTutor.user.name ?? "",
+        active: g.active,
+        activeMembers: g.members.map((m) => ({
+          id: m.student.id,
+          name: m.student.user.name ?? "",
+          sessionsRemaining: perGroupMap.get(m.student.id) ?? null,
+        })),
+      });
+    }
 
-  const tutorOptions = tutors.map((t) => ({
-    id: t.id,
-    name: t.user.name ?? "",
-  }));
+    const tutorOptions = tutors.map((t) => ({
+      id: t.id,
+      name: t.user.name ?? "",
+    }));
 
-  const studentOptions = students.map((s) => ({
-    id: s.id,
-    name: s.user.name ?? "",
-    sessionsRemaining: remainingMap.get(s.id) ?? null,
-  }));
+    const studentOptions = students.map((s) => ({
+      id: s.id,
+      name: s.user.name ?? "",
+      sessionsRemaining: remainingMap.get(s.id) ?? null,
+    }));
 
-  return { groups: groupOptions, tutors: tutorOptions, students: studentOptions };
-}
+    return { groups: groupOptions, tutors: tutorOptions, students: studentOptions };
+});

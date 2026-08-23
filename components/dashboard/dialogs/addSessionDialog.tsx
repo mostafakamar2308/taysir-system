@@ -121,7 +121,7 @@ export default function AddSessionDialog({
     try {
       const start = dayjs(`${date}T${startTime}`).utc();
       for (const studentId of selectedStudentIds.map(Number)) {
-        await createSession({
+        const res = await createSession({
           studentId,
           tutorId,
           date,
@@ -131,6 +131,7 @@ export default function AddSessionDialog({
           notes: notes || undefined,
           isTrial,
         });
+        if (!res.ok) throw new Error(res.error);
       }
 
       toast({ title: t("toast.success") });

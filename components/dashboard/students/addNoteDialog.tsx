@@ -35,7 +35,8 @@ export default function AddNoteDialog({
     if (!content.trim()) return;
     setLoading(true);
     try {
-      await addNote(studentId, content);
+      const res = await addNote(studentId, content);
+      if (!res.ok) throw new Error(res.error);
       toast({ title: "تمت إضافة الملاحظة" });
       setContent("");
       onOpenChange(false);

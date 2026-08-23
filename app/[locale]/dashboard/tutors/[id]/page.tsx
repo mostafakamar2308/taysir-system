@@ -214,11 +214,9 @@ export default async function TutorProfilePage({
   }
 
   let financesData: TutorFinancesInput | undefined;
-  try {
+  {
     const fetched = await getTutorFinancialSummary(id);
-    financesData = fetched.data;
-  } catch {
-    financesData = undefined;
+    if (fetched.ok) financesData = fetched.data.data;
   }
 
   const transformed: TutorProfile = {

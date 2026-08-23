@@ -50,9 +50,10 @@ export function useChat({
           ? getGroupChatMessages(roomId)
           : getChatMessages(roomId);
       load
-        .then((msgs) => {
-          setMessages(msgs);
-          const unreadFromOthers = msgs.filter(
+        .then((res) => {
+          if (!res.ok) return;
+          setMessages(res.data ?? []);
+          const unreadFromOthers = (res.data ?? []).filter(
             (m) => !m.isRead && m.senderId !== userId && !m.isDeleted,
           );
           unreadFromOthers.forEach((m) => markAsRead(m.id));

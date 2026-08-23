@@ -43,8 +43,8 @@ export default function SessionManagementDetailPanel({
       if (isOpen) {
         setLoading(true);
         try {
-          const data = await getSessionDetailsForManagement(sessionId);
-          setSession(data);
+          const res = await getSessionDetailsForManagement(sessionId);
+          setSession(res.ok ? res.data : null);
         } catch (error) {
           console.error("Failed to fetch session details:", error);
         } finally {

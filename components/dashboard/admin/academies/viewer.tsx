@@ -155,10 +155,12 @@ export default function AcademiesClient({
         isFreeTrial: formData.isFreeTrial,
       };
       if (editingAcademy) {
-        await updateAcademy(editingAcademy.id, payload);
+        const res = await updateAcademy(editingAcademy.id, payload);
+        if (!res.ok) throw new Error(res.error);
         toast({ title: "تم تحديث الأكاديمية" });
       } else {
-        await createAcademy(payload);
+        const res = await createAcademy(payload);
+        if (!res.ok) throw new Error(res.error);
         toast({ title: "تمت إضافة الأكاديمية" });
       }
       setDialogOpen(false);
@@ -179,7 +181,8 @@ export default function AcademiesClient({
     if (!deleteId) return;
     setLoading(true);
     try {
-      await deleteAcademy(deleteId);
+      const res = await deleteAcademy(deleteId);
+      if (!res.ok) throw new Error(res.error);
       toast({ title: "تم حذف الأكاديمية" });
       setDeleteId(null);
       router.refresh();

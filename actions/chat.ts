@@ -3,24 +3,23 @@ import { user } from "@/lib/auth";
 import db from "@/lib/prisma";
 import { Role } from "@/types/user";
 import { FullChatMessage } from "@/wss/types";
+import { withResult, fail } from "@/lib/action-result";
 
-export async function getChatMessages(
-  roomId: number,
-): Promise<FullChatMessage[]> {
+export const getChatMessages = withResult(async (roomId: number) => {
   const currentUser = await user();
-  if (!currentUser) throw new Error("Unauthorized");
+  if (!currentUser) return fail("غير مصرح");
 
   const room = await db.chatRoom.findUnique({
     where: { id: roomId },
   });
-  if (!room) throw new Error("Chat room not found");
+  if (!room) return fail("غرفة المحادثة غير موجودة");
 
   const isParticipant =
     room.tutorUserId === currentUser.id ||
     room.studentUserId === currentUser.id ||
     currentUser.role === Role.Admin ||
     currentUser.role === Role.Supervisor;
-  if (!isParticipant) throw new Error("Unauthorized");
+  if (!isParticipant) return fail("غير مصرح");
 
   return await db.chatMessage.findMany({
     where: { roomId, isDeleted: false },
@@ -31,24 +30,22 @@ export async function getChatMessages(
       },
     },
   });
-}
+});
 
-export async function getGroupChatMessages(
-  roomId: number,
-): Promise<FullChatMessage[]> {
+export const getGroupChatMessages = withResult(async (roomId: number) => {
   const currentUser = await user();
-  if (!currentUser) throw new Error("Unauthorized");
+  if (!currentUser) return fail("غير مصرح");
 
   const room = await db.groupChatRoom.findUnique({
     where: { id: roomId },
   });
-  if (!room) throw new Error("Chat room not found");
+  if (!room) return fail("غرفة المحادثة غير موجودة");
 
   const membership = await db.groupChatMember.findFirst({
     where: { roomId, userId: currentUser.id, active: true },
   });
   const isAdmin = await isAcademyStaff(room.academyId, currentUser.id);
-  if (!membership && !isAdmin) throw new Error("Unauthorized");
+  if (!membership && !isAdmin) return fail("غير مصرح");
 
   return await db.groupChatMessage.findMany({
     where: { roomId, isDeleted: false },
@@ -59,7 +56,7 @@ export async function getGroupChatMessages(
       },
     },
   });
-}
+});
 
 async function isAcademyStaff(academyId: number, userId: number) {
   const admin = await db.admin.findUnique({ where: { userId } });
@@ -73,140 +70,142 @@ const messageInclude = {
   sender: { select: { id: true, name: true, imageUrl: true, role: true } },
 } as const;
 
-export async function getChatsForUser(userId: number, role: number) {
-  if (role === Role.Student) {
-    const student = await db.student.findUnique({
-      where: { userId },
-      include: {
-        groupMemberships: {
-          where: { active: true },
-          include: {
-            group: {
-              include: {
-                currentTutor: {
-                  include: {
-                    user: { select: { id: true, name: true, imageUrl: true } },
+export const getChatsForUser = withResult(
+  async (userId: number, role: number) => {
+    if (role === Role.Student) {
+      const student = await db.student.findUnique({
+        where: { userId },
+        include: {
+          groupMemberships: {
+            where: { active: true },
+            include: {
+              group: {
+                include: {
+                  currentTutor: {
+                    include: {
+                      user: { select: { id: true, name: true, imageUrl: true } },
+                    },
                   },
                 },
               },
             },
           },
         },
-      },
-    });
+      });
 
-    if (!student || student.groupMemberships.length === 0) return [];
+      if (!student || student.groupMemberships.length === 0) return [];
 
-    // Deduplicate by tutor userId
-    const uniqueTutors = new Map<
-      number,
-      (typeof student.groupMemberships)[0]["group"]["currentTutor"]
-    >();
-    for (const membership of student.groupMemberships) {
-      const tutor = membership.group.currentTutor;
-      if (!uniqueTutors.has(tutor.userId)) {
-        uniqueTutors.set(tutor.userId, tutor);
+      // Deduplicate by tutor userId
+      const uniqueTutors = new Map<
+        number,
+        (typeof student.groupMemberships)[0]["group"]["currentTutor"]
+      >();
+      for (const membership of student.groupMemberships) {
+        const tutor = membership.group.currentTutor;
+        if (!uniqueTutors.has(tutor.userId)) {
+          uniqueTutors.set(tutor.userId, tutor);
+        }
       }
+
+      const directChats = await Promise.all(
+        Array.from(uniqueTutors.values()).map(async (tutor) => {
+          return db.chatRoom.upsert({
+            where: {
+              tutorUserId_studentUserId: {
+                tutorUserId: tutor.userId,
+                studentUserId: userId, // student's user ID
+              },
+            },
+            update: {},
+            create: {
+              tutorUserId: tutor.userId,
+              studentUserId: userId,
+              academyId: student.academyId,
+            },
+            include: {
+              tutor: {
+                select: { id: true, name: true, imageUrl: true },
+              },
+              student: {
+                select: { id: true, name: true, imageUrl: true },
+              },
+              messages: {
+                take: 1,
+                orderBy: { createdAt: "desc" },
+                include: { sender: true },
+              },
+            },
+          });
+        }),
+      );
+
+      const groupChats = await getGroupChatRoomsForStudent(userId);
+
+      const normalized = [
+        ...directChats.map((c) => normalizeDirect(c)),
+        ...groupChats,
+      ];
+      return sortByUpdatedAt(normalized);
     }
 
-    const directChats = await Promise.all(
-      Array.from(uniqueTutors.values()).map(async (tutor) => {
-        return db.chatRoom.upsert({
-          where: {
-            tutorUserId_studentUserId: {
-              tutorUserId: tutor.userId,
-              studentUserId: userId, // student's user ID
-            },
+    // Tutor branch
+    if (role === Role.Tutor) {
+      const tutor = await db.tutor.findUnique({ where: { userId } });
+      if (!tutor) return [];
+      const directChats = await db.chatRoom.findMany({
+        where: { tutorUserId: userId },
+        include: {
+          student: { select: { id: true, name: true, imageUrl: true } },
+          tutor: { select: { id: true, name: true, imageUrl: true } },
+          messages: {
+            take: 1,
+            orderBy: { createdAt: "desc" },
+            include: { sender: true },
           },
-          update: {},
-          create: {
-            tutorUserId: tutor.userId,
-            studentUserId: userId,
-            academyId: student.academyId,
-          },
-          include: {
-            tutor: {
-              select: { id: true, name: true, imageUrl: true },
-            },
-            student: {
-              select: { id: true, name: true, imageUrl: true },
-            },
-            messages: {
-              take: 1,
-              orderBy: { createdAt: "desc" },
-              include: { sender: true },
-            },
-          },
-        });
-      }),
-    );
-
-    const groupChats = await getGroupChatRoomsForStudent(userId);
-
-    const normalized = [
-      ...directChats.map((c) => normalizeDirect(c)),
-      ...groupChats,
-    ];
-    return sortByUpdatedAt(normalized);
-  }
-
-  // Tutor branch
-  if (role === Role.Tutor) {
-    const tutor = await db.tutor.findUnique({ where: { userId } });
-    if (!tutor) return [];
-    const directChats = await db.chatRoom.findMany({
-      where: { tutorUserId: userId },
-      include: {
-        student: { select: { id: true, name: true, imageUrl: true } },
-        tutor: { select: { id: true, name: true, imageUrl: true } },
-        messages: {
-          take: 1,
-          orderBy: { createdAt: "desc" },
-          include: { sender: true },
         },
-      },
-    });
+      });
 
-    const groupChats = await getGroupChatRoomsForUser(userId);
+      const groupChats = await getGroupChatRoomsForUser(userId);
 
-    const normalized = [
-      ...directChats.map((c) => normalizeDirect(c)),
-      ...groupChats,
-    ];
-    return sortByUpdatedAt(normalized);
-  }
+      const normalized = [
+        ...directChats.map((c) => normalizeDirect(c)),
+        ...groupChats,
+      ];
+      return sortByUpdatedAt(normalized);
+    }
 
-  // Admin/Supervisor branch
-  if (role === Role.Admin || role === Role.Supervisor) {
-    const admin = await db.admin.findUnique({ where: { userId } });
-    const supervisor = await db.supervisor.findUnique({ where: { userId } });
-    const academyId = admin?.academyId || supervisor?.academyId;
-    if (!academyId) return [];
+    // Admin/Supervisor branch
+    if (role === Role.Admin || role === Role.Supervisor) {
+      const admin = await db.admin.findUnique({ where: { userId } });
+      const supervisor = await db.supervisor.findUnique({ where: { userId } });
+      const academyId = admin?.academyId || supervisor?.academyId;
+      if (!academyId) return [];
 
-    const directChats = await db.chatRoom.findMany({
-      where: { academyId },
-      include: {
-        student: { select: { id: true, name: true, imageUrl: true } },
-        tutor: { select: { id: true, name: true, imageUrl: true } },
-        messages: {
-          take: 1,
-          orderBy: { createdAt: "desc" },
-          include: { sender: true },
+      const directChats = await db.chatRoom.findMany({
+        where: { academyId },
+        include: {
+          student: { select: { id: true, name: true, imageUrl: true } },
+          tutor: { select: { id: true, name: true, imageUrl: true } },
+          messages: {
+            take: 1,
+            orderBy: { createdAt: "desc" },
+            include: { sender: true },
+          },
         },
-      },
-    });
+      });
 
-    const groupChats = await getGroupChatRoomsForAcademy(academyId);
+      const groupChats = await getGroupChatRoomsForAcademy(academyId);
 
-    const normalized = [
-      ...directChats.map((c) => normalizeDirect(c)),
-      ...groupChats,
-    ];
-    return sortByUpdatedAt(normalized);
-  }
+      const normalized = [
+        ...directChats.map((c) => normalizeDirect(c)),
+        ...groupChats,
+      ];
+      return sortByUpdatedAt(normalized);
+    }
 
-  return [];
-}
+    return [];
+  },
+);
 
 // ---------- Group room queries ----------
 

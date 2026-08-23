@@ -186,11 +186,13 @@ export default async function StudentProfilePage({
     include: { user: true },
   });
 
-  let financialSummary = null;
-  try {
-    financialSummary = await getStudentFinancialSummary(id);
-  } catch {
-    financialSummary = null;
+  let financialSummary: Extract<
+    Awaited<ReturnType<typeof getStudentFinancialSummary>>,
+    { ok: true }
+  >["data"] | null = null;
+  {
+    const summaryRes = await getStudentFinancialSummary(id);
+    if (summaryRes.ok) financialSummary = summaryRes.data;
   }
 
   return (

@@ -6,6 +6,7 @@ import { z } from "zod";
 import bcrypt from "bcrypt";
 import { Role } from "@/types/user";
 import { getTokenFromCookie, verifyToken } from "@/lib/jwt";
+import { withResult, fail } from "@/lib/action-result";
 
 const supervisorSchema = z.object({
   name: z.string().min(1, "الاسم مطلوب"),
@@ -18,11 +19,11 @@ const createSupervisorSchema = supervisorSchema.extend({
   password: z.string().min(6, "كلمة المرور يجب أن تكون 6 أحرف على الأقل"),
 });
 
-export async function createSupervisor(formData: FormData) {
+export const createSupervisor = withResult(async (formData: FormData) => {
   const token = await getTokenFromCookie();
-  if (!token) throw new Error("غير مصرح");
+  if (!token) return fail("غير مصرح");
   const payload = verifyToken(token);
-  if (!payload || !payload.academyId) throw new Error("غير مصرح");
+  if (!payload || !payload.academyId) return fail("غير مصرح");
 
   const rawData = {
     name: formData.get("name"),
@@ -32,23 +33,26 @@ export async function createSupervisor(formData: FormData) {
     password: formData.get("password"),
   };
 
-  const validated = createSupervisorSchema.parse(rawData);
+  const validated = createSupervisorSchema.safeParse(rawData);
+  if (!validated.success) {
+    return fail(validated.error.issues[0]?.message ?? "بيانات غير صحيحة");
+  }
 
   const existing = await db.user.findUnique({
-    where: { email: validated.email },
+    where: { email: validated.data.email },
   });
-  if (existing) throw new Error("البريد الإلكتروني مستخدم بالفعل");
+  if (existing) return fail("البريد الإلكتروني مستخدم بالفعل");
 
-  const hashedPassword = await bcrypt.hash(validated.password, 10);
+  const hashedPassword = await bcrypt.hash(validated.data.password, 10);
   await db.$transaction(async (tx) => {
     const user = await tx.user.create({
       data: {
-        email: validated.email,
+        email: validated.data.email,
         password: hashedPassword,
-        phone: validated.phone,
-        name: validated.name,
+        phone: validated.data.phone,
+        name: validated.data.name,
         role: Role.Supervisor,
-        timezone: validated.timezone,
+        timezone: validated.data.timezone,
       },
     });
     await tx.supervisor.create({
@@ -61,60 +65,65 @@ export async function createSupervisor(formData: FormData) {
   });
 
   revalidatePath("/ar/dashboard/supervisors");
-}
+});
 
-export async function updateSupervisor(id: number, formData: FormData) {
+export const updateSupervisor = withResult(
+  async (id: number, formData: FormData) => {
+    const token = await getTokenFromCookie();
+    if (!token) return fail("غير مصرح");
+    const payload = verifyToken(token);
+    if (!payload || !payload.academyId) return fail("غير مصرح");
+
+    const rawData = {
+      name: formData.get("name"),
+      email: formData.get("email"),
+      phone: formData.get("phone") || null,
+      timezone: formData.get("timezone") || "Africa/Cairo",
+    };
+
+    const validated = supervisorSchema.safeParse(rawData);
+    if (!validated.success) {
+      return fail(validated.error.issues[0]?.message ?? "بيانات غير صحيحة");
+    }
+
+    const supervisor = await db.supervisor.findUnique({
+      where: { id },
+      select: { userId: true, academyId: true },
+    });
+    if (!supervisor) return fail("المشرف غير موجود");
+    if (supervisor.academyId !== payload.academyId) return fail("غير مصرح");
+
+    const existing = await db.user.findFirst({
+      where: { email: validated.data.email, NOT: { id: supervisor.userId } },
+    });
+    if (existing) return fail("البريد الإلكتروني مستخدم بالفعل");
+
+    await db.user.update({
+      where: { id: supervisor.userId },
+      data: {
+        name: validated.data.name,
+        email: validated.data.email,
+        phone: validated.data.phone,
+        timezone: validated.data.timezone,
+      },
+    });
+
+    revalidatePath("/ar/dashboard/supervisors");
+  },
+);
+
+export const toggleSupervisorActive = withResult(async (id: number) => {
   const token = await getTokenFromCookie();
-  if (!token) throw new Error("غير مصرح");
+  if (!token) return fail("غير مصرح");
   const payload = verifyToken(token);
-  if (!payload || !payload.academyId) throw new Error("غير مصرح");
-
-  const rawData = {
-    name: formData.get("name"),
-    email: formData.get("email"),
-    phone: formData.get("phone") || null,
-    timezone: formData.get("timezone") || "Africa/Cairo",
-  };
-
-  const validated = supervisorSchema.parse(rawData);
-
-  const supervisor = await db.supervisor.findUnique({
-    where: { id },
-    select: { userId: true, academyId: true },
-  });
-  if (!supervisor) throw new Error("المشرف غير موجود");
-  if (supervisor.academyId !== payload.academyId) throw new Error("غير مصرح");
-
-  const existing = await db.user.findFirst({
-    where: { email: validated.email, NOT: { id: supervisor.userId } },
-  });
-  if (existing) throw new Error("البريد الإلكتروني مستخدم بالفعل");
-
-  await db.user.update({
-    where: { id: supervisor.userId },
-    data: {
-      name: validated.name,
-      email: validated.email,
-      phone: validated.phone,
-      timezone: validated.timezone,
-    },
-  });
-
-  revalidatePath("/ar/dashboard/supervisors");
-}
-
-export async function toggleSupervisorActive(id: number) {
-  const token = await getTokenFromCookie();
-  if (!token) throw new Error("غير مصرح");
-  const payload = verifyToken(token);
-  if (!payload || !payload.academyId) throw new Error("غير مصرح");
+  if (!payload || !payload.academyId) return fail("غير مصرح");
 
   const supervisor = await db.supervisor.findUnique({
     where: { id },
     select: { id: true, academyId: true, active: true },
   });
-  if (!supervisor) throw new Error("المشرف غير موجود");
-  if (supervisor.academyId !== payload.academyId) throw new Error("غير مصرح");
+  if (!supervisor) return fail("المشرف غير موجود");
+  if (supervisor.academyId !== payload.academyId) return fail("غير مصرح");
 
   await db.supervisor.update({
     where: { id },
@@ -122,39 +131,41 @@ export async function toggleSupervisorActive(id: number) {
   });
 
   revalidatePath("/ar/dashboard/supervisors");
-}
+});
 
-export async function assignTutors(supervisorId: number, tutorIds: number[]) {
-  const token = await getTokenFromCookie();
-  if (!token) throw new Error("غير مصرح");
-  const payload = verifyToken(token);
-  if (!payload || !payload.academyId) throw new Error("غير مصرح");
+export const assignTutors = withResult(
+  async (supervisorId: number, tutorIds: number[]) => {
+    const token = await getTokenFromCookie();
+    if (!token) return fail("غير مصرح");
+    const payload = verifyToken(token);
+    if (!payload || !payload.academyId) return fail("غير مصرح");
 
-  const supervisor = await db.supervisor.findUnique({
-    where: { id: supervisorId },
-    select: { id: true, academyId: true },
-  });
-  if (!supervisor) throw new Error("المشرف غير موجود");
-  if (supervisor.academyId !== payload.academyId) throw new Error("غير مصرح");
+    const supervisor = await db.supervisor.findUnique({
+      where: { id: supervisorId },
+      select: { id: true, academyId: true },
+    });
+    if (!supervisor) return fail("المشرف غير موجود");
+    if (supervisor.academyId !== payload.academyId) return fail("غير مصرح");
 
-  const tutorIdsSet = new Set(tutorIds);
+    const tutorIdsSet = new Set(tutorIds);
 
-  await db.$transaction(async (tx) => {
-    await tx.tutor.updateMany({
-      where: { defaultSupervisorId: supervisorId },
-      data: { defaultSupervisorId: null },
+    await db.$transaction(async (tx) => {
+      await tx.tutor.updateMany({
+        where: { defaultSupervisorId: supervisorId },
+        data: { defaultSupervisorId: null },
+      });
+
+      if (tutorIdsSet.size > 0) {
+        await tx.tutor.updateMany({
+          where: {
+            id: { in: Array.from(tutorIdsSet) },
+            academyId: payload.academyId!,
+          },
+          data: { defaultSupervisorId: supervisorId },
+        });
+      }
     });
 
-    if (tutorIdsSet.size > 0) {
-      await tx.tutor.updateMany({
-        where: {
-          id: { in: Array.from(tutorIdsSet) },
-          academyId: payload.academyId!,
-        },
-        data: { defaultSupervisorId: supervisorId },
-      });
-    }
-  });
-
-  revalidatePath("/ar/dashboard/supervisors");
-}
+    revalidatePath("/ar/dashboard/supervisors");
+  },
+);

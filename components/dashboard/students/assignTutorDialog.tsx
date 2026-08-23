@@ -46,10 +46,11 @@ export default function AssignTutorDialog({
     e.preventDefault();
     setLoading(true);
     try {
-      await assignTutor(
+      const res = await assignTutor(
         studentId,
         tutorId === "none" ? null : parseInt(tutorId),
       );
+      if (!res.ok) throw new Error(res.error);
       toast({ title: "تم تعيين المعلم" });
       onOpenChange(false);
     } catch (error) {

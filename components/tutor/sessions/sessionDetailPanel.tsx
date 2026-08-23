@@ -169,7 +169,8 @@ export default function SessionDetailPanel({
         payload.startTime = startTimeISO;
         payload.duration = editDuration;
       }
-      await updateSession(payload);
+      const res = await updateSession(payload);
+      if (!res.ok) throw new Error(res.error);
       toast({ title: t("toast.updateSuccess") });
       setEditMode(false);
       onUpdate();
@@ -195,10 +196,11 @@ export default function SessionDetailPanel({
   const handleSaveZoomLinks = async () => {
     setLoading(true);
     try {
-      await updateSessionZoomLinks(session.id, {
+      const res = await updateSessionZoomLinks(session.id, {
         zoomJoinUrl: zoomJoinUrlInput || null,
         zoomStartUrl: zoomStartUrlInput || null,
       });
+      if (!res.ok) throw new Error(res.error);
       toast({ title: t("toast.zoomSaved") });
       setZoomEditMode(false);
       onUpdate();
@@ -227,11 +229,12 @@ export default function SessionDetailPanel({
     }
     setLoading(true);
     try {
-      await markStudentAttendanceByTutor(
+      const res = await markStudentAttendanceByTutor(
         participantId,
         parseInt(form.status) as AttendanceStatus,
         form.reason || undefined,
       );
+      if (!res.ok) throw new Error(res.error);
       toast({ title: t("toast.attendanceSaved") });
       onUpdate();
       router.refresh();
@@ -259,7 +262,7 @@ export default function SessionDetailPanel({
     }
     setLoading(true);
     try {
-      await upsertSessionReport(participantId, {
+      const res = await upsertSessionReport(participantId, {
         rating: form.rating ? parseInt(form.rating) : undefined,
         outcomes: form.outcomes || null,
         strengths: form.strengths || null,
@@ -267,6 +270,7 @@ export default function SessionDetailPanel({
         nextGoals: form.nextGoals || null,
         comments: form.comments || null,
       });
+      if (!res.ok) throw new Error(res.error);
       toast({ title: t("toast.reportSaved") });
       onUpdate();
       router.refresh();
@@ -348,7 +352,9 @@ export default function SessionDetailPanel({
       setHwActive(true);
       setAssignmentLoading(true);
       getAssignmentForSession(session.id)
-        .then(setAssignment)
+        .then((res) => {
+          if (res.ok) setAssignment(res.data ?? null);
+        })
         .catch(() =>
           toast({ title: "خطأ في تحميل الواجب", variant: "destructive" }),
         )
@@ -358,21 +364,18 @@ export default function SessionDetailPanel({
 
   const handleUploadAssignment = async (formData: FormData) => {
     setLoading(true);
-    try {
-      await uploadAssignment(session.id, formData);
-      toast({ title: "تم رفع الواجب" });
-      // Refresh assignment data
-      const updated = await getAssignmentForSession(session.id);
-      setAssignment(updated);
-      onUpdate();
-    } catch (err) {
-      toast({
-        title: err instanceof Error ? err.message : "خطأ",
-        variant: "destructive",
-      });
-    } finally {
+    const res = await uploadAssignment(session.id, formData);
+    if (!res.ok) {
+      toast({ title: res.error, variant: "destructive" });
       setLoading(false);
+      return;
     }
+    toast({ title: "تم رفع الواجب" });
+    // Refresh assignment data
+    const updated = await getAssignmentForSession(session.id);
+    setAssignment(updated.ok ? updated.data ?? null : null);
+    setLoading(false);
+    onUpdate();
   };
 
   return (
@@ -884,11 +887,21 @@ export default function SessionDetailPanel({
                                     sol.id,
                                     parseInt(grade),
                                     feedback,
-                                  ).then(() => {
-                                    getAssignmentForSession(session.id).then(
-                                      setAssignment,
-                                    );
-                                    onUpdate();
+                                  ).then((res) => {
+                                    if (res.ok) {
+                                      getAssignmentForSession(
+                                        session.id,
+                                      ).then((res2) => {
+                                        if (res2.ok)
+                                          setAssignment(res2.data ?? null);
+                                      });
+                                      onUpdate();
+                                    } else {
+                                      toast({
+                                        title: res.error,
+                                        variant: "destructive",
+                                      });
+                                    }
                                   });
                                 }
                               }}

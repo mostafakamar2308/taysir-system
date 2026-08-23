@@ -8,7 +8,7 @@ import { Role } from "@/types/user";
 import { getTokenFromCookie, verifyToken } from "@/lib/jwt";
 import { getSessionStatus } from "@/lib/session";
 import dayjs from "@/lib/dayjs";
-import { TutorSession, TutorSessionCardData } from "@/types/tutor";
+import { withResult, fail } from "@/lib/action-result";
 
 const createTutorSchema = z.object({
   name: z.string().min(1, "الاسم مطلوب"),
@@ -31,11 +31,11 @@ const createTutorSchema = z.object({
   password: z.string().min(6, "كلمة المرور يجب أن تكون 6 أحرف على الأقل"),
 });
 
-export async function createTutor(formData: FormData) {
+export const createTutor = withResult(async (formData: FormData) => {
   const token = await getTokenFromCookie();
-  if (!token) throw new Error("غير مصرح");
+  if (!token) return fail("غير مصرح");
   const payload = verifyToken(token);
-  if (!payload || !payload.academyId) throw new Error("غير مصرح");
+  if (!payload || !payload.academyId) return fail("غير مصرح");
 
   const specialitiesStr = formData.get("specialities") as string;
   const specialities = specialitiesStr
@@ -63,55 +63,57 @@ export async function createTutor(formData: FormData) {
     password: formData.get("password"),
   };
 
-  const validated = createTutorSchema.parse(rawData);
-
+  const validated = createTutorSchema.safeParse(rawData);
+  if (!validated.success) {
+    return fail(validated.error.issues[0]?.message ?? "بيانات غير صحيحة");
+  }
   const academy = await db.academy.findUnique({
     where: { id: payload.academyId },
   });
   if (!academy || academy.id !== payload.academyId) {
-    throw new Error("Academy not found");
+    return fail("الأكاديمية غير موجودة");
   }
 
   // Create user first
-  const hashedPassword = await bcrypt.hash(validated.password, 10);
+  const hashedPassword = await bcrypt.hash(validated.data.password, 10);
   await db.$transaction(async (tx) => {
     const user = await tx.user.create({
       data: {
-        email: validated.email,
+        email: validated.data.email,
         password: hashedPassword,
-        phone: validated.phone,
-        name: validated.name,
+        phone: validated.data.phone,
+        name: validated.data.name,
         role: Role.Tutor,
-        timezone: validated.timezone,
+        timezone: validated.data.timezone,
       },
     });
     await tx.tutor.create({
       data: {
         userId: user.id,
         academyId: payload.academyId!,
-        baseHourlyRate: validated.privatePricePerHour,
-        baseGroupHourlyRate: validated.groupPricePerHour,
-        active: validated.active,
-        bio: validated.bio,
-        qualifications: validated.qualifications,
-        zoomAuthenticated: validated.zoomAuthenticated,
-        zoomUrl: validated.zoomUrl,
-        currencyId: validated.currencyId,
+        baseHourlyRate: validated.data.privatePricePerHour,
+        baseGroupHourlyRate: validated.data.groupPricePerHour,
+        active: validated.data.active,
+        bio: validated.data.bio,
+        qualifications: validated.data.qualifications,
+        zoomAuthenticated: validated.data.zoomAuthenticated,
+        zoomUrl: validated.data.zoomUrl,
+        currencyId: validated.data.currencyId,
         specialities: {
-          connect: validated.specialities?.map((id) => ({ id })),
+          connect: validated.data.specialities?.map((id) => ({ id })),
         },
       },
     });
   });
 
   revalidatePath("/ar/dashboard/tutors");
-}
+});
 
-export async function updateTutor(id: number, formData: FormData) {
+export const updateTutor = withResult(async (id: number, formData: FormData) => {
   const token = await getTokenFromCookie();
-  if (!token) throw new Error("غير مصرح");
+  if (!token) return fail("غير مصرح");
   const payload = verifyToken(token);
-  if (!payload || !payload.academyId) throw new Error("غير مصرح");
+  if (!payload || !payload.academyId) return fail("غير مصرح");
 
   const rawData = {
     name: formData.get("name") as string,
@@ -129,13 +131,13 @@ export async function updateTutor(id: number, formData: FormData) {
   };
 
   if (rawData.baseHourlyRate < 0 || rawData.baseGroupHourlyRate < 0)
-    throw new Error("السعر يجب أن يكون أكبر من أو يساوي 0");
+    return fail("السعر يجب أن يكون أكبر من أو يساوي 0");
 
   const tutor = await db.tutor.findUnique({
     where: { id },
     select: { userId: true },
   });
-  if (!tutor) throw new Error("المعلم غير موجود");
+  if (!tutor) return fail("المعلم غير موجود");
 
   await db.$transaction([
     db.user.update({
@@ -162,13 +164,13 @@ export async function updateTutor(id: number, formData: FormData) {
   ]);
 
   revalidatePath(`/ar/dashboard/tutors/${id}`);
-}
+});
 
-export async function addTutorNote(tutorId: number, content: string) {
+export const addTutorNote = withResult(async (tutorId: number, content: string) => {
   const token = await getTokenFromCookie();
-  if (!token) throw new Error("غير مصرح");
+  if (!token) return fail("غير مصرح");
   const payload = verifyToken(token);
-  if (!payload) throw new Error("غير مصرح");
+  if (!payload) return fail("غير مصرح");
 
   await db.note.create({
     data: {
@@ -181,115 +183,115 @@ export async function addTutorNote(tutorId: number, content: string) {
   });
 
   revalidatePath(`/ar/dashboard/tutors/${tutorId}`);
-}
+});
 
-export async function getTutorSessionsForMonth(
+export const getTutorSessionsForMonth = withResult(async (
   tutorId: number,
   monthStart: string,
-): Promise<TutorSession[]> {
-  const start = dayjs.utc(monthStart).startOf("month").toDate();
-  const end = dayjs.utc(monthStart).endOf("month").toDate();
+) => {
+    const start = dayjs.utc(monthStart).startOf("month").toDate();
+    const end = dayjs.utc(monthStart).endOf("month").toDate();
 
-  const sessions = await db.session.findMany({
-    where: {
-      tutorId,
-      startTime: { gte: start, lte: end },
-    },
-    include: {
-      participants: {
-        include: {
-          student: { include: { user: { select: { name: true } } } },
-          report: true,
+    const sessions = await db.session.findMany({
+      where: {
+        tutorId,
+        startTime: { gte: start, lte: end },
+      },
+      include: {
+        participants: {
+          include: {
+            student: { include: { user: { select: { name: true } } } },
+            report: true,
+          },
         },
       },
-    },
-    orderBy: { startTime: "desc", createdAt: "desc" },
-  });
+      orderBy: { startTime: "desc", createdAt: "desc" },
+    });
 
-  // Flatten: one row per student per session
-  return sessions.flatMap((s) =>
-    s.participants.map((p) => ({
-      sessionId: s.id,
-      participantId: p.id,
-      startTime: s.startTime.toISOString(),
-      endTime: dayjs(s.startTime)
-        .add(s.durationMinutes, "minute")
-        .toISOString(),
-      durationMinutes: s.durationMinutes,
-      status: getSessionStatus(s),
-      topic: s.topic,
-      studentId: p.studentId,
-      studentName: p.student.user.name ?? "",
-      attendance: {
-        status: p.studentAttendanceStatus,
-        reason: p.reason ?? null,
-      },
-      report: p.report
-        ? {
-            id: p.report.id,
-            rating: p.report.rating,
-            outcomes: p.report.outcomes,
-            strengths: p.report.strengths,
-            weaknesses: p.report.weaknesses,
-            nextGoals: p.report.nextGoals,
-            comments: p.report.comments,
-          }
-        : null,
-    })),
-  );
-}
-export async function getTutorSessionsForWeek(
+    // Flatten: one row per student per session
+    return sessions.flatMap((s) =>
+      s.participants.map((p) => ({
+        sessionId: s.id,
+        participantId: p.id,
+        startTime: s.startTime.toISOString(),
+        endTime: dayjs(s.startTime)
+          .add(s.durationMinutes, "minute")
+          .toISOString(),
+        durationMinutes: s.durationMinutes,
+        status: getSessionStatus(s),
+        topic: s.topic,
+        studentId: p.studentId,
+        studentName: p.student.user.name ?? "",
+        attendance: {
+          status: p.studentAttendanceStatus,
+          reason: p.reason ?? null,
+        },
+        report: p.report
+          ? {
+              id: p.report.id,
+              rating: p.report.rating,
+              outcomes: p.report.outcomes,
+              strengths: p.report.strengths,
+              weaknesses: p.report.weaknesses,
+              nextGoals: p.report.nextGoals,
+              comments: p.report.comments,
+            }
+          : null,
+      })),
+    );
+});
+export const getTutorSessionsForWeek = withResult(async (
   tutorId: number,
   weekStart: string,
-): Promise<TutorSessionCardData[]> {
-  const start = dayjs(weekStart).startOf("day"); // Saturday
-  const end = start.add(7, "day");
+) => {
+    const start = dayjs(weekStart).startOf("day"); // Saturday
+    const end = start.add(7, "day");
 
-  const sessions = await db.session.findMany({
-    where: {
-      tutorId,
-      startTime: { gte: start.toDate(), lt: end.toDate() },
-    },
-    include: {
-      group: { select: { title: true } },
-      participants: {
-        include: { report: true, homeworkSolutions: true },
+    const sessions = await db.session.findMany({
+      where: {
+        tutorId,
+        startTime: { gte: start.toDate(), lt: end.toDate() },
       },
-      assignment: { include: { solutions: true } },
-    },
-    orderBy: { startTime: "asc" },
-  });
+      include: {
+        group: { select: { title: true } },
+        participants: {
+          include: { report: true, homeworkSolutions: true },
+        },
+        assignment: { include: { solutions: true } },
+      },
+      orderBy: { startTime: "asc" },
+    });
 
-  return sessions.map((s) => {
-    const attendanceCount = s.participants.filter(
-      (p) => p.studentAttendanceStatus !== null,
-    ).length;
-    const reportCount = s.participants.filter((p) => p.report).length;
-    const homeworkSubmissions = s.participants.filter(
-      (p) => p.homeworkSolutions.length > 0,
-    ).length;
-    const homeworkGraded =
-      s.assignment?.solutions.filter((sol) => sol.score !== null).length ?? 0;
-    return {
-      id: s.id,
-      sessionId: s.id,
-      startTime: s.startTime.toISOString(),
-      endTime: dayjs(s.startTime)
-        .add(s.durationMinutes, "minute")
-        .toISOString(),
-      durationMinutes: s.durationMinutes,
-      status: getSessionStatus(s),
-      topic: s.topic,
-      groupName: s.group.title,
-      isCompleted: s.startTime < new Date() && !s.cancelledBy,
-      attendanceCount,
-      totalParticipants: s.participants.length,
-      reportCount,
-      homeworkSubmissions,
-      homeworkGraded,
-      isTrial: s.isTrial,
-      notes: s.notes,
-      hasAssignment: !!s.assignment,
-    };
-  });
-}
+    return sessions.map((s) => {
+      const attendanceCount = s.participants.filter(
+        (p) => p.studentAttendanceStatus !== null,
+      ).length;
+      const reportCount = s.participants.filter((p) => p.report).length;
+      const homeworkSubmissions = s.participants.filter(
+        (p) => p.homeworkSolutions.length > 0,
+      ).length;
+      const homeworkGraded =
+        s.assignment?.solutions.filter((sol) => sol.score !== null).length ?? 0;
+      return {
+        id: s.id,
+        sessionId: s.id,
+        startTime: s.startTime.toISOString(),
+        endTime: dayjs(s.startTime)
+          .add(s.durationMinutes, "minute")
+          .toISOString(),
+        durationMinutes: s.durationMinutes,
+        status: getSessionStatus(s),
+        topic: s.topic,
+        groupName: s.group.title,
+        isCompleted: s.startTime < new Date() && !s.cancelledBy,
+        attendanceCount,
+        totalParticipants: s.participants.length,
+        reportCount,
+        homeworkSubmissions,
+        homeworkGraded,
+        isTrial: s.isTrial,
+        notes: s.notes,
+        hasAssignment: !!s.assignment,
+      };
+    });
+});

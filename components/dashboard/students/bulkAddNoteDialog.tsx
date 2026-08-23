@@ -38,7 +38,8 @@ export default function BulkAddNoteDialog({
     }
     setLoading(true);
     try {
-      await bulkAddNote(studentIds, content);
+      const res = await bulkAddNote(studentIds, content);
+      if (!res.ok) throw new Error(res.error);
       toast({ title: "تمت إضافة الملاحظة للطلاب المحددين" });
       setContent("");
       onSuccess?.();

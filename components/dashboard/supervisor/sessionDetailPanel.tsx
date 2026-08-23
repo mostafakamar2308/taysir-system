@@ -170,14 +170,16 @@ export default function SupervisorSessionDetailPanel({
     setLoading(true);
     try {
       const res = await sendSessionReminder(session.id);
+      if (!res.ok) {
+        toast({
+          title: t("detail.toast.error"),
+          description: res.error,
+          variant: "destructive",
+        });
+        return;
+      }
       toast({
-        title: t("detail.toast.reminderSent", { count: res.sent }),
-      });
-    } catch (error) {
-      toast({
-        title: t("detail.toast.error"),
-        description: error instanceof Error ? error.message : undefined,
-        variant: "destructive",
+        title: t("detail.toast.reminderSent", { count: res.data?.sent }),
       });
     } finally {
       setLoading(false);
@@ -188,14 +190,16 @@ export default function SupervisorSessionDetailPanel({
     setLoading(true);
     try {
       const res = await sendZoomLink(session.id);
+      if (!res.ok) {
+        toast({
+          title: t("detail.toast.error"),
+          description: res.error,
+          variant: "destructive",
+        });
+        return;
+      }
       toast({
-        title: t("detail.toast.zoomSent", { count: res.sent }),
-      });
-    } catch (error) {
-      toast({
-        title: t("detail.toast.error"),
-        description: error instanceof Error ? error.message : undefined,
-        variant: "destructive",
+        title: t("detail.toast.zoomSent", { count: res.data?.sent }),
       });
     } finally {
       setLoading(false);
@@ -213,11 +217,12 @@ export default function SupervisorSessionDetailPanel({
     }
     setLoading(true);
     try {
-      await markStudentAttendanceBySupervisor(
+      const res = await markStudentAttendanceBySupervisor(
         participantId,
         parseInt(form.status) as AttendanceStatus,
         form.reason || undefined,
       );
+      if (!res.ok) throw new Error(res.error);
       toast({ title: t("detail.students.saveAttendance") });
       refresh();
     } catch (error) {
@@ -242,7 +247,7 @@ export default function SupervisorSessionDetailPanel({
     }
     setLoading(true);
     try {
-      await upsertSessionReportBySupervisor(participantId, {
+      const res = await upsertSessionReportBySupervisor(participantId, {
         rating: form.rating ? parseInt(form.rating) : undefined,
         outcomes: form.outcomes || null,
         strengths: form.strengths || null,
@@ -250,6 +255,7 @@ export default function SupervisorSessionDetailPanel({
         nextGoals: form.nextGoals || null,
         comments: form.comments || null,
       });
+      if (!res.ok) throw new Error(res.error);
       toast({ title: t("detail.students.saveReport") });
       refresh();
     } catch (error) {
@@ -278,7 +284,15 @@ export default function SupervisorSessionDetailPanel({
         parseInt(tutorStatus) as AttendanceStatus,
         tutorNotes || undefined,
       );
-      setReview(res);
+      if (!res.ok) {
+        toast({
+          title: t("detail.toast.error"),
+          description: res.error,
+          variant: "destructive",
+        });
+        return;
+      }
+      setReview(res.data ?? null);
       setEditingReview(false);
       toast({ title: t("detail.tutorAttendance.save") });
       refresh();
