@@ -151,6 +151,100 @@ function sessionsUsedInWindow(
   );
 }
 
+// ---------- Per-subscription calculation (canonical math shared everywhere) ----------
+
+export interface SubscriptionFinanceComputation {
+  sessionsUsed: number;
+  sessionsRemaining: number | null;
+  sessionsOverCount: number;
+  extraSessionsCost: number;
+  priceInDefault: number;
+  extraInDefault: number;
+  paidThisCycle: number;
+  outstanding: number;
+  // Portion of outstanding that is due *now*: base price after its billing
+  // date passed + unbilled extra-session cost immediately.
+  overdueAmount: number;
+  billing: Date | null;
+  daysLeft: number | null;
+  cycleState: SubscriptionCycleState;
+  hasSessionWarning: boolean;
+}
+
+export function computeSubscriptionFinance(
+  sub: SubInput,
+  participants: SessionInput[],
+  paidBySub: Map<number, number>,
+  defaultCurrencyId: number,
+  rateMap: Map<number, number>,
+  now: Date,
+): SubscriptionFinanceComputation {
+  const conv = (amount: number, currencyId: number) =>
+    convertAmount(amount, currencyId, defaultCurrencyId, rateMap);
+
+  const sessionCount = sub.sessionCount ?? null;
+  const windowSessions = sessionsUsedInWindow(
+    sub.startDate,
+    sub.endDate,
+    sub.groupId,
+    participants,
+    now,
+  );
+  const sessionsUsed = windowSessions.length;
+  const sessionsRemaining =
+    sessionCount == null ? null : Math.max(0, sessionCount - sessionsUsed);
+  const sessionsOverCount =
+    sessionCount == null ? 0 : Math.max(0, sessionsUsed - sessionCount);
+  // Excess sessions beyond the paid count are billed at their frozen price.
+  const extraSessionsCost =
+    sessionsOverCount > 0
+      ? windowSessions.slice(-sessionsOverCount).reduce((sum, p) => sum + p.price, 0)
+      : 0;
+  const paidThisCycle = paidBySub.get(sub.id) ?? 0;
+  const priceInDefault = conv(sub.price, sub.currencyId);
+  const extraInDefault = conv(extraSessionsCost, sub.currencyId);
+  const outstanding = Math.max(0, priceInDefault + extraInDefault - paidThisCycle);
+  const billing = sub.nextBillingDate ?? sub.endDate;
+  const daysLeft = billing
+    ? startOfDay(billing).diff(startOfDay(now), "day")
+    : null;
+
+  let dueNow = 0;
+  // Subscription price is overdue once its billing date passes.
+  if (billing && startOfDay(billing).isBefore(startOfDay(now))) {
+    dueNow += Math.max(0, priceInDefault - paidThisCycle);
+  }
+  // Excess sessions were already delivered beyond the paid count, so the
+  // unbilled portion is due immediately.
+  dueNow += Math.max(
+    0,
+    extraInDefault -
+      Math.max(0, paidThisCycle - Math.max(0, priceInDefault)),
+  );
+
+  const hasSessionWarning =
+    sub.status === SubscriptionStatus.active &&
+    sub.membershipActive &&
+    sessionCount != null &&
+    sessionsRemaining === 0;
+
+  return {
+    sessionsUsed,
+    sessionsRemaining,
+    sessionsOverCount,
+    extraSessionsCost,
+    priceInDefault,
+    extraInDefault,
+    paidThisCycle,
+    outstanding,
+    overdueAmount: Math.max(0, dueNow),
+    billing,
+    daysLeft,
+    cycleState: computeCycleState(billing, priceInDefault, paidThisCycle, now),
+    hasSessionWarning,
+  };
+}
+
 // ---------- Main calculation ----------
 
 export function computeStudentFinancialSummary(
@@ -176,40 +270,18 @@ export function computeStudentFinancialSummary(
   const isRelevant = (sub: SubInput) =>
     sub.status === SubscriptionStatus.active && sub.membershipActive;
 
-  // Extra-session cost (in the academy's default currency) per subscription.
-  const extraCostById = new Map<number, number>();
+  const computationById = new Map<number, SubscriptionFinanceComputation>();
 
   const subscriptions: SubscriptionFinancial[] = input.subscriptions.map((sub) => {
-    const sessionCount = sub.sessionCount ?? null;
-    const windowSessions = sessionsUsedInWindow(
-      sub.startDate,
-      sub.endDate,
-      sub.groupId,
+    const comp = computeSubscriptionFinance(
+      sub,
       input.sessionParticipants,
+      paidBySub,
+      defaultCurrency.id,
+      rateMap,
       now,
     );
-    const sessionsUsed = windowSessions.length;
-    const sessionsRemaining =
-      sessionCount == null ? null : Math.max(0, sessionCount - sessionsUsed);
-    const sessionsOverCount =
-      sessionCount == null ? 0 : Math.max(0, sessionsUsed - sessionCount);
-    // Excess sessions beyond the paid count are billed at their frozen price.
-    const extraSessionsCost =
-      sessionsOverCount > 0
-        ? windowSessions
-            .slice(-sessionsOverCount)
-            .reduce((sum, p) => sum + p.price, 0)
-        : 0;
-    const paidThisCycle = paidBySub.get(sub.id) ?? 0;
-    const priceInDefault = conv(sub.price, sub.currencyId);
-    const extraInDefault = conv(extraSessionsCost, sub.currencyId);
-    const outstanding = Math.max(0, priceInDefault + extraInDefault - paidThisCycle);
-    const billing = sub.nextBillingDate ?? sub.endDate;
-    const cycleState = computeCycleState(billing, priceInDefault, paidThisCycle, now);
-    const hasSessionWarning =
-      isRelevant(sub) && sessionCount != null && sessionsRemaining === 0;
-
-    extraCostById.set(sub.id, extraInDefault);
+    computationById.set(sub.id, comp);
 
     return {
       id: sub.id,
@@ -221,52 +293,42 @@ export function computeStudentFinancialSummary(
       price: sub.price,
       currencyCode: sub.currencyCode,
       currencySymbol: sub.currencySymbol,
-      sessionCount,
-      sessionsUsed,
-      sessionsRemaining,
-      sessionsOverCount,
-      extraSessionsCost,
+      sessionCount: sub.sessionCount ?? null,
+      sessionsUsed: comp.sessionsUsed,
+      sessionsRemaining: comp.sessionsRemaining,
+      sessionsOverCount: comp.sessionsOverCount,
+      extraSessionsCost: comp.extraSessionsCost,
       billingCycle: sub.billingCycle,
       startDate: sub.startDate.toISOString(),
       endDate: sub.endDate?.toISOString() ?? null,
       nextBillingDate: sub.nextBillingDate?.toISOString() ?? null,
       status: sub.status as SubscriptionStatus,
       membershipActive: sub.membershipActive,
-      paidThisCycle,
-      outstanding,
-      cycleState,
-      hasSessionWarning,
+      paidThisCycle: comp.paidThisCycle,
+      outstanding: comp.outstanding,
+      cycleState: comp.cycleState,
+      hasSessionWarning: comp.hasSessionWarning,
     };
   });
 
   const relevant = input.subscriptions.filter(isRelevant);
 
   const totalDue = relevant.reduce(
-    (sum, s) => sum + conv(s.price, s.currencyId) + (extraCostById.get(s.id) ?? 0),
+    (sum, s) =>
+      sum +
+      (computationById.get(s.id)?.priceInDefault ?? 0) +
+      (computationById.get(s.id)?.extraInDefault ?? 0),
     0,
   );
   const totalPaidCycle = relevant.reduce(
-    (sum, s) => sum + (paidBySub.get(s.id) ?? 0),
+    (sum, s) => sum + (computationById.get(s.id)?.paidThisCycle ?? 0),
     0,
   );
   const outstanding = Math.max(0, totalDue - totalPaidCycle);
-  const overdue = relevant.reduce((sum, s) => {
-    const billing = s.nextBillingDate ?? s.endDate;
-    const price = conv(s.price, s.currencyId);
-    const extra = extraCostById.get(s.id) ?? 0;
-    const paid = paidBySub.get(s.id) ?? 0;
-    if (price + extra - paid <= 0.001) return sum;
-    let due = 0;
-    // Subscription price is overdue once its billing date passes.
-    if (billing) {
-      const bill = startOfDay(billing);
-      if (bill.isBefore(startOfDay(now))) due += Math.max(0, price - paid);
-    }
-    // Excess sessions were already delivered beyond the paid count, so the
-    // unbilled portion is due immediately.
-    due += Math.max(0, extra - Math.max(0, paid - Math.max(0, price)));
-    return sum + Math.max(0, due);
-  }, 0);
+  const overdue = relevant.reduce(
+    (sum, s) => sum + (computationById.get(s.id)?.overdueAmount ?? 0),
+    0,
+  );
 
   const totalPaidHistorical = input.revenues.reduce(
     (sum, r) => (r.status === PaymentStatus.PAID ? sum + conv(r.amount, r.currencyId) : sum),

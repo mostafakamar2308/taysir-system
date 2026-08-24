@@ -5,11 +5,13 @@ import dayjs from "@/lib/dayjs";
 import { StudentStatus } from "@/types/student";
 import { AttendanceStatus } from "@/types/session";
 import { PaymentStatus } from "@/types/payment";
-import { SubscriptionStatus } from "@/types/subscription";
 import { HistoryActionType } from "@/types/history";
 import DashboardClient from "@/components/dashboard/overview/viewer";
 import { countActiveInPeriod } from "@/lib/history";
-import { getRemainingSessionsForStudents } from "@/actions/studentFinances";
+import {
+  getAcademyStudentFinancialRows,
+  getRemainingSessionsForStudents,
+} from "@/actions/studentFinances";
 
 export default async function DashboardPage() {
   const currentUser = await user();
@@ -361,60 +363,48 @@ export default async function DashboardPage() {
       })),
   );
 
-  // ---- Reconciliation (per enrollment subscriptions) ----
-  const activeSubscriptions = await db.subscription.findMany({
-    where: {
-      status: SubscriptionStatus.active,
-      groupStudent: { group: { academyId } },
-    },
-    include: {
-      groupStudent: {
-        include: {
-          student: {
-            select: { id: true, user: { select: { name: true, phone: true } } },
-          },
-          group: { select: { title: true } },
-        },
-      },
-      plan: { select: { title: true } },
-    },
-  });
+  // ---- Reconciliation (canonical engine rows) ----
+  const financeRes = await getAcademyStudentFinancialRows();
+  const financeRows = financeRes.ok ? financeRes.data ?? [] : [];
 
-  const latePayments = activeSubscriptions
-    .filter((sub) => {
-      const billing = sub.nextBillingDate ?? sub.endDate;
-      return !!billing && dayjs(billing).isBefore(now, "day");
-    })
-    .map((sub) => {
-      const billing = sub.nextBillingDate ?? sub.endDate!;
-      return {
-        id: sub.id,
-        studentName: sub.groupStudent.student.user.name || "",
-        phone: sub.groupStudent.student.user.phone || "",
-        planTitle: sub.plan?.title ?? sub.groupStudent.group.title,
-        amountDue: sub.price,
-        daysOverdue: Math.abs(dayjs(billing).diff(now, "day")),
-      };
-    });
+  // Late payments: net amount actually due now (price net of payments +
+  // unbilled extra sessions), not the raw plan price.
+  const latePayments = financeRows
+    .filter((r) => r.overdueAmount > 0)
+    .map((r) => ({
+      id: r.subId,
+      studentName: r.studentName,
+      phone: r.phone,
+      planTitle: r.planTitle ?? r.groupTitle,
+      amountDue: r.overdueAmount,
+      daysOverdue: r.daysLeft != null && r.daysLeft < 0 ? -r.daysLeft : 0,
+    }))
+    .sort((a, b) => b.daysOverdue - a.daysOverdue);
 
-  const nearEndSubscriptions = activeSubscriptions
-    .filter((sub) => {
-      const billing = sub.nextBillingDate ?? sub.endDate;
-      if (!billing) return false;
-      const daysLeft = dayjs(billing).diff(now, "day");
-      return daysLeft >= 0 && daysLeft <= 7;
-    })
-    .map((sub) => {
-      const billing = sub.nextBillingDate ?? sub.endDate!;
-      return {
-        id: sub.id,
-        studentName: sub.groupStudent.student.user.name || "",
-        phone: sub.groupStudent.student.user.phone || "",
-        planTitle: sub.plan?.title ?? sub.groupStudent.group.title,
-        endDate: dayjs(billing).format("YYYY-MM-DD"),
-        daysLeft: dayjs(billing).diff(now, "day"),
-      };
-    });
+  // Near end: billing date within a week, plus any subscription whose
+  // sessions ran out while still active.
+  const nearEndSubscriptions = financeRows
+    .filter(
+      (r) =>
+        r.sessionsExhausted ||
+        (r.daysLeft != null && r.daysLeft >= 0 && r.daysLeft <= 7),
+    )
+    .sort(
+      (a, b) =>
+        (a.daysLeft ?? Number.MAX_SAFE_INTEGER) -
+        (b.daysLeft ?? Number.MAX_SAFE_INTEGER),
+    )
+    .map((r) => ({
+      id: r.subId,
+      studentName: r.studentName,
+      phone: r.phone,
+      planTitle: r.planTitle ?? r.groupTitle,
+      endDate: r.billingDate
+        ? dayjs(r.billingDate).format("YYYY-MM-DD")
+        : "—",
+      daysLeft: r.daysLeft,
+      sessionsExhausted: r.sessionsExhausted,
+    }));
 
   // ---- Helper & stats ----
   const calcPercentChange = (current: number, previous: number) => {

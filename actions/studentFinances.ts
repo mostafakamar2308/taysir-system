@@ -13,6 +13,7 @@ import {
   countSessionsUsed,
   StudentFinancesInput,
 } from "@/lib/studentFinances";
+import { loadAcademyStudentFinancialRows } from "@/lib/studentFinancesLoader";
 import { withResult, fail } from "@/lib/action-result";
 
 async function requireAdmin() {
@@ -172,6 +173,17 @@ export const getStudentFinancialSummary = withResult(async (
     };
 
     return computeStudentFinancialSummary(input);
+});
+
+// ---------- Academy-wide canonical finance rows ----------
+
+// Per-subscription financial rows for every active subscription in the
+// admin's academy, computed by the same engine as the student profile
+// finances tab. Single source for dashboard reconciliation, renewal lists
+// and overdue-debt views.
+export const getAcademyStudentFinancialRows = withResult(async () => {
+  const admin = await requireAdmin();
+  return loadAcademyStudentFinancialRows(admin.academyId!);
 });
 
 // ---------- Record payment (one Revenue per allocated subscription) ----------

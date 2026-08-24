@@ -2,6 +2,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   MessageSquare,
   Plus,
@@ -86,7 +87,8 @@ interface DashboardClientProps {
     phone: string | null;
     planTitle: string;
     endDate: string;
-    daysLeft: number;
+    daysLeft: number | null;
+    sessionsExhausted: boolean;
   }>;
   reportsSheet: Array<{
     sessionId: number;
@@ -654,9 +656,17 @@ export default function DashboardClient(props: DashboardClientProps) {
                               studentName: s.studentName,
                               planTitle: s.planTitle,
                               endDate: s.endDate,
-                              daysLeft: s.daysLeft,
+                              daysLeft: s.daysLeft ?? "—",
                             })}
                           </span>
+                          {s.sessionsExhausted && (
+                            <Badge
+                              variant="destructive"
+                              className="mr-2 align-middle"
+                            >
+                              {t("sessionsExhausted")}
+                            </Badge>
+                          )}
                         </div>
                         {s.phone && (
                           <Button

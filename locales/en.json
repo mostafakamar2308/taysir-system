@@ -418,6 +418,7 @@
   "absentTodayItem": "{studentName} absent – session with {tutorName} ({time})",
   "latePaymentItem": "{studentName} – {planTitle} – {amountDue} {currency} – overdue {daysOverdue} days",
   "nearEndItem": "{studentName} – {planTitle} – ends {endDate} ({daysLeft} days left)",
+  "sessionsExhausted": "Sessions exhausted",
   "missingReportItem": "{tutorName} with {studentName} at {time}",
   "remind": "Remind",
   "contact": "Contact",

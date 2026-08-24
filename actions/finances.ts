@@ -9,6 +9,7 @@ import { revalidatePath } from "next/cache";
 import { Role } from "@/types/user";
 import { user } from "@/lib/auth";
 import { withResult, fail } from "@/lib/action-result";
+import { loadAcademyStudentFinancialRows } from "@/lib/studentFinancesLoader";
 
 // ---------- Helpers ----------
 async function getConversionMap(academyId: number) {
@@ -919,7 +920,7 @@ export const getOverdueRevenue = withResult(
   },
 );
 
-// ----- Renewal Subscriptions (active subscriptions, upcoming/overdue billing) -----
+// ----- Renewal Subscriptions (canonical engine rows, upcoming/overdue billing) -----
 export interface RenewalSubscription {
   studentId: number;
   studentName: string;
@@ -928,58 +929,53 @@ export interface RenewalSubscription {
   planName: string;
   endDate: string;
   id: number;
-  daysLeft: number; // positive if upcoming, negative if overdue
-  planPrice: number;
+  daysLeft: number | null; // positive if upcoming, negative if overdue
+  planPrice: number; // in the academy's default currency
+  sessionsRemaining: number | null;
+  sessionCount: number | null;
+  sessionsExhausted: boolean;
 }
 
 export const getRenewalSubscriptions = withResult(
   async (
     academyId: number,
   ) => {
-    const subscriptions = await db.subscription.findMany({
-      where: {
-        status: SubscriptionStatus.active,
-        groupStudent: { group: { academyId } },
-      },
-      include: {
-        groupStudent: {
-          select: {
-            student: {
-              select: { id: true, user: { select: { name: true, phone: true } } },
-            },
-            group: { select: { title: true } },
-          },
-        },
-        plan: { select: { title: true } },
-      },
-    });
-
-    const now = dayjs();
+    const rows = await loadAcademyStudentFinancialRows(academyId);
     const upcoming: RenewalSubscription[] = [];
     const overdue: RenewalSubscription[] = [];
 
-    subscriptions.forEach((sub) => {
-      const billing = sub.nextBillingDate ?? sub.endDate;
-      if (!billing) return;
-      const end = dayjs(billing);
-      const daysLeft = end.diff(now, "day");
+    for (const r of rows) {
       const item: RenewalSubscription = {
-        id: sub.id,
-        studentId: sub.groupStudent.student.id,
-        studentName: sub.groupStudent.student.user.name || "",
-        groupName: sub.groupStudent.group.title,
-        planName: sub.plan?.title || "",
-        endDate: end.format("YYYY-MM-DD"),
-        studentPhone: sub.groupStudent.student.user.phone || "",
-        daysLeft,
-        planPrice: sub.price,
+        id: r.subId,
+        studentId: r.studentId,
+        studentName: r.studentName,
+        groupName: r.groupTitle,
+        planName: r.planTitle ?? "",
+        endDate: r.billingDate
+          ? dayjs(r.billingDate).format("YYYY-MM-DD")
+          : "—",
+        studentPhone: r.phone,
+        daysLeft: r.daysLeft,
+        planPrice: r.priceInDefault,
+        sessionsRemaining: r.sessionsRemaining,
+        sessionCount: r.sessionCount,
+        sessionsExhausted: r.sessionsExhausted,
       };
-      if (daysLeft <= 7 && daysLeft >= 0) {
-        upcoming.push(item);
-      } else if (daysLeft < 0) {
+      if (r.daysLeft != null && r.daysLeft < 0) {
         overdue.push(item);
+      } else if (r.sessionsExhausted || (r.daysLeft != null && r.daysLeft <= 7)) {
+        upcoming.push(item);
       }
-    });
+    }
+
+    const byDaysLeft = (
+      a: RenewalSubscription,
+      b: RenewalSubscription,
+    ) =>
+      (a.daysLeft ?? Number.MAX_SAFE_INTEGER) -
+      (b.daysLeft ?? Number.MAX_SAFE_INTEGER);
+    upcoming.sort(byDaysLeft);
+    overdue.sort(byDaysLeft);
 
     return { upcoming, overdue };
   },

@@ -14,6 +14,8 @@ import {
   RenewalSubscription,
   RevenueHistoryItem,
 } from "@/actions/finances";
+import { getAcademyStudentFinancialRows } from "@/actions/studentFinances";
+import type { AcademyStudentFinancialRow } from "@/lib/studentFinancesLoader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -83,15 +85,6 @@ function EditRevenueDialog({
   const [method, setMethod] = useState((revenue.method ?? 0).toString());
   const [dueDate, setDueDate] = useState(revenue.dueDate);
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (open) {
-      setAmount(revenue.amount.toString());
-      setStatus(revenue.status.toString());
-      setMethod((revenue.method ?? 0).toString());
-      setDueDate(revenue.dueDate);
-    }
-  }, [open, revenue]);
 
   const handleSave = async () => {
     try {
@@ -198,6 +191,7 @@ export default function RevenuesTab({
 
   // Data
   const [kpis, setKpis] = useState<RevenueKPIs | null>(null);
+  const [debts, setDebts] = useState<AcademyStudentFinancialRow[]>([]);
   const [overdueRevenue, setOverdueRevenue] = useState<OverdueRevenueItem[]>(
     [],
   );
@@ -223,12 +217,13 @@ export default function RevenuesTab({
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [kpisRes, overdueRes, renewalRes, historyRes] =
+      const [kpisRes, debtsRes, overdueRes, renewalRes, historyRes] =
         await Promise.all([
           getRevenueKPIs(academyId, period, year, month, {
             studentId: studentIdNum,
             method: methodNum,
           }),
+          getAcademyStudentFinancialRows(),
           getOverdueRevenue(academyId, period, year, month),
           getRenewalSubscriptions(academyId),
           getRevenueHistory(
@@ -241,6 +236,16 @@ export default function RevenuesTab({
           ),
         ]);
       setKpis(kpisRes.ok ? kpisRes.data ?? null : null);
+      const debtRows = debtsRes.ok ? debtsRes.data ?? [] : [];
+      setDebts(
+        debtRows
+          .filter((r) => r.overdueAmount > 0)
+          .sort(
+            (a, b) =>
+              (a.daysLeft ?? Number.MAX_SAFE_INTEGER) -
+              (b.daysLeft ?? Number.MAX_SAFE_INTEGER),
+          ),
+      );
       setOverdueRevenue(overdueRes.ok ? overdueRes.data ?? [] : []);
       setRenewals(
         renewalRes.ok
@@ -255,8 +260,16 @@ export default function RevenuesTab({
     }
   }, [academyId, period, year, month, studentIdNum, methodNum]);
 
+  // Refresh with the loading skeleton (event handlers may setState freely).
+  const refresh = () => {
+    setLoading(true);
+    void fetchData();
+  };
+
   useEffect(() => {
-    fetchData();
+    // Same fetch-on-mount pattern as the other dashboard tabs.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchData();
   }, [fetchData]);
 
   // Actions
@@ -264,7 +277,7 @@ export default function RevenuesTab({
     try {
       await markRevenueAsPaid(revenueId);
       toast.success("تم تحديث الحالة إلى مدفوعة");
-      fetchData();
+      refresh();
     } catch {
       toast.error("فشل في تحديث الحالة");
     }
@@ -274,7 +287,7 @@ export default function RevenuesTab({
     try {
       await createRevenueForSubscription(subscriptionId);
       toast.success("تم إنشاء الإيراد وتجديد الاشتراك");
-      fetchData();
+      refresh();
     } catch {
       toast.error("فشل في إنشاء الإيراد");
     }
@@ -295,7 +308,7 @@ export default function RevenuesTab({
 
   // Refresh after edit
   const handleEditSuccess = () => {
-    fetchData();
+    refresh();
   };
 
   // Helpers
@@ -445,11 +458,108 @@ export default function RevenuesTab({
         </div>
       )}
 
-      {/* Overdue Revenue Table */}
+      {/* Engine-computed outstanding debts */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5 text-orange-500" /> الإيرادات المتأخرة
+            <AlertTriangle className="h-5 w-5 text-red-500" /> مستحقات الطلاب
+          </CardTitle>
+          {!loading && debts.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => openBulkDialog(debts.map((r) => r.phone))}
+            >
+              <SendHorizonal className="h-4 w-4 ml-1" /> تواصل مع الكل
+            </Button>
+          )}
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <Skeleton className="h-40 w-full" />
+          ) : debts.length === 0 ? (
+            <p className="text-muted-foreground text-sm">لا توجد مستحقات</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>الطالب</TableHead>
+                    <TableHead>المجموعة / الخطة</TableHead>
+                    <TableHead>المستحق الآن</TableHead>
+                    <TableHead>إجمالي غير المسدد</TableHead>
+                    <TableHead>الحصص</TableHead>
+                    <TableHead>الإجراءات</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {debts.map((r) => (
+                    <TableRow key={r.subId}>
+                      <TableCell>{r.studentName}</TableCell>
+                      <TableCell>
+                        {r.groupTitle}
+                        {r.planTitle ? ` – ${r.planTitle}` : ""}
+                      </TableCell>
+                      <TableCell className="font-mono text-red-600">
+                        {formatCurrency(
+                          r.overdueAmount,
+                          defaultCurrency.symbol,
+                        )}
+                      </TableCell>
+                      <TableCell className="font-mono">
+                        {formatCurrency(
+                          r.outstanding,
+                          defaultCurrency.symbol,
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {r.sessionCount != null ? (
+                          <Badge
+                            variant={
+                              r.sessionsExhausted ? "destructive" : "secondary"
+                            }
+                          >
+                            {r.sessionsUsed}/{r.sessionCount}
+                          </Badge>
+                        ) : (
+                          "—"
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          {r.phone && (
+                            <a
+                              href={`https://wa.me/${r.phone}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <Button size="sm" variant="ghost">
+                                <MessageSquare className="h-4 w-4 ml-1" />{" "}
+                                واتساب
+                              </Button>
+                            </a>
+                          )}
+                          <a href={`/ar/dashboard/students/${r.studentId}`}>
+                            <Button size="sm" variant="outline">
+                              تسجيل دفعة
+                            </Button>
+                          </a>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Overdue Recorded Invoices Table */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="h-5 w-5 text-orange-500" /> فواتير مسجلة متأخرة
           </CardTitle>
           {!loading && overdueRevenue.length > 0 && (
             <Button
@@ -468,7 +578,7 @@ export default function RevenuesTab({
             <Skeleton className="h-40 w-full" />
           ) : overdueRevenue.length === 0 ? (
             <p className="text-muted-foreground text-sm">
-              لا توجد دفعات متأخرة
+              لا توجد فواتير مسجلة متأخرة
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -579,7 +689,17 @@ export default function RevenuesTab({
                     <TableBody>
                       {renewals.upcoming.map((sub) => (
                         <TableRow key={sub.id}>
-                          <TableCell>{sub.studentName}</TableCell>
+                          <TableCell>
+                            {sub.studentName}
+                            {sub.sessionsExhausted && (
+                              <Badge
+                                variant="destructive"
+                                className="mr-2 align-middle"
+                              >
+                                نفدت الحصص
+                              </Badge>
+                            )}
+                          </TableCell>
                           <TableCell>{sub.planName}</TableCell>
                           <TableCell>{sub.endDate}</TableCell>
                           <TableCell className="font-mono">
@@ -651,7 +771,17 @@ export default function RevenuesTab({
                     <TableBody>
                       {renewals.overdue.map((sub) => (
                         <TableRow key={sub.id}>
-                          <TableCell>{sub.studentName}</TableCell>
+                          <TableCell>
+                            {sub.studentName}
+                            {sub.sessionsExhausted && (
+                              <Badge
+                                variant="destructive"
+                                className="mr-2 align-middle"
+                              >
+                                نفدت الحصص
+                              </Badge>
+                            )}
+                          </TableCell>
                           <TableCell>{sub.planName}</TableCell>
                           <TableCell>{sub.endDate}</TableCell>
                           <TableCell className="font-mono">
@@ -758,6 +888,7 @@ export default function RevenuesTab({
       {/* Edit Revenue Dialog rendered conditionally */}
       {editRevenue && (
         <EditRevenueDialog
+          key={editRevenue.id}
           open={!!editRevenue}
           onOpenChange={(open) => {
             if (!open) setEditRevenue(null);

@@ -368,6 +368,7 @@
   "absentTodayItem": "{studentName} غائب – حصة مع {tutorName} ({time})",
   "latePaymentItem": "{studentName} – {planTitle} – {amountDue} {currency} – متأخر {daysOverdue} يوم",
   "nearEndItem": "{studentName} – {planTitle} – تنتهي {endDate} (متبقي {daysLeft} يوم)",
+  "sessionsExhausted": "نفدت حصص الاشتراك",
   "missingReportItem": "{tutorName} مع {studentName} الساعة {time}",
   "remind": "تذكير",
   "contact": "تواصل",
