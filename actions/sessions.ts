@@ -15,6 +15,7 @@ import { StudentStatus } from "@/types/student";
 import { recordStudentStatusChangeHistory } from "@/lib/history";
 import { user } from "@/lib/auth";
 import { Prisma } from "@/generated/prisma/client";
+import { getAcademySchedulingSettings } from "@/lib/academySettings";
 import { getRemainingSessionsForStudents } from "./studentFinances";
 import { withResult, fail } from "@/lib/action-result";
 
@@ -69,6 +70,13 @@ export const createSession = withResult(async (input: CreateSessionInput) => {
     });
     if (input.tutorId !== tutor?.id) {
       return fail("غير مصرح: يمكنك فقط إضافة حصص لنفسك");
+    }
+
+    const schedulingSettings = await getAcademySchedulingSettings(
+      currentUser.academyId,
+    );
+    if (!schedulingSettings.tutorsCanCreateSessions) {
+      return fail("غير مصرح: إضافة الحصص غير متاحة لك");
     }
   }
 
@@ -335,11 +343,35 @@ export type UpdateSessionInput = {
 };
 
 export const updateSession = withResult(async (input: UpdateSessionInput) => {
+  const currentUser = await user();
+  if (!currentUser || !currentUser.academyId) return fail("غير مصرح");
+
   const existing = await db.session.findUnique({
     where: { id: input.id },
     include: { group: { select: { currentTutorId: true } } },
   });
   if (!existing) return fail("الجلسة غير موجودة");
+
+  // Tutors may only edit their own sessions and cannot change times
+  // when the academy disables it (topic/notes edits remain allowed).
+  if (currentUser.role === Role.Tutor) {
+    const tutor = await db.tutor.findUnique({
+      where: { userId: currentUser.id },
+      select: { id: true },
+    });
+    if (existing.tutorId !== tutor?.id) return fail("غير مصرح");
+
+    const changesTime =
+      input.startTime !== undefined || input.duration !== undefined;
+    if (changesTime) {
+      const schedulingSettings = await getAcademySchedulingSettings(
+        currentUser.academyId,
+      );
+      if (!schedulingSettings.tutorsCanEditSessionTime) {
+        return fail("غير مصرح: تعديل مواعيد الحصص غير متاح لك");
+      }
+    }
+  }
 
   const newStart = input.startTime
     ? dayjs.utc(input.startTime).toDate()

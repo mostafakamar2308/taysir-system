@@ -34,6 +34,8 @@ interface Props {
   initialWeekStart: string;
   tutorId: number;
   academyId: number;
+  canCreateSessions: boolean;
+  canEditSessionTime: boolean;
 }
 
 export default function TutorSessionsViewer({
@@ -42,6 +44,8 @@ export default function TutorSessionsViewer({
   initialWeekStart,
   tutorId,
   academyId,
+  canCreateSessions,
+  canEditSessionTime,
 }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -127,10 +131,12 @@ export default function TutorSessionsViewer({
             عرض وإدارة جميع حصصك في التقويم الأسبوعي
           </p>
         </div>
-        <Button onClick={() => setAddDialogOpen(true)}>
-          <Plus className="h-4 w-4 ml-2" />
-          إضافة حصة
-        </Button>
+        {canCreateSessions && (
+          <Button onClick={() => setAddDialogOpen(true)}>
+            <Plus className="h-4 w-4 ml-2" />
+            إضافة حصة
+          </Button>
+        )}
       </div>
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-border bg-card p-4">
@@ -252,6 +258,7 @@ export default function TutorSessionsViewer({
             if (!open) setDetailSession(null);
           }}
           onUpdate={() => router.refresh()}
+          canEditSessionTime={canEditSessionTime}
         />
       )}
 
@@ -269,6 +276,7 @@ export default function TutorSessionsViewer({
           }}
           session={editingSession}
           academyId={academyId}
+          canEditSessionTime={canEditSessionTime}
         />
       )}
       <CancelSessionDialog

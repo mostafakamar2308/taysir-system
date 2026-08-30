@@ -32,6 +32,7 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   session: AdminSession;
   academyId: number;
+  canEditSessionTime?: boolean;
 }
 
 export function EditSessionDialog({
@@ -39,6 +40,7 @@ export function EditSessionDialog({
   onOpenChange,
   session,
   academyId,
+  canEditSessionTime = true,
 }: Props) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -80,13 +82,13 @@ export function EditSessionDialog({
         topic,
         isTrial,
         tutorId: parseInt(selectedTutorId),
-        ...(isPast
-          ? {}
-          : {
+        ...(canEditSessionTime && !isPast
+          ? {
               date,
               startTime: dayjs(`${date}T${startTime}`).utc().toISOString(),
               duration,
-            }),
+            }
+          : {}),
       });
       if (!res.ok) throw new Error(res.error);
       toast({ title: "تم تحديث الحصة" });
@@ -149,7 +151,7 @@ export function EditSessionDialog({
           </div>
 
           {/* Time (editable only if future) */}
-          {!isPast && (
+          {!isPast && canEditSessionTime && (
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>التاريخ</Label>
@@ -169,7 +171,7 @@ export function EditSessionDialog({
               </div>
             </div>
           )}
-          {!isPast && (
+          {!isPast && canEditSessionTime && (
             <div className="space-y-2">
               <Label>المدة (دقيقة)</Label>
               <Input

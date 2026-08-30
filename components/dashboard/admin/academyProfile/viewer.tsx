@@ -1,7 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { useToast } from "@/hooks/use-toast";
+import { updateAcademySchedulingSettings } from "@/actions/academySettings";
+import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   Users,
@@ -10,6 +15,7 @@ import {
   TrendingDown,
   Calendar,
   AlertCircle,
+  Settings2,
 } from "lucide-react";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/finances";
@@ -37,13 +43,44 @@ interface AcademyProfileProps {
     saasPlanStartDate: Date | null;
     saasPlanEndDate: Date | null;
   };
+  academyId: number;
+  canCreateSessions: boolean;
+  canEditSessionTime: boolean;
 }
 
-export default function AcademyProfileClient({ academy }: AcademyProfileProps) {
+export default function AcademyProfileClient({
+  academy,
+  academyId,
+  canCreateSessions,
+  canEditSessionTime,
+}: AcademyProfileProps) {
+  const { toast } = useToast();
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
   const isTrialActive =
     academy.saasPlanEndDate && dayjs().isBefore(dayjs(academy.saasPlanEndDate));
   const isExpired =
     academy.saasPlanEndDate && dayjs().isAfter(dayjs(academy.saasPlanEndDate));
+
+  const handleToggle = async (
+    key: "tutorsCanCreateSessions" | "tutorsCanEditSessionTime",
+    value: boolean,
+  ) => {
+    setLoading(true);
+    try {
+      const res = await updateAcademySchedulingSettings(academyId, {
+        [key]: value,
+      });
+      if (!res.ok) throw new Error(res.error);
+      toast({ title: "تم تحديث الإعدادات" });
+      router.refresh();
+    } catch (err) {
+      if (err instanceof Error)
+        toast({ title: "خطأ", description: err.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -193,6 +230,48 @@ export default function AcademyProfileClient({ academy }: AcademyProfileProps) {
                 )}
               </p>
             )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Academy Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Settings2 className="h-4 w-4 text-muted-foreground" />
+            إعدادات الأكاديمية
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium">السماح للمعلم بإنشاء حصص</p>
+              <p className="text-sm text-muted-foreground">
+                إذا عطّلتها، لن يستطيع المعلم إضافة حصص من لوحته
+              </p>
+            </div>
+            <Switch
+              checked={canCreateSessions}
+              disabled={loading}
+              onCheckedChange={(v) =>
+                handleToggle("tutorsCanCreateSessions", v)
+              }
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium">السماح للمعلم بتعديل مواعيد الحصص</p>
+              <p className="text-sm text-muted-foreground">
+                إذا عطّلتها، لن يستطيع المعلم تغيير وقت أو مدة حصة
+              </p>
+            </div>
+            <Switch
+              checked={canEditSessionTime}
+              disabled={loading}
+              onCheckedChange={(v) =>
+                handleToggle("tutorsCanEditSessionTime", v)
+              }
+            />
           </div>
         </CardContent>
       </Card>

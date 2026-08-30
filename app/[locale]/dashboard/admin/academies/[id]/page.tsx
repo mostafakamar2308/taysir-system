@@ -30,6 +30,7 @@ export default async function AcademyProfilePage({
         where: { status: 1 }, // paid only
       },
       saasPlan: true,
+      academySettings: true,
     },
   });
   if (!academy) notFound();
@@ -69,6 +70,11 @@ export default async function AcademyProfilePage({
         saasPlanStartDate: academy.saasPlanStartDate,
         saasPlanEndDate: academy.saasPlanEndDate,
       }}
+      academyId={academy.id}
+      canCreateSessions={academy.academySettings?.tutorsCanCreateSessions ?? true}
+      canEditSessionTime={
+        academy.academySettings?.tutorsCanEditSessionTime ?? true
+      }
     />
   );
 }

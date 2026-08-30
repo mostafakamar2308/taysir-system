@@ -6,6 +6,7 @@ import { getSessionStatus } from "@/lib/session";
 import type { AdminSession, AdminSessionParticipant } from "@/types/session";
 import { SessionClientData } from "@/types/tutor/session";
 import TutorSessionsViewer from "@/components/tutor/sessions/viewer";
+import { getAcademySchedulingSettings } from "@/lib/academySettings";
 
 export default async function TutorSessionsPage({
   searchParams,
@@ -16,6 +17,8 @@ export default async function TutorSessionsPage({
   if (!currentUser?.tutorId || !currentUser?.academyId) redirect("/login");
   const tutorId = currentUser.tutorId;
   const academyId = currentUser.academyId;
+
+  const schedulingSettings = await getAcademySchedulingSettings(academyId);
 
   const { week } = await searchParams;
   const refDate = week ? dayjs(week) : dayjs();
@@ -206,6 +209,8 @@ export default async function TutorSessionsPage({
       initialWeekStart={saturday.format("YYYY-MM-DD")}
       tutorId={tutorId}
       academyId={academyId}
+      canCreateSessions={schedulingSettings.tutorsCanCreateSessions}
+      canEditSessionTime={schedulingSettings.tutorsCanEditSessionTime}
     />
   );
 }

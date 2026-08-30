@@ -4,6 +4,8 @@ import db from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getTokenFromCookie, verifyToken } from "@/lib/jwt";
 import { withResult, fail } from "@/lib/action-result";
+import { Role } from "@/types/user";
+import { getAcademySchedulingSettings } from "@/lib/academySettings";
 
 export const getAcademySettings = withResult(async (academyId: number) => {
   const academy = await db.academy.findUnique({
@@ -59,6 +61,46 @@ export const updateDefaultCurrency = withResult(
     });
 
     revalidatePath("/ar/dashboard/settings/currencies");
+  },
+);
+
+export const getAcademySchedulingSettingsAction = withResult(
+  async (academyId: number) => {
+    return getAcademySchedulingSettings(academyId);
+  },
+);
+
+export const updateAcademySchedulingSettings = withResult(
+  async (
+    academyId: number,
+    data: {
+      tutorsCanCreateSessions?: boolean;
+      tutorsCanEditSessionTime?: boolean;
+    },
+  ) => {
+    const token = await getTokenFromCookie();
+    if (!token) return fail("غير مصرح");
+    const payload = verifyToken(token);
+    if (!payload || payload.role !== Role.SuperAdmin) return fail("غير مصرح");
+
+    await db.academySettings.upsert({
+      where: { academyId },
+      update: {
+        ...(data.tutorsCanCreateSessions !== undefined
+          ? { tutorsCanCreateSessions: data.tutorsCanCreateSessions }
+          : {}),
+        ...(data.tutorsCanEditSessionTime !== undefined
+          ? { tutorsCanEditSessionTime: data.tutorsCanEditSessionTime }
+          : {}),
+      },
+      create: {
+        academyId,
+        tutorsCanCreateSessions: data.tutorsCanCreateSessions ?? true,
+        tutorsCanEditSessionTime: data.tutorsCanEditSessionTime ?? true,
+      },
+    });
+
+    revalidatePath(`/ar/dashboard/admin/academies/${academyId}`);
   },
 );
 

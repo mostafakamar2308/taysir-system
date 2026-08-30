@@ -48,6 +48,7 @@ interface SessionDetailPanelProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUpdate: () => void;
+  canEditSessionTime?: boolean;
 }
 
 export default function SessionDetailPanel({
@@ -55,6 +56,7 @@ export default function SessionDetailPanel({
   open,
   onOpenChange,
   onUpdate,
+  canEditSessionTime = true,
 }: SessionDetailPanelProps) {
   const t = useTranslations("SessionDetail");
   const router = useRouter();
@@ -161,7 +163,7 @@ export default function SessionDetailPanel({
         id: session.id,
         topic: topic,
       };
-      if (!isPast) {
+      if (canEditSessionTime && !isPast) {
         const startTimeISO = dayjs(
           `${editDate}T${editStartTime}:00`,
         ).toISOString();
@@ -437,7 +439,7 @@ export default function SessionDetailPanel({
               </div>
               {editMode ? (
                 <>
-                  {!isPast && (
+                  {canEditSessionTime && !isPast && (
                     <>
                       <div className="space-y-2">
                         <Label>{t("details.date")}</Label>

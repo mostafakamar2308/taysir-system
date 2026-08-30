@@ -95,6 +95,23 @@ model Academy {
   updatedAt        DateTime         @updatedAt
   chatRooms        ChatRoom[]
   groupChatRooms   GroupChatRoom[]
+  academySettings  AcademySettings?
+}
+
+model AcademySettings {
+  id        Int     @id @default(autoincrement())
+  academyId Int     @unique
+  academy   Academy @relation(fields: [academyId], references: [id], onDelete: Cascade)
+
+  // Whether tutors may create sessions for their groups/students.
+  tutorsCanCreateSessions Boolean @default(true)
+  // Whether tutors may change the time (startTime/duration) of existing sessions.
+  tutorsCanEditSessionTime Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([academyId])
 }
 
 model AcademyCurrencyRate {
