@@ -12,6 +12,7 @@
     "start:next": "next start",
     "start:wss": "node dist/server.js",
     "start": "concurrently \"pnpm start:next\" \"pnpm start:wss\" \"pnpm worker\"",
+    "clean": "rm -rf .next",
     "lint": "eslint",
     "worker": "tsx worker/whatsapp.ts",
     "export:academy": "tsx scripts/exportAcademyToExcel.ts"

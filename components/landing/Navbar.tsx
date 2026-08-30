@@ -75,7 +75,7 @@ const Navbar = () => {
 
           {/* Actions */}
           <div className="flex items-center gap-3">
-            <Link href="/login" className="hidden sm:block">
+            <Link href="/login">
               <Button
                 size="sm"
                 variant={"outline"}
@@ -85,7 +85,7 @@ const Navbar = () => {
               </Button>
             </Link>
 
-            <Link href="/register" className="hidden sm:block">
+            <Link href="/register" className="hidden md:block">
               <Button
                 size="sm"
                 className="bg-primary hover:opacity-90 text-primary-foreground shadow-primary"

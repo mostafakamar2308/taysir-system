@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 // import { Badge } from "@/components/ui/badge";
 import { LogIn, AlertCircle } from "lucide-react";
 import { login } from "@/actions/auth";
+import InstallBanner from "@/components/pwa/installBanner";
 
 // const demoCredentials = [
 //   {
@@ -157,6 +158,7 @@ export default function LoginPage() {
           </CardContent>
         </Card> */}
       </div>
+      <InstallBanner />
     </div>
   );
 }

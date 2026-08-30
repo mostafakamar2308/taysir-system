@@ -36,7 +36,7 @@ export default function SidebarContent({ onItemClick }: SidebarContentProps) {
   const isActive = (path: string) => currentPath === path;
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col flex-1 min-h-0">
       <div className="flex-1 overflow-auto py-2">
         {sidebarGroups.map((group) => {
           const groupActive = group.items.some((i) => isActive(i.url));

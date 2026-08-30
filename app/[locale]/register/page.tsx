@@ -8,6 +8,7 @@ import { registerLead } from "@/actions/lead";
 import { LeadData } from "@/lib/schemas/lead";
 import { useTranslations } from "next-intl";
 import { CheckCircle } from "lucide-react";
+import InstallBanner from "@/components/pwa/installBanner";
 
 export default function RegisterPage() {
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -45,6 +46,7 @@ export default function RegisterPage() {
         </div>
       </div>
       <Footer />
+      <InstallBanner />
     </div>
   );
 }

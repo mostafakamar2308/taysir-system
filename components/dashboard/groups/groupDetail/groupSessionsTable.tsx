@@ -34,6 +34,7 @@ export default function GroupSessionsTable({ sessions }: Props) {
             <TableRow>
               <TableHead>التاريخ</TableHead>
               <TableHead>الوقت</TableHead>
+              <TableHead>الموضوع</TableHead>
               <TableHead>الحالة</TableHead>
               <TableHead>المعلم</TableHead>
               <TableHead>الحضور</TableHead>
@@ -48,6 +49,9 @@ export default function GroupSessionsTable({ sessions }: Props) {
                 <TableCell>{formatDate(s.startTime)}</TableCell>
                 <TableCell>
                   {formatTime(s.startTime)} – {formatTime(s.endTime)}
+                </TableCell>
+                <TableCell className="max-w-[200px] truncate" title={s.topic ?? ""}>
+                  {s.topic || "—"}
                 </TableCell>
                 <TableCell>
                   <Badge className={sessionStatusColors[s.status]}>

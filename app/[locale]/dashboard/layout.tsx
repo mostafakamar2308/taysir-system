@@ -5,6 +5,7 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { AuthProvider } from "@/lib/contexts/auth";
 import { WhatsAppProvider } from "@/lib/contexts/whatsapp";
 import { cn } from "@/lib/utils";
+import InstallBanner from "@/components/pwa/installBanner";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -33,6 +34,7 @@ const Layout: React.FC<LayoutProps> = async ({ children, params }) => {
                   {children}
                 </main>
               </div>
+              <InstallBanner />
             </div>
           </WhatsAppProvider>
         </SidebarProvider>
