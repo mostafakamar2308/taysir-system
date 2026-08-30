@@ -6,6 +6,7 @@ import { getTokenFromCookie, verifyToken } from "@/lib/jwt";
 import dayjs from "@/lib/dayjs";
 import { sendSingleMessage } from "./sendMessage";
 import { withResult, fail } from "@/lib/action-result";
+import { markTutorAttended } from "@/lib/tutorAttendance";
 
 export const upsertSessionReport = withResult(
   async (
@@ -40,6 +41,11 @@ export const upsertSessionReport = withResult(
       where: { participantId },
       update: data,
       create: { participantId, ...data },
+    });
+
+    await markTutorAttended({
+      sessionId: participant.session.id,
+      supervisorId: participant.session.supervisorId,
     });
 
     if (participant.student.user.phone) {

@@ -9,6 +9,7 @@ import {
 import { AttendanceStatus, SessionStatus } from "@/types/session";
 import { getSessionStatus } from "@/lib/session";
 import { withResult, fail } from "@/lib/action-result";
+import { TUTOR_ATTENDANCE_SOURCE_SUPERVISOR } from "@/lib/tutorAttendance";
 
 export const markStudentAttendanceBySupervisor = withResult(async (
   participantId: number,
@@ -81,6 +82,7 @@ export const upsertTutorAttendance = withResult(async (
       update: {
         status,
         notes: notes ?? null,
+        source: TUTOR_ATTENDANCE_SOURCE_SUPERVISOR,
         reviewedBy: supervisor.id,
         reviewedAt: new Date(),
       },
@@ -88,6 +90,7 @@ export const upsertTutorAttendance = withResult(async (
         sessionId,
         status,
         notes: notes ?? null,
+        source: TUTOR_ATTENDANCE_SOURCE_SUPERVISOR,
         reviewedBy: supervisor.id,
         reviewedAt: new Date(),
       },

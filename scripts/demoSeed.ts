@@ -2833,6 +2833,7 @@ async function createExtras(
         sessionId: s.id,
         status: reviewed.indexOf(s) % 5 === 0 ? 1 : 0,
         notes: reviewed.indexOf(s) % 5 === 0 ? "تأخر المعلم عن الحصة" : null,
+        source: 1,
         reviewedBy: s.supervisorId,
         reviewedAt: dayjs(s.startTime).add(1, "day").toDate(),
       },

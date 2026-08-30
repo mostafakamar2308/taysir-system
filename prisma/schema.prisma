@@ -399,6 +399,9 @@ model TutorAttendance {
   status Int
   notes  String?
 
+  // Who set the status: 0 = auto (created from tutor activity), 1 = supervisor review.
+  source Int @default(0)
+
   reviewedBy Int
   supervisor Supervisor @relation(fields: [reviewedBy], references: [id])
   reviewedAt DateTime?

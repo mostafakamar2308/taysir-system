@@ -6,6 +6,7 @@ import { getTokenFromCookie, verifyToken } from "@/lib/jwt";
 import { AttendanceStatus, SessionStatus } from "@/types/session";
 import { getSessionStatus } from "@/lib/session";
 import { withResult, fail } from "@/lib/action-result";
+import { markTutorAttended } from "@/lib/tutorAttendance";
 
 export const markStudentAttendanceByTutor = withResult(
   async (
@@ -37,6 +38,11 @@ export const markStudentAttendanceByTutor = withResult(
         studentAttendanceStatus: status,
         reason: reason ?? null,
       },
+    });
+
+    await markTutorAttended({
+      sessionId: participant.session.id,
+      supervisorId: participant.session.supervisorId,
     });
 
     revalidatePath("/ar/dashboard/tutor/sessions");
