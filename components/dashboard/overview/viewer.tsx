@@ -13,7 +13,7 @@ import {
 import dayjs from "@/lib/dayjs";
 import AddStudentDialog from "@/components/dashboard/dialogs/addStudentDialog";
 import AddTutorDialog from "@/components/dashboard/dialogs/addTutorDialog";
-import AddSessionDialog from "@/components/dashboard/dialogs/addSessionDialog";
+import { AddSessionDialog } from "@/components/dashboard/sessions/AddSessionDialog";
 import { AddRevenueDialog } from "../dialogs/addRevenueDialog";
 import { AddExpenseDialog } from "../dialogs/addExpenseDialog";
 import { useState } from "react";
@@ -157,6 +157,7 @@ export default function DashboardClient(props: DashboardClientProps) {
   };
 
   const [sendBulkMessages, setSendBulkMessages] = useState<BulkGroup>(null);
+  const [addSessionOpen, setAddSessionOpen] = useState(false);
 
   const getBulkUsers = (): { phone: string }[] => {
     switch (sendBulkMessages) {
@@ -224,11 +225,9 @@ export default function DashboardClient(props: DashboardClientProps) {
               <Plus className="h-4 w-4 ml-2" /> {t("addTutor")}
             </Button>
           </AddTutorDialog>
-          <AddSessionDialog tutors={props.tutors} students={props.students}>
-            <Button size="sm">
-              <Plus className="h-4 w-4 ml-2" /> {t("addSession")}
-            </Button>
-          </AddSessionDialog>
+          <Button size="sm" onClick={() => setAddSessionOpen(true)}>
+            <Plus className="h-4 w-4 ml-2" /> {t("addSession")}
+          </Button>
           <AddExpenseDialog
             academyId={props.academyId}
             costCenters={props.costCenters}
@@ -820,6 +819,12 @@ export default function DashboardClient(props: DashboardClientProps) {
         open={!!sendBulkMessages}
         setOpen={() => setSendBulkMessages(null)}
         users={getBulkUsers()}
+      />
+
+      <AddSessionDialog
+        open={addSessionOpen}
+        onOpenChange={setAddSessionOpen}
+        academyId={props.academyId}
       />
     </div>
   );
