@@ -158,13 +158,30 @@ export const createGroup = withResult(async (formData: FormData) => {
     ? parseFloat(tutorHourlyRateStr)
     : null;
 
+  const rawStudentIds = formData
+    .getAll("studentIds")
+    .map((v) => parseInt(v as string));
+  const studentIds = [...new Set(rawStudentIds.filter((id) => !isNaN(id)))];
+
   if (!title || !tutorId) return fail("العنوان والمعلم مطلوبان");
+  if (studentIds.length < 2)
+    return fail("يجب اختيار طالبين على الأقل لإنشاء مجموعة");
 
   const tutor = await db.tutor.findUnique({
     where: { id: tutorId },
     select: { userId: true },
   });
   if (!tutor) return fail("المعلم غير موجود");
+
+  const validStudents = await db.student.findMany({
+    where: {
+      id: { in: studentIds },
+      academyId,
+    },
+    select: { id: true },
+  });
+  if (validStudents.length !== studentIds.length)
+    return fail("أحد الطلاب غير موجود");
 
   await db.$transaction(async (tx) => {
     const group = await tx.group.create({
@@ -176,11 +193,19 @@ export const createGroup = withResult(async (formData: FormData) => {
       },
     });
 
+    for (const studentId of studentIds) {
+      await tx.groupStudent.upsert({
+        where: { groupId_studentId: { groupId: group.id, studentId } },
+        update: { active: true, leftAt: null },
+        create: { groupId: group.id, studentId },
+      });
+    }
+
     await syncGroupChatMembers(
       tx,
       group.id,
       academyId,
-      [],
+      studentIds,
       tutor.userId,
     );
   });

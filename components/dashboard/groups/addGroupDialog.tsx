@@ -19,8 +19,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { createGroup, getAcademyTutors } from "@/actions/groups";
-import type { TutorOption } from "@/types/group";
+import { createGroup, getAcademyTutors, getAcademyStudents } from "@/actions/groups";
+import { MultiSelect } from "@/components/ui/multi-select";
+import type { StudentOption, TutorOption } from "@/types/group";
 
 interface Props {
   open: boolean;
@@ -34,16 +35,21 @@ export default function AddGroupDialog({
   onSuccess,
 }: Props) {
   const [tutors, setTutors] = useState<TutorOption[]>([]);
+  const [students, setStudents] = useState<StudentOption[]>([]);
   const [selectedTutorId, setSelectedTutorId] = useState<string>("");
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [tutorHourlyRate, setTutorHourlyRate] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  // Fetch tutors only when the dialog opens – no state resets needed
+  // Fetch tutors + students only when the dialog opens – no state resets needed
   useEffect(() => {
     if (open) {
       getAcademyTutors().then((res) => {
         if (res.ok) setTutors(res.data ?? []);
+      }).catch(console.error);
+      getAcademyStudents().then((res) => {
+        if (res.ok) setStudents(res.data ?? []);
       }).catch(console.error);
     }
   }, [open]);
@@ -60,6 +66,15 @@ export default function AddGroupDialog({
   };
 
   async function handleSubmit(formData: FormData) {
+    if (selectedStudentIds.length < 2) {
+      toast({
+        title: "خطأ",
+        description: "يجب اختيار طالبين على الأقل لإنشاء مجموعة",
+        variant: "destructive",
+      });
+      return;
+    }
+    for (const id of selectedStudentIds) formData.append("studentIds", id);
     formData.set("tutorHourlyRate", tutorHourlyRate);
     setLoading(true);
     try {
@@ -132,6 +147,24 @@ export default function AddGroupDialog({
                   ?.baseGroupHourlyRate ?? "—"}
               </p>
             )}
+          </div>
+          <div>
+            <Label>الطلاب *</Label>
+            <MultiSelect
+              options={students.map((s) => ({
+                value: String(s.id),
+                label: s.name,
+              }))}
+              selected={selectedStudentIds}
+              onChange={setSelectedStudentIds}
+              placeholder="اختر طالبين على الأقل"
+              searchPlaceholder="بحث عن طالب..."
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              اختر طالبين على الأقل حتى تظهر المجموعة في الصفحة
+              {selectedStudentIds.length > 0 &&
+                ` (المختار: ${selectedStudentIds.length})`}
+            </p>
           </div>
           <DialogFooter>
             <Button
