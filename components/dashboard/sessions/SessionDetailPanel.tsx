@@ -10,10 +10,15 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ExternalLink } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
+import { Copy, ExternalLink, Video } from "lucide-react";
 import { formatDate, formatTime } from "@/lib/dates";
 import type { AdminSession } from "@/types/session";
 import { AttendanceStatus, SessionStatus } from "@/types/session";
+import { updateSession } from "@/actions/sessions";
 import { ReportContent } from "@/components/dashboard/sessions/reportContent";
 
 interface Props {
@@ -49,9 +54,38 @@ const attendanceColors: Record<number, string> = {
 };
 
 export function SessionDetailPanel({ session, open, onOpenChange }: Props) {
+  const { toast } = useToast();
   const isCompleted = session.status === SessionStatus.COMPLETED;
   const isScheduled = session.status === SessionStatus.SCHEDULED;
   const reportParticipants = session.participants.filter((p) => p.report);
+
+  const [zoomEditMode, setZoomEditMode] = useState(false);
+  const [zoomUrlInput, setZoomUrlInput] = useState(session.zoomUrl || "");
+  const [displayZoomUrl, setDisplayZoomUrl] = useState(session.zoomUrl || "");
+  const [savingZoom, setSavingZoom] = useState(false);
+
+  const handleSaveZoomUrl = async () => {
+    const value = zoomUrlInput.trim();
+    if (value && !value.startsWith("https://")) {
+      toast({ title: "رابط غير صحيح", variant: "destructive" });
+      return;
+    }
+    setSavingZoom(true);
+    try {
+      const res = await updateSession({ id: session.id, zoomUrl: value || null });
+      if (!res.ok) throw new Error(res.error);
+      setDisplayZoomUrl(value);
+      setZoomEditMode(false);
+      toast({ title: "تم حفظ الرابط" });
+    } catch (error) {
+      toast({
+        title: error instanceof Error ? error.message : "حدث خطأ أثناء الحفظ",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingZoom(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -68,9 +102,8 @@ export function SessionDetailPanel({ session, open, onOpenChange }: Props) {
             <TabsTrigger value="overview">نظرة عامة</TabsTrigger>
             <TabsTrigger value="attendance">الحضور</TabsTrigger>
             <TabsTrigger value="report">التقرير</TabsTrigger>
-            {session.assignment && (
-              <TabsTrigger value="assignment">الواجب</TabsTrigger>
-            )}
+            <TabsTrigger value="zoom">الرابط</TabsTrigger>
+            <TabsTrigger value="assignment">الواجب</TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
@@ -240,94 +273,182 @@ export function SessionDetailPanel({ session, open, onOpenChange }: Props) {
             )}
           </TabsContent>
 
-          {/* Assignment Tab */}
-          {session.assignment && (
-            <TabsContent value="assignment" className="space-y-4 mt-4">
-              <div className="space-y-2 border rounded-lg p-4">
-                <h3 className="font-semibold">
-                  {session.assignment.title || "بدون عنوان"}
-                </h3>
-                {session.assignment.description && (
-                  <p className="text-sm text-muted-foreground">
-                    {session.assignment.description}
-                  </p>
-                )}
-                <div className="flex gap-4 text-sm">
-                  <span>الدرجة القصوى: {session.assignment.maxScore}</span>
-                  {session.assignment.deadline && (
-                    <span>
-                      آخر موعد: {formatDate(session.assignment.deadline)}
-                    </span>
+          {/* Assignment Tab (read-only view) */}
+          <TabsContent value="assignment" className="space-y-4 mt-4">
+            {!session.assignment ? (
+              <p className="text-center text-muted-foreground py-6 text-sm">
+                لا يوجد واجب لهذه الحصة
+              </p>
+            ) : (
+              <>
+                <div className="space-y-2 border rounded-lg p-4">
+                  <h3 className="font-semibold">
+                    {session.assignment.title || "بدون عنوان"}
+                  </h3>
+                  {session.assignment.description && (
+                    <p className="text-sm text-muted-foreground">
+                      {session.assignment.description}
+                    </p>
+                  )}
+                  <div className="flex gap-4 text-sm">
+                    <span>الدرجة القصوى: {session.assignment.maxScore}</span>
+                    {session.assignment.deadline && (
+                      <span>
+                        آخر موعد: {formatDate(session.assignment.deadline)}
+                      </span>
+                    )}
+                  </div>
+                  {session.assignment.fileUrl && (
+                    <a
+                      href={session.assignment.fileUrl}
+                      download
+                      className="text-primary underline text-sm"
+                    >
+                      تحميل ملف الواجب
+                    </a>
                   )}
                 </div>
-                {session.assignment.fileUrl && (
-                  <a
-                    href={session.assignment.fileUrl}
-                    download
-                    className="text-primary underline text-sm"
+                <div className="border rounded-lg overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted">
+                      <tr>
+                        <th className="p-2 text-right">الطالب</th>
+                        <th className="p-2 text-right">الحل</th>
+                        <th className="p-2 text-right">النتيجة</th>
+                        <th className="p-2 text-right">ملاحظات</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {session.participants.map((p) => {
+                        const sol = p.homeworkSolution;
+                        return (
+                          <tr
+                            key={p.id}
+                            className="border-t border-border hover:bg-muted/50"
+                          >
+                            <td className="p-2">{p.name}</td>
+                            <td className="p-2">
+                              {sol ? (
+                                <a
+                                  href={sol.fileUrl}
+                                  download
+                                  className="text-primary underline text-xs"
+                                >
+                                  تحميل
+                                </a>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">
+                                  لم يرفع
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-2">
+                              {sol?.score !== null &&
+                              sol?.score !== undefined ? (
+                                <span>
+                                  {sol.score}/{session.assignment?.maxScore}
+                                </span>
+                              ) : sol ? (
+                                <span className="text-amber-600 text-xs">
+                                  غير مصحح
+                                </span>
+                              ) : (
+                                "—"
+                              )}
+                            </td>
+                            <td className="p-2 text-xs">
+                              {sol?.feedback ?? "—"}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </TabsContent>
+
+          {/* Zoom Tab */}
+          <TabsContent value="zoom" className="space-y-4 mt-4">
+            <div className="flex items-center gap-2 text-primary">
+              <Video className="h-5 w-5" />
+              <span className="font-semibold">رابط زووم</span>
+            </div>
+
+            {zoomEditMode ? (
+              <div className="space-y-4 border rounded-lg p-4">
+                <div className="space-y-2">
+                  <Label className="text-sm text-muted-foreground">
+                    رابط الحصة
+                  </Label>
+                  <Input
+                    value={zoomUrlInput}
+                    onChange={(e) => setZoomUrlInput(e.target.value)}
+                    placeholder="https://zoom.us/j/..."
+                    dir="ltr"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    الرابط يبدأ بـ https:// ويُتاح للطلاب والمعلم.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={handleSaveZoomUrl} disabled={savingZoom}>
+                    حفظ
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setZoomEditMode(false);
+                      setZoomUrlInput(displayZoomUrl);
+                    }}
                   >
-                    تحميل ملف الواجب
-                  </a>
-                )}
+                    إلغاء
+                  </Button>
+                </div>
               </div>
-              <div className="border rounded-lg overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted">
-                    <tr>
-                      <th className="p-2 text-right">الطالب</th>
-                      <th className="p-2 text-right">الحل</th>
-                      <th className="p-2 text-right">النتيجة</th>
-                      <th className="p-2 text-right">ملاحظات</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {session.participants.map((p) => {
-                      const sol = p.homeworkSolution;
-                      return (
-                        <tr
-                          key={p.id}
-                          className="border-t border-border hover:bg-muted/50"
-                        >
-                          <td className="p-2">{p.name}</td>
-                          <td className="p-2">
-                            {sol ? (
-                              <a
-                                href={sol.fileUrl}
-                                download
-                                className="text-primary underline text-xs"
-                              >
-                                تحميل
-                              </a>
-                            ) : (
-                              <span className="text-muted-foreground text-xs">
-                                لم يرفع
-                              </span>
-                            )}
-                          </td>
-                          <td className="p-2">
-                            {sol?.score !== null && sol?.score !== undefined ? (
-                              <span>
-                                {sol.score}/{session.assignment?.maxScore}
-                              </span>
-                            ) : sol ? (
-                              <span className="text-amber-600 text-xs">
-                                غير مصحح
-                              </span>
-                            ) : (
-                              "—"
-                            )}
-                          </td>
-                          <td className="p-2 text-xs">
-                            {sol?.feedback ?? "—"}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+            ) : displayZoomUrl ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={displayZoomUrl}
+                    readOnly
+                    className="font-mono text-sm"
+                    dir="ltr"
+                  />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    title="نسخ الرابط"
+                    onClick={() => {
+                      navigator.clipboard.writeText(displayZoomUrl);
+                      toast({ title: "تم النسخ" });
+                    }}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    title="فتح الرابط"
+                    onClick={() => window.open(displayZoomUrl, "_blank")}
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                  </Button>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => setZoomEditMode(true)}>
+                  تعديل
+                </Button>
+              </>
+            ) : (
+              <div className="space-y-4 border rounded-lg p-4">
+                <p className="text-sm text-muted-foreground">
+                  لا يوجد رابط زووم لهذه الحصة. يمكنك إضافة رابط الاجتماع من هنا.
+                </p>
+                <Button onClick={() => setZoomEditMode(true)}>إضافة الرابط</Button>
               </div>
-            </TabsContent>
-          )}
+            )}
+          </TabsContent>
         </Tabs>
       </DialogContent>
     </Dialog>

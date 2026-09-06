@@ -37,6 +37,7 @@ type CreateSessionInput = {
   topic?: string;
   notes?: string;
   isTrial?: boolean;
+  zoomUrl?: string | null;
 };
 
 type GroupWithMembers = Prisma.GroupGetPayload<{
@@ -78,6 +79,10 @@ export const createSession = withResult(async (input: CreateSessionInput) => {
     if (!schedulingSettings.tutorsCanCreateSessions) {
       return fail("غير مصرح: إضافة الحصص غير متاحة لك");
     }
+  }
+
+  if (input.zoomUrl && !input.zoomUrl.startsWith("https://")) {
+    return fail("رابط غير صحيح");
   }
 
   const start = dayjs.utc(input.startTime);
@@ -265,7 +270,8 @@ export const createSession = withResult(async (input: CreateSessionInput) => {
     where: { id: input.tutorId },
     select: { zoomUrl: true },
   });
-  const zoomUrl = tutor?.zoomUrl ?? null;
+  // Per-session override wins; falls back to the tutor's saved zoom URL.
+  const zoomUrl = input.zoomUrl ?? tutor?.zoomUrl ?? null;
 
   // ── Per-student price (frozen at scheduling) ─────────────
   const priceByStudent = new Map<number, number>();

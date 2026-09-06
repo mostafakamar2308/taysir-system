@@ -62,6 +62,7 @@ export function AddSessionDialog({
   const [duration, setDuration] = useState(60);
   const [topic, setTopic] = useState("");
   const [notes, setNotes] = useState("");
+  const [zoomUrl, setZoomUrl] = useState("");
   const [isTrial, setIsTrial] = useState(false);
 
   useEffect(() => {
@@ -82,6 +83,7 @@ export function AddSessionDialog({
           setDuration(60);
           setTopic("");
           setNotes("");
+          setZoomUrl("");
           setIsTrial(false);
           setMode("group");
         })
@@ -154,6 +156,7 @@ export function AddSessionDialog({
           topic: topic || undefined,
           notes: notes || undefined,
           isTrial,
+          zoomUrl: zoomUrl || undefined,
         });
         if (!res.ok) throw new Error(res.error);
       } else {
@@ -166,6 +169,7 @@ export function AddSessionDialog({
           topic: topic || undefined,
           notes: notes || undefined,
           isTrial,
+          zoomUrl: zoomUrl || undefined,
         });
         if (!res.ok) throw new Error(res.error);
       }
@@ -378,6 +382,17 @@ export function AddSessionDialog({
           <div className="space-y-2">
             <Label>ملاحظات</Label>
             <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </div>
+
+          <div className="space-y-2">
+            <Label>رابط Zoom (اختياري)</Label>
+            <Input
+              type="url"
+              dir="ltr"
+              placeholder="https://..."
+              value={zoomUrl}
+              onChange={(e) => setZoomUrl(e.target.value)}
+            />
           </div>
 
           <div className="flex items-center gap-2">
