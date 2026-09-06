@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Clock, TrendingUp, Banknote } from "lucide-react";
+import { Clock, TrendingUp, Banknote, ChevronLeft, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -45,6 +45,24 @@ interface SalariesTabProps {
   tutors: { id: number; name: string }[];
 }
 
+export interface SalaryBreakdownRow {
+  groupId: number;
+  groupTitle: string;
+  isPrivate: boolean;
+  rate: number;
+  sessionCount: number;
+  totalMinutes: number;
+  earnings: number;
+}
+
+export interface SalaryPaymentRecord {
+  id: number;
+  date: string;
+  amount: number;
+  description: string;
+  notes: string | null;
+}
+
 export interface SalaryMonthData {
   totalPaidSalaries: number;
   highestPaidTutors: { tutorId: number; name: string; totalPaid: number }[];
@@ -60,6 +78,8 @@ export interface SalaryMonthData {
     expectedSalary: number;
     paidAmount: number;
     outstanding: number;
+    breakdown: SalaryBreakdownRow[];
+    paidPayments: SalaryPaymentRecord[];
   }[];
   revenuePerTutor: { tutorId: number; name: string; totalRevenue: number }[];
 }
@@ -74,6 +94,8 @@ export interface TutorSalaryInfo {
   expectedSalary: number;
   paidAmount: number;
   outstanding: number;
+  breakdown: SalaryBreakdownRow[];
+  paidPayments: SalaryPaymentRecord[];
 }
 
 export default function SalariesTab({
@@ -155,6 +177,34 @@ export default function SalariesTab({
     setPayingTutor(tutor);
     setPayAmount(tutor.outstanding.toString());
     setPayDialogOpen(true);
+  };
+
+  const minYear = currentYear - 2;
+  const maxYear = currentYear + 2;
+  const atCurrentMonth =
+    selectedYear > currentYear ||
+    (selectedYear === currentYear && selectedMonth >= currentMonth);
+  const atMinBoundary = selectedYear === minYear && selectedMonth === 1;
+
+  const goToPreviousMonth = () => {
+    const prevYear = selectedMonth === 1 ? selectedYear - 1 : selectedYear;
+    const prevMonth = selectedMonth === 1 ? 12 : selectedMonth - 1;
+    if (prevYear < minYear) return;
+    setSelectedYear(prevYear);
+    setSelectedMonth(prevMonth);
+  };
+
+  const goToNextMonth = () => {
+    const nextYear = selectedMonth === 12 ? selectedYear + 1 : selectedYear;
+    const nextMonth = selectedMonth === 12 ? 1 : selectedMonth + 1;
+    if (nextYear > maxYear) return;
+    if (
+      nextYear > currentYear ||
+      (nextYear === currentYear && nextMonth > currentMonth)
+    )
+      return;
+    setSelectedYear(nextYear);
+    setSelectedMonth(nextMonth);
   };
 
   // Generators for month/year selects
@@ -330,12 +380,32 @@ export default function SalariesTab({
 
       {/* Tutor Salaries Table */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>
             رواتب المعلمين -{" "}
             {monthOptions.find((m) => m.value === selectedMonth)?.label}{" "}
             {selectedYear}
           </CardTitle>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={goToPreviousMonth}
+              disabled={loading || atMinBoundary}
+              title="الشهر السابق"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={goToNextMonth}
+              disabled={loading || atCurrentMonth}
+              title="الشهر التالي"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -416,7 +486,7 @@ export default function SalariesTab({
 
       {/* Pay Tutor Dialog */}
       <Dialog open={payDialogOpen} onOpenChange={setPayDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>دفع راتب {payingTutor?.tutorName}</DialogTitle>
             <DialogDescription>
@@ -427,6 +497,106 @@ export default function SalariesTab({
               )}
             </DialogDescription>
           </DialogHeader>
+
+          {payingTutor && payingTutor.breakdown.length > 0 && (
+            <div className="space-y-3 rounded-lg border p-3">
+              <p className="text-sm font-semibold">كيف تم حساب الراتب؟</p>
+
+              {/* Per-group breakdown */}
+              <div className="space-y-2">
+                {payingTutor.breakdown.map((row) => (
+                  <div
+                    key={`${row.groupId}-${row.rate}`}
+                    className="flex items-center justify-between gap-2 text-sm"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="truncate">{row.groupTitle}</span>
+                      <span
+                        className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                          row.isPrivate
+                            ? "bg-blue-100 text-blue-700"
+                            : "bg-purple-100 text-purple-700"
+                        }`}
+                      >
+                        {row.isPrivate ? "خاص" : "مجموعة"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground whitespace-nowrap">
+                      <span>{row.sessionCount} جلسة</span>
+                      <span>
+                        {row.rate}/س
+                      </span>
+                      <span className="font-medium text-foreground">
+                        {formatCurrency(row.earnings, defaultCurrency.symbol)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Summary */}
+              <div className="border-t pt-2 space-y-1 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">الراتب المتوقع</span>
+                  <span>
+                    {formatCurrency(
+                      payingTutor.expectedSalary,
+                      defaultCurrency.symbol,
+                    )}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">
+                    المدفوع هذا الشهر
+                  </span>
+                  <span className="text-green-600">
+                    -{" "}
+                    {formatCurrency(
+                      payingTutor.paidAmount,
+                      defaultCurrency.symbol,
+                    )}
+                  </span>
+                </div>
+                <div className="flex justify-between font-medium border-t pt-1">
+                  <span>المتبقي</span>
+                  <span className="text-red-600">
+                    {formatCurrency(
+                      payingTutor.outstanding,
+                      defaultCurrency.symbol,
+                    )}
+                  </span>
+                </div>
+              </div>
+
+              {/* Actual paid payments this month */}
+              {payingTutor.paidPayments.length > 0 && (
+                <div className="border-t pt-2 space-y-2">
+                  <p className="text-sm font-medium">مدفوعات هذا الشهر</p>
+                  <div className="space-y-1 text-sm">
+                    {payingTutor.paidPayments.map((p) => (
+                      <div
+                        key={p.id}
+                        className="flex items-center justify-between gap-2"
+                      >
+                        <div className="min-w-0">
+                          <span className="text-muted-foreground text-xs">
+                            {dayjs(p.date).format("DD/MM/YYYY")}
+                          </span>
+                          <span className="block truncate text-xs text-muted-foreground">
+                            {p.description}
+                          </span>
+                        </div>
+                        <span className="font-medium whitespace-nowrap">
+                          {formatCurrency(p.amount, defaultCurrency.symbol)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="space-y-3">
             <div>
               <Label>المبلغ</Label>

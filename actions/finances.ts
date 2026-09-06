@@ -1412,13 +1412,26 @@ export const getSalaryData = withResult(
         startTime: { gte: startOfMonth, lt: endOfMonth },
         tutorId: tutorId ? tutorId : { in: tutors.map((t) => t.id) },
       },
-      include: { participants: true },
+      include: {
+        participants: true,
+        group: { select: { title: true } },
+      },
     });
 
     const privateMinutesMap = new Map<number, number>();
     const groupMinutesMap = new Map<number, number>();
     const earningsMap = new Map<number, number>();
     const sessionCountMap = new Map<number, number>();
+    type SalaryBreakdownRow = {
+      groupId: number;
+      groupTitle: string;
+      isPrivate: boolean;
+      rate: number;
+      sessionCount: number;
+      totalMinutes: number;
+      earnings: number;
+    };
+    const breakdownMap = new Map<number, SalaryBreakdownRow[]>();
 
     for (const s of sessions) {
       const tid = s.tutorId;
@@ -1434,23 +1447,76 @@ export const getSalaryData = withResult(
       } else {
         groupMinutesMap.set(tid, (groupMinutesMap.get(tid) || 0) + dur);
       }
+
+      // Per (group, rate) row — never merge different frozen rates.
+      const rows = breakdownMap.get(tid) ?? [];
+      let row = rows.find(
+        (r) => r.groupId === s.groupId && r.rate === s.tutorRate,
+      );
+      if (!row) {
+        row = {
+          groupId: s.groupId,
+          groupTitle: s.group.title || "",
+          isPrivate: count <= 1,
+          rate: s.tutorRate,
+          sessionCount: 0,
+          totalMinutes: 0,
+          earnings: 0,
+        };
+        rows.push(row);
+      }
+      row.sessionCount += 1;
+      row.totalMinutes += dur;
+      row.earnings += (s.tutorRate * dur) / 60;
+      breakdownMap.set(tid, rows);
     }
 
-    // 3. Paid salary expenses
-    const paidExpenses = await db.expense.groupBy({
-      by: ["tutorId"],
-      _sum: { amount: true },
+    // 3. Paid salary expenses (kept as records so the pay dialog can list them)
+    const paidExpenses = await db.expense.findMany({
       where: {
         academyId,
         status: PaymentStatus.PAID,
         date: { gte: startOfMonth, lt: endOfMonth },
         tutorId: tutorId ? tutorId : { in: tutors.map((t) => t.id) },
       },
+      select: {
+        id: true,
+        tutorId: true,
+        amount: true,
+        currencyId: true,
+        date: true,
+        description: true,
+        notes: true,
+        method: true,
+      },
+      orderBy: { date: "asc" },
     });
+    type SalaryPaymentRecord = {
+      id: number;
+      date: string;
+      amount: number; // in default currency
+      description: string;
+      notes: string | null;
+    };
     const paidAmountMap = new Map<number, number>();
-    paidExpenses.forEach((g) => {
-      if (g.tutorId) paidAmountMap.set(g.tutorId, g._sum.amount || 0);
-    });
+    const paidPaymentsMap = new Map<number, SalaryPaymentRecord[]>();
+    for (const e of paidExpenses) {
+      if (!e.tutorId) continue;
+      const conv = convert(e.amount, e.currencyId, defaultCurrencyId, rateMap);
+      paidAmountMap.set(
+        e.tutorId,
+        (paidAmountMap.get(e.tutorId) ?? 0) + conv,
+      );
+      const list = paidPaymentsMap.get(e.tutorId) ?? [];
+      list.push({
+        id: e.id,
+        date: dayjs(e.date).format("YYYY-MM-DD"),
+        amount: conv,
+        description: e.description,
+        notes: e.notes,
+      });
+      paidPaymentsMap.set(e.tutorId, list);
+    }
 
     // 4. Compute expected salaries
     const tutorSalaries = tutors.map((t) => {
@@ -1469,6 +1535,8 @@ export const getSalaryData = withResult(
         expectedSalary: expected,
         paidAmount: paid,
         outstanding,
+        breakdown: breakdownMap.get(t.id) || [],
+        paidPayments: paidPaymentsMap.get(t.id) || [],
       };
     });
 
