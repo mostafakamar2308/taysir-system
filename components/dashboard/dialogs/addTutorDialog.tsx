@@ -87,15 +87,33 @@ export default function AddTutorDialog({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="name">{t("name")} *</Label>
-              <Input id="name" name="name" required />
+              <Input
+                id="name"
+                name="name"
+                required
+                autoComplete="off"
+                autoCorrect="off"
+              />
             </div>
             <div>
               <Label htmlFor="email">{t("email")} *</Label>
-              <Input id="email" name="email" type="email" required />
+              <Input
+                id="email"
+                name="email"
+                required
+                autoComplete="off"
+                autoCorrect="off"
+              />
             </div>
             <div>
               <Label htmlFor="phone">{t("phone")} *</Label>
-              <Input id="phone" name="phone" required />
+              <Input
+                id="phone"
+                name="phone"
+                required
+                autoComplete="off"
+                autoCorrect="off"
+              />
               <span className="text-xs text-slate-600">{t("phoneHint")}</span>
             </div>
             <div>
@@ -103,7 +121,6 @@ export default function AddTutorDialog({
               <Input
                 id="password"
                 name="password"
-                type="password"
                 minLength={6}
                 placeholder={t("passwordPlaceholder")}
                 required

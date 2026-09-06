@@ -84,11 +84,23 @@ export default function AddStudentDialog({
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="name">{t("name")} *</Label>
-                <Input id="name" name="name" required />
+                <Input
+                  id="name"
+                  name="name"
+                  required
+                  autoComplete="off"
+                  autoCorrect="off"
+                />
               </div>
               <div>
-                <Label htmlFor="email">{t("email")}</Label>
-                <Input id="email" name="email" type="email" />
+                <Label htmlFor="email">{t("email")} *</Label>
+                <Input
+                  id="email"
+                  name="email"
+                  required
+                  autoComplete="off"
+                  autoCorrect="off"
+                />
               </div>
               <div>
                 <Label htmlFor="age">{t("age")} *</Label>
@@ -96,7 +108,12 @@ export default function AddStudentDialog({
               </div>
               <div>
                 <Label htmlFor="phone">{t("phone")}</Label>
-                <Input id="phone" name="phone" />
+                <Input
+                  id="phone"
+                  name="phone"
+                  autoComplete="off"
+                  autoCorrect="off"
+                />
                 <span className="text-xs text-slate-600">{t("phoneHint")}</span>
               </div>
               <div>
@@ -104,7 +121,6 @@ export default function AddStudentDialog({
                 <Input
                   id="password"
                   name="password"
-                  type="password"
                   minLength={6}
                   placeholder={t("passwordPlaceholder")}
                   required

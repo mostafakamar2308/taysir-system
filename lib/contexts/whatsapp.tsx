@@ -110,6 +110,17 @@ export function WhatsAppProvider({ children }: { children: React.ReactNode }) {
     const maxAttempts = 30;
 
     const interval = setInterval(async () => {
+      const checkStatus = async () => {
+        try {
+          const res = await fetch("/api/whatsapp/instance/status");
+          const data = await res.json();
+          setStatus(data.status);
+          return data.status;
+        } catch {
+          setStatus("error");
+          return "error";
+        }
+      };
       const currentStatus = await checkStatus();
 
       if (currentStatus === "connecting") {
@@ -147,17 +158,6 @@ export function WhatsAppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // دالة مساعدة للتحقق من الحالة أثناء الاستطلاع
-  const checkStatus = async () => {
-    try {
-      const res = await fetch("/api/whatsapp/instance/status");
-      const data = await res.json();
-      setStatus(data.status);
-      return data.status;
-    } catch {
-      setStatus("error");
-      return "error";
-    }
-  };
 
   useEffect(() => {
     refresh();
