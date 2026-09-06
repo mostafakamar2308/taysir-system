@@ -880,6 +880,7 @@ export const getOverdueRevenue = withResult(
     period: "all" | "year" | "month",
     year: number,
     month: number,
+    studentId?: number,
   ) => {
     const dateRange = getDateRange(period, year, month);
     const { defaultCurrencyId, rateMap } = await getConversion(academyId);
@@ -887,6 +888,7 @@ export const getOverdueRevenue = withResult(
     const now = dayjs().toDate();
     const where: {
       academyId: number;
+      studentId?: number;
       status: PaymentStatus;
       dueDate?: { gte?: Date; lt: Date };
     } = {
@@ -897,6 +899,7 @@ export const getOverdueRevenue = withResult(
     if (dateRange) {
       where.dueDate = { gte: dateRange.start, lt: now };
     }
+    if (studentId) where.studentId = studentId;
 
     const revenues = await db.revenue.findMany({
       where,
