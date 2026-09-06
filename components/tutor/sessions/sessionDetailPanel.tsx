@@ -79,6 +79,10 @@ export default function SessionDetailPanel({
   const isPast = new Date(session.startTime) < new Date();
   const isCompleted = session.status === SessionStatus.COMPLETED;
 
+  // Live copy of the session so attendance/report saves update the UI
+  // immediately without waiting on the server-side refresh.
+  const [sessionData, setSessionData] = useState<SessionClientData>(session);
+
   // ––– per‑participant editing states –––
   // attendance: participantId -> { status: string; reason: string }
   const [attendanceForms, setAttendanceForms] = useState<
@@ -231,12 +235,25 @@ export default function SessionDetailPanel({
     }
     setLoading(true);
     try {
+      const status = parseInt(form.status) as AttendanceStatus;
       const res = await markStudentAttendanceByTutor(
         participantId,
-        parseInt(form.status) as AttendanceStatus,
+        status,
         form.reason || undefined,
       );
       if (!res.ok) throw new Error(res.error);
+      setSessionData((prev) => ({
+        ...prev,
+        participants: prev.participants.map((p) =>
+          p.participantId === participantId
+            ? { ...p, attendanceStatus: status }
+            : p,
+        ),
+      }));
+      setAttendanceForms((prev) => ({
+        ...prev,
+        [participantId]: { ...prev[participantId], status: "" },
+      }));
       toast({ title: t("toast.attendanceSaved") });
       onUpdate();
       router.refresh();
@@ -264,15 +281,51 @@ export default function SessionDetailPanel({
     }
     setLoading(true);
     try {
+      const rating = form.rating ? parseInt(form.rating) : null;
+      const outcomes = form.outcomes || null;
+      const strengths = form.strengths || null;
+      const weaknesses = form.weaknesses || null;
+      const nextGoals = form.nextGoals || null;
+      const comments = form.comments || null;
       const res = await upsertSessionReport(participantId, {
-        rating: form.rating ? parseInt(form.rating) : undefined,
-        outcomes: form.outcomes || null,
-        strengths: form.strengths || null,
-        weaknesses: form.weaknesses || null,
-        nextGoals: form.nextGoals || null,
-        comments: form.comments || null,
+        rating: rating ?? undefined,
+        outcomes,
+        strengths,
+        weaknesses,
+        nextGoals,
+        comments,
       });
       if (!res.ok) throw new Error(res.error);
+      setSessionData((prev) => ({
+        ...prev,
+        participants: prev.participants.map((p) =>
+          p.participantId === participantId
+            ? {
+                ...p,
+                report: {
+                  id: p.report?.id ?? 0,
+                  rating,
+                  outcomes,
+                  strengths,
+                  weaknesses,
+                  nextGoals,
+                  comments,
+                },
+              }
+            : p,
+        ),
+      }));
+      setReportForms((prev) => ({
+        ...prev,
+        [participantId]: {
+          rating: "",
+          outcomes: "",
+          strengths: "",
+          weaknesses: "",
+          nextGoals: "",
+          comments: "",
+        },
+      }));
       toast({ title: t("toast.reportSaved") });
       onUpdate();
       router.refresh();
@@ -393,9 +446,10 @@ export default function SessionDetailPanel({
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="flex w-full *:grow">
             <TabsTrigger value="details">{t("tabs.details")}</TabsTrigger>
-            <TabsTrigger value="participants">
-              {t("tabs.participants")}
+            <TabsTrigger value="attendance">
+              {t("tabs.attendance")}
             </TabsTrigger>
+            <TabsTrigger value="report">{t("tabs.report")}</TabsTrigger>
             <TabsTrigger value="zoom">{t("tabs.zoom")}</TabsTrigger>
             <TabsTrigger value="homework">{t("tabs.homework")}</TabsTrigger>
           </TabsList>
@@ -522,107 +576,121 @@ export default function SessionDetailPanel({
             </div>
           </TabsContent>
 
-          {/* Participants Tab */}
-          <TabsContent value="participants" className="space-y-6 mt-4">
-            {session.participants.map((p) => (
+          {/* Attendance Tab */}
+          <TabsContent value="attendance" className="space-y-6 mt-4">
+            {sessionData.participants.map((p) => (
               <div
                 key={p.participantId}
                 className="border rounded-lg p-4 space-y-4"
               >
                 <div className="flex items-center justify-between">
                   <h4 className="font-semibold">{p.studentName}</h4>
-                  <div className="flex gap-2">
-                    {attendanceBadge(p)}
-                    {reportBadge(p)}
-                  </div>
+                  {attendanceBadge(p)}
                 </div>
 
-                {/* Attendance form for this participant */}
-                {isCompleted && p.attendanceStatus === null && (
-                  <div className="space-y-2 border-t pt-3">
-                    <Label>{t("attendance.statusLabel")}</Label>
-                    <Select
-                      value={attendanceForms[p.participantId]?.status || ""}
-                      onValueChange={(value) =>
-                        setAttendanceForms((prev) => ({
-                          ...prev,
-                          [p.participantId]: {
-                            ...prev[p.participantId],
-                            status: value,
-                          },
-                        }))
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue
-                          placeholder={t("attendance.selectPlaceholder")}
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem
-                          value={AttendanceStatus.ATTENDED.toString()}
-                        >
-                          {t("attendance.statusPresent")}
-                        </SelectItem>
-                        <SelectItem value={AttendanceStatus.LATE.toString()}>
-                          {t("attendance.statusLate")}
-                        </SelectItem>
-                        <SelectItem
-                          value={AttendanceStatus.ABSENT_EXCUSED.toString()}
-                        >
-                          {t("attendance.statusAbsentExcused")}
-                        </SelectItem>
-                        <SelectItem
-                          value={AttendanceStatus.ABSENT_UNEXCUSED.toString()}
-                        >
-                          {t("attendance.statusAbsentUnexcused")}
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <div className="space-y-2">
-                      <Label>{t("attendance.reasonLabel")}</Label>
-                      <Textarea
-                        value={attendanceForms[p.participantId]?.reason || ""}
-                        onChange={(e) =>
+                {isCompleted ? (
+                  p.attendanceStatus === null ? (
+                    <div className="space-y-2 border-t pt-3">
+                      <Label>{t("attendance.statusLabel")}</Label>
+                      <Select
+                        value={attendanceForms[p.participantId]?.status || ""}
+                        onValueChange={(value) =>
                           setAttendanceForms((prev) => ({
                             ...prev,
                             [p.participantId]: {
                               ...prev[p.participantId],
-                              reason: e.target.value,
+                              status: value,
                             },
                           }))
                         }
-                        rows={2}
-                        placeholder={t("attendance.reasonPlaceholder")}
-                      />
+                      >
+                        <SelectTrigger>
+                          <SelectValue
+                            placeholder={t("attendance.selectPlaceholder")}
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem
+                            value={AttendanceStatus.ATTENDED.toString()}
+                          >
+                            {t("attendance.statusPresent")}
+                          </SelectItem>
+                          <SelectItem value={AttendanceStatus.LATE.toString()}>
+                            {t("attendance.statusLate")}
+                          </SelectItem>
+                          <SelectItem
+                            value={AttendanceStatus.ABSENT_EXCUSED.toString()}
+                          >
+                            {t("attendance.statusAbsentExcused")}
+                          </SelectItem>
+                          <SelectItem
+                            value={AttendanceStatus.ABSENT_UNEXCUSED.toString()}
+                          >
+                            {t("attendance.statusAbsentUnexcused")}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <div className="space-y-2">
+                        <Label>{t("attendance.reasonLabel")}</Label>
+                        <Textarea
+                          value={
+                            attendanceForms[p.participantId]?.reason || ""
+                          }
+                          onChange={(e) =>
+                            setAttendanceForms((prev) => ({
+                              ...prev,
+                              [p.participantId]: {
+                                ...prev[p.participantId],
+                                reason: e.target.value,
+                              },
+                            }))
+                          }
+                          rows={2}
+                          placeholder={t("attendance.reasonPlaceholder")}
+                        />
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => handleMarkAttendance(p.participantId)}
+                        disabled={loading}
+                      >
+                        {t("attendance.submitButton")}
+                      </Button>
                     </div>
-                    <Button
-                      size="sm"
-                      onClick={() => handleMarkAttendance(p.participantId)}
-                      disabled={loading}
-                    >
-                      {t("attendance.submitButton")}
-                    </Button>
+                  ) : (
+                    <div className="text-sm text-muted-foreground border-t pt-3">
+                      {t("attendance.alreadyRecorded")}
+                    </div>
+                  )
+                ) : (
+                  <div className="text-sm text-muted-foreground border-t pt-3">
+                    {t("attendance.notAvailableYet")}
                   </div>
                 )}
+              </div>
+            ))}
+          </TabsContent>
 
-                {p.attendanceStatus !== null && (
-                  <div className="text-sm text-muted-foreground">
-                    {t("attendance.alreadyRecorded")} {attendanceBadge(p)}
+          {/* Report Tab */}
+          <TabsContent value="report" className="space-y-6 mt-4">
+            {sessionData.participants.map((p) => {
+              const attended =
+                p.attendanceStatus !== null &&
+                [AttendanceStatus.ATTENDED, AttendanceStatus.LATE].includes(
+                  p.attendanceStatus,
+                );
+              return (
+                <div
+                  key={p.participantId}
+                  className="border rounded-lg p-4 space-y-4"
+                >
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold">{p.studentName}</h4>
+                    {reportBadge(p)}
                   </div>
-                )}
 
-                {/* Report form for this participant */}
-                {isCompleted &&
-                  p.attendanceStatus !== null &&
-                  [AttendanceStatus.ATTENDED, AttendanceStatus.LATE].includes(
-                    p.attendanceStatus,
-                  ) &&
-                  !p.report && (
+                  {isCompleted && attended && !p.report ? (
                     <div className="space-y-2 border-t pt-3">
-                      <h5 className="text-sm font-medium">
-                        {t("report.title")}
-                      </h5>
                       <div className="space-y-2">
                         <Label>{t("report.ratingLabel")}</Label>
                         <Input
@@ -660,7 +728,9 @@ export default function SessionDetailPanel({
                       <div className="space-y-2">
                         <Label>{t("report.strengthsLabel")}</Label>
                         <Textarea
-                          value={reportForms[p.participantId]?.strengths || ""}
+                          value={
+                            reportForms[p.participantId]?.strengths || ""
+                          }
                           onChange={(e) =>
                             setReportForms((prev) => ({
                               ...prev,
@@ -676,7 +746,9 @@ export default function SessionDetailPanel({
                       <div className="space-y-2">
                         <Label>{t("report.weaknessesLabel")}</Label>
                         <Textarea
-                          value={reportForms[p.participantId]?.weaknesses || ""}
+                          value={
+                            reportForms[p.participantId]?.weaknesses || ""
+                          }
                           onChange={(e) =>
                             setReportForms((prev) => ({
                               ...prev,
@@ -729,45 +801,47 @@ export default function SessionDetailPanel({
                         {t("report.submitButton")}
                       </Button>
                     </div>
+                  ) : p.report ? (
+                    <div className="text-sm space-y-2 border-t pt-3">
+                      {p.report.rating && (
+                        <p>
+                          {t("report.rating")}: {p.report.rating}/5
+                        </p>
+                      )}
+                      {p.report.outcomes && (
+                        <p>
+                          {t("report.outcomes")}: {p.report.outcomes}
+                        </p>
+                      )}
+                      {p.report.strengths && (
+                        <p>
+                          {t("report.strengths")}: {p.report.strengths}
+                        </p>
+                      )}
+                      {p.report.weaknesses && (
+                        <p>
+                          {t("report.weaknesses")}: {p.report.weaknesses}
+                        </p>
+                      )}
+                      {p.report.nextGoals && (
+                        <p>
+                          {t("report.nextGoals")}: {p.report.nextGoals}
+                        </p>
+                      )}
+                      {p.report.comments && (
+                        <p>
+                          {t("report.comments")}: {p.report.comments}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground border-t pt-3">
+                      {t("report.requiresAttendance")}
+                    </div>
                   )}
-
-                {p.report && (
-                  <div className="text-sm space-y-2 border-t pt-3">
-                    <h5 className="font-medium">{t("report.title")}</h5>
-                    {p.report.rating && (
-                      <p>
-                        {t("report.rating")}: {p.report.rating}/5
-                      </p>
-                    )}
-                    {p.report.outcomes && (
-                      <p>
-                        {t("report.outcomes")}: {p.report.outcomes}
-                      </p>
-                    )}
-                    {p.report.strengths && (
-                      <p>
-                        {t("report.strengths")}: {p.report.strengths}
-                      </p>
-                    )}
-                    {p.report.weaknesses && (
-                      <p>
-                        {t("report.weaknesses")}: {p.report.weaknesses}
-                      </p>
-                    )}
-                    {p.report.nextGoals && (
-                      <p>
-                        {t("report.nextGoals")}: {p.report.nextGoals}
-                      </p>
-                    )}
-                    {p.report.comments && (
-                      <p>
-                        {t("report.comments")}: {p.report.comments}
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-            ))}
+                </div>
+              );
+            })}
           </TabsContent>
 
           <TabsContent value="homework" className="space-y-6 mt-4">

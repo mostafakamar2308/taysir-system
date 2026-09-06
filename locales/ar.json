@@ -803,6 +803,7 @@
     "report": {
       "title": "التقرير",
       "completed": "مكتملة",
+      "requiresAttendance": "يجب تسجيل الحضور أولاً لكتابة التقرير",
       "missingFieldsError": "يرجى ملء الحقول الأساسية للتقرير",
       "notWritten": "غير مكتوب",
       "rating": "التقييم",

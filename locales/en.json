@@ -833,6 +833,7 @@
     },
     "report": {
       "missingFieldsError": "Please fill in the required report fields",
+      "requiresAttendance": "Attendance must be recorded before writing a report",
       "rating": "Rating",
       "outcomes": "Outcomes",
       "strengths": "Strengths",
