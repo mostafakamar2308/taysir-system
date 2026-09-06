@@ -346,6 +346,7 @@ export type UpdateSessionInput = {
   notes?: string;
   isTrial?: boolean;
   tutorId?: number; // may override
+  zoomUrl?: string | null;
 };
 
 export const updateSession = withResult(async (input: UpdateSessionInput) => {
@@ -379,6 +380,10 @@ export const updateSession = withResult(async (input: UpdateSessionInput) => {
     }
   }
 
+  if (input.zoomUrl && !input.zoomUrl.startsWith("https://")) {
+    return fail("رابط غير صحيح");
+  }
+
   const newStart = input.startTime
     ? dayjs.utc(input.startTime).toDate()
     : existing.startTime;
@@ -392,6 +397,7 @@ export const updateSession = withResult(async (input: UpdateSessionInput) => {
     isTrial: input.isTrial,
   };
   if (input.tutorId !== undefined) data.tutorId = input.tutorId;
+  if (input.zoomUrl !== undefined) data.zoomUrl = input.zoomUrl ?? null;
 
   await db.session.update({
     where: { id: input.id },
