@@ -2,7 +2,7 @@
 
 import db from "@/lib/prisma";
 import dayjs from "@/lib/dayjs";
-import { PaymentMethod, PaymentStatus } from "@/types/payment";
+import { PaymentStatus } from "@/types/payment";
 import { SubscriptionStatus } from "@/types/subscription";
 import { StudentStatus } from "@/types/student";
 import { revalidatePath } from "next/cache";
@@ -1697,60 +1697,324 @@ export const createExpense = withResult(
   },
 );
 
-export const createRevenueFromDashboard = withResult(
-  async (
-    revenueData: {
-      amount: number;
-      method: PaymentMethod;
-      status: PaymentStatus;
-      studentId: number;
-      dueDate: string | null;
-      recordedBy: null;
-      date: string;
-      description?: string;
-      invoiceUrl?: string;
-      notes?: string;
-      subscriptionId?: number;
-    },
-  ) => {
-    const currentUser = await user();
-    if (!currentUser || !currentUser.academyId || currentUser.role !== Role.Admin)
-      return fail("غير مصرح");
+// ---------- Monthly due / pay-due-amount ----------
 
-    const student = await db.student.findUnique({
-      where: { id: revenueData.studentId },
-      select: { id: true, currencyId: true },
-    });
-    if (!student) return fail("لا يوجد طالب بهذا الاسم");
+export interface MonthlyGroupFinance {
+  groupId: number;
+  groupTitle: string;
+  subscriptionId: number | null;
+  planTitle: string | null;
+  privateSessions: number;
+  groupSessions: number;
+  totalSessions: number;
+  sessionCosts: number; // default currency
+  subscriptionPrice: number; // default currency
+  extraSessionsCost: number; // default currency
+  due: number; // default currency
+}
 
-    let planId: number | null = null;
-    if (revenueData.subscriptionId) {
-      const sub = await db.subscription.findUnique({
-        where: { id: revenueData.subscriptionId },
-        select: { planId: true },
-      });
-      planId = sub?.planId ?? null;
+export interface StudentMonthlyFinance {
+  studentId: number;
+  studentName: string;
+  year: number;
+  month: number;
+  defaultCurrency: { code: string; symbol: string };
+  groups: MonthlyGroupFinance[];
+  totalDue: number;
+  totalPaid: number;
+  remaining: number;
+}
+
+const ARABIC_MONTHS = [
+  "يناير",
+  "فبراير",
+  "مارس",
+  "أبريل",
+  "مايو",
+  "يونيو",
+  "يوليو",
+  "أغسطس",
+  "سبتمبر",
+  "أكتوبر",
+  "نوفمبر",
+  "ديسمبر",
+];
+function monthLabel(year: number, month: number) {
+  return `${ARABIC_MONTHS[month - 1]} ${year}`;
+}
+
+async function loadStudentMonthlyFinance(
+  academyId: number,
+  studentId: number,
+  year: number,
+  month: number,
+) {
+  const start = dayjs()
+    .year(year)
+    .month(month - 1)
+    .startOf("month")
+    .toDate();
+  const end = dayjs(start).add(1, "month").toDate();
+
+  const { defaultCurrencyId, rateMap } = await getConversionMap(academyId);
+
+  const student = await db.student.findUnique({
+    where: { id: studentId },
+    select: { id: true, academyId: true, currencyId: true },
+  });
+  if (!student || student.academyId !== academyId)
+    fail("الطالب غير موجود");
+
+  const [memberships, sessions, paidRevenues] = await Promise.all([
+    db.groupStudent.findMany({
+      where: { studentId },
+      include: {
+        group: { select: { id: true, title: true } },
+        subscriptions: {
+          include: {
+            plan: { select: { title: true, sessionCount: true } },
+          },
+          orderBy: { startDate: "desc" },
+        },
+      },
+      orderBy: { joinedAt: "asc" },
+    }),
+    db.session.findMany({
+      where: {
+        academyId,
+        startTime: { gte: start, lt: end },
+        isTrial: false,
+        cancelledBy: null,
+        participants: { some: { studentId } },
+      },
+      select: {
+        id: true,
+        startTime: true,
+        groupId: true,
+        participants: {
+          select: { id: true, studentId: true, price: true },
+        },
+      },
+      orderBy: { startTime: "asc" },
+    }),
+    db.revenue.findMany({
+      where: {
+        academyId,
+        studentId,
+        status: PaymentStatus.PAID,
+        dueDate: { gte: start, lt: end },
+      },
+      select: { amount: true, currencyId: true },
+    }),
+  ]);
+
+  const totalPaid = paidRevenues.reduce(
+    (sum, r) =>
+      sum + convert(r.amount, r.currencyId, defaultCurrencyId, rateMap),
+    0,
+  );
+
+  const groups: MonthlyGroupFinance[] = [];
+  const dueTargets: { subscriptionId: number; due: number }[] = [];
+
+  for (const m of memberships) {
+    const sub = m.subscriptions[0] ?? null; // latest
+    const activeSub =
+      sub && sub.status === SubscriptionStatus.active ? sub : null;
+    const planTitle = activeSub?.plan?.title ?? sub?.plan?.title ?? null;
+
+    const participantSessions = sessions.filter(
+      (s) => s.groupId === m.group.id,
+    );
+    const privateCount = participantSessions.filter(
+      (s) => s.participants.length === 1,
+    ).length;
+    const groupCount = participantSessions.length - privateCount;
+
+    const selfPrice = (s: (typeof sessions)[number]) =>
+      s.participants.find((p) => p.studentId === studentId)?.price ?? 0;
+    const sessionPrices = participantSessions.map(selfPrice);
+    const sessionCosts = convert(
+      sessionPrices.reduce((a, b) => a + b, 0),
+      activeSub?.currencyId ?? student.currencyId ?? defaultCurrencyId,
+      defaultCurrencyId,
+      rateMap,
+    );
+
+    // Included quota: only an active subscription covers sessions.
+    const includedCount =
+      activeSub == null
+        ? 0
+        : activeSub.sessionCount ?? activeSub.plan?.sessionCount ?? null;
+    const extraCount =
+      includedCount == null
+        ? 0
+        : Math.max(0, participantSessions.length - includedCount);
+    const extraPrices = sessionPrices.slice(
+      Math.max(0, sessionPrices.length - extraCount),
+    );
+    const extraSessionsCost = convert(
+      extraPrices.reduce((a, b) => a + b, 0),
+      activeSub?.currencyId ?? student.currencyId ?? defaultCurrencyId,
+      defaultCurrencyId,
+      rateMap,
+    );
+
+    // Monthly fee lands in the month of its bill date.
+    let subscriptionPrice = 0;
+    if (activeSub) {
+      const billing = activeSub.nextBillingDate ?? activeSub.endDate;
+      if (billing && billing >= start && billing < end) {
+        subscriptionPrice = convert(
+          activeSub.price,
+          activeSub.currencyId,
+          defaultCurrencyId,
+          rateMap,
+        );
+      }
     }
 
-    await db.revenue.create({
-      data: {
-        amount: revenueData.amount,
-        currencyId: student.currencyId,
-        studentId: student.id,
-        planId,
-        subscriptionId: revenueData.subscriptionId,
-        status: revenueData.status,
-        method: revenueData.method,
-        recordedBy: currentUser.id,
-        academyId: currentUser.academyId!,
-        dueDate: revenueData.dueDate
-          ? dayjs.utc(revenueData.dueDate).toDate()
-          : undefined,
-        description: revenueData.description,
-        invoiceUrl: revenueData.invoiceUrl,
-        notes: revenueData.notes,
-      },
+    const due = Math.max(0, subscriptionPrice + extraSessionsCost);
+    if (due > 0 && activeSub) {
+      dueTargets.push({ subscriptionId: activeSub.id, due });
+    }
+
+    groups.push({
+      groupId: m.group.id,
+      groupTitle: m.group.title,
+      subscriptionId: activeSub?.id ?? null,
+      planTitle,
+      privateSessions: privateCount,
+      groupSessions: groupCount,
+      totalSessions: participantSessions.length,
+      sessionCosts,
+      subscriptionPrice,
+      extraSessionsCost,
+      due,
     });
+  }
+
+  return {
+    defaultCurrencyId,
+    rateMap,
+    totalDue: groups.reduce((sum, g) => sum + g.due, 0),
+    totalPaid,
+    remaining: Math.max(
+      0,
+      groups.reduce((sum, g) => sum + g.due, 0) - totalPaid,
+    ),
+    groups,
+    dueTargets,
+  };
+}
+
+export const getStudentMonthlyFinance = withResult(
+  async (studentId: number, year: number, month: number) => {
+    const currentUser = await user();
+    if (!currentUser?.academyId || currentUser.role !== Role.Admin)
+      return fail("غير مصرح");
+
+    const data = await loadStudentMonthlyFinance(
+      currentUser.academyId,
+      studentId,
+      year,
+      month,
+    );
+
+    const student = await db.student.findUnique({
+      where: { id: studentId },
+      select: { user: { select: { name: true } } },
+    });
+    const currency = await db.currency.findUnique({
+      where: { id: data.defaultCurrencyId },
+      select: { code: true, symbol: true },
+    });
+
+    return {
+      studentId,
+      studentName: student?.user.name || "غير معروف",
+      year,
+      month,
+      defaultCurrency: {
+        code: currency?.code ?? "",
+        symbol: currency?.symbol ?? "",
+      },
+      groups: data.groups,
+      totalDue: data.totalDue,
+      totalPaid: data.totalPaid,
+      remaining: data.remaining,
+    } satisfies StudentMonthlyFinance;
+  },
+);
+
+export const payStudentMonthly = withResult(
+  async (
+    studentId: number,
+    year: number,
+    month: number,
+    data: { amount: number; method: number },
+  ) => {
+    const currentUser = await user();
+    if (!currentUser?.academyId || currentUser.role !== Role.Admin)
+      return fail("غير مصرح");
+    if (!data.amount || data.amount <= 0) return fail("المبلغ غير صحيح");
+
+    const fin = await loadStudentMonthlyFinance(
+      currentUser.academyId,
+      studentId,
+      year,
+      month,
+    );
+
+    const amount = data.amount;
+    const targets = fin.dueTargets;
+    const totalShare = targets.reduce((sum, t) => sum + t.due, 0);
+    const description = `دفع مستحقات شهر ${monthLabel(year, month)}`;
+    const paidDate = new Date();
+
+    const round2 = (n: number) => Math.round(n * 100) / 100;
+
+    if (targets.length === 0 || totalShare <= 0) {
+      await db.revenue.create({
+        data: {
+          amount,
+          currencyId: fin.defaultCurrencyId,
+          status: PaymentStatus.PAID,
+          method: data.method,
+          dueDate: paidDate,
+          studentId,
+          academyId: currentUser.academyId!,
+          recordedBy: currentUser.id,
+          description,
+        },
+      });
+    } else {
+      let allocated = 0;
+      for (let i = 0; i < targets.length; i++) {
+        const t = targets[i];
+        const share =
+          i === targets.length - 1
+            ? round2(amount - allocated)
+            : round2(amount * (t.due / totalShare));
+        allocated += share;
+        if (share > 0) {
+          await db.revenue.create({
+            data: {
+              amount: share,
+              currencyId: fin.defaultCurrencyId,
+              status: PaymentStatus.PAID,
+              method: data.method,
+              dueDate: paidDate,
+              studentId,
+              academyId: currentUser.academyId!,
+              subscriptionId: t.subscriptionId,
+              recordedBy: currentUser.id,
+              description,
+            },
+          });
+        }
+      }
+    }
 
     revalidatePath("/ar/dashboard");
   },

@@ -44,7 +44,7 @@ interface FinancialDashboardProps {
   period: "all" | "year" | "month";
   year: number;
   month: number;
-  onAddRevenue: () => void;
+  onPayDue: () => void;
   onAddExpense: () => void;
 }
 
@@ -215,7 +215,7 @@ export default function FinancialDashboard({
   period,
   year,
   month,
-  onAddRevenue,
+  onPayDue,
   onAddExpense,
 }: FinancialDashboardProps) {
   const [alerts, setAlerts] = useState<DashboardAlerts | null>(null);
@@ -332,8 +332,8 @@ export default function FinancialDashboard({
         <div className="flex justify-between flex-wrap">
           <h2 className="text-2xl font-semibold">المؤشرات المالية</h2>
           <div className="space-x-2">
-            <Button onClick={onAddRevenue} variant="default" size="sm">
-              <PlusCircle className="ml-2 h-4 w-4" /> إضافة إيراد
+            <Button onClick={onPayDue} variant="default" size="sm">
+              <PlusCircle className="ml-2 h-4 w-4" /> دفع مستحقات
             </Button>
             <Button onClick={onAddExpense} variant="destructive" size="sm">
               <PlusCircle className="ml-2 h-4 w-4" /> إضافة مصروف

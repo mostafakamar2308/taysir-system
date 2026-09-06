@@ -29,7 +29,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import ExpenseFormDialog from "./expenseFormDialog";
-import RevenueFormDialog from "./revenueFormDialog";
+import PayDueDialog from "./payDueDialog";
 
 interface FinancesClientProps {
   initialPayments: PaymentRecord[];
@@ -53,13 +53,12 @@ type PeriodType = "all" | "year" | "month";
 export default function FinancesClient({
   academyId,
   defaultCurrency,
-  plans,
   currencies,
   students,
   costCenters,
   tutors,
 }: FinancesClientProps) {
-  const [showAddRevenue, setShowAddRevenue] = useState(false);
+  const [showPayDue, setShowPayDue] = useState(false);
   const [showAddExpense, setShowAddExpense] = useState(false);
 
   // Period filter state
@@ -206,7 +205,7 @@ export default function FinancesClient({
             period={periodType}
             year={selectedYear}
             month={selectedMonth}
-            onAddRevenue={() => setShowAddRevenue(true)}
+            onPayDue={() => setShowPayDue(true)}
             onAddExpense={() => setShowAddExpense(true)}
           />
         </TabsContent>
@@ -242,15 +241,14 @@ export default function FinancesClient({
           />
         </TabsContent>
       </Tabs>
-      {showAddRevenue && (
-        <RevenueFormDialog
-          open={showAddRevenue}
-          onOpenChange={setShowAddRevenue}
-          editingPayment={null}
+      {showPayDue && (
+        <PayDueDialog
+          open={showPayDue}
+          onOpenChange={setShowPayDue}
+          defaultCurrency={defaultCurrency}
           students={students}
-          plans={plans}
-          currencies={currencies}
-          academyId={academyId}
+          initialYear={selectedYear}
+          initialMonth={selectedMonth}
         />
       )}
 

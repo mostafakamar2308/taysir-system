@@ -14,8 +14,8 @@ import dayjs from "@/lib/dayjs";
 import AddStudentDialog from "@/components/dashboard/dialogs/addStudentDialog";
 import AddTutorDialog from "@/components/dashboard/dialogs/addTutorDialog";
 import { AddSessionDialog } from "@/components/dashboard/sessions/AddSessionDialog";
-import { AddRevenueDialog } from "../dialogs/addRevenueDialog";
 import { AddExpenseDialog } from "../dialogs/addExpenseDialog";
+import PayDueDialog from "../finances/payDueDialog";
 import { useState } from "react";
 import SendBulkMessagesDialog from "../common/SendBulkMessagesDialog";
 import { useTranslations } from "next-intl";
@@ -238,14 +238,15 @@ export default function DashboardClient(props: DashboardClientProps) {
               <Plus className="h-4 w-4 ml-2" /> {t("addExpense")}
             </Button>
           </AddExpenseDialog>
-          <AddRevenueDialog
-            academyId={props.academyId}
+          <PayDueDialog
+            defaultCurrency={props.defaultCurrency}
             students={props.students}
-          >
-            <Button size="sm">
-              <Plus className="h-4 w-4 ml-2" /> {t("addRevenue")}
-            </Button>
-          </AddRevenueDialog>
+            trigger={
+              <Button size="sm">
+                <Plus className="h-4 w-4 ml-2" /> {t("addRevenue")}
+              </Button>
+            }
+          />
         </CardContent>
       </Card>
 
