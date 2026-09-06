@@ -682,7 +682,8 @@
     "tabs": {
       "overview": "Overview",
       "today": "Today's Sessions",
-      "upcoming": "Upcoming Sessions"
+      "upcoming": "Upcoming Sessions",
+      "missing": "Missing Data"
     },
     "todaySection": {
       "title": "Today's Sessions",
@@ -705,6 +706,20 @@
       "record": "Record",
       "reportNeeded": "{count} session(s) need report",
       "write": "Write"
+    },
+    "missingData": {
+      "empty": "No sessions with missing data. Great job!",
+      "students": "Students: {students}",
+      "hintAttendance": "{count} attendance",
+      "hintReport": "{count} report",
+      "attendanceMissingLabel": "Attendance missing for",
+      "reportMissingLabel": "Report missing for",
+      "recordAttendance": "Record Attendance",
+      "writeReport": "Write Report",
+      "perStudentHint": "Save each student individually — you can finish the rest later.",
+      "saved": "Saved",
+      "attendanceDialogTitle": "Record Attendance – {date}",
+      "reportDialogTitle": "Write Report – {date}"
     },
     "sessionItem": {
       "noAttendance": "Not recorded",

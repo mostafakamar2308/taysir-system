@@ -54,7 +54,7 @@ export default async function TutorDashboardPage() {
     where: {
       tutorId,
       startTime: {
-        lte: now.endOf("month").toDate(),
+        lte: now.toDate(),
       },
       cancelledBy: null,
     },
@@ -125,6 +125,18 @@ export default async function TutorDashboardPage() {
     (s) => new Date(s.startTime) <= nowDate && s.hasAnyReportMissing,
   );
 
+  // Sessions with missing data (attendance and/or reports) that have already
+  // started/completed. Oldest first so tutors tackle the oldest gaps first.
+  const sessionsWithMissingData = allSummaries
+    .filter(
+      (s) =>
+        new Date(s.startTime) <= nowDate &&
+        (s.hasAnyAttendanceMissing || s.hasAnyReportMissing),
+    )
+    .sort(
+      (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
+    );
+
   // Financial summary – differentiate private vs group sessions
   const startOfMonth = now.startOf("month").toDate();
   const endOfMonth = now.endOf("month").toDate();
@@ -159,6 +171,7 @@ export default async function TutorDashboardPage() {
       upcomingSessions={upcomingSessions}
       pendingAttendance={pendingAttendance}
       pendingReports={pendingReports}
+      sessionsWithMissingData={sessionsWithMissingData}
       financialSummary={{
         totalSessions: monthSessions.length,
         expectedEarnings,

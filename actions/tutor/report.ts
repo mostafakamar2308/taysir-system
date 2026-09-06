@@ -71,5 +71,6 @@ ${data.nextGoals ? `أهداف الحصة القادمة: ${data.nextGoals}` : "
     }
 
     revalidatePath("/ar/dashboard/tutor/sessions");
+    revalidatePath("/ar/dashboard/tutor");
   },
 );

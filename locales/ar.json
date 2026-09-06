@@ -639,7 +639,8 @@
     "tabs": {
       "overview": "نظرة عامة",
       "today": "حصص اليوم",
-      "upcoming": "الحصص القادمة"
+      "upcoming": "الحصص القادمة",
+      "missing": "بيانات ناقصة"
     },
     "todaySection": {
       "title": "حصص اليوم",
@@ -662,6 +663,20 @@
       "record": "تسجيل",
       "reportNeeded": "{count} حصة بحاجة لتقرير",
       "write": "كتابة"
+    },
+    "missingData": {
+      "empty": "لا توجد حصص ببيانات ناقصة. عمل رائع!",
+      "students": "الطلاب: {students}",
+      "hintAttendance": "{count} حضور",
+      "hintReport": "{count} تقرير",
+      "attendanceMissingLabel": "الحضور ناقص لـ",
+      "reportMissingLabel": "التقرير ناقص لـ",
+      "recordAttendance": "تسجيل الحضور",
+      "writeReport": "كتابة التقرير",
+      "perStudentHint": "احفظ كل طالب على حدة — يمكنك إكمال الباقي لاحقاً.",
+      "saved": "تم الحفظ",
+      "attendanceDialogTitle": "تسجيل الحضور – {date}",
+      "reportDialogTitle": "كتابة التقرير – {date}"
     },
     "sessionItem": {
       "noAttendance": "لم يسجل",

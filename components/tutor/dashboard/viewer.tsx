@@ -12,36 +12,19 @@ import {
   Calendar,
   CheckCircle2,
   Clock,
-  FileText,
   AlertCircle,
   TrendingUp,
   DollarSign,
+  UserCheck,
+  FileSignature,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/finances";
 import { formatDate, formatTime } from "@/lib/dates";
 import { SessionCountdownBanner } from "@/components/dashboard/common/sessionCountdownBanner";
-
-// ---------- new types (mirror server return) ----------
-export interface SessionParticipantSummary {
-  id: number; // participant id
-  studentId: number;
-  studentName: string;
-  studentPhone?: string | null;
-  attendanceStatus: number | null;
-  hasReport: boolean;
-}
-
-export interface SessionSummary {
-  id: number;
-  startTime: string;
-  endTime: string;
-  topic: string | null;
-  status: number;
-  participants: SessionParticipantSummary[];
-  hasAnyAttendanceMissing: boolean;
-  hasAnyReportMissing: boolean;
-  meetingLink?: string | null;
-}
+import AttendanceDialog from "./attendanceDialog";
+import ReportDialog from "./reportDialog";
+import type { SessionSummary } from "./types";
+import { AttendanceStatus } from "@/types/session";
 
 // ---------- props ----------
 interface DashboardClientProps {
@@ -49,6 +32,7 @@ interface DashboardClientProps {
   upcomingSessions: SessionSummary[];
   pendingAttendance: SessionSummary[];
   pendingReports: SessionSummary[];
+  sessionsWithMissingData: SessionSummary[];
   financialSummary: {
     totalSessions: number;
     expectedEarnings: number;
@@ -65,12 +49,20 @@ export default function DashboardClient({
   upcomingSessions,
   pendingAttendance,
   pendingReports,
+  sessionsWithMissingData,
   financialSummary,
   zoomEnabled,
 }: DashboardClientProps) {
   const t = useTranslations("TutorDashboard");
   const [activeTab, setActiveTab] = useState("overview");
   const totalPending = pendingAttendance.length + pendingReports.length;
+
+  // Dialog state for the missing-data tab
+  const [attendanceSession, setAttendanceSession] =
+    useState<SessionSummary | null>(null);
+  const [reportSession, setReportSession] = useState<SessionSummary | null>(
+    null,
+  );
 
   const bannerSessions = useMemo(
     () =>
@@ -144,10 +136,8 @@ export default function DashboardClient({
                 </p>
               </div>
             </div>
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/dashboard/tutor/sessions?view=table">
-                {t("pendingAlert.viewAll")}
-              </Link>
+            <Button variant="outline" size="sm" onClick={() => setActiveTab("missing")}>
+              {t("pendingAlert.viewAll")}
             </Button>
           </CardContent>
         </Card>
@@ -218,10 +208,21 @@ export default function DashboardClient({
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="overview">{t("tabs.overview")}</TabsTrigger>
           <TabsTrigger value="today">{t("tabs.today")}</TabsTrigger>
           <TabsTrigger value="upcoming">{t("tabs.upcoming")}</TabsTrigger>
+          <TabsTrigger value="missing" className="relative">
+            {t("tabs.missing")}
+            {sessionsWithMissingData.length > 0 && (
+              <Badge
+                variant="secondary"
+                className="mr-1 h-5 min-w-5 px-1 text-[10px] inline-flex items-center justify-center rounded-full"
+              >
+                {sessionsWithMissingData.length}
+              </Badge>
+            )}
+          </TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
@@ -307,53 +308,6 @@ export default function DashboardClient({
               />
             </CardContent>
           </Card>
-
-          {/* Pending Actions */}
-          {totalPending > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">
-                  {t("pendingActions.title")}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {pendingAttendance.length > 0 && (
-                  <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-amber-600" />
-                      <span>
-                        {t("pendingActions.attendanceNeeded", {
-                          count: pendingAttendance.length,
-                        })}
-                      </span>
-                    </div>
-                    <Button size="sm" variant="link" asChild>
-                      <Link href="/dashboard/tutor/sessions?filter=pending_attendance">
-                        {t("pendingActions.record")}
-                      </Link>
-                    </Button>
-                  </div>
-                )}
-                {pendingReports.length > 0 && (
-                  <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-amber-600" />
-                      <span>
-                        {t("pendingActions.reportNeeded", {
-                          count: pendingReports.length,
-                        })}
-                      </span>
-                    </div>
-                    <Button size="sm" variant="link" asChild>
-                      <Link href="/dashboard/tutor/sessions?filter=pending_reports">
-                        {t("pendingActions.write")}
-                      </Link>
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
         </TabsContent>
 
         {/* Today Tab */}
@@ -403,7 +357,78 @@ export default function DashboardClient({
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Missing Data Tab */}
+        <TabsContent value="missing">
+          {sessionsWithMissingData.length === 0 ? (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <CheckCircle2 className="h-10 w-10 text-green-600 mx-auto mb-3" />
+                <p className="font-medium text-foreground">
+                  {t("missingData.empty")}
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {sessionsWithMissingData.map((s) => (
+                <MissingDataCard
+                  key={s.id}
+                  session={s}
+                  t={t}
+                  onAttendance={() => setAttendanceSession(s)}
+                  onReport={() => setReportSession(s)}
+                />
+              ))}
+            </div>
+          )}
+        </TabsContent>
       </Tabs>
+
+      {/* Missing-data dialogs */}
+      <AttendanceDialog
+        open={attendanceSession !== null}
+        onOpenChange={(open) => {
+          if (!open) setAttendanceSession(null);
+        }}
+        title={
+          attendanceSession
+            ? t("missingData.attendanceDialogTitle", {
+                date: formatDate(attendanceSession.startTime),
+              })
+            : ""
+        }
+        participants={
+          attendanceSession
+            ? attendanceSession.participants.filter((p) => p.attendanceStatus === null)
+            : []
+        }
+      />
+      <ReportDialog
+        open={reportSession !== null}
+        onOpenChange={(open) => {
+          if (!open) setReportSession(null);
+        }}
+        title={
+          reportSession
+            ? t("missingData.reportDialogTitle", {
+                date: formatDate(reportSession.startTime),
+              })
+            : ""
+        }
+        participants={
+          reportSession
+            ? reportSession.participants.filter((p) => {
+                const attended =
+                  p.attendanceStatus !== null &&
+                  [AttendanceStatus.ATTENDED, AttendanceStatus.LATE].includes(
+                    p.attendanceStatus,
+                  );
+                return attended && !p.hasReport;
+              })
+            : []
+        }
+      />
     </div>
   );
 }
@@ -463,5 +488,112 @@ function SessionItem({
         )}
       </div>
     </div>
+  );
+}
+
+// ---------- Missing Data Card ----------
+function MissingDataCard({
+  session,
+  t,
+  onAttendance,
+  onReport,
+}: {
+  session: SessionSummary;
+  t: ReturnType<typeof useTranslations<"TutorDashboard">>;
+  onAttendance: () => void;
+  onReport: () => void;
+}) {
+  const missingAttendance = session.participants.filter(
+    (p) => p.attendanceStatus === null,
+  );
+  const missingReports = session.participants.filter((p) => {
+    const attended =
+      p.attendanceStatus !== null &&
+      [AttendanceStatus.ATTENDED, AttendanceStatus.LATE].includes(
+        p.attendanceStatus,
+      );
+    return attended && !p.hasReport;
+  });
+
+  return (
+    <Card>
+      <CardContent className="p-4 space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div>
+            <p className="text-xs text-muted-foreground">
+              {formatDate(session.startTime)} • {formatTime(session.startTime)} –{" "}
+              {formatTime(session.endTime)}
+            </p>
+            {session.topic && (
+              <p className="text-sm font-medium mt-1">{session.topic}</p>
+            )}
+            <p className="text-sm text-muted-foreground mt-1">
+              {t("missingData.students", {
+                students: session.participants
+                  .map((p) => p.studentName)
+                  .join("، "),
+              })}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2 self-start">
+            {missingAttendance.length > 0 && (
+              <Badge
+                variant="outline"
+                className="bg-amber-50 text-amber-700 border-amber-200"
+              >
+                <UserCheck className="h-3 w-3 ml-1" />
+                {t("missingData.hintAttendance", {
+                  count: missingAttendance.length,
+                })}
+              </Badge>
+            )}
+            {missingReports.length > 0 && (
+              <Badge
+                variant="outline"
+                className="bg-blue-50 text-blue-700 border-blue-200"
+              >
+                <FileSignature className="h-3 w-3 ml-1" />
+                {t("missingData.hintReport", {
+                  count: missingReports.length,
+                })}
+              </Badge>
+            )}
+          </div>
+        </div>
+
+        {/* Per-student hints */}
+        {missingAttendance.length > 0 && (
+          <div className="text-xs text-muted-foreground">
+            <span className="font-medium text-amber-700">
+              {t("missingData.attendanceMissingLabel")}:
+            </span>{" "}
+            {missingAttendance.map((p) => p.studentName).join("، ")}
+          </div>
+        )}
+        {missingReports.length > 0 && (
+          <div className="text-xs text-muted-foreground">
+            <span className="font-medium text-blue-700">
+              {t("missingData.reportMissingLabel")}:
+            </span>{" "}
+            {missingReports.map((p) => p.studentName).join("، ")}
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-2 pt-1">
+          {missingAttendance.length > 0 && (
+            <Button size="sm" variant="outline" onClick={onAttendance}>
+              <UserCheck className="h-4 w-4 ml-1" />
+              {t("missingData.recordAttendance")}
+            </Button>
+          )}
+          {missingReports.length > 0 && (
+            <Button size="sm" variant="outline" onClick={onReport}>
+              <FileSignature className="h-4 w-4 ml-1" />
+              {t("missingData.writeReport")}
+            </Button>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

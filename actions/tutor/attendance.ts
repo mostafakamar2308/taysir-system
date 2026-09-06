@@ -46,5 +46,6 @@ export const markStudentAttendanceByTutor = withResult(
     });
 
     revalidatePath("/ar/dashboard/tutor/sessions");
+    revalidatePath("/ar/dashboard/tutor");
   },
 );
