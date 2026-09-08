@@ -3,9 +3,9 @@ import type { SessionStatus } from "@/types/session";
 export interface StudentInGroup {
   studentId: number;
   studentName: string;
-  status: number; // StudentStatus
-  remainingSessions: number | null; // null = no countable active subscription
-  active: boolean; // membership active
+  status?: number; // StudentStatus — omitted in read-only views
+  remainingSessions?: number | null; // null = no countable active subscription — omitted in read-only views
+  active?: boolean; // membership active — omitted in read-only views
 }
 
 export interface GroupDetail {
