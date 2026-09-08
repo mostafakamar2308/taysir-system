@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MoreVertical, Users, Calendar, Clock } from "lucide-react";
+import { MoreVertical, Users, Calendar, Clock, User } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -20,9 +20,16 @@ import ActivateStudentsDialog from "./manageStudentsActivationDialog";
 interface Props {
   group: DashboardGroup;
   onUpdate: () => void;
+  readOnly?: boolean;
+  detailHref?: string;
 }
 
-export default function GroupCard({ group, onUpdate }: Props) {
+export default function GroupCard({
+  group,
+  onUpdate,
+  readOnly = false,
+  detailHref,
+}: Props) {
   const [editOpen, setEditOpen] = useState(false);
   const [manageOpen, setManageOpen] = useState(false);
   const [activateOpen, setActivateOpen] = useState(false);
@@ -39,7 +46,7 @@ export default function GroupCard({ group, onUpdate }: Props) {
           <div className="flex items-start justify-between">
             <div>
               <Link
-                href={`/ar/dashboard/groups/${group.id}`}
+                href={detailHref ?? `/ar/dashboard/groups/${group.id}`}
                 className="font-bold text-2xl hover:underline text-primary transition-colors"
               >
                 {group.title}
@@ -50,7 +57,8 @@ export default function GroupCard({ group, onUpdate }: Props) {
                 <span>{group.activeStudentsCount} طالب نشط</span>
               </div>
             </div>
-            <DropdownMenu>
+            {!readOnly && (
+              <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-10 w-10">
                   <MoreVertical className="h-5 w-5" />
@@ -68,26 +76,36 @@ export default function GroupCard({ group, onUpdate }: Props) {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            )}
           </div>
 
           {/* Tutor & Rate */}
-          <div className="grid grid-cols-2 gap-3 text-base">
-            <Link
-              href={`/ar/dashboard/tutors/${group.currentTutorId}`}
-              className="text-primary hover:underline font-semibold"
-            >
-              {group.currentTutorName}
-            </Link>
-            <span className="text-muted-foreground">
-              سعر المجموعة: {effectiveRate}
-              {hasOverride && (
-                <span className="text-sm">
-                  {" "}
-                  (تجاوز السعر الأساسي {group.baseGroupHourlyRate})
-                </span>
-              )}
-            </span>
-          </div>
+          {readOnly ? (
+            <div className="flex items-center gap-2 text-base text-muted-foreground">
+              <User className="h-5 w-5" />
+              <span className="font-semibold text-foreground">
+                {group.currentTutorName}
+              </span>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 text-base">
+              <Link
+                href={`/ar/dashboard/tutors/${group.currentTutorId}`}
+                className="text-primary hover:underline font-semibold"
+              >
+                {group.currentTutorName}
+              </Link>
+              <span className="text-muted-foreground">
+                سعر المجموعة: {effectiveRate}
+                {hasOverride && (
+                  <span className="text-sm">
+                    {" "}
+                    (تجاوز السعر الأساسي {group.baseGroupHourlyRate})
+                  </span>
+                )}
+              </span>
+            </div>
+          )}
 
           {/* Sessions */}
           <div className="grid grid-cols-2 gap-3 text-base">
@@ -118,24 +136,28 @@ export default function GroupCard({ group, onUpdate }: Props) {
       </Card>
 
       {/* Dialogs */}
-      <EditGroupDialog
-        open={editOpen}
-        onOpenChange={setEditOpen}
-        group={group}
-        onSuccess={onUpdate}
-      />
-      <ManageStudentsDialog
-        open={manageOpen}
-        onOpenChange={setManageOpen}
-        group={group}
-        onSuccess={onUpdate}
-      />
-      <ActivateStudentsDialog
-        open={activateOpen}
-        onOpenChange={setActivateOpen}
-        group={group}
-        onSuccess={onUpdate}
-      />
+      {!readOnly && (
+        <>
+          <EditGroupDialog
+            open={editOpen}
+            onOpenChange={setEditOpen}
+            group={group}
+            onSuccess={onUpdate}
+          />
+          <ManageStudentsDialog
+            open={manageOpen}
+            onOpenChange={setManageOpen}
+            group={group}
+            onSuccess={onUpdate}
+          />
+          <ActivateStudentsDialog
+            open={activateOpen}
+            onOpenChange={setActivateOpen}
+            group={group}
+            onSuccess={onUpdate}
+          />
+        </>
+      )}
     </>
   );
 }

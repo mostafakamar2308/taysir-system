@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   toggleStudentMembership,
   removeStudentsFromGroup,
@@ -15,9 +16,15 @@ import type { GroupDetail } from "@/types/groupDetails";
 
 interface Props {
   group: GroupDetail;
+  readOnly?: boolean;
+  studentHrefBase?: string;
 }
 
-export default function GroupStudentsCard({ group }: Props) {
+export default function GroupStudentsCard({
+  group,
+  readOnly = false,
+  studentHrefBase,
+}: Props) {
   const router = useRouter();
   const [addOpen, setAddOpen] = useState(false);
 
@@ -48,9 +55,11 @@ export default function GroupStudentsCard({ group }: Props) {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg">الطلاب</CardTitle>
-          <Button size="sm" onClick={() => setAddOpen(true)}>
-            إضافة طالب
-          </Button>
+          {!readOnly && (
+            <Button size="sm" onClick={() => setAddOpen(true)}>
+              إضافة طالب
+            </Button>
+          )}
         </CardHeader>
         <CardContent className="space-y-3">
           {group.students.length === 0 ? (
@@ -62,46 +71,61 @@ export default function GroupStudentsCard({ group }: Props) {
                 className="flex items-center justify-between border-b pb-2 last:border-0"
               >
                 <div className="flex-1">
-                  <div className="font-medium">{s.studentName}</div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    {subscriptionBadge(s.active)}
-                    <span>
-                      • متبقي{" "}
-                      {s.remainingSessions == null
-                        ? "غير محدد"
-                        : s.remainingSessions}{" "}
-                      حصة
-                    </span>
+                  {readOnly && studentHrefBase ? (
+                    <Link
+                      href={`${studentHrefBase}/${group.id}/${s.studentId}`}
+                      className="font-medium text-primary hover:underline"
+                    >
+                      {s.studentName}
+                    </Link>
+                  ) : (
+                    <div className="font-medium">{s.studentName}</div>
+                  )}
+                  {!readOnly && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      {subscriptionBadge(!!s.active)}
+                      <span>
+                        • متبقي{" "}
+                        {s.remainingSessions == null
+                          ? "غير محدد"
+                          : s.remainingSessions}{" "}
+                        حصة
+                      </span>
+                    </div>
+                  )}
+                </div>
+                {!readOnly && (
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={!!s.active}
+                      onCheckedChange={(checked) =>
+                        handleToggleActive(s.studentId, checked)
+                      }
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-destructive"
+                      onClick={() => handleRemove(s.studentId)}
+                    >
+                      ✕
+                    </Button>
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={s.active}
-                    onCheckedChange={(checked) =>
-                      handleToggleActive(s.studentId, checked)
-                    }
-                  />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-destructive"
-                    onClick={() => handleRemove(s.studentId)}
-                  >
-                    ✕
-                  </Button>
-                </div>
+                )}
               </div>
             ))
           )}
         </CardContent>
       </Card>
 
-      <AddStudentsDialog
-        open={addOpen}
-        onOpenChange={setAddOpen}
-        groupId={group.id}
-        onSuccess={() => router.refresh()}
-      />
+      {!readOnly && (
+        <AddStudentsDialog
+          open={addOpen}
+          onOpenChange={setAddOpen}
+          groupId={group.id}
+          onSuccess={() => router.refresh()}
+        />
+      )}
     </>
   );
 }

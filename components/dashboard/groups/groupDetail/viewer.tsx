@@ -14,29 +14,42 @@ import AddGroupSessionDialog from "./addGroupSessionDialog";
 
 interface Props {
   group: GroupDetail;
-  tutors: { id: number; name: string | null }[];
+  tutors?: { id: number; name: string | null }[];
+  readOnly?: boolean;
+  backHref?: string;
 }
 
-export default function GroupDetailClient({ group, tutors }: Props) {
+export default function GroupDetailClient({
+  group,
+  tutors,
+  readOnly = false,
+  backHref = "/ar/dashboard/groups",
+}: Props) {
   const [addSessionOpen, setAddSessionOpen] = useState(false);
 
   return (
     <div className="space-y-6 p-4 md:p-6" dir="rtl">
       <div className="flex items-center justify-between">
         <Button variant="ghost" size="sm" asChild>
-          <Link href="/ar/dashboard/groups">
+          <Link href={backHref}>
             <ArrowRight className="h-4 w-4 ml-1" />
             العودة للمجموعات
           </Link>
         </Button>
-        <Button size="sm" onClick={() => setAddSessionOpen(true)}>
-          <Plus className="h-4 w-4 ml-2" />
-          إضافة حصة
-        </Button>
+        {!readOnly && (
+          <Button size="sm" onClick={() => setAddSessionOpen(true)}>
+            <Plus className="h-4 w-4 ml-2" />
+            إضافة حصة
+          </Button>
+        )}
       </div>
 
-      <GroupInfoCard group={group} />
-      <GroupStudentsCard group={group} />
+      <GroupInfoCard group={group} readOnly={readOnly} />
+      <GroupStudentsCard
+        group={group}
+        readOnly={readOnly}
+        studentHrefBase={readOnly ? backHref : undefined}
+      />
 
       <GroupPerformanceCard performances={group.performances} />
 
@@ -49,18 +62,20 @@ export default function GroupDetailClient({ group, tutors }: Props) {
         </CardContent>
       </Card>
 
-      <AddGroupSessionDialog
-        open={addSessionOpen}
-        onOpenChange={setAddSessionOpen}
-        groupId={group.id}
-        defaultTutorId={group.tutorId}
-        tutors={tutors}
-        members={group.students.map((s) => ({
-          id: s.studentId,
-          name: s.studentName,
-          sessionsRemaining: s.remainingSessions,
-        }))}
-      />
+      {!readOnly && (
+        <AddGroupSessionDialog
+          open={addSessionOpen}
+          onOpenChange={setAddSessionOpen}
+          groupId={group.id}
+          defaultTutorId={group.tutorId}
+          tutors={tutors ?? []}
+          members={group.students.map((s) => ({
+            id: s.studentId,
+            name: s.studentName,
+            sessionsRemaining: s.remainingSessions ?? null,
+          }))}
+        />
+      )}
     </div>
   );
 }

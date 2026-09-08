@@ -6,9 +6,10 @@ import Link from "next/link";
 
 interface Props {
   group: GroupDetail;
+  readOnly?: boolean;
 }
 
-export default function GroupInfoCard({ group }: Props) {
+export default function GroupInfoCard({ group, readOnly = false }: Props) {
   return (
     <Card>
       <CardContent className="p-6 space-y-4">
@@ -28,15 +29,21 @@ export default function GroupInfoCard({ group }: Props) {
             <User className="h-5 w-5" />
             <span>
               المعلم:
-              <Link
-                href={`/ar/dashboard/tutors/${group.tutorId}`}
-                className="font-medium text-primary hover:underline"
-              >
-                {group.tutorName}
-              </Link>
-            </span>
-            <span className="font-medium">
-              {group.effectiveHourlyRate} ج.م/ساعة
+              {readOnly ? (
+                <span className="font-medium">{group.tutorName}</span>
+              ) : (
+                <>
+                  <Link
+                    href={`/ar/dashboard/tutors/${group.tutorId}`}
+                    className="font-medium text-primary hover:underline"
+                  >
+                    {group.tutorName}
+                  </Link>
+                  <span className="font-medium">
+                    {group.effectiveHourlyRate} ج.م/ساعة
+                  </span>
+                </>
+              )}
             </span>
           </div>
         </div>

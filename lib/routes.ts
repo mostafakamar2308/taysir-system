@@ -203,6 +203,11 @@ export const getSidebarGroups = (role: number, locale: string = "ar") => {
             url: `/${locale}/dashboard/tutor/sessions`,
             icon: Calendar,
           },
+          {
+            titleKey: "items.groups",
+            url: `/${locale}/dashboard/tutor/groups`,
+            icon: Users,
+          },
         ],
       },
       {
@@ -262,6 +267,11 @@ export const getSidebarGroups = (role: number, locale: string = "ar") => {
             titleKey: "items.sessionSchedule",
             url: `/${locale}/dashboard/supervisor/sessions`,
             icon: Calendar,
+          },
+          {
+            titleKey: "items.groups",
+            url: `/${locale}/dashboard/supervisor/groups`,
+            icon: Users,
           },
         ],
       },
