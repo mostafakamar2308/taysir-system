@@ -31,12 +31,11 @@ export const updateSessionDetails = withResult(
   },
 );
 
-export const updateSessionZoomLinks = withResult(
+export const updateSessionZoomLink = withResult(
   async (
     sessionId: number,
     data: {
-      zoomJoinUrl?: string | null;
-      zoomStartUrl?: string | null;
+      zoomUrl?: string | null;
     },
   ) => {
     const token = await getTokenFromCookie();
@@ -54,7 +53,7 @@ export const updateSessionZoomLinks = withResult(
     await db.session.update({
       where: { id: sessionId },
       data: {
-        zoomUrl: data.zoomJoinUrl ?? data.zoomStartUrl ?? undefined,
+        zoomUrl: data.zoomUrl ?? undefined,
       },
     });
 

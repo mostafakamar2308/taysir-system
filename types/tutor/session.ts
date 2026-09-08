@@ -11,8 +11,7 @@ export interface SessionClientData {
   isTrial: boolean;
   studentName: string; // joined names of all participants
   zoomMeetingId: string | null;
-  zoomJoinUrl: string | null;
-  zoomStartUrl: string | null;
+  zoomUrl: string | null;
   participants: {
     participantId: number;
     studentId: number;

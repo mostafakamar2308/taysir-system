@@ -797,11 +797,14 @@
     },
     "zoom": {
       "title": "Zoom Link",
-      "joinUrlLabel": "Student join link",
-      "startUrlLabel": "Tutor start link",
+      "urlLabel": "Session link",
       "copyTitle": "Copy link",
       "openTitle": "Open link",
-      "helpText": "The join link is shared with the student; the start link is for you (tutor)."
+      "helpText": "This is the meeting link shared with students in the session reminder.",
+      "editButton": "Edit",
+      "saveButton": "Save",
+      "cancelButton": "Cancel",
+      "noLinkInstructions": "No Zoom link yet. You can add the meeting link here."
     },
     "details": {
       "editButton": "Edit",

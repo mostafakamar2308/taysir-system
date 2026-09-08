@@ -185,13 +185,13 @@ export default function TableView({
                     )}
                   </TableCell>
                   <TableCell className="flex gap-2 justify-end">
-                    {s.zoomJoinUrl ? (
+                    {s.zoomUrl ? (
                       <Button
                         variant="outline"
                         size="icon"
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (s.zoomJoinUrl) router.push(s.zoomJoinUrl);
+                          if (s.zoomUrl) router.push(s.zoomUrl);
                         }}
                       >
                         <Video className="h-3.5 w-3.5 text-blue-500" />

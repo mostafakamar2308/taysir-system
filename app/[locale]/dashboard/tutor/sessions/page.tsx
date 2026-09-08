@@ -173,8 +173,7 @@ export default async function TutorSessionsPage({
     studentName:
       s.participants.map((p) => p.student.user.name ?? "").join("، ") || "",
     zoomMeetingId: null,
-    zoomJoinUrl: s.zoomUrl,
-    zoomStartUrl: s.zoomUrl,
+    zoomUrl: s.zoomUrl,
     participants: s.participants.map((p) => ({
       participantId: p.id,
       studentId: p.studentId,

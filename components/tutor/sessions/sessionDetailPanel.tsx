@@ -33,7 +33,7 @@ import { AttendanceStatus, SessionStatus } from "@/types/session";
 import { SessionClientData } from "@/types/tutor/session";
 import { Copy, ExternalLink, Video } from "lucide-react";
 import dayjs from "@/lib/dayjs";
-import { updateSessionZoomLinks } from "@/actions/tutor/session";
+import { updateSessionZoomLink } from "@/actions/tutor/session";
 import {
   AssignmentWithSolutions,
   deleteAssignment,
@@ -49,6 +49,7 @@ interface SessionDetailPanelProps {
   onOpenChange: (open: boolean) => void;
   onUpdate: () => void;
   canEditSessionTime?: boolean;
+  canEditDuration?: boolean;
 }
 
 export default function SessionDetailPanel({
@@ -57,6 +58,7 @@ export default function SessionDetailPanel({
   onOpenChange,
   onUpdate,
   canEditSessionTime = true,
+  canEditDuration = true,
 }: SessionDetailPanelProps) {
   const t = useTranslations("SessionDetail");
   const router = useRouter();
@@ -173,7 +175,7 @@ export default function SessionDetailPanel({
         ).toISOString();
         payload.date = editDate;
         payload.startTime = startTimeISO;
-        payload.duration = editDuration;
+        if (canEditDuration) payload.duration = editDuration;
       }
       const res = await updateSession(payload);
       if (!res.ok) throw new Error(res.error);
@@ -191,20 +193,14 @@ export default function SessionDetailPanel({
   };
 
   const [zoomEditMode, setZoomEditMode] = useState(false);
-  const [zoomJoinUrlInput, setZoomJoinUrlInput] = useState(
-    session.zoomJoinUrl || "",
-  );
-  const [zoomStartUrlInput, setZoomStartUrlInput] = useState(
-    session.zoomStartUrl || "",
-  );
+  const [zoomUrlInput, setZoomUrlInput] = useState(session.zoomUrl || "");
 
-  // Add handler for saving zoom links
-  const handleSaveZoomLinks = async () => {
+  // Add handler for saving the zoom link
+  const handleSaveZoomLink = async () => {
     setLoading(true);
     try {
-      const res = await updateSessionZoomLinks(session.id, {
-        zoomJoinUrl: zoomJoinUrlInput || null,
-        zoomStartUrl: zoomStartUrlInput || null,
+      const res = await updateSessionZoomLink(session.id, {
+        zoomUrl: zoomUrlInput || null,
       });
       if (!res.ok) throw new Error(res.error);
       toast({ title: t("toast.zoomSaved") });
@@ -511,16 +507,18 @@ export default function SessionDetailPanel({
                           onChange={(e) => setEditStartTime(e.target.value)}
                         />
                       </div>
-                      <div className="space-y-2">
-                        <Label>{t("details.duration")}</Label>
-                        <Input
-                          type="number"
-                          value={editDuration}
-                          onChange={(e) =>
-                            setEditDuration(parseInt(e.target.value))
-                          }
-                        />
-                      </div>
+                      {canEditDuration && (
+                        <div className="space-y-2">
+                          <Label>{t("details.duration")}</Label>
+                          <Input
+                            type="number"
+                            value={editDuration}
+                            onChange={(e) =>
+                              setEditDuration(parseInt(e.target.value))
+                            }
+                          />
+                        </div>
+                      )}
                     </>
                   )}
                   <div className="space-y-2">
@@ -995,7 +993,7 @@ export default function SessionDetailPanel({
           </TabsContent>
 
           {/* Zoom Tab */}
-          {session.zoomJoinUrl || zoomEditMode ? (
+          {session.zoomUrl || zoomEditMode ? (
             <TabsContent value="zoom" className="space-y-4 mt-4">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
@@ -1003,7 +1001,7 @@ export default function SessionDetailPanel({
                     <Video className="h-5 w-5" />
                     <span className="font-semibold">{t("zoom.title")}</span>
                   </div>
-                  {session.zoomJoinUrl && !zoomEditMode && (
+                  {session.zoomUrl && !zoomEditMode && (
                     <Button
                       variant="ghost"
                       size="sm"
@@ -1017,36 +1015,29 @@ export default function SessionDetailPanel({
                 {zoomEditMode ? (
                   <div className="space-y-4 border rounded-lg p-4">
                     <div className="space-y-2">
-                      <Label>{t("zoom.joinUrlLabel")}</Label>
+                      <Label>{t("zoom.urlLabel")}</Label>
                       <Input
-                        value={zoomJoinUrlInput}
-                        onChange={(e) => setZoomJoinUrlInput(e.target.value)}
+                        value={zoomUrlInput}
+                        onChange={(e) => setZoomUrlInput(e.target.value)}
                         placeholder="https://zoom.us/j/..."
                         dir="ltr"
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label>{t("zoom.startUrlLabel")}</Label>
-                      <Input
-                        value={zoomStartUrlInput}
-                        onChange={(e) => setZoomStartUrlInput(e.target.value)}
-                        placeholder="https://zoom.us/s/..."
-                        dir="ltr"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        {t("zoom.startUrlHelp")}
-                      </p>
-                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {t("zoom.helpText")}
+                    </p>
                     <div className="flex gap-2">
-                      <Button onClick={handleSaveZoomLinks} disabled={loading}>
+                      <Button
+                        onClick={handleSaveZoomLink}
+                        disabled={loading}
+                      >
                         {t("zoom.saveButton")}
                       </Button>
                       <Button
                         variant="outline"
                         onClick={() => {
                           setZoomEditMode(false);
-                          setZoomJoinUrlInput(session.zoomJoinUrl || "");
-                          setZoomStartUrlInput(session.zoomStartUrl || "");
+                          setZoomUrlInput(session.zoomUrl || "");
                         }}
                       >
                         {t("zoom.cancelButton")}
@@ -1055,14 +1046,14 @@ export default function SessionDetailPanel({
                   </div>
                 ) : (
                   <>
-                    {session.zoomJoinUrl && (
+                    {session.zoomUrl && (
                       <div className="space-y-1">
                         <Label className="text-sm text-muted-foreground">
-                          {t("zoom.joinUrlLabel")}
+                          {t("zoom.urlLabel")}
                         </Label>
                         <div className="flex items-center gap-2">
                           <Input
-                            value={session.zoomJoinUrl}
+                            value={session.zoomUrl}
                             readOnly
                             className="font-mono text-sm"
                             dir="ltr"
@@ -1073,7 +1064,7 @@ export default function SessionDetailPanel({
                             title={t("zoom.copyTitle")}
                             onClick={() => {
                               navigator.clipboard.writeText(
-                                session.zoomJoinUrl || "",
+                                session.zoomUrl || "",
                               );
                               toast({ title: t("toast.copySuccess") });
                             }}
@@ -1085,7 +1076,7 @@ export default function SessionDetailPanel({
                             size="icon"
                             title={t("zoom.openTitle")}
                             onClick={() =>
-                              window.open(session.zoomJoinUrl!, "_blank")
+                              window.open(session.zoomUrl!, "_blank")
                             }
                           >
                             <ExternalLink className="h-4 w-4" />
@@ -1093,47 +1084,6 @@ export default function SessionDetailPanel({
                         </div>
                       </div>
                     )}
-                    {session.zoomStartUrl && (
-                      <div className="space-y-1">
-                        <Label className="text-sm text-muted-foreground">
-                          {t("zoom.startUrlLabel")}
-                        </Label>
-                        <div className="flex items-center gap-2">
-                          <Input
-                            value={session.zoomStartUrl}
-                            readOnly
-                            className="font-mono text-sm bg-muted/50"
-                            dir="ltr"
-                          />
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            title={t("zoom.copyTitle")}
-                            onClick={() => {
-                              navigator.clipboard.writeText(
-                                session.zoomStartUrl || "",
-                              );
-                              toast({ title: t("toast.copySuccess") });
-                            }}
-                          >
-                            <Copy className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            title={t("zoom.openTitle")}
-                            onClick={() =>
-                              window.open(session.zoomStartUrl!, "_blank")
-                            }
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                    <p className="text-xs text-muted-foreground">
-                      {t("zoom.helpText")}
-                    </p>
                   </>
                 )}
               </div>
@@ -1151,27 +1101,18 @@ export default function SessionDetailPanel({
                     {t("zoom.noLinkInstructions")}
                   </p>
                   <div className="space-y-2">
-                    <Label>{t("zoom.joinUrlLabel")}</Label>
+                    <Label>{t("zoom.urlLabel")}</Label>
                     <Input
-                      value={zoomJoinUrlInput}
-                      onChange={(e) => setZoomJoinUrlInput(e.target.value)}
+                      value={zoomUrlInput}
+                      onChange={(e) => setZoomUrlInput(e.target.value)}
                       placeholder="https://zoom.us/j/..."
                       dir="ltr"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label>{t("zoom.startUrlLabel")}</Label>
-                    <Input
-                      value={zoomStartUrlInput}
-                      onChange={(e) => setZoomStartUrlInput(e.target.value)}
-                      placeholder="https://zoom.us/s/..."
-                      dir="ltr"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      {t("zoom.startUrlHelp")}
-                    </p>
-                  </div>
-                  <Button onClick={handleSaveZoomLinks} disabled={loading}>
+                  <p className="text-xs text-muted-foreground">
+                    {t("zoom.helpText")}
+                  </p>
+                  <Button onClick={handleSaveZoomLink} disabled={loading}>
                     {t("zoom.saveButton")}
                   </Button>
                 </div>
