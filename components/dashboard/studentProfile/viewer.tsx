@@ -197,7 +197,7 @@ export default function StudentProfileClient({
           <SessionsTab student={student} tutors={tutors} />
         </TabsContent>
         <TabsContent value="reports">
-          <ReportsTab student={student} />
+          <ReportsTab sessions={student.sessions} />
         </TabsContent>
         <TabsContent value="finances">
           {financialSummary ? (

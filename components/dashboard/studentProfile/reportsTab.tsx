@@ -14,24 +14,24 @@ import {
   TrendingUp,
   TrendingDown,
 } from "lucide-react";
-import type { StudentProfile, SessionRecord } from "@/types/studentProfile";
+import type { SessionRecord } from "@/types/studentProfile";
 import dayjs from "@/lib/dayjs";
 import { formatDate } from "@/lib/dates";
 import { RatingChart } from "@/components/dashboard/student/ratingChart";
 import { ReportContent } from "@/components/dashboard/sessions/reportContent";
 
 interface Props {
-  student: StudentProfile;
+  sessions: SessionRecord[];
 }
 
-export default function ReportsTab({ student }: Props) {
+export default function ReportsTab({ sessions }: Props) {
   const [tutorFilter, setTutorFilter] = useState("all");
 
   const reports = useMemo(() => {
-    return [...student.sessions]
+    return [...sessions]
       .filter((s) => s.report)
       .sort((a, b) => dayjs(b.startTime).diff(dayjs(a.startTime)));
-  }, [student.sessions]);
+  }, [sessions]);
 
   const tutorOptions = useMemo(() => {
     return Array.from(new Set(reports.map((s) => s.tutorName))).sort();

@@ -99,3 +99,21 @@ export type Report = {
   nextGoals: string | null;
   comments: string | null;
 } | null;
+
+// Read-only student profile used by tutors/supervisors. Deliberately omits
+// contact info (phone/email), finances, and subscription status fields.
+export interface ReadOnlyStudentProfile {
+  id: number;
+  name: string;
+  age: number;
+  country: string | null;
+  timezone: string;
+  source: string | null;
+  preferredLanguage: string | null;
+  groups: {
+    groupId: number;
+    tutorName: string;
+    isPrivate: boolean;
+  }[];
+  sessions: SessionRecord[];
+}
