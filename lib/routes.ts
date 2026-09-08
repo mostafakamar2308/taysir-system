@@ -288,6 +288,36 @@ export const getSidebarGroups = (role: number, locale: string = "ar") => {
     ];
   }
 
+  if (role === Role.Student) {
+    return [
+      {
+        labelKey: "groups.main",
+        items: [
+          {
+            titleKey: "items.dashboard",
+            url: `/${locale}/dashboard/student`,
+            icon: LayoutDashboard,
+          },
+          {
+            titleKey: "items.chat",
+            url: `/${locale}/dashboard/chat`,
+            icon: MessageSquare,
+          },
+        ],
+      },
+      {
+        labelKey: "groups.sessions",
+        items: [
+          {
+            titleKey: "items.groups",
+            url: `/${locale}/dashboard/student/groups`,
+            icon: Users,
+          },
+        ],
+      },
+    ];
+  }
+
   // Default for unknown roles
   return [
     {
