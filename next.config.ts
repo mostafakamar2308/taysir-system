@@ -35,6 +35,11 @@ const nextConfig: NextConfig = {
     ];
   },
   allowedDevOrigins: ["192.168.1.9"],
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "6mb",
+    },
+  },
 };
 
 // Apply PWA, then next-intl, and cast to NextConfig
