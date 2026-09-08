@@ -18,6 +18,7 @@ export interface StudentGroupSession {
   topic: string | null;
   tutorName: string;
   attendanceStatus: number | null;
+  recordingLink: string | null;
   report: {
     rating: number | null;
     outcomes: string | null;

@@ -64,6 +64,15 @@ export function SessionDetailPanel({ session, open, onOpenChange }: Props) {
   const [displayZoomUrl, setDisplayZoomUrl] = useState(session.zoomUrl || "");
   const [savingZoom, setSavingZoom] = useState(false);
 
+  const [recordingEditMode, setRecordingEditMode] = useState(false);
+  const [recordingUrlInput, setRecordingUrlInput] = useState(
+    session.recordingLink || "",
+  );
+  const [displayRecordingUrl, setDisplayRecordingUrl] = useState(
+    session.recordingLink || "",
+  );
+  const [savingRecording, setSavingRecording] = useState(false);
+
   const handleSaveZoomUrl = async () => {
     const value = zoomUrlInput.trim();
     if (value && !value.startsWith("https://")) {
@@ -87,6 +96,32 @@ export function SessionDetailPanel({ session, open, onOpenChange }: Props) {
     }
   };
 
+  const handleSaveRecordingUrl = async () => {
+    const value = recordingUrlInput.trim();
+    if (value && !value.startsWith("https://")) {
+      toast({ title: "رابط غير صحيح", variant: "destructive" });
+      return;
+    }
+    setSavingRecording(true);
+    try {
+      const res = await updateSession({
+        id: session.id,
+        recordingLink: value || null,
+      });
+      if (!res.ok) throw new Error(res.error);
+      setDisplayRecordingUrl(value);
+      setRecordingEditMode(false);
+      toast({ title: "تم حفظ رابط التسجيل" });
+    } catch (error) {
+      toast({
+        title: error instanceof Error ? error.message : "حدث خطأ أثناء الحفظ",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingRecording(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -103,6 +138,7 @@ export function SessionDetailPanel({ session, open, onOpenChange }: Props) {
             <TabsTrigger value="attendance">الحضور</TabsTrigger>
             <TabsTrigger value="report">التقرير</TabsTrigger>
             <TabsTrigger value="zoom">الرابط</TabsTrigger>
+            <TabsTrigger value="recording">التسجيل</TabsTrigger>
             <TabsTrigger value="assignment">الواجب</TabsTrigger>
           </TabsList>
 
@@ -446,6 +482,103 @@ export function SessionDetailPanel({ session, open, onOpenChange }: Props) {
                   لا يوجد رابط زووم لهذه الحصة. يمكنك إضافة رابط الاجتماع من هنا.
                 </p>
                 <Button onClick={() => setZoomEditMode(true)}>إضافة الرابط</Button>
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Recording Tab */}
+          <TabsContent value="recording" className="space-y-4 mt-4">
+            <div className="flex items-center gap-2 text-primary">
+              <Video className="h-5 w-5" />
+              <span className="font-semibold">رابط تسجيل الحصة</span>
+            </div>
+
+            {!isCompleted ? (
+              <div className="border rounded-lg p-4">
+                <p className="text-sm text-muted-foreground">
+                  لا يمكن إضافة رابط التسجيل إلا بعد انتهاء الحصة.
+                </p>
+              </div>
+            ) : recordingEditMode ? (
+              <div className="space-y-4 border rounded-lg p-4">
+                <div className="space-y-2">
+                  <Label className="text-sm text-muted-foreground">
+                    رابط التسجيل
+                  </Label>
+                  <Input
+                    value={recordingUrlInput}
+                    onChange={(e) => setRecordingUrlInput(e.target.value)}
+                    placeholder="https://..."
+                    dir="ltr"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    الرابط يبدأ بـ https:// ويُتاح للطلاب للمشاهدة.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleSaveRecordingUrl}
+                    disabled={savingRecording}
+                  >
+                    حفظ
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setRecordingEditMode(false);
+                      setRecordingUrlInput(displayRecordingUrl);
+                    }}
+                  >
+                    إلغاء
+                  </Button>
+                </div>
+              </div>
+            ) : displayRecordingUrl ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={displayRecordingUrl}
+                    readOnly
+                    className="font-mono text-sm"
+                    dir="ltr"
+                  />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    title="نسخ الرابط"
+                    onClick={() => {
+                      navigator.clipboard.writeText(displayRecordingUrl);
+                      toast({ title: "تم النسخ" });
+                    }}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    title="فتح الرابط"
+                    onClick={() => window.open(displayRecordingUrl, "_blank")}
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                  </Button>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setRecordingEditMode(true)}
+                >
+                  تعديل
+                </Button>
+              </>
+            ) : (
+              <div className="space-y-4 border rounded-lg p-4">
+                <p className="text-sm text-muted-foreground">
+                  لا يوجد رابط تسجيل لهذه الحصة. يمكنك إضافة رابط تسجيل الحصة من
+                  هنا.
+                </p>
+                <Button onClick={() => setRecordingEditMode(true)}>
+                  إضافة رابط التسجيل
+                </Button>
               </div>
             )}
           </TabsContent>

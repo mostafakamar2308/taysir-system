@@ -119,6 +119,7 @@ export default async function SessionsPage({
       }),
 
       zoomUrl: s.zoomUrl,
+      recordingLink: s.recordingLink,
 
       groupId: s.groupId,
       groupName: s.group.title,

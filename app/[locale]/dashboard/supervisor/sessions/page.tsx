@@ -103,6 +103,7 @@ export default async function SupervisorSessionsPage({
       cancelledBy: s.cancelledBy,
       status: getSessionStatus({ cancelledBy: s.cancelledBy, startTime: s.startTime }),
       zoomUrl: s.zoomUrl,
+      recordingLink: s.recordingLink,
       groupId: s.groupId,
       groupName: s.group.title,
       tutorId: s.tutorId,

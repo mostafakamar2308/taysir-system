@@ -17,12 +17,14 @@ import {
   DollarSign,
   UserCheck,
   FileSignature,
+  Video,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/finances";
 import { formatDate, formatTime } from "@/lib/dates";
 import { SessionCountdownBanner } from "@/components/dashboard/common/sessionCountdownBanner";
 import AttendanceDialog from "./attendanceDialog";
 import ReportDialog from "./reportDialog";
+import RecordingLinkDialog from "./recordingLinkDialog";
 import type { SessionSummary } from "./types";
 import { AttendanceStatus } from "@/types/session";
 
@@ -32,6 +34,7 @@ interface DashboardClientProps {
   upcomingSessions: SessionSummary[];
   pendingAttendance: SessionSummary[];
   pendingReports: SessionSummary[];
+  pendingRecordingLink: SessionSummary[];
   sessionsWithMissingData: SessionSummary[];
   financialSummary: {
     totalSessions: number;
@@ -49,13 +52,17 @@ export default function DashboardClient({
   upcomingSessions,
   pendingAttendance,
   pendingReports,
+  pendingRecordingLink,
   sessionsWithMissingData,
   financialSummary,
   zoomEnabled,
 }: DashboardClientProps) {
   const t = useTranslations("TutorDashboard");
   const [activeTab, setActiveTab] = useState("overview");
-  const totalPending = pendingAttendance.length + pendingReports.length;
+  const totalPending =
+    pendingAttendance.length +
+    pendingReports.length +
+    pendingRecordingLink.length;
 
   // Dialog state for the missing-data tab
   const [attendanceSession, setAttendanceSession] =
@@ -63,6 +70,8 @@ export default function DashboardClient({
   const [reportSession, setReportSession] = useState<SessionSummary | null>(
     null,
   );
+  const [recordingSession, setRecordingSession] =
+    useState<SessionSummary | null>(null);
 
   const bannerSessions = useMemo(
     () =>
@@ -132,6 +141,7 @@ export default function DashboardClient({
                   {t("pendingAlert.description", {
                     attendance: pendingAttendance.length,
                     reports: pendingReports.length,
+                    recording: pendingRecordingLink.length,
                   })}
                 </p>
               </div>
@@ -378,6 +388,7 @@ export default function DashboardClient({
                   t={t}
                   onAttendance={() => setAttendanceSession(s)}
                   onReport={() => setReportSession(s)}
+                  onRecording={() => setRecordingSession(s)}
                 />
               ))}
             </div>
@@ -429,6 +440,21 @@ export default function DashboardClient({
             : []
         }
       />
+      <RecordingLinkDialog
+        open={recordingSession !== null}
+        onOpenChange={(open) => {
+          if (!open) setRecordingSession(null);
+        }}
+        title={
+          recordingSession
+            ? t("missingData.recordingDialogTitle", {
+                date: formatDate(recordingSession.startTime),
+              })
+            : ""
+        }
+        sessionId={recordingSession?.id ?? 0}
+        initialLink={recordingSession?.recordingLink ?? null}
+      />
     </div>
   );
 }
@@ -474,6 +500,14 @@ function SessionItem({
             {t("sessionItem.noReport")}
           </Badge>
         )}
+        {session.hasAnyRecordingLinkMissing && (
+          <Badge
+            variant="outline"
+            className="bg-purple-50 text-purple-700 border-purple-200"
+          >
+            {t("sessionItem.noRecording")}
+          </Badge>
+        )}
         <Button variant="secondary" size="sm" asChild>
           <Link href={`/dashboard/tutor/sessions?sessionId=${session.id}`}>
             {t("sessionItem.view")}
@@ -497,11 +531,13 @@ function MissingDataCard({
   t,
   onAttendance,
   onReport,
+  onRecording,
 }: {
   session: SessionSummary;
   t: ReturnType<typeof useTranslations<"TutorDashboard">>;
   onAttendance: () => void;
   onReport: () => void;
+  onRecording: () => void;
 }) {
   const missingAttendance = session.participants.filter(
     (p) => p.attendanceStatus === null,
@@ -514,6 +550,7 @@ function MissingDataCard({
       );
     return attended && !p.hasReport;
   });
+  const missingRecording = session.hasAnyRecordingLinkMissing;
 
   return (
     <Card>
@@ -558,6 +595,15 @@ function MissingDataCard({
                 })}
               </Badge>
             )}
+            {missingRecording && (
+              <Badge
+                variant="outline"
+                className="bg-purple-50 text-purple-700 border-purple-200"
+              >
+                <Video className="h-3 w-3 ml-1" />
+                {t("missingData.hintRecording")}
+              </Badge>
+            )}
           </div>
         </div>
 
@@ -578,6 +624,13 @@ function MissingDataCard({
             {missingReports.map((p) => p.studentName).join("، ")}
           </div>
         )}
+        {missingRecording && (
+          <div className="text-xs text-muted-foreground">
+            <span className="font-medium text-purple-700">
+              {t("missingData.recordingMissingLabel")}
+            </span>
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-2 pt-1">
           {missingAttendance.length > 0 && (
@@ -590,6 +643,12 @@ function MissingDataCard({
             <Button size="sm" variant="outline" onClick={onReport}>
               <FileSignature className="h-4 w-4 ml-1" />
               {t("missingData.writeReport")}
+            </Button>
+          )}
+          {missingRecording && (
+            <Button size="sm" variant="outline" onClick={onRecording}>
+              <Video className="h-4 w-4 ml-1" />
+              {t("missingData.addRecordingLink")}
             </Button>
           )}
         </div>

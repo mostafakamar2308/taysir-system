@@ -99,6 +99,15 @@ interface DashboardClientProps {
     studentName: string;
     startTime: string;
   }>;
+  recordingSheet: Array<{
+    sessionId: number;
+    studentId: number;
+    tutorId: number;
+    tutorName: string;
+    tutorPhone: string | null;
+    studentName: string;
+    startTime: string;
+  }>;
   academyId: number;
 }
 
@@ -144,6 +153,7 @@ type BulkGroup =
   | "attendance-absent"
   | "reports-missing"
   | "reports-absent"
+  | "recording-missing"
   | null;
 
 export default function DashboardClient(props: DashboardClientProps) {
@@ -189,6 +199,10 @@ export default function DashboardClient(props: DashboardClientProps) {
         return props.absentSessions
           .filter((s) => s.studentPhone)
           .map((s) => ({ phone: s.studentPhone! }));
+      case "recording-missing":
+        return props.recordingSheet
+          .filter((s) => s.tutorPhone)
+          .map((s) => ({ phone: s.tutorPhone! }));
       default:
         return [];
     }
@@ -440,12 +454,13 @@ export default function DashboardClient(props: DashboardClientProps) {
 
       {/* Tabbed Sheets */}
       <Tabs defaultValue="attendance">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="attendance">{t("attendance")}</TabsTrigger>
           <TabsTrigger value="reconciliation">
             {t("reconciliation")}
           </TabsTrigger>
           <TabsTrigger value="reports">{t("reports")}</TabsTrigger>
+          <TabsTrigger value="recording">{t("recording")}</TabsTrigger>
         </TabsList>
 
         {/* Attendance Sheet */}
@@ -804,6 +819,71 @@ export default function DashboardClient(props: DashboardClientProps) {
                           >
                             <MessageSquare className="h-4 w-4 ml-2" />{" "}
                             {t("contact")}
+                          </Button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* Recording Sheet */}
+        <TabsContent value="recording">
+          <div className="space-y-6">
+            {/* حصص بدون رابط تسجيل */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-base">
+                  {t("missingRecordingTitle")}
+                </CardTitle>
+                {props.recordingSheet.length > 0 && (
+                  <Button
+                    onClick={() => setSendBulkMessages("recording-missing")}
+                  >
+                    {t("sendBulkMessage")}
+                  </Button>
+                )}
+              </CardHeader>
+              <CardContent>
+                {props.recordingSheet.length === 0 ? (
+                  <p className="text-muted-foreground">
+                    {t("allRecordingPresent")}
+                  </p>
+                ) : (
+                  <ul className="space-y-2">
+                    {props.recordingSheet.map((item) => (
+                      <li
+                        key={`${item.sessionId}-${item.studentId}`}
+                        className="flex items-center justify-between p-2 border rounded"
+                      >
+                        <div>
+                          <span className="font-medium">{item.tutorName}</span>{" "}
+                          <span className="text-sm text-muted-foreground mr-2">
+                            {t("missingRecordingItem", {
+                              tutorName: item.tutorName,
+                              studentName: item.studentName,
+                              time: formatTime(item.startTime),
+                            })}
+                          </span>
+                        </div>
+                        {item.tutorPhone && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              handleWhatsApp(
+                                item.tutorPhone,
+                                t("whatsapp.recordingReminder", {
+                                  studentName: item.studentName,
+                                }),
+                              )
+                            }
+                          >
+                            <MessageSquare className="h-4 w-4 ml-2" />{" "}
+                            {t("remind")}
                           </Button>
                         )}
                       </li>

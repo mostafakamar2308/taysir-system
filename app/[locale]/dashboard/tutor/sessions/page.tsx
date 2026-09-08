@@ -123,6 +123,7 @@ export default async function TutorSessionsPage({
         startTime: s.startTime,
       }),
       zoomUrl: s.zoomUrl,
+      recordingLink: s.recordingLink,
       groupId: s.groupId,
       groupName: s.group.title,
       tutorId: s.tutorId,
@@ -174,6 +175,7 @@ export default async function TutorSessionsPage({
       s.participants.map((p) => p.student.user.name ?? "").join("، ") || "",
     zoomMeetingId: null,
     zoomUrl: s.zoomUrl,
+    recordingLink: s.recordingLink,
     participants: s.participants.map((p) => ({
       participantId: p.id,
       studentId: p.studentId,

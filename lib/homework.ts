@@ -98,6 +98,7 @@ export function computeHomeworkData(participants: Participant[]) {
       status: getSessionStatus(p.session),
       attendance: p.studentAttendanceStatus,
       hasReport: !!p.report,
+      recordingLink: p.session.recordingLink ?? null,
       assignment: assignment
         ? {
             id: assignment.id,

@@ -354,6 +354,7 @@
     "attendance": "سجل الحضور اليوم",
     "reconciliation": "التسوية المالية",
     "reports": "التقارير المفقودة",
+    "recording": "التسجيلات المفقودة",
     "missingAttendanceTitle": "حصص بدون تسجيل حضور",
     "noMissingAttendance": "لا توجد حصص بدون حضور اليوم",
     "absentTodayTitle": "حصص اليوم التي غابها الطلاب",
@@ -364,12 +365,15 @@
     "noNearEnd": "لا توجد اشتراكات قاربت على الانتهاء",
     "missingReportsTitle": "حصص اليوم بدون تقارير",
     "allReportsPresent": "جميع الحصص اليوم تحتوي على تقارير",
+    "missingRecordingTitle": "حصص اليوم بدون رابط تسجيل",
+    "allRecordingPresent": "جميع حصص اليوم تحتوي على روابط تسجيل",
     "missingAttendanceItem": "حصة المعلم {tutorName} مع الطالب {studentName}",
     "absentTodayItem": "{studentName} غائب – حصة مع {tutorName} ({time})",
     "latePaymentItem": "{studentName} – {planTitle} – {amountDue} {currency} – متأخر {daysOverdue} يوم",
     "nearEndItem": "{studentName} – {planTitle} – تنتهي {endDate} (متبقي {daysLeft} يوم)",
     "sessionsExhausted": "نفدت حصص الاشتراك",
     "missingReportItem": "{tutorName} مع {studentName} الساعة {time}",
+    "missingRecordingItem": "{tutorName} مع {studentName} الساعة {time}",
     "remind": "تذكير",
     "contact": "تواصل",
     "whatsapp": {
@@ -378,7 +382,8 @@
       "absentContact": "مرحباً {studentName}، نود التواصل معك بخصوص غيابك اليوم.",
       "latePaymentReminder": "مرحباً، نود تذكيرك بدفع مستحقات الاشتراك.",
       "nearEndContact": "مرحباً، نود إعلامك بأن اشتراكك سينتهي قريباً.",
-      "reportReminder": "مرحباً، نود تذكيرك بكتابة تقرير حصة {studentName} اليوم."
+      "reportReminder": "مرحباً، نود تذكيرك بكتابة تقرير حصة {studentName} اليوم.",
+      "recordingReminder": "مرحباً، نود تذكيرك بإضافة رابط تسجيل حصة {studentName} اليوم."
     }
   },
   "AddStudentDialog": {
@@ -627,7 +632,7 @@
     },
     "pendingAlert": {
       "title": "إجراءات معلقة",
-      "description": "{attendance} حصة بحاجة لتسجيل حضور، {reports} حصة بحاجة لتقرير",
+      "description": "{attendance} حصة بحاجة لتسجيل حضور، {reports} حصة بحاجة لتقرير، {recording} حصة بحاجة لرابط التسجيل",
       "viewAll": "عرض الكل"
     },
     "summaryCards": {
@@ -669,18 +674,23 @@
       "students": "الطلاب: {students}",
       "hintAttendance": "{count} حضور",
       "hintReport": "{count} تقرير",
+      "hintRecording": "{count} تسجيل",
       "attendanceMissingLabel": "الحضور ناقص لـ",
       "reportMissingLabel": "التقرير ناقص لـ",
+      "recordingMissingLabel": "رابط التسجيل ناقص لـ",
       "recordAttendance": "تسجيل الحضور",
       "writeReport": "كتابة التقرير",
+      "addRecordingLink": "إضافة رابط التسجيل",
       "perStudentHint": "احفظ كل طالب على حدة — يمكنك إكمال الباقي لاحقاً.",
       "saved": "تم الحفظ",
       "attendanceDialogTitle": "تسجيل الحضور – {date}",
-      "reportDialogTitle": "كتابة التقرير – {date}"
+      "reportDialogTitle": "كتابة التقرير – {date}",
+      "recordingDialogTitle": "رابط تسجيل الحصة – {date}"
     },
     "sessionItem": {
       "noAttendance": "لم يسجل",
       "noReport": "بدون تقرير",
+      "noRecording": "بدون تسجيل",
       "view": "عرض",
       "startSession": "بدأ الحصة"
     }
@@ -752,6 +762,7 @@
     "closeButton": "إغلاق",
     "tabs": {
       "zoom": "الرابط",
+      "recording": "التسجيل",
       "details": "التفاصيل",
       "attendance": "الحضور",
       "report": "التقرير",
@@ -768,6 +779,19 @@
       "saveButton": "حفظ",
       "cancelButton": "إلغاء",
       "noLinkInstructions": "لا يوجد رابط زووم حاليًا. يمكنك إضافة رابط الاجتماع هنا."
+    },
+    "recording": {
+      "title": "رابط تسجيل الحصة",
+      "urlLabel": "رابط التسجيل",
+      "copyTitle": "نسخ الرابط",
+      "openTitle": "فتح الرابط",
+      "helpText": "ضع رابطاً يبدأ بـ https:// ليتمكن الطلاب من مشاهدة تسجيل الحصة.",
+      "editButton": "تعديل",
+      "saveButton": "حفظ",
+      "cancelButton": "إلغاء",
+      "invalidUrl": "الرابط يجب أن يبدأ بـ https://",
+      "noInstructions": "لا يوجد رابط تسجيل بعد. يمكنك إضافة رابط تسجيل الحصة هنا.",
+      "notAvailableYet": "لا يمكن إضافة رابط التسجيل إلا بعد انتهاء الحصة"
     },
     "details": {
       "editButton": "تعديل",
@@ -862,6 +886,7 @@
       "copySuccess": "تم نسخ الرابط",
       "error": "خطأ",
       "zoomSaved": "تم حفظ روابط الزووم بنجاح",
+      "recordingSaved": "تم حفظ رابط التسجيل",
       "assignmentUploaded": "تم رفع الواجب بنجاح",
       "assignmentDeleted": "تم حذف الواجب",
       "gradeSaved": "تم حفظ التصحيح"
@@ -1044,7 +1069,9 @@
       "tutor": "المعلم",
       "topic": "الموضوع",
       "status": "الحالة",
-      "hasReport": "● تقرير"
+      "recording": "التسجيل",
+      "hasReport": "● تقرير",
+      "watchRecording": "مشاهدة التسجيل"
     },
     "reports": {
       "empty": "لا توجد تقارير بعد"

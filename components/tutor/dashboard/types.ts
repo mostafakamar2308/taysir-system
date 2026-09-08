@@ -16,5 +16,7 @@ export interface SessionSummary {
   participants: SessionParticipantSummary[];
   hasAnyAttendanceMissing: boolean;
   hasAnyReportMissing: boolean;
+  hasAnyRecordingLinkMissing: boolean;
   meetingLink?: string | null;
+  recordingLink?: string | null;
 }

@@ -81,6 +81,7 @@ export default async function StudentGroupDetailPage({
     topic: p.session.topic,
     tutorName: p.session.tutor.user.name ?? "",
     attendanceStatus: p.studentAttendanceStatus,
+    recordingLink: p.session.recordingLink ?? null,
     report: p.report
       ? {
           rating: p.report.rating,

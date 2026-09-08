@@ -11,6 +11,7 @@ import {
   FileText,
   Calendar,
   ChevronDown,
+  Video,
 } from "lucide-react";
 import type {
   StudentGroupDetail,
@@ -143,11 +144,12 @@ function SessionCard({ session }: { session: StudentGroupSession }) {
 
   return (
     <div className={`rounded-lg border ${statusColor}`}>
-      <button
-        type="button"
-        onClick={() => setExpanded((v) => !v)}
-        className="w-full flex items-center justify-between gap-2 p-3 text-right hover:bg-muted/30 transition"
-      >
+      <div className="flex items-stretch">
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="flex-1 flex items-center justify-between gap-2 p-3 text-right hover:bg-muted/30 transition"
+        >
         <div className="flex-1">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Calendar className="h-3.5 w-3.5" />
@@ -188,6 +190,18 @@ function SessionCard({ session }: { session: StudentGroupSession }) {
           className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform ${expanded ? "rotate-180" : ""}`}
         />
       </button>
+      {session.recordingLink && (
+        <a
+          href={session.recordingLink}
+          target="_blank"
+          rel="noreferrer"
+          className="shrink-0 flex items-center gap-1 text-primary hover:text-primary/80 border-s px-3 text-sm font-medium"
+        >
+          <Video className="h-4 w-4" />
+          مشاهدة التسجيل
+        </a>
+      )}
+    </div>
       {expanded && session.report && (
         <div className="px-4 pb-4 pt-2 border-t">
           <ReportContent report={session.report} />

@@ -27,7 +27,9 @@ export interface SessionSummary {
   participants: SessionParticipantSummary[];
   hasAnyAttendanceMissing: boolean; // any participant not yet marked
   hasAnyReportMissing: boolean; // any participant attended/late but no report
+  hasAnyRecordingLinkMissing: boolean; // session has no recorded-session link
   meetingLink?: string | null;
+  recordingLink?: string | null;
 }
 
 export default async function TutorDashboardPage() {
@@ -101,6 +103,8 @@ export default async function TutorDashboardPage() {
         !p.report,
     ),
     meetingLink: s.zoomUrl || null,
+    hasAnyRecordingLinkMissing: !s.recordingLink,
+    recordingLink: s.recordingLink,
   });
 
   // All sessions as summaries
@@ -124,14 +128,21 @@ export default async function TutorDashboardPage() {
   const pendingReports = allSummaries.filter(
     (s) => new Date(s.startTime) <= nowDate && s.hasAnyReportMissing,
   );
+  // Pending recording links: sessions that have started without a recorded-session link
+  const pendingRecordingLink = allSummaries.filter(
+    (s) => new Date(s.startTime) <= nowDate && s.hasAnyRecordingLinkMissing,
+  );
 
-  // Sessions with missing data (attendance and/or reports) that have already
-  // started/completed. Oldest first so tutors tackle the oldest gaps first.
+  // Sessions with missing data (attendance, reports and/or recording link)
+  // that have already started/completed. Oldest first so tutors tackle the
+  // oldest gaps first.
   const sessionsWithMissingData = allSummaries
     .filter(
       (s) =>
         new Date(s.startTime) <= nowDate &&
-        (s.hasAnyAttendanceMissing || s.hasAnyReportMissing),
+        (s.hasAnyAttendanceMissing ||
+          s.hasAnyReportMissing ||
+          s.hasAnyRecordingLinkMissing),
     )
     .sort(
       (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
@@ -171,6 +182,7 @@ export default async function TutorDashboardPage() {
       upcomingSessions={upcomingSessions}
       pendingAttendance={pendingAttendance}
       pendingReports={pendingReports}
+      pendingRecordingLink={pendingRecordingLink}
       sessionsWithMissingData={sessionsWithMissingData}
       financialSummary={{
         totalSessions: monthSessions.length,

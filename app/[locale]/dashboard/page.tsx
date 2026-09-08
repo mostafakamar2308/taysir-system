@@ -363,6 +363,22 @@ export default async function DashboardPage() {
       })),
   );
 
+  // Recording sheet: today's completed sessions without a recorded link
+  const completedNow = now.toDate().getTime();
+  const sessionsWithoutRecording = todaySessionsRaw.flatMap((sess) =>
+    sess.recordingLink || sess.startTime.getTime() >= completedNow
+      ? []
+      : sess.participants.map((p) => ({
+          sessionId: sess.id,
+          studentId: p.studentId,
+          tutorId: sess.group.currentTutor.id,
+          tutorName: sess.group.currentTutor.user.name || "",
+          tutorPhone: sess.group.currentTutor.user.phone,
+          studentName: p.student.user.name || "",
+          startTime: sess.startTime.toISOString(),
+        })),
+  );
+
   // ---- Reconciliation (canonical engine rows) ----
   const financeRes = await getAcademyStudentFinancialRows();
   const financeRows = financeRes.ok ? financeRes.data ?? [] : [];
@@ -487,6 +503,7 @@ export default async function DashboardPage() {
       latePayments={latePayments}
       nearEndSubscriptions={nearEndSubscriptions}
       reportsSheet={sessionsWithoutReport}
+      recordingSheet={sessionsWithoutRecording}
       academyId={academyId}
       currencies={currencies.map((c) => ({ id: c.id, name: c.name }))}
       tutors={tutors.map((t) => ({ id: t.id, name: t.user.name }))}

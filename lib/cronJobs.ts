@@ -28,6 +28,19 @@ cron.schedule("0 20 * * *", async () => {
   }
 });
 
+cron.schedule(
+  "0 22 * * *",
+  async () => {
+    console.log("[Cron] Sending recording reminders...");
+    try {
+      await sendRecordingReminders();
+    } catch (error) {
+      console.error("[Cron] Recording reminders failed:", error);
+    }
+  },
+  { timezone: "Africa/Cairo" },
+);
+
 // Weekly (Monday 9am Cairo) admin payment summary over WhatsApp.
 cron.schedule(
   "0 9 * * 1",
@@ -237,6 +250,106 @@ async function sendReportReminders() {
     } catch (error) {
       console.error(
         `[Cron] Report reminder failure for academy ${academy.id}:`,
+        error,
+      );
+    }
+  }
+}
+
+// ---------- Recording reminders (per tutor, today's completed sessions) ----------
+async function sendRecordingReminders() {
+  const cairoTodayStart = dayjs().tz("Africa/Cairo").startOf("day");
+  const cairoTodayEnd = dayjs().tz("Africa/Cairo").endOf("day");
+  const startOfDayUTC = cairoTodayStart.utc().toDate();
+  const endOfDayUTC = cairoTodayEnd.utc().toDate();
+  const nowUTC = dayjs.utc().toDate();
+
+  const academies = await db.academy.findMany({
+    where: {
+      whatsappConnectionStatus: "connected",
+      whatsappInstanceName: { not: null },
+    },
+    select: { id: true, whatsappInstanceName: true },
+  });
+
+  for (const academy of academies) {
+    try {
+      const sessionsMissingRecording = await db.session.findMany({
+        where: {
+          academyId: academy.id,
+          startTime: { gte: startOfDayUTC, lte: endOfDayUTC, lt: nowUTC },
+          cancelledBy: null,
+          recordingLink: null,
+        },
+        select: {
+          topic: true,
+          startTime: true,
+          tutor: {
+            select: {
+              id: true,
+              user: { select: { name: true, phone: true } },
+            },
+          },
+          participants: {
+            select: {
+              student: { select: { user: { select: { name: true } } } },
+            },
+          },
+        },
+      });
+
+      // Group by tutor → list of (time + topic + students)
+      const tutorMap = new Map<
+        number,
+        { name: string | null; phone: string | null; sessions: string[] }
+      >();
+
+      for (const session of sessionsMissingRecording) {
+        const tutorId = session.tutor.id;
+        if (!tutorMap.has(tutorId)) {
+          tutorMap.set(tutorId, {
+            name: session.tutor.user.name,
+            phone: session.tutor.user.phone,
+            sessions: [],
+          });
+        }
+        const timeStr = dayjs(session.startTime)
+          .tz("Africa/Cairo")
+          .format("hh:mm A");
+        const students = session.participants
+          .map((p) => p.student.user.name || "طالب")
+          .join("، ");
+        tutorMap
+          .get(tutorId)!
+          .sessions.push(
+            `${timeStr} — "${session.topic || "بدون موضوع"}" (${students})`,
+          );
+      }
+
+      for (const [, info] of tutorMap) {
+        if (!info.phone) continue;
+        const sessionsList = info.sessions.join("\n");
+        const message = `تذكير: يرجى إضافة روابط تسجيل الحصص التالية:\n${sessionsList}`;
+        const log = await db.whatsAppMessage.create({
+          data: {
+            academyId: academy.id,
+            remoteJid: formatPhoneToJid(info.phone),
+            type: "text",
+            content: message,
+            status: "pending",
+          },
+        });
+        await whatsappQueue.add("recording-reminder", {
+          academyId: academy.id,
+          instanceName: academy.whatsappInstanceName!,
+          recipientJid: formatPhoneToJid(info.phone),
+          message,
+          messageLogId: log.id,
+        });
+      }
+    } catch (error) {
+      console.error(
+        `[Cron] Recording reminder failure for academy ${academy.id}:`,
         error,
       );
     }

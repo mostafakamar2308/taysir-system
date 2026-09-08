@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -18,6 +19,7 @@ import {
   FileText,
   DollarSign,
   Download,
+  Video,
 } from "lucide-react";
 import { SessionReportCard } from "./sessionReportCard";
 import { SessionStatus } from "@/types/session";
@@ -337,6 +339,9 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
                     <TableHead className="text-right font-semibold">
                       {t("sessionsTable.status")}
                     </TableHead>
+                    <TableHead className="text-right font-semibold">
+                      {t("sessionsTable.recording")}
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -373,6 +378,23 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
                             <span className="mr-2 text-green-600 text-xs">
                               {t("sessionsTable.hasReport")}
                             </span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {s.recordingLink ? (
+                            <Button variant="outline" size="sm" asChild>
+                              <a
+                                href={s.recordingLink}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="gap-1"
+                              >
+                                <Video className="h-3.5 w-3.5" />
+                                {t("sessionsTable.watchRecording")}
+                              </a>
+                            </Button>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
                           )}
                         </TableCell>
                       </TableRow>

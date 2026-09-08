@@ -33,7 +33,10 @@ import { AttendanceStatus, SessionStatus } from "@/types/session";
 import { SessionClientData } from "@/types/tutor/session";
 import { Copy, ExternalLink, Video } from "lucide-react";
 import dayjs from "@/lib/dayjs";
-import { updateSessionZoomLink } from "@/actions/tutor/session";
+import {
+  updateSessionRecordingLink,
+  updateSessionZoomLink,
+} from "@/actions/tutor/session";
 import {
   AssignmentWithSolutions,
   deleteAssignment,
@@ -194,6 +197,40 @@ export default function SessionDetailPanel({
 
   const [zoomEditMode, setZoomEditMode] = useState(false);
   const [zoomUrlInput, setZoomUrlInput] = useState(session.zoomUrl || "");
+
+  const [recordingEditMode, setRecordingEditMode] = useState(false);
+  const [recordingUrlInput, setRecordingUrlInput] = useState(
+    session.recordingLink || "",
+  );
+
+  // Add handler for saving the recorded-session link
+  const handleSaveRecordingLink = async () => {
+    const value = recordingUrlInput.trim();
+    if (value && !value.startsWith("https://")) {
+      toast({ title: t("recording.invalidUrl"), variant: "destructive" });
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await updateSessionRecordingLink(session.id, {
+        recordingLink: value || null,
+      });
+      if (!res.ok) throw new Error(res.error);
+      toast({ title: t("toast.recordingSaved") });
+      setRecordingEditMode(false);
+      onUpdate();
+      router.refresh();
+    } catch (error) {
+      if (error instanceof Error)
+        toast({
+          title: t("toast.error"),
+          description: error.message,
+          variant: "destructive",
+        });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Add handler for saving the zoom link
   const handleSaveZoomLink = async () => {
@@ -447,6 +484,9 @@ export default function SessionDetailPanel({
             </TabsTrigger>
             <TabsTrigger value="report">{t("tabs.report")}</TabsTrigger>
             <TabsTrigger value="zoom">{t("tabs.zoom")}</TabsTrigger>
+            <TabsTrigger value="recording">
+              {t("tabs.recording")}
+            </TabsTrigger>
             <TabsTrigger value="homework">{t("tabs.homework")}</TabsTrigger>
           </TabsList>
 
@@ -1119,6 +1159,142 @@ export default function SessionDetailPanel({
               </div>
             </TabsContent>
           )}
+
+          {/* Recorded-session link Tab */}
+          <TabsContent value="recording" className="space-y-4 mt-4">
+            {!isCompleted ? (
+              <div className="space-y-4 border rounded-lg p-4">
+                <div className="flex items-center gap-2 text-primary">
+                  <Video className="h-5 w-5" />
+                  <span className="font-semibold">{t("recording.title")}</span>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {t("recording.notAvailableYet")}
+                </p>
+              </div>
+            ) : session.recordingLink || recordingEditMode ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-primary">
+                    <Video className="h-5 w-5" />
+                    <span className="font-semibold">
+                      {t("recording.title")}
+                    </span>
+                  </div>
+                  {session.recordingLink && !recordingEditMode && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setRecordingEditMode(true)}
+                    >
+                      {t("recording.editButton")}
+                    </Button>
+                  )}
+                </div>
+
+                {recordingEditMode ? (
+                  <div className="space-y-4 border rounded-lg p-4">
+                    <div className="space-y-2">
+                      <Label>{t("recording.urlLabel")}</Label>
+                      <Input
+                        value={recordingUrlInput}
+                        onChange={(e) => setRecordingUrlInput(e.target.value)}
+                        placeholder="https://..."
+                        dir="ltr"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {t("recording.helpText")}
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={handleSaveRecordingLink}
+                        disabled={loading}
+                      >
+                        {t("recording.saveButton")}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setRecordingEditMode(false);
+                          setRecordingUrlInput(session.recordingLink || "");
+                        }}
+                      >
+                        {t("recording.cancelButton")}
+                      </Button>
+                    </div>
+                  </div>
+                ) : session.recordingLink ? (
+                  <div className="space-y-1">
+                    <Label className="text-sm text-muted-foreground">
+                      {t("recording.urlLabel")}
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={session.recordingLink}
+                        readOnly
+                        className="font-mono text-sm"
+                        dir="ltr"
+                      />
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        title={t("recording.copyTitle")}
+                        onClick={() => {
+                          navigator.clipboard.writeText(
+                            session.recordingLink || "",
+                          );
+                          toast({ title: t("toast.copySuccess") });
+                        }}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        title={t("recording.openTitle")}
+                        onClick={() =>
+                          window.open(session.recordingLink!, "_blank")
+                        }
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-primary">
+                  <Video className="h-5 w-5" />
+                  <span className="font-semibold">{t("recording.title")}</span>
+                </div>
+                <div className="border rounded-lg p-4 space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    {t("recording.noInstructions")}
+                  </p>
+                  <div className="space-y-2">
+                    <Label>{t("recording.urlLabel")}</Label>
+                    <Input
+                      value={recordingUrlInput}
+                      onChange={(e) => setRecordingUrlInput(e.target.value)}
+                      placeholder="https://..."
+                      dir="ltr"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {t("recording.helpText")}
+                  </p>
+                  <Button
+                    onClick={handleSaveRecordingLink}
+                    disabled={loading}
+                  >
+                    {t("recording.saveButton")}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </TabsContent>
         </Tabs>
 
         <DialogFooter>

@@ -24,6 +24,7 @@ export interface AdminSession {
   status: SessionStatus;
 
   zoomUrl: string | null;
+  recordingLink: string | null;
 
   groupId: number;
   groupName: string;

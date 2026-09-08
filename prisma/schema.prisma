@@ -360,6 +360,7 @@ model Session {
   cancelledBy     Int?
 
   zoomUrl String?
+  recordingLink String?
 
   groupId Int
   group   Group @relation(fields: [groupId], references: [id])

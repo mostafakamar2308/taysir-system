@@ -10,6 +10,7 @@ export interface SessionItem {
   status: number;
   attendance: number | null;
   hasReport: boolean;
+  recordingLink: string | null;
 }
 
 export interface NextSession {

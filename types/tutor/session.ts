@@ -12,6 +12,7 @@ export interface SessionClientData {
   studentName: string; // joined names of all participants
   zoomMeetingId: string | null;
   zoomUrl: string | null;
+  recordingLink: string | null;
   participants: {
     participantId: number;
     studentId: number;

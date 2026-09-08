@@ -347,6 +347,7 @@ export type UpdateSessionInput = {
   isTrial?: boolean;
   tutorId?: number; // may override
   zoomUrl?: string | null;
+  recordingLink?: string | null;
 };
 
 export const updateSession = withResult(async (input: UpdateSessionInput) => {
@@ -387,6 +388,10 @@ export const updateSession = withResult(async (input: UpdateSessionInput) => {
     return fail("رابط غير صحيح");
   }
 
+  if (input.recordingLink && !input.recordingLink.startsWith("https://")) {
+    return fail("رابط غير صحيح");
+  }
+
   const newStart = input.startTime
     ? dayjs.utc(input.startTime).toDate()
     : existing.startTime;
@@ -401,6 +406,8 @@ export const updateSession = withResult(async (input: UpdateSessionInput) => {
   };
   if (input.tutorId !== undefined) data.tutorId = input.tutorId;
   if (input.zoomUrl !== undefined) data.zoomUrl = input.zoomUrl ?? null;
+  if (input.recordingLink !== undefined)
+    data.recordingLink = input.recordingLink ?? null;
 
   await db.session.update({
     where: { id: input.id },
@@ -527,6 +534,7 @@ export const getSessionDetailsForManagement = withResult(async (
       status: getSessionStatus(session),
 
       zoomUrl: session.zoomUrl,
+      recordingLink: session.recordingLink,
 
       groupId: session.groupId,
       groupName: session.group.title,

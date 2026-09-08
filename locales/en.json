@@ -404,6 +404,7 @@
     "attendance": "Today's Attendance",
     "reconciliation": "Financial Reconciliation",
     "reports": "Missing Reports",
+    "recording": "Missing Recordings",
     "missingAttendanceTitle": "Sessions Without Attendance",
     "noMissingAttendance": "No sessions without attendance today",
     "absentTodayTitle": "Sessions Students Missed Today",
@@ -414,12 +415,15 @@
     "noNearEnd": "No subscriptions nearing end",
     "missingReportsTitle": "Sessions Without Reports Today",
     "allReportsPresent": "All sessions have reports today",
+    "missingRecordingTitle": "Sessions Without Recording Link Today",
+    "allRecordingPresent": "All sessions have recording links today",
     "missingAttendanceItem": "Session of teacher {tutorName} with student {studentName}",
     "absentTodayItem": "{studentName} absent – session with {tutorName} ({time})",
     "latePaymentItem": "{studentName} – {planTitle} – {amountDue} {currency} – overdue {daysOverdue} days",
     "nearEndItem": "{studentName} – {planTitle} – ends {endDate} ({daysLeft} days left)",
     "sessionsExhausted": "Sessions exhausted",
     "missingReportItem": "{tutorName} with {studentName} at {time}",
+    "missingRecordingItem": "{tutorName} with {studentName} at {time}",
     "remind": "Remind",
     "contact": "Contact",
     "whatsapp": {
@@ -428,7 +432,8 @@
       "absentContact": "Hello {studentName}, we would like to contact you regarding your absence today.",
       "latePaymentReminder": "Hello, we remind you to pay the subscription dues.",
       "nearEndContact": "Hello, your subscription will expire soon.",
-      "reportReminder": "Please write the report for today's session with {studentName}."
+      "reportReminder": "Please write the report for today's session with {studentName}.",
+      "recordingReminder": "Please add the recording link for today's session with {studentName}."
     }
   },
   "AddStudentDialog": {
@@ -670,7 +675,7 @@
     },
     "pendingAlert": {
       "title": "Pending Actions",
-      "description": "{attendance} session(s) need attendance, {reports} session(s) need report",
+      "description": "{attendance} session(s) need attendance, {reports} session(s) need report, {recording} session(s) need recording link",
       "viewAll": "View All"
     },
     "summaryCards": {
@@ -712,18 +717,23 @@
       "students": "Students: {students}",
       "hintAttendance": "{count} attendance",
       "hintReport": "{count} report",
+      "hintRecording": "{count} recording",
       "attendanceMissingLabel": "Attendance missing for",
       "reportMissingLabel": "Report missing for",
+      "recordingMissingLabel": "Recording link missing for",
       "recordAttendance": "Record Attendance",
       "writeReport": "Write Report",
+      "addRecordingLink": "Add Recording Link",
       "perStudentHint": "Save each student individually — you can finish the rest later.",
       "saved": "Saved",
       "attendanceDialogTitle": "Record Attendance – {date}",
-      "reportDialogTitle": "Write Report – {date}"
+      "reportDialogTitle": "Write Report – {date}",
+      "recordingDialogTitle": "Session Recording Link – {date}"
     },
     "sessionItem": {
       "noAttendance": "Not recorded",
       "noReport": "No report",
+      "noRecording": "No recording",
       "view": "View",
       "startSession": "Start Session"
     }
@@ -791,6 +801,7 @@
     "closeButton": "Close",
     "tabs": {
       "zoom": "Link",
+      "recording": "Recording",
       "details": "Details",
       "attendance": "Attendance",
       "report": "Report"
@@ -805,6 +816,19 @@
       "saveButton": "Save",
       "cancelButton": "Cancel",
       "noLinkInstructions": "No Zoom link yet. You can add the meeting link here."
+    },
+    "recording": {
+      "title": "Session Recording Link",
+      "urlLabel": "Recording link",
+      "copyTitle": "Copy link",
+      "openTitle": "Open link",
+      "helpText": "Use a link starting with https:// so students can watch the session recording.",
+      "editButton": "Edit",
+      "saveButton": "Save",
+      "cancelButton": "Cancel",
+      "invalidUrl": "The link must start with https://",
+      "noInstructions": "No recording link yet. You can add the session recording link here.",
+      "notAvailableYet": "The recording link can only be added after the session ends"
     },
     "details": {
       "editButton": "Edit",
@@ -862,7 +886,8 @@
       "attendanceSaved": "Attendance recorded",
       "reportSaved": "Report saved",
       "copySuccess": "Link copied",
-      "error": "Error"
+      "error": "Error",
+      "recordingSaved": "Recording link saved"
     }
   },
   "AddSessionToTutorDialog": {
@@ -1027,7 +1052,9 @@
       "tutor": "Tutor",
       "topic": "Topic",
       "status": "Status",
-      "hasReport": "● Report"
+      "recording": "Recording",
+      "hasReport": "● Report",
+      "watchRecording": "Watch Recording"
     },
     "reports": {
       "empty": "No reports yet"
