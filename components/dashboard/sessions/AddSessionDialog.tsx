@@ -11,13 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
@@ -223,42 +217,29 @@ export function AddSessionDialog({ open, onOpenChange, academyId }: Props) {
               {/* Group selection */}
               <div className="space-y-2">
                 <Label>المجموعة *</Label>
-                <Select
+                <Combobox
+                  options={groupOptions.map((g) => ({
+                    value: g.id.toString(),
+                    label: `${g.title} — ${g.tutorName}`,
+                  }))}
                   value={selectedGroupId}
                   onValueChange={handleGroupChange}
-                  required
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="اختر المجموعة" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {groupOptions.map((g) => (
-                      <SelectItem key={g.id} value={g.id.toString()}>
-                        {g.title} — {g.tutorName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="اختر المجموعة"
+                />
               </div>
 
               {/* Tutor selection (auto‑filled, can override) */}
               <div className="space-y-2">
                 <Label>المعلم</Label>
-                <Select
+                <Combobox
+                  options={tutors.map((t) => ({
+                    value: t.id.toString(),
+                    label: t.name ?? "",
+                  }))}
                   value={selectedTutorId}
                   onValueChange={handleTutorChange}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="اختر المعلم" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {tutors.map((t) => (
-                      <SelectItem key={t.id} value={t.id.toString()}>
-                        {t.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="اختر المعلم"
+                />
                 {tutorMismatch && (
                   <Alert
                     variant="warning"
@@ -278,43 +259,29 @@ export function AddSessionDialog({ open, onOpenChange, academyId }: Props) {
               {/* Student selection */}
               <div className="space-y-2">
                 <Label>الطالب *</Label>
-                <Select
+                <Combobox
+                  options={students.map((s) => ({
+                    value: s.id.toString(),
+                    label: s.name,
+                  }))}
                   value={selectedStudentId}
                   onValueChange={setSelectedStudentId}
-                  required
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="اختر الطالب" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {students.map((s) => (
-                      <SelectItem key={s.id} value={s.id.toString()}>
-                        {s.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="اختر الطالب"
+                />
               </div>
 
               {/* Tutor selection */}
               <div className="space-y-2">
                 <Label>المعلم *</Label>
-                <Select
+                <Combobox
+                  options={tutors.map((t) => ({
+                    value: t.id.toString(),
+                    label: t.name ?? "",
+                  }))}
                   value={selectedTutorId}
                   onValueChange={setSelectedTutorId}
-                  required
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="اختر المعلم" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {tutors.map((t) => (
-                      <SelectItem key={t.id} value={t.id.toString()}>
-                        {t.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="اختر المعلم"
+                />
               </div>
             </>
           )}

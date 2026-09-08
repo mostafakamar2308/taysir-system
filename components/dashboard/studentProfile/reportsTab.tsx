@@ -3,13 +3,7 @@
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import {
   ChevronDown,
   ChevronUp,
@@ -240,19 +234,14 @@ export default function ReportsTab({ student }: Props) {
         <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-3">
           <CardTitle className="text-lg">التقارير</CardTitle>
           {tutorOptions.length > 1 && (
-            <Select value={tutorFilter} onValueChange={setTutorFilter}>
-              <SelectTrigger className="h-9 w-[180px]">
-                <SelectValue placeholder="كل المعلمين" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">كل المعلمين</SelectItem>
-                {tutorOptions.map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {t}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Combobox
+              options={tutorOptions.map((t) => ({ value: t, label: t }))}
+              value={tutorFilter}
+              onValueChange={setTutorFilter}
+              placeholder="كل المعلمين"
+              emptyOption={{ value: "all", label: "كل المعلمين" }}
+              className="h-9 w-[180px]"
+            />
           )}
         </CardHeader>
         <CardContent className="space-y-3">

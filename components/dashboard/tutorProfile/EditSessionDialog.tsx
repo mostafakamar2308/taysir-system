@@ -11,13 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Checkbox } from "@/components/ui/checkbox";
 
 import { useToast } from "@/hooks/use-toast";
@@ -120,22 +114,16 @@ export function TutorEditSessionDialog({
 
           <div className="space-y-2">
             <Label>المعلم</Label>
-            <Select
+            <Combobox
+              options={tutors.map((t) => ({
+                value: t.id.toString(),
+                label: t.name,
+              }))}
               value={selectedTutorId}
               onValueChange={setSelectedTutorId}
+              placeholder="اختر المعلم"
               disabled={!!tutorId}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {tutors.map((t) => (
-                  <SelectItem key={t.id} value={t.id.toString()}>
-                    {t.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            />
           </div>
 
           {!isPast && (

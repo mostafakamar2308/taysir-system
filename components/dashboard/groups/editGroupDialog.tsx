@@ -11,13 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { useToast } from "@/hooks/use-toast";
 import { updateGroup, getAcademyTutors } from "@/actions/groups";
 import type { DashboardGroup, TutorOption } from "@/types/group";
@@ -102,22 +96,16 @@ export default function EditGroupDialog({
           </div>
           <div>
             <Label>المعلم *</Label>
-            <Select
+            <Combobox
               name="tutorId"
+              options={tutors.map((t) => ({
+                value: String(t.id),
+                label: t.name,
+              }))}
               value={selectedTutorId}
               onValueChange={handleTutorChange}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {tutors.map((t) => (
-                  <SelectItem key={t.id} value={String(t.id)}>
-                    {t.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              placeholder="اختر المعلم"
+            />
           </div>
           <div>
             <Label>سعر الساعة للمجموعة</Label>

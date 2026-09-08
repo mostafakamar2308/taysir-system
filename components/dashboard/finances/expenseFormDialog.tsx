@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { createExpense, updateExpense } from "@/actions/finances";
@@ -97,7 +98,7 @@ export default function ExpenseFormDialog({
       setFormData({
         date: dayjs().format("YYYY-MM-DD"),
         description: "",
-        costCenterId: null,
+        costCenterId: costCenters[0]?.id ?? null,
         amount: "",
         currencyId: currencies[0]?.id.toString() || "",
         method: "",
@@ -109,7 +110,7 @@ export default function ExpenseFormDialog({
       });
       setIsSalary(false);
     }
-  }, [editingExpense, open, currencies]);
+  }, [editingExpense, open, currencies, costCenters]);
 
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -195,21 +196,20 @@ export default function ExpenseFormDialog({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>نوع المصروف</Label>
-              <Select
-                name="costCenterId"
-                defaultValue={costCenters[0].id.toString()}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="اختر" />
-                </SelectTrigger>
-                <SelectContent>
-                  {costCenters.map((c) => (
-                    <SelectItem key={c.id} value={c.id.toString()}>
-                      {c.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                options={costCenters.map((c) => ({
+                  value: c.id.toString(),
+                  label: c.title,
+                }))}
+                value={formData.costCenterId?.toString() ?? ""}
+                onValueChange={(v) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    costCenterId: v ? parseInt(v) : null,
+                  }))
+                }
+                placeholder="اختر"
+              />
             </div>
             <div className="space-y-2">
               <Label>العملة *</Label>
@@ -291,21 +291,15 @@ export default function ExpenseFormDialog({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>المعلم</Label>
-                <Select
+                <Combobox
+                  options={tutors.map((t) => ({
+                    value: t.id.toString(),
+                    label: t.name ?? "",
+                  }))}
                   value={formData.tutorId}
                   onValueChange={(v) => handleChange("tutorId", v)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="اختر المعلم" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {tutors.map((t) => (
-                      <SelectItem key={t.id} value={t.id.toString()}>
-                        {t.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="اختر المعلم"
+                />
               </div>
               <div className="space-y-2">
                 <Label>شهر الراتب</Label>

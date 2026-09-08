@@ -9,13 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { useToast } from "@/hooks/use-toast";
 import { bulkAssignTutor } from "@/actions/student";
 
@@ -73,19 +67,18 @@ export default function BulkAssignTutorDialog({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label>المعلم</Label>
-            <Select value={tutorId} onValueChange={setTutorId}>
-              <SelectTrigger>
-                <SelectValue placeholder="اختر المعلم" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">بدون معلم</SelectItem>
-                {tutors.map((t) => (
-                  <SelectItem key={t.id} value={String(t.id)}>
-                    {t.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Combobox
+              options={[
+                { value: "none", label: "بدون معلم" },
+                ...tutors.map((t) => ({
+                  value: String(t.id),
+                  label: t.name,
+                })),
+              ]}
+              value={tutorId}
+              onValueChange={setTutorId}
+              placeholder="اختر المعلم"
+            />
           </div>
           <div className="flex justify-end gap-2">
             <Button

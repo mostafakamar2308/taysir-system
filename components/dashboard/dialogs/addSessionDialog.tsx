@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Combobox } from "@/components/ui/combobox";
 import {
   Select,
   SelectContent,
@@ -191,21 +192,15 @@ export default function AddSessionDialog({
           {/* Tutor selection */}
           <div className="space-y-2">
             <Label>{t("tutor")} *</Label>
-            <Select
+            <Combobox
+              options={tutors.map((tut) => ({
+                value: String(tut.id),
+                label: tut.name ?? "",
+              }))}
               value={tutorId ? String(tutorId) : ""}
               onValueChange={(val) => setTutorId(parseInt(val))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={t("tutorPlaceholder")} />
-              </SelectTrigger>
-              <SelectContent>
-                {tutors.map((tut) => (
-                  <SelectItem key={tut.id} value={String(tut.id)}>
-                    {tut.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              placeholder={t("tutorPlaceholder")}
+            />
           </div>
 
           {/* Trial toggle */}

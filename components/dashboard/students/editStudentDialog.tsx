@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Combobox } from "@/components/ui/combobox";
 import {
   Select,
   SelectContent,
@@ -42,6 +43,7 @@ export default function EditStudentDialog({
   const [internalOpen, setInternalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [student, setStudent] = useState<GetStudentResult | null>(null);
+  const [tutorValue, setTutorValue] = useState("none");
 
   const router = useRouter();
   const { toast } = useToast();
@@ -52,7 +54,14 @@ export default function EditStudentDialog({
   useEffect(() => {
     async function fetchStudent() {
       const res = await getStudent(studentId);
-      if (res.ok) setStudent(res.data ?? null);
+      if (res.ok) {
+        setStudent(res.data ?? null);
+        setTutorValue(
+          res.data?.groupMemberships[0]?.tutorId
+            ? String(res.data.groupMemberships[0].tutorId)
+            : "none",
+        );
+      }
     }
     if (controlledOpen) fetchStudent();
   }, [studentId, controlledOpen]);
@@ -181,26 +190,19 @@ export default function EditStudentDialog({
             </div>
             <div>
               <Label htmlFor="tutorId">المعلم</Label>
-              <Select
+              <Combobox
                 name="tutorId"
-                defaultValue={
-                  student.groupMemberships[0]
-                    ? String(student.groupMemberships[0].tutorId)
-                    : "none"
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="اختر المعلم" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">بدون معلم</SelectItem>
-                  {tutors.map((t) => (
-                    <SelectItem key={t.id} value={t.id.toString()}>
-                      {t.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                options={[
+                  { value: "none", label: "بدون معلم" },
+                  ...tutors.map((t) => ({
+                    value: t.id.toString(),
+                    label: t.name ?? "",
+                  })),
+                ]}
+                value={tutorValue}
+                onValueChange={setTutorValue}
+                placeholder="اختر المعلم"
+              />
             </div>{" "}
           </div>
 

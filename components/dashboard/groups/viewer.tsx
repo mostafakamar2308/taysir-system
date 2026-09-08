@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Plus, Search } from "lucide-react";
 import type { DashboardGroup } from "@/types/group";
 import GroupCard from "./groupCard";
 import AddGroupDialog from "./addGroupDialog";
@@ -19,6 +20,13 @@ export default function GroupsViewer({
 }: Props) {
   const router = useRouter();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const filteredGroups = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return groups;
+    return groups.filter((g) => g.title.toLowerCase().includes(q));
+  }, [groups, search]);
 
   const handleRefresh = () => {
     router.refresh();
@@ -39,13 +47,23 @@ export default function GroupsViewer({
         </Button>
       </div>
 
-      {groups.length === 0 ? (
+      <div className="relative">
+        <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="ابحث باسم المجموعة..."
+          className="pl-4 pr-9"
+        />
+      </div>
+
+      {filteredGroups.length === 0 ? (
         <p className="text-muted-foreground text-center py-16">
-          لا توجد مجموعات بعد
+          {groups.length === 0 ? "لا توجد مجموعات بعد" : "لا توجد نتائج مطابقة"}
         </p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {groups.map((group) => (
+          {filteredGroups.map((group) => (
             <GroupCard key={group.id} group={group} onUpdate={handleRefresh} />
           ))}
         </div>

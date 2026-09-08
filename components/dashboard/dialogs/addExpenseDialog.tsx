@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { createExpense } from "@/actions/expense";
@@ -44,6 +45,10 @@ export function AddExpenseDialog({
   const t = useTranslations("AddExpenseDialog");
   const [open, setOpen] = useState(false);
   const [salary, setSalary] = useState(false);
+  const [costCenterValue, setCostCenterValue] = useState(
+    costCenters[0]?.id.toString() ?? "",
+  );
+  const [tutorValue, setTutorValue] = useState("");
 
   const handleSubmit = async (formData: FormData) => {
     if (
@@ -163,21 +168,16 @@ export function AddExpenseDialog({
               </div>
               <div className="space-y-2">
                 <Label>{t("costCenter")}</Label>
-                <Select
+                <Combobox
                   name="costCenterId"
-                  defaultValue={costCenters[0].id.toString()}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={t("costCenterPlaceholder")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {costCenters.map((c) => (
-                      <SelectItem key={c.id} value={c.id.toString()}>
-                        {c.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  options={costCenters.map((c) => ({
+                    value: c.id.toString(),
+                    label: c.title,
+                  }))}
+                  value={costCenterValue}
+                  onValueChange={setCostCenterValue}
+                  placeholder={t("costCenterPlaceholder")}
+                />
               </div>
             </div>
 
@@ -194,18 +194,16 @@ export function AddExpenseDialog({
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>{t("tutor")}</Label>
-                  <Select name="tutorId">
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {tutors.map((t) => (
-                        <SelectItem key={t.id} value={t.id.toString()}>
-                          {t.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Combobox
+                    name="tutorId"
+                    options={tutors.map((t) => ({
+                      value: t.id.toString(),
+                      label: t.name ?? "",
+                    }))}
+                    value={tutorValue}
+                    onValueChange={setTutorValue}
+                    placeholder="اختر المعلم"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>{t("salaryMonth")}</Label>

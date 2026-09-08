@@ -2,13 +2,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { SlidersHorizontal, X } from "lucide-react";
 
 interface FilterOptions {
@@ -114,21 +108,13 @@ function FilterSelect({
   options: { value: string; label: string }[];
 }) {
   return (
-    <Select
+    <Combobox
+      options={options}
       value={value || "all"}
       onValueChange={(v) => onChange(v === "all" ? "" : v)}
-    >
-      <SelectTrigger className="text-sm h-9">
-        <SelectValue placeholder={label} />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="all">الكل - {label}</SelectItem>
-        {options.map((o) => (
-          <SelectItem key={o.value} value={o.value}>
-            {o.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+      placeholder={label}
+      emptyOption={{ value: "all", label: `الكل - ${label}` }}
+      className="text-sm h-9"
+    />
   );
 }

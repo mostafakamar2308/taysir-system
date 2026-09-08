@@ -11,13 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { useToast } from "@/hooks/use-toast";
 import { createGroup, getAcademyTutors, getAcademyStudents } from "@/actions/groups";
 import { MultiSelect } from "@/components/ui/multi-select";
@@ -112,23 +106,16 @@ export default function AddGroupDialog({
           </div>
           <div>
             <Label>المعلم *</Label>
-            <Select
+            <Combobox
               name="tutorId"
-              required
+              options={tutors.map((t) => ({
+                value: String(t.id),
+                label: t.name,
+              }))}
               value={selectedTutorId}
               onValueChange={handleTutorChange}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="اختر المعلم" />
-              </SelectTrigger>
-              <SelectContent>
-                {tutors.map((t) => (
-                  <SelectItem key={t.id} value={String(t.id)}>
-                    {t.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              placeholder="اختر المعلم"
+            />
           </div>
           <div>
             <Label>سعر الساعة للمعلم بالجنيه</Label>

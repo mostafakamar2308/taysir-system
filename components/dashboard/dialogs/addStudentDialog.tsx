@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { useToast } from "@/hooks/use-toast";
 import { createStudent } from "@/actions/student";
 import { Plus, User } from "lucide-react";
@@ -41,6 +42,7 @@ export default function AddStudentDialog({
   const t = useTranslations("AddStudentDialog");
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [tutorValue, setTutorValue] = useState("none");
   const router = useRouter();
   const { toast } = useToast();
 
@@ -179,19 +181,19 @@ export default function AddStudentDialog({
               </div>
               <div>
                 <Label htmlFor="tutorId">{t("tutor-label")}</Label>
-                <Select name="tutorId" defaultValue="none">
-                  <SelectTrigger>
-                    <SelectValue placeholder={t("tutorPlaceholder")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">{t("tutor.none")}</SelectItem>
-                    {tutors.map((t) => (
-                      <SelectItem key={t.id} value={t.id.toString()}>
-                        {t.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Combobox
+                  name="tutorId"
+                  options={[
+                    { value: "none", label: t("tutor.none") },
+                    ...tutors.map((t) => ({
+                      value: t.id.toString(),
+                      label: t.name ?? "",
+                    })),
+                  ]}
+                  value={tutorValue}
+                  onValueChange={setTutorValue}
+                  placeholder={t("tutorPlaceholder")}
+                />
               </div>
               <div>
                 <Label htmlFor="status">{t("status-label")}</Label>

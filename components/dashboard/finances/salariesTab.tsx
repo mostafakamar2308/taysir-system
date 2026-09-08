@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Clock, TrendingUp, Banknote, ChevronLeft, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -266,19 +267,17 @@ export default function SalariesTab({
         </div>
         <div className="space-y-1">
           <label className="text-sm font-medium">المعلم</label>
-          <Select value={tutorFilter} onValueChange={setTutorFilter}>
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="كل المعلمين" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">كل المعلمين</SelectItem>
-              {tutors.map((t) => (
-                <SelectItem key={t.id} value={t.id.toString()}>
-                  {t.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Combobox
+            options={tutors.map((t) => ({
+              value: t.id.toString(),
+              label: t.name ?? "",
+            }))}
+            value={tutorFilter}
+            onValueChange={setTutorFilter}
+            placeholder="كل المعلمين"
+            emptyOption={{ value: "all", label: "كل المعلمين" }}
+            className="w-40"
+          />
         </div>
         <Button
           variant="outline"

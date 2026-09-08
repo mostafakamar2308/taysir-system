@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { toast } from "sonner";
 import dayjs from "@/lib/dayjs";
 import { getPlans } from "@/actions/plan";
@@ -131,21 +132,15 @@ export default function AddSubscriptionDialog({
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>المجموعة</Label>
-              <Select value={groupStudentId} onValueChange={setGroupStudentId}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {activeGroups.map((g) => (
-                    <SelectItem
-                      key={g.groupStudentId}
-                      value={g.groupStudentId.toString()}
-                    >
-                      {g.groupTitle}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                options={activeGroups.map((g) => ({
+                  value: g.groupStudentId.toString(),
+                  label: g.groupTitle,
+                }))}
+                value={groupStudentId}
+                onValueChange={setGroupStudentId}
+                placeholder="اختر المجموعة"
+              />
             </div>
 
             <div className="space-y-2">

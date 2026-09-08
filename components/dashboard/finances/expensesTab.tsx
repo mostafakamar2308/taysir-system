@@ -32,6 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { CheckCircle, Edit, Clock } from "lucide-react";
 import { paymentStatusLabels, paymentMethodLabels } from "@/lib/enums";
 import { Input } from "@/components/ui/input";
@@ -274,24 +275,19 @@ export default function ExpensesTab({
       <div className="flex flex-wrap gap-4 items-end">
         <div className="space-y-1">
           <label className="text-sm font-medium">مركز التكلفة</label>
-          <Select
+          <Combobox
+            options={costCenters.map((cc) => ({
+              value: cc.id.toString(),
+              label: cc.title,
+            }))}
             value={costCenterFilter.toString()}
             onValueChange={(val) =>
               setCostCenterFilter(val === "all" ? val : Number(val))
             }
-          >
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="كل المراكز" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">كل المراكز</SelectItem>
-              {costCenters.map((cc) => (
-                <SelectItem key={cc.id} value={cc.id.toString()}>
-                  {cc.title}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            placeholder="كل المراكز"
+            emptyOption={{ value: "all", label: "كل المراكز" }}
+            className="w-48"
+          />
         </div>
         <Button
           variant="outline"
