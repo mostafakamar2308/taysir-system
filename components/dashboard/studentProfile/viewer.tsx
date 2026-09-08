@@ -26,17 +26,21 @@ import OverviewTab from "@/components/dashboard/studentProfile/overviewTab";
 import SessionsTab from "@/components/dashboard/studentProfile/sessionsTab";
 import FinancesTab from "@/components/dashboard/studentProfile/financesTab";
 import ReportsTab from "@/components/dashboard/studentProfile/reportsTab";
+import StudentReportsTab from "@/components/dashboard/groups/studentReports/studentReportsTab";
+import type { StudentReportItem } from "@/types/studentReport";
 
 interface StudentProfileClientProps {
   student: StudentProfile;
   tutors: { id: number; name: string | null }[];
   financialSummary?: StudentFinancialSummary | null;
+  reports?: StudentReportItem[];
 }
 
 export default function StudentProfileClient({
   student,
   tutors,
   financialSummary,
+  reports = [],
 }: StudentProfileClientProps) {
   const [activeTab, setActiveTab] = useState("overview");
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -177,7 +181,8 @@ export default function StudentProfileClient({
           {[
             { val: "overview", label: "نظرة عامة" },
             { val: "sessions", label: "الحصص" },
-            { val: "reports", label: "التقارير والتقدم" },
+            { val: "reports", label: "تقارير الحصص" },
+            { val: "studentReports", label: "تقرير الطالب" },
             { val: "finances", label: "المالية" },
           ].map((t) => (
             <TabsTrigger
@@ -198,6 +203,13 @@ export default function StudentProfileClient({
         </TabsContent>
         <TabsContent value="reports">
           <ReportsTab sessions={student.sessions} />
+        </TabsContent>
+        <TabsContent value="studentReports">
+          <StudentReportsTab
+            reports={reports}
+            studentId={student.id}
+            studentName={student.name}
+          />
         </TabsContent>
         <TabsContent value="finances">
           {financialSummary ? (

@@ -33,6 +33,7 @@ import {
 import { StudentDashboardProps } from "@/types/student/types";
 import { SessionCountdownBanner } from "../common/sessionCountdownBanner";
 import { UploadSolutionDialog } from "../common/uploadSolutionDialog";
+import StudentReportsTab from "@/components/dashboard/groups/studentReports/studentReportsTab";
 import { useRouter } from "next/navigation";
 
 export function StudentDashboardClient(props: StudentDashboardProps) {
@@ -48,6 +49,7 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
     activeSubscription,
     lastAssignment,
     pendingAssignmentsCount,
+    studentReports,
   } = props;
   const router = useRouter();
 
@@ -304,6 +306,9 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
             <TabsTrigger value="reports" className="flex-1">
               {t("tabs.reports")}
             </TabsTrigger>
+            <TabsTrigger value="studentReports" className="flex-1">
+              {t("tabs.studentReports")}
+            </TabsTrigger>
             <TabsTrigger value="billing" className="flex-1">
               {t("tabs.billing")}
             </TabsTrigger>
@@ -464,6 +469,14 @@ export function StudentDashboardClient(props: StudentDashboardProps) {
                 </p>
               )}
             </div>
+          </TabsContent>
+
+          <TabsContent value="studentReports">
+            <StudentReportsTab
+              reports={studentReports}
+              studentId={student.id}
+              studentName={student.name}
+            />
           </TabsContent>
 
           <TabsContent value="billing">

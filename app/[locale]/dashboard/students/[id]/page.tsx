@@ -2,12 +2,14 @@ import db from "@/lib/prisma";
 import { notFound, redirect } from "next/navigation";
 import StudentProfileClient from "@/components/dashboard/studentProfile/viewer";
 import { user } from "@/lib/auth";
+import { Role } from "@/types/user";
 import { getSessionStatus } from "@/lib/session";
 import { StudentProfile, SessionRecord } from "@/types/studentProfile";
 import { getStudentFinancialSummary } from "@/actions/studentFinances";
 import dayjs from "@/lib/dayjs";
 import { SubscriptionStatus } from "@/types/subscription";
 import { countSessionsUsed } from "@/lib/studentFinances";
+import { getStudentReportItems } from "@/lib/studentReports";
 
 export default async function StudentProfilePage({
   params,
@@ -15,7 +17,14 @@ export default async function StudentProfilePage({
   params: Promise<{ id: string }>;
 }) {
   const currentUser = await user();
-  if (!currentUser || !currentUser.academyId) redirect("/login");
+  if (!currentUser) redirect("/login");
+  if (
+    currentUser.role !== Role.Admin &&
+    currentUser.role !== Role.SuperAdmin
+  ) {
+    redirect("/ar/dashboard");
+  }
+  if (!currentUser.academyId) redirect("/login");
 
   const id = parseInt((await params).id);
   if (isNaN(id)) notFound();
@@ -200,6 +209,7 @@ export default async function StudentProfilePage({
       tutors={tutors.map((t) => ({ id: t.id, name: t.user.name }))}
       student={transformed}
       financialSummary={financialSummary}
+      reports={await getStudentReportItems(id)}
     />
   );
 }

@@ -1016,7 +1016,9 @@
     },
     "tabs": {
       "sessions": "Sessions",
-      "reports": "Reports",
+      "reports": "Session Reports",
+      "studentReports": "Student Report",
+      "homework": "Homework",
       "billing": "Billing"
     },
     "sessionsTable": {

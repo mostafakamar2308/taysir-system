@@ -12,6 +12,8 @@ import {
   removeStudentsFromGroup,
 } from "@/actions/groups";
 import AddStudentsDialog from "./addStudentsDialog";
+import AddStudentReportDialog from "@/components/dashboard/groups/studentReports/addStudentReportDialog";
+import { FileText } from "lucide-react";
 import type { GroupDetail } from "@/types/groupDetails";
 
 interface Props {
@@ -27,6 +29,10 @@ export default function GroupStudentsCard({
 }: Props) {
   const router = useRouter();
   const [addOpen, setAddOpen] = useState(false);
+  const [reportStudent, setReportStudent] = useState<{
+    id: number;
+    name: string;
+  } | null>(null);
 
   const handleToggleActive = async (studentId: number, active: boolean) => {
     await toggleStudentMembership(group.id, studentId, active);
@@ -112,6 +118,19 @@ export default function GroupStudentsCard({
                     </Button>
                   </div>
                 )}
+                {readOnly && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={() =>
+                      setReportStudent({ id: s.studentId, name: s.studentName })
+                    }
+                  >
+                    <FileText className="h-4 w-4 ml-1" />
+                    إضافة تقرير
+                  </Button>
+                )}
               </div>
             ))
           )}
@@ -123,6 +142,18 @@ export default function GroupStudentsCard({
           open={addOpen}
           onOpenChange={setAddOpen}
           groupId={group.id}
+          onSuccess={() => router.refresh()}
+        />
+      )}
+
+      {readOnly && (
+        <AddStudentReportDialog
+          studentId={reportStudent?.id ?? 0}
+          studentName={reportStudent?.name}
+          open={!!reportStudent}
+          onOpenChange={(open) => {
+            if (!open) setReportStudent(null);
+          }}
           onSuccess={() => router.refresh()}
         />
       )}

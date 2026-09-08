@@ -40,11 +40,6 @@ export async function GET(
       return NextResponse.json({ error: "الواجب غير موجود" }, { status: 404 });
     }
 
-    // Authorise: must be same academy
-    if (assignment.session.academyId !== currentUser.academyId) {
-      return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
-    }
-
     const isAdmin = currentUser.role === Role.Admin;
     const isTutor = currentUser.tutorId === assignment.session.tutorId;
     const isParticipant = assignment.session.participants.some(
@@ -52,6 +47,15 @@ export async function GET(
     );
 
     if (!isAdmin && !isTutor && !isParticipant) {
+      return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
+    }
+
+    // Academy scope applies to staff roles only; a participating student is
+    // already tied to the session regardless of the token's academyId.
+    if (
+      (isAdmin || isTutor) &&
+      assignment.session.academyId !== currentUser.academyId
+    ) {
       return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
     }
 
@@ -81,10 +85,6 @@ export async function GET(
       return NextResponse.json({ error: "الحل غير موجود" }, { status: 404 });
     }
 
-    if (solution.assignment.session.academyId !== currentUser.academyId) {
-      return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
-    }
-
     const isAdmin = currentUser.role === Role.Admin;
     const isTutor = currentUser.tutorId === solution.assignment.session.tutorId;
     const isOwner = solution.assignment.session.participants.some(
@@ -95,8 +95,82 @@ export async function GET(
       return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
     }
 
+    if (
+      (isAdmin || isTutor) &&
+      solution.assignment.session.academyId !== currentUser.academyId
+    ) {
+      return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
+    }
+
     filePath = solution.filePath;
     originalName = solution.originalFileName;
+  } else if (type === "student-report") {
+    const report = await db.studentReport.findUnique({
+      where: { id: parseInt(id) },
+      select: {
+        filePath: true,
+        originalFileName: true,
+        student: {
+          select: {
+            id: true,
+            academyId: true,
+            userId: true,
+          },
+        },
+      },
+    });
+
+    if (!report) {
+      return NextResponse.json(
+        { error: "التقرير غير موجود" },
+        { status: 404 },
+      );
+    }
+
+    if (!report.filePath) {
+      return NextResponse.json(
+        { error: "لا يوجد ملف مرفق في هذا التقرير" },
+        { status: 404 },
+      );
+    }
+
+    const isAdmin = currentUser.role === Role.Admin;
+    const isSameStudent =
+      currentUser.studentId != null &&
+      report.student.userId === currentUser.id;
+    const supervisor = await db.supervisor.findFirst({
+      where: { userId: currentUser.id },
+      select: { academyId: true },
+    });
+    const isAcademySupervisor =
+      !!supervisor && supervisor.academyId === report.student.academyId;
+    const tutorMember =
+      currentUser.tutorId != null
+        ? await db.groupStudent.findFirst({
+            where: {
+              studentId: report.student.id,
+              group: { currentTutorId: currentUser.tutorId },
+            },
+            select: { id: true },
+          })
+        : null;
+    const isTutorOfStudent = !!tutorMember;
+
+    if (!isAdmin && !isAcademySupervisor && !isTutorOfStudent && !isSameStudent) {
+      return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
+    }
+
+    // Academy scope applies to staff roles only; the report's own student is
+    // entitled to download regardless of the token's academyId.
+    if (
+      (isAdmin || isTutorOfStudent) &&
+      report.student.academyId !== currentUser.academyId
+    ) {
+      return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
+    }
+
+    filePath = report.filePath!;
+    originalName = report.originalFileName!;
   } else {
     return NextResponse.json(
       { error: "نوع غير صالح (assignment أو solution)" },

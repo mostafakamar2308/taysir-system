@@ -9,6 +9,7 @@ import type {
   SessionRecord,
 } from "@/types/studentProfile";
 import ReadOnlyStudentProfileClient from "@/components/dashboard/groups/studentProfile/readOnlyStudentProfile";
+import { getStudentReportItems } from "@/lib/studentReports";
 
 export default async function TutorGroupStudentPage({
   params,
@@ -147,9 +148,12 @@ export default async function TutorGroupStudentPage({
     sessions,
   };
 
+  const reports = await getStudentReportItems(student.id);
+
   return (
     <ReadOnlyStudentProfileClient
       student={lite}
+      reports={reports}
       backHref={`/${locale}/dashboard/tutor/groups/${gid}`}
     />
   );

@@ -83,6 +83,7 @@ model Academy {
   tutors               Tutor[]
   students             Student[]
   groups               Group[]
+  studentReports       StudentReport[]
   sessions             Session[]
   expenses             Expense[]
   plans                Plan[]
@@ -156,6 +157,8 @@ model User {
   pushSubscriptions PushSubscription[]
   timeExtensionRequestsRequested TimeExtensionRequest[] @relation("TimeExtensionRequestRequested")
   timeExtensionRequestsDecided   TimeExtensionRequest[] @relation("TimeExtensionRequestDecided")
+  studentReportsCreated StudentReport[] @relation("StudentReportCreated")
+  studentReportsUpdated StudentReport[] @relation("StudentReportUpdated")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -199,6 +202,7 @@ model Student {
   notes                 Note[]
   payments              Revenue[]
   sessionParticipants   SessionParticipant[]
+  studentReports        StudentReport[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -515,6 +519,38 @@ model SessionReport {
   updatedAt DateTime @updatedAt
 
   @@index([participantId])
+}
+
+// ===================Student Reports=================
+
+// A report written by a tutor/supervisor about a student's overall progress,
+// distinct from per-session SessionReport. Content is free text and/or a
+// single uploaded file (typically a PDF). Students are notified on create/edit.
+model StudentReport {
+  id               Int      @id @default(autoincrement())
+  studentId        Int
+  student          Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  academyId        Int
+  academy          Academy  @relation(fields: [academyId], references: [id])
+
+  title   String
+  content String?
+
+  filePath         String?
+  originalFileName String?
+  fileSize         Int?
+  mimeType         String?
+
+  createdById Int
+  createdBy   User    @relation("StudentReportCreated", fields: [createdById], references: [id])
+  updatedById Int?
+  updatedBy   User?   @relation("StudentReportUpdated", fields: [updatedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([studentId])
+  @@index([academyId])
 }
 
 // ===================Finances=================

@@ -32,15 +32,19 @@ import { SessionStatus, AttendanceStatus } from "@/types/session";
 import { formatDate, formatTime } from "@/lib/dates";
 import dayjs from "@/lib/dayjs";
 import ReportsTab from "@/components/dashboard/studentProfile/reportsTab";
+import StudentReportsTab from "@/components/dashboard/groups/studentReports/studentReportsTab";
+import type { StudentReportItem } from "@/types/studentReport";
 
 interface Props {
   student: ReadOnlyStudentProfile;
   backHref: string;
+  reports?: StudentReportItem[];
 }
 
 export default function ReadOnlyStudentProfileClient({
   student,
   backHref,
+  reports = [],
 }: Props) {
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto" dir="rtl">
@@ -113,7 +117,8 @@ export default function ReadOnlyStudentProfileClient({
           {[
             { val: "overview", label: "نظرة عامة" },
             { val: "sessions", label: "الحصص" },
-            { val: "reports", label: "التقارير والتقدم" },
+            { val: "reports", label: "تقارير الحصص" },
+            { val: "studentReports", label: "تقرير الطالب" },
           ].map((t) => (
             <TabsTrigger
               key={t.val}
@@ -133,6 +138,15 @@ export default function ReadOnlyStudentProfileClient({
         </TabsContent>
         <TabsContent value="reports">
           <ReportsTab sessions={student.sessions} />
+        </TabsContent>
+        <TabsContent value="studentReports">
+          <StudentReportsTab
+            reports={reports}
+            studentId={student.id}
+            studentName={student.name}
+            canCreate
+            canEdit
+          />
         </TabsContent>
       </Tabs>
     </div>

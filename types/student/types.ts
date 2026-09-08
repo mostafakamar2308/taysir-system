@@ -1,3 +1,5 @@
+import type { StudentReportItem } from "@/types/studentReport";
+
 export interface SessionItem {
   id: number;
   participantId: number;
@@ -125,4 +127,5 @@ export interface StudentDashboardProps {
     assignment: AssignmentData;
     solution: SolutionData | null;
   } | null;
+  studentReports: StudentReportItem[];
 }

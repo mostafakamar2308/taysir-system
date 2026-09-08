@@ -5,6 +5,7 @@ import { StudentDashboardClient } from "@/components/dashboard/student/viewer";
 import dayjs from "@/lib/dayjs";
 import { SubscriptionStatus } from "@/types/subscription";
 import { computeHomeworkData } from "@/lib/homework";
+import { getStudentReportItems } from "@/lib/studentReports";
 import type { NextSession } from "@/types/student/types";
 
 export default async function StudentDashboardPage() {
@@ -234,6 +235,7 @@ export default async function StudentDashboardPage() {
     },
     pendingAssignmentsCount: pendingAssignments.length,
     lastAssignment: lastAssignmentData,
+    studentReports: await getStudentReportItems(student.id, 10),
   };
 
   return <StudentDashboardClient {...props} />;
