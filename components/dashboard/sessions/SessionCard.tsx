@@ -12,12 +12,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { MoreHorizontal } from "lucide-react";
 import { formatTime } from "@/lib/dates";
+import dayjs from "@/lib/dayjs";
 
 interface Props {
   session: AdminSession;
   onClick: () => void;
   onEdit?: (session: AdminSession) => void;
   onCancel?: (session: AdminSession) => void;
+  onExtend?: (session: AdminSession) => void;
 }
 
 const statusStyles: Record<SessionStatus, string> = {
@@ -26,7 +28,7 @@ const statusStyles: Record<SessionStatus, string> = {
   [SessionStatus.CANCELLED]: "bg-red-50 border-red-200 text-red-800",
 };
 
-export function SessionCard({ session, onClick, onEdit, onCancel }: Props) {
+export function SessionCard({ session, onClick, onEdit, onCancel, onExtend }: Props) {
   const startTime = formatTime(session.startTime);
   const endTime = formatTime(session.endTime);
 
@@ -88,10 +90,30 @@ export function SessionCard({ session, onClick, onEdit, onCancel }: Props) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
-            <DropdownMenuItem onClick={() => onEdit?.(session)}>
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit?.(session);
+              }}
+            >
               تعديل
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onCancel?.(session)}>
+            {onExtend && dayjs(session.startTime).isBefore(dayjs()) && (
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onExtend(session);
+                }}
+              >
+                طلب تمديد الوقت
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                onCancel?.(session);
+              }}
+            >
               إلغاء
             </DropdownMenuItem>
           </DropdownMenuContent>

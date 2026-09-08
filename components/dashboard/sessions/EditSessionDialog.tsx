@@ -11,13 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
@@ -33,6 +27,7 @@ interface Props {
   session: AdminSession;
   academyId: number;
   canEditSessionTime?: boolean;
+  canEditDuration?: boolean;
 }
 
 export function EditSessionDialog({
@@ -41,6 +36,7 @@ export function EditSessionDialog({
   session,
   academyId,
   canEditSessionTime = true,
+  canEditDuration = true,
 }: Props) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -86,8 +82,10 @@ export function EditSessionDialog({
           ? {
               date,
               startTime: dayjs(`${date}T${startTime}`).utc().toISOString(),
-              duration,
             }
+          : {}),
+        ...(canEditSessionTime && canEditDuration && !isPast
+          ? { duration }
           : {}),
       });
       if (!res.ok) throw new Error(res.error);
@@ -125,18 +123,15 @@ export function EditSessionDialog({
           {/* Tutor */}
           <div className="space-y-2">
             <Label>المعلم</Label>
-            <Select value={selectedTutorId} onValueChange={setSelectedTutorId}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {tutors.map((t) => (
-                  <SelectItem key={t.id} value={t.id.toString()}>
-                    {t.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Combobox
+              options={tutors.map((t) => ({
+                value: t.id.toString(),
+                label: t.name,
+              }))}
+              value={selectedTutorId}
+              onValueChange={setSelectedTutorId}
+              placeholder="اختر المعلم"
+            />
             {tutorMismatch && (
               <Alert
                 variant="warning"
@@ -171,7 +166,7 @@ export function EditSessionDialog({
               </div>
             </div>
           )}
-          {!isPast && canEditSessionTime && (
+          {!isPast && canEditSessionTime && canEditDuration && (
             <div className="space-y-2">
               <Label>المدة (دقيقة)</Label>
               <Input

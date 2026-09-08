@@ -368,8 +368,11 @@ export const updateSession = withResult(async (input: UpdateSessionInput) => {
     });
     if (existing.tutorId !== tutor?.id) return fail("غير مصرح");
 
-    const changesTime =
-      input.startTime !== undefined || input.duration !== undefined;
+    if (input.duration !== undefined) {
+      return fail("غير مصرح: تعديل مدة الحصة غير متاح لك");
+    }
+
+    const changesTime = input.startTime !== undefined;
     if (changesTime) {
       const schedulingSettings = await getAcademySchedulingSettings(
         currentUser.academyId,

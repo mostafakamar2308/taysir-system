@@ -19,13 +19,20 @@ import {
   ChevronRight,
   ChevronLeft,
   CalendarDays,
+  LayoutGrid,
   Filter,
   Plus,
 } from "lucide-react";
+import {
+  ToggleGroup,
+  ToggleGroupItem,
+} from "@/components/ui/toggle-group";
+import { CardsView } from "./cardsView";
 import { Badge } from "@/components/ui/badge";
 import { AddSessionDialog } from "./AddSessionDialog";
 import { EditSessionDialog } from "@/components/dashboard/sessions/EditSessionDialog";
 import { CancelSessionDialog } from "@/components/dashboard/sessions/CancelSessionDialog";
+import { TimeExtensionDialog } from "./TimeExtensionDialog";
 import SessionDetailPanel from "./sessionDetailPanel";
 
 interface Props {
@@ -53,6 +60,9 @@ export default function TutorSessionsViewer({
   const [saturday, setSaturday] = useState(
     dayjs(initialWeekStart).startOf("day"),
   );
+  const [view, setView] = useState<"cards" | "calendar">(
+    searchParams.get("view") === "calendar" ? "calendar" : "cards",
+  );
   const [statusFilter, setStatusFilter] = useState("all");
   const [trialFilter, setTrialFilter] = useState("all");
   const [missingAttendance, setMissingAttendance] = useState(false);
@@ -63,6 +73,7 @@ export default function TutorSessionsViewer({
     null,
   );
   const [cancelSession, setCancelSession] = useState<AdminSession | null>(null);
+  const [extendSession, setExtendSession] = useState<AdminSession | null>(null);
   const [detailSession, setDetailSession] = useState<SessionClientData | null>(
     null,
   );
@@ -131,12 +142,36 @@ export default function TutorSessionsViewer({
             عرض وإدارة جميع حصصك في التقويم الأسبوعي
           </p>
         </div>
-        {canCreateSessions && (
-          <Button onClick={() => setAddDialogOpen(true)}>
-            <Plus className="h-4 w-4 ml-2" />
-            إضافة حصة
-          </Button>
-        )}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <ToggleGroup
+            type="single"
+            value={view}
+            onValueChange={(value) => {
+              if (!value) return;
+              setView(value as "cards" | "calendar");
+              const params = new URLSearchParams(searchParams.toString());
+              params.set("view", value);
+              router.push(`?${params.toString()}`);
+            }}
+            size="sm"
+            className="border rounded-md p-0.5 bg-background"
+          >
+            <ToggleGroupItem value="cards" aria-label="عرض البطاقات">
+              <LayoutGrid className="h-4 w-4 ml-1" />
+              بطاقات
+            </ToggleGroupItem>
+            <ToggleGroupItem value="calendar" aria-label="عرض التقويم">
+              <CalendarDays className="h-4 w-4 ml-1" />
+              تقويم
+            </ToggleGroupItem>
+          </ToggleGroup>
+          {canCreateSessions && (
+            <Button onClick={() => setAddDialogOpen(true)}>
+              <Plus className="h-4 w-4 ml-2" />
+              إضافة حصة
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-border bg-card p-4">
@@ -223,8 +258,8 @@ export default function TutorSessionsViewer({
         </div>
       </div>
 
-      <div className="hidden md:block">
-        <WeeklyCalendarView
+      {view === "cards" && (
+        <CardsView
           weekDates={weekDates}
           sessions={filteredSessions}
           onSessionClick={(s) =>
@@ -234,21 +269,42 @@ export default function TutorSessionsViewer({
           }
           onEditSession={setEditingSession}
           onCancelSession={setCancelSession}
+          onExtendSession={setExtendSession}
         />
-      </div>
-      <div className="block md:hidden">
-        <MobileSessionsList
-          weekDates={weekDates}
-          sessions={filteredSessions}
-          onSessionClick={(s) =>
-            setDetailSession(
-              initialSessionData.find((d) => d.id === s.id) ?? null,
-            )
-          }
-          onEditSession={setEditingSession}
-          onCancelSession={setCancelSession}
-        />
-      </div>
+      )}
+
+      {view === "calendar" && (
+        <>
+          <div className="hidden md:block">
+            <WeeklyCalendarView
+              weekDates={weekDates}
+              sessions={filteredSessions}
+              onSessionClick={(s) =>
+                setDetailSession(
+                  initialSessionData.find((d) => d.id === s.id) ?? null,
+                )
+              }
+              onEditSession={setEditingSession}
+              onCancelSession={setCancelSession}
+              onExtendSession={setExtendSession}
+            />
+          </div>
+          <div className="block md:hidden">
+            <MobileSessionsList
+              weekDates={weekDates}
+              sessions={filteredSessions}
+              onSessionClick={(s) =>
+                setDetailSession(
+                  initialSessionData.find((d) => d.id === s.id) ?? null,
+                )
+              }
+              onEditSession={setEditingSession}
+              onCancelSession={setCancelSession}
+              onExtendSession={setExtendSession}
+            />
+          </div>
+        </>
+      )}
 
       {detailSession && (
         <SessionDetailPanel
@@ -259,6 +315,7 @@ export default function TutorSessionsViewer({
           }}
           onUpdate={() => router.refresh()}
           canEditSessionTime={canEditSessionTime}
+          canEditDuration={false}
         />
       )}
 
@@ -277,12 +334,20 @@ export default function TutorSessionsViewer({
           session={editingSession}
           academyId={academyId}
           canEditSessionTime={canEditSessionTime}
+          canEditDuration={false}
         />
       )}
       <CancelSessionDialog
         open={cancelSession !== null}
         onOpenChange={() => setCancelSession(null)}
         sessionId={cancelSession?.id || 0}
+      />
+      <TimeExtensionDialog
+        session={extendSession}
+        open={extendSession !== null}
+        onOpenChange={(open) => {
+          if (!open) setExtendSession(null);
+        }}
       />
     </div>
   );

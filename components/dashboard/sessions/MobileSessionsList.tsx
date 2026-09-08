@@ -10,6 +10,7 @@ interface Props {
   onSessionClick: (session: AdminSession) => void;
   onEditSession?: (session: AdminSession) => void;
   onCancelSession?: (session: AdminSession) => void;
+  onExtendSession?: (session: AdminSession) => void;
 }
 
 const dayNames = [
@@ -28,6 +29,7 @@ export function MobileSessionsList({
   onSessionClick,
   onEditSession,
   onCancelSession,
+  onExtendSession,
 }: Props) {
   const today = dayjs().format("YYYY-MM-DD");
 
@@ -57,6 +59,7 @@ export function MobileSessionsList({
                   onClick={() => onSessionClick(session)}
                   onEdit={onEditSession}
                   onCancel={onCancelSession}
+                  onExtend={onExtendSession}
                 />
               ))}
             </div>

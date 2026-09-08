@@ -18,6 +18,7 @@ import {
   Video,
   MessageSquare,
   FileText,
+  Timer,
 } from "lucide-react";
 import { Role } from "@/types/user";
 
@@ -136,6 +137,11 @@ export const getSidebarGroups = (role: number, locale: string = "ar") => {
             titleKey: "items.schedules",
             url: `/${locale}/dashboard/sessions`,
             icon: Clock,
+          },
+          {
+            titleKey: "items.timeExtensionRequests",
+            url: `/${locale}/dashboard/session-management/time-extension-requests`,
+            icon: Timer,
           },
           {
             titleKey: "items.kpis",

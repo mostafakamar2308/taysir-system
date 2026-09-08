@@ -154,6 +154,8 @@ model User {
   groupChatMemberships GroupChatMember[]
   groupChatMessages    GroupChatMessage[]
   pushSubscriptions PushSubscription[]
+  timeExtensionRequestsRequested TimeExtensionRequest[] @relation("TimeExtensionRequestRequested")
+  timeExtensionRequestsDecided   TimeExtensionRequest[] @relation("TimeExtensionRequestDecided")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -371,6 +373,7 @@ model Session {
   participants    SessionParticipant[]
   assignment      Assignment?
   tutorAttendance TutorAttendance?
+  timeExtensionRequests TimeExtensionRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -380,6 +383,30 @@ model Session {
   @@index([isTrial])
   @@index([tutorId])
   @@index([startTime])
+}
+
+// Tutor's request to extend a session's duration after it has started.
+// Reviewed by an admin (decidedById stores the admin's User.id).
+model TimeExtensionRequest {
+  id               Int      @id @default(autoincrement())
+  sessionId        Int
+  session          Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  requestedById    Int // tutor's User.id
+  requestedBy      User     @relation("TimeExtensionRequestRequested", fields: [requestedById], references: [id])
+  addedMinutes     Int // requested extra minutes
+  requestedEndTime DateTime // original startTime + (duration + addedMinutes)
+
+  status Int @default(0) // 0=pending, 1=accepted, 2=rejected
+
+  decidedById Int?
+  decidedBy   User?    @relation("TimeExtensionRequestDecided", fields: [decidedById], references: [id])
+  decidedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sessionId])
+  @@index([status])
 }
 
 model SessionParticipant {

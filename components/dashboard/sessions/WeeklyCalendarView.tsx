@@ -11,6 +11,7 @@ interface Props {
   onSessionClick: (session: AdminSession) => void;
   onEditSession: (session: AdminSession) => void;
   onCancelSession: (session: AdminSession) => void;
+  onExtendSession?: (session: AdminSession) => void;
 }
 
 const dayNames = [
@@ -30,6 +31,7 @@ export function WeeklyCalendarView({
   onSessionClick,
   onEditSession,
   onCancelSession,
+  onExtendSession,
 }: Props) {
   // Group sessions by day AND start hour for quick lookup
   const sessionsByDayHour = useMemo(() => {
@@ -123,6 +125,7 @@ export function WeeklyCalendarView({
                             onClick={() => onSessionClick(session)}
                             onEdit={onEditSession}
                             onCancel={onCancelSession}
+                            onExtend={onExtendSession}
                           />
                         ))}
                       </div>
