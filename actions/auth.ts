@@ -8,15 +8,20 @@ import { withResult, fail } from "@/lib/action-result";
 import { Role } from "@/types/user";
 
 export const login = withResult(async (formData: FormData) => {
-  const email = formData.get("email") as string;
+  const identifier = ((formData.get("email") as string) || "").trim();
   const password = formData.get("password") as string;
 
-  if (!email || !password) {
-    return fail("يرجى إدخال البريد الإلكتروني وكلمة المرور");
+  if (!identifier || !password) {
+    return fail("يرجى إدخال البريد الإلكتروني أو اسم المستخدم وكلمة المرور");
   }
 
-  const user = await db.user.findUnique({
-    where: { email },
+  const user = await db.user.findFirst({
+    where: {
+      OR: [
+        { username: identifier.toLowerCase() },
+        { email: identifier },
+      ],
+    },
     include: {
       admin: { include: { academy: true } },
       supervisor: true,
@@ -26,7 +31,7 @@ export const login = withResult(async (formData: FormData) => {
   });
 
   if (!user) {
-    return fail("البريد الإلكتروني غير صحيح");
+    return fail("البريد الإلكتروني أو اسم المستخدم غير صحيح");
   }
 
   const valid = await bcrypt.compare(password, user.password);
@@ -50,7 +55,7 @@ export const login = withResult(async (formData: FormData) => {
 
   const payload = {
     id: user.id,
-    email: user.email,
+    email: user.email || "",
     name: user.name || "",
     role: user.role,
     academyId,

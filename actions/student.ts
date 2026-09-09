@@ -8,7 +8,7 @@ import {
   recordStudentTutorChangeHistory,
 } from "@/lib/history";
 import { getTokenFromCookie, verifyToken } from "@/lib/jwt";
-import { withResult, fail } from "@/lib/action-result";
+import { withResult, fail, ActionError } from "@/lib/action-result";
 import db from "@/lib/prisma";
 import { getSessionStatus } from "@/lib/session";
 import { markStudentSubscribed } from "@/lib/studentStatus";
@@ -16,20 +16,94 @@ import { PaymentStatus } from "@/types/payment";
 import { StudentStatus } from "@/types/student";
 import { SubscriptionStatus } from "@/types/subscription";
 import { Role } from "@/types/user";
+import {
+  buildUsernameSuggestions,
+  isValidUsername,
+  normalizeUsername,
+} from "@/lib/username";
 import dayjs from "dayjs";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import bcrypt from "bcrypt";
 import { Prisma } from "@/generated/prisma/client";
+import { uniqueViolationField } from "@/lib/prisma-error";
+
+const usernameField = z
+  .string()
+  .min(1, "اسم المستخدم مطلوب")
+  .refine(
+    (value) => {
+      const normalized = normalizeUsername(value);
+      return normalized.length >= 3 && isValidUsername(normalized);
+    },
+    "اسم المستخدم يجب أن يكون 3-30 حرفًا (حروف إنجليزية وأرقام ونقاط وشرطات سفلية)",
+  );
 
 const userSchema = z.object({
   name: z.string().min(1, "الاسم مطلوب"),
-  email: z.string(),
+  email: z.string().optional().nullable(),
+  username: usernameField,
   phone: z.string().optional().nullable(),
   timezone: z.string().min(1, "المنطقة الزمنية مطلوبة"),
   preferredLanguage: z.string().optional().nullable(),
   password: z.string().min(6, "كلمة المرور يجب أن تكون 6 أحرف على الأقل"),
 });
+
+const userUpdateSchema = z.object({
+  name: z.string().min(1, "الاسم مطلوب"),
+  email: z.string().optional().nullable(),
+  username: usernameField.optional().nullable(),
+  phone: z.string().optional().nullable(),
+  timezone: z.string().min(1, "المنطقة الزمنية مطلوبة"),
+  preferredLanguage: z.string().optional().nullable(),
+});
+
+/** Real-time username availability check used by the add/edit dialogs. */
+export const checkUsername = withResult(
+  async (rawUsername: string, excludeId?: number) => {
+    const username = normalizeUsername(rawUsername);
+
+    if (!username) {
+      return {
+        username: "",
+        valid: false,
+        available: false,
+        suggestions: [],
+      };
+    }
+
+    const taken = await db.user.findMany({
+      where: {
+        username: { not: null },
+        ...(excludeId ? { NOT: { id: excludeId } } : {}),
+      },
+      select: { username: true },
+    });
+    const takenSet = new Set(
+      taken.map((u) => u.username as string),
+    );
+
+    const valid = isValidUsername(username);
+    if (!valid) {
+      return {
+        username,
+        valid: false,
+        available: false,
+        suggestions: [],
+      };
+    }
+
+    const available = !takenSet.has(username);
+    return {
+      username,
+      valid: true,
+      available,
+      suggestions: available
+        ? []
+        : buildUsernameSuggestions(username, takenSet),
+    };
+  },
+);
 
 // Schema for student-specific fields (stored in Student table)
 const studentDataSchema = z.object({
@@ -208,7 +282,12 @@ export const createStudent = withResult(async (formData: FormData) => {
   // Extract raw data from FormData
   const rawUser = {
     name: formData.get("name"),
-    email: formData.get("email"),
+    email:
+      typeof formData.get("email") === "string" &&
+      (formData.get("email") as string).trim() !== ""
+        ? (formData.get("email") as string).trim()
+        : null,
+    username: normalizeUsername((formData.get("username") as string) ?? ""),
     phone: formData.get("phone") || null,
     timezone: formData.get("timezone"),
     preferredLanguage: formData.get("preferredLanguage") || null,
@@ -249,46 +328,65 @@ export const createStudent = withResult(async (formData: FormData) => {
   // Hash provided password
   const hashedPassword = await bcrypt.hash(validatedUser.data.password, 10);
 
-  const result = await db.$transaction(async (tx) => {
-    // 1. Create User
-    const user = await tx.user.create({
-      data: {
-        name: validatedUser.data.name,
-        email: validatedUser.data.email,
-        password: hashedPassword,
-        phone: validatedUser.data.phone,
-        timezone: validatedUser.data.timezone,
-        preferredLanguage: validatedUser.data.preferredLanguage || "ar",
-        role: Role.Student,
-      },
-    });
+  let result: { user: { id: number }; student: { id: number } };
+  try {
+    result = await db.$transaction(async (tx) => {
+      const duplicates = await tx.user.count({
+        where: { username: validatedUser.data.username },
+      });
+      if (duplicates > 0) {
+        throw new ActionError(
+          "اسم المستخدم هذا مستخدم بالفعل، اختر اسمًا آخر",
+        );
+      }
 
-    // 2. Create Student
-    const student = await tx.student.create({
-      data: {
-        userId: user.id,
-        academyId: currentUser.academyId!,
-        age: validatedStudent.data.age,
-        country: validatedStudent.data.country,
-        status: validatedStudent.data.status,
-        currencyId: validatedStudent.data.currencyId,
-        source: validatedStudent.data.source,
-      },
-    });
+      // 1. Create User
+      const user = await tx.user.create({
+        data: {
+          name: validatedUser.data.name,
+          email: validatedUser.data.email || null,
+          username: validatedUser.data.username,
+          password: hashedPassword,
+          phone: validatedUser.data.phone,
+          timezone: validatedUser.data.timezone,
+          preferredLanguage: validatedUser.data.preferredLanguage || "ar",
+          role: Role.Student,
+        },
+      });
 
-    // 3. If a tutor was selected, create a private-group membership + chat room
-    if (rawStudent.tutorId) {
-      await setStudentTutor(
-        tx,
-        student,
-        user.name ?? "",
-        rawStudent.tutorId,
-        currentUser.academyId!,
-      );
+      // 2. Create Student
+      const student = await tx.student.create({
+        data: {
+          userId: user.id,
+          academyId: currentUser.academyId!,
+          age: validatedStudent.data.age,
+          country: validatedStudent.data.country,
+          status: validatedStudent.data.status,
+          currencyId: validatedStudent.data.currencyId,
+          source: validatedStudent.data.source,
+        },
+      });
+
+      // 3. If a tutor was selected, create a private-group membership + chat room
+      if (rawStudent.tutorId) {
+        await setStudentTutor(
+          tx,
+          student,
+          user.name ?? "",
+          rawStudent.tutorId,
+          currentUser.academyId!,
+        );
+      }
+
+      return { user, student };
+    });
+  } catch (err) {
+    if (err instanceof ActionError) throw err;
+    if (uniqueViolationField(err)?.includes("username")) {
+      throw new ActionError("اسم المستخدم هذا مستخدم بالفعل، اختر اسمًا آخر");
     }
-
-    return { user, student };
-  });
+    throw err;
+  }
 
   // If status is "lead", record lead history
   if (validatedStudent.data.status === StudentStatus.lead) {
@@ -300,14 +398,6 @@ export const createStudent = withResult(async (formData: FormData) => {
   }
 
   revalidatePath("/ar/dashboard/students");
-});
-
-const userUpdateSchema = z.object({
-  name: z.string().min(1, "الاسم مطلوب"),
-  email: z.string().email("بريد إلكتروني غير صالح"),
-  phone: z.string().optional().nullable(),
-  timezone: z.string().min(1, "المنطقة الزمنية مطلوبة"),
-  preferredLanguage: z.string().optional().nullable(),
 });
 
 // Schema for student fields (tutor is managed via group memberships)
@@ -332,7 +422,14 @@ export const updateStudent = withResult(
     // 2. Extract and validate user fields from formData
     const rawUser = {
       name: formData.get("name") as string,
-      email: formData.get("email") as string,
+      email:
+        formData.get("email") && (formData.get("email") as string).trim() !== ""
+          ? (formData.get("email") as string).trim()
+          : null,
+      username:
+        formData.get("username") && (formData.get("username") as string).trim()
+          ? normalizeUsername(formData.get("username") as string)
+          : null,
       phone: formData.get("phone") || null,
       timezone: formData.get("timezone") as string,
       preferredLanguage: formData.get("preferredLanguage") || null,
@@ -358,27 +455,51 @@ export const updateStudent = withResult(
     }
 
     // 4. Perform updates in a transaction
-    await db.$transaction(async (tx) => {
-      await tx.user.update({
-        where: { id: existingStudent.userId },
-        data: {
-          name: validatedUser.data.name,
-          email: validatedUser.data.email,
-          phone: validatedUser.data.phone,
-          timezone: validatedUser.data.timezone,
-          preferredLanguage: validatedUser.data.preferredLanguage || undefined,
-        },
-      });
+    try {
+      await db.$transaction(async (tx) => {
+        if (validatedUser.data.username) {
+          const duplicates = await tx.user.count({
+            where: {
+              username: validatedUser.data.username,
+              NOT: { id: existingStudent.userId },
+            },
+          });
+          if (duplicates > 0) {
+            throw new ActionError(
+              "اسم المستخدم هذا مستخدم بالفعل، اختر اسمًا آخر",
+            );
+          }
+        }
 
-      await tx.student.update({
-        where: { id },
-        data: {
-          age: validatedStudent.data.age,
-          country: validatedStudent.data.country,
-          source: validatedStudent.data.source,
-        },
+        await tx.user.update({
+          where: { id: existingStudent.userId },
+          data: {
+            name: validatedUser.data.name,
+            email: validatedUser.data.email || null,
+            username:
+              validatedUser.data.username ?? existingStudent.user.username,
+            phone: validatedUser.data.phone,
+            timezone: validatedUser.data.timezone,
+            preferredLanguage: validatedUser.data.preferredLanguage || undefined,
+          },
+        });
+
+        await tx.student.update({
+          where: { id },
+          data: {
+            age: validatedStudent.data.age,
+            country: validatedStudent.data.country,
+            source: validatedStudent.data.source,
+          },
+        });
       });
-    });
+    } catch (err) {
+      if (err instanceof ActionError) throw err;
+      if (uniqueViolationField(err)?.includes("username")) {
+        throw new ActionError("اسم المستخدم هذا مستخدم بالفعل، اختر اسمًا آخر");
+      }
+      throw err;
+    }
 
     revalidatePath("/ar/dashboard/students");
   },

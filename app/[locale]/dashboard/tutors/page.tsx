@@ -30,7 +30,7 @@ const TutorsPage = async () => {
   const transformed = tutors.map((t) => ({
     id: t.id,
     name: t.user.name ?? "",
-    email: t.user.email,
+    email: t.user.email || "",
     phone: t.user.phone ?? "",
     status: t.active ?? false,
     specialities: t.specialities.map((s) => s.title),

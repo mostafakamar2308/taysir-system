@@ -87,6 +87,7 @@
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.5.0",
     "timezone": "link:dayjs/plugins/timezone",
+    "transliteration": "^2.6.1",
     "tsconfig-paths": "^4.2.0",
     "utc": "link:dayjs/plugins/utc",
     "uuid": "^14.0.1",

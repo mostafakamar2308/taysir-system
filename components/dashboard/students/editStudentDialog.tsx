@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Dialog,
@@ -21,9 +21,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { assignTutor, getStudent, updateStudent } from "@/actions/student";
-import { User } from "lucide-react";
+import { assignTutor, checkUsername, getStudent, updateStudent } from "@/actions/student";
+import { CheckCircle2, User, XCircle, LoaderCircle } from "lucide-react";
 import { GetStudentResult } from "@/types/student";
+import { normalizeUsername } from "@/lib/username";
+import { cn } from "@/lib/utils";
 
 interface EditStudentDialogProps {
   studentId: number;
@@ -44,6 +46,12 @@ export default function EditStudentDialog({
   const [loading, setLoading] = useState(false);
   const [student, setStudent] = useState<GetStudentResult | null>(null);
   const [tutorValue, setTutorValue] = useState("none");
+  const [username, setUsername] = useState("");
+  const [usernameStatus, setUsernameStatus] = useState<
+    "idle" | "checking" | "available" | "taken" | "invalid"
+  >("idle");
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const lastCheckedRef = useRef("");
 
   const router = useRouter();
   const { toast } = useToast();
@@ -56,6 +64,10 @@ export default function EditStudentDialog({
       const res = await getStudent(studentId);
       if (res.ok) {
         setStudent(res.data ?? null);
+        setUsername(normalizeUsername(res.data?.user.username ?? ""));
+        lastCheckedRef.current = "";
+        setUsernameStatus(res.data?.user.username ? "available" : "idle");
+        setSuggestions([]);
         setTutorValue(
           res.data?.groupMemberships[0]?.tutorId
             ? String(res.data.groupMemberships[0].tutorId)
@@ -65,6 +77,39 @@ export default function EditStudentDialog({
     }
     if (controlledOpen) fetchStudent();
   }, [studentId, controlledOpen]);
+
+  useEffect(() => {
+    const normalized = normalizeUsername(username);
+    if (!student || !normalized) return;
+    if (lastCheckedRef.current === normalized) return;
+
+    const timeout = setTimeout(async () => {
+      setUsernameStatus("checking");
+      const result = await checkUsername(normalized, student.user.id);
+      if (!result.ok || !student) return;
+      const check = result.data;
+      if (normalizeUsername(check.username) !== normalized) return;
+      lastCheckedRef.current = normalized;
+      if (!check.valid) {
+        setUsernameStatus("invalid");
+        setSuggestions([]);
+      } else if (check.available) {
+        setUsernameStatus("available");
+        setSuggestions([]);
+      } else {
+        setUsernameStatus("taken");
+        setSuggestions(check.suggestions);
+      }
+    }, 330);
+    return () => clearTimeout(timeout);
+  }, [username, student]);
+
+  function handleUsernameChange(value: string) {
+    lastCheckedRef.current = "";
+    setUsername(
+      normalizeUsername(value).replace(/[^a-z0-9._]/g, "").slice(0, 30),
+    );
+  }
 
   async function handleSubmit(formData: FormData) {
     if (!student) return;
@@ -121,6 +166,76 @@ export default function EditStudentDialog({
                   defaultValue={student.user.name || ""}
                   required
                 />
+              </div>
+              <div>
+                <Label htmlFor="username">اسم المستخدم *</Label>
+                <Input
+                  id="username"
+                  name="username"
+                  minLength={3}
+                  maxLength={30}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  dir="ltr"
+                  className={cn(
+                    "text-left",
+                    (usernameStatus === "taken" ||
+                      usernameStatus === "invalid") &&
+                      "border-destructive",
+                  )}
+                  value={username}
+                  onChange={(e) => handleUsernameChange(e.target.value)}
+                />
+                <div className="mt-1 flex items-center gap-1.5 text-xs">
+                  {usernameStatus === "checking" && (
+                    <>
+                      <LoaderCircle className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                      <span className="text-muted-foreground">
+                        جاري التحقق...
+                      </span>
+                    </>
+                  )}
+                  {usernameStatus === "available" && username && (
+                    <>
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                      <span className="text-emerald-600">متاح</span>
+                    </>
+                  )}
+                  {usernameStatus === "taken" && (
+                    <>
+                      <XCircle className="h-3.5 w-3.5 text-destructive" />
+                      <span className="text-destructive">
+                        غير متاح — اختر أحد المقترحات
+                      </span>
+                    </>
+                  )}
+                  {usernameStatus === "invalid" && (
+                    <>
+                      <XCircle className="h-3.5 w-3.5 text-destructive" />
+                      <span className="text-destructive">
+                        3-30 حرفًا إنجليزيًا وأرقامًا، مع نقاط أو _
+                      </span>
+                    </>
+                  )}
+                </div>
+                {suggestions.length > 0 && (
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
+                    <span className="text-muted-foreground">مقترحات:</span>
+                    {suggestions.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => {
+                          lastCheckedRef.current = "";
+                          setUsername(s);
+                        }}
+                        className="px-2 py-0.5 rounded-md bg-muted hover:bg-primary/10 text-primary font-medium"
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               <div>
                 <Label htmlFor="email">البريد الإلكتروني</Label>
@@ -214,7 +329,7 @@ export default function EditStudentDialog({
             >
               إلغاء
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading || usernameStatus !== "available" || username.length < 3}>
               {loading ? "جاري الحفظ..." : "حفظ التغييرات"}
             </Button>
           </div>

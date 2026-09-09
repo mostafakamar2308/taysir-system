@@ -31,7 +31,7 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     if (!email || !password) {
-      setError("يرجى إدخال البريد الإلكتروني وكلمة المرور");
+      setError("يرجى إدخال البريد الإلكتروني أو اسم المستخدم وكلمة المرور");
       return;
     }
 
@@ -79,11 +79,11 @@ export default function LoginPage() {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="email">البريد الإلكتروني</Label>
+                <Label htmlFor="email">البريد الإلكتروني أو اسم المستخدم</Label>
                 <Input
                   id="email"
-                  type="email"
-                  placeholder="example@academy.com"
+                  type="text"
+                  placeholder="email@example.com أو username"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   dir="ltr"

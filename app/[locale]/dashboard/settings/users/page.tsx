@@ -26,7 +26,7 @@ export default async function UserManagementPage() {
     ...supervisors.map((s) => ({
       id: s.user.id,
       name: s.user.name || "",
-      email: s.user.email,
+      email: s.user.email || "",
       phone: s.user.phone,
       role: 2, // Supervisor
       timezone: s.user.timezone,
@@ -37,7 +37,7 @@ export default async function UserManagementPage() {
     ...tutors.map((t) => ({
       id: t.user.id,
       name: t.user.name || "",
-      email: t.user.email,
+      email: t.user.email || "",
       phone: t.user.phone,
       role: 3, // Tutor
       timezone: t.user.timezone,

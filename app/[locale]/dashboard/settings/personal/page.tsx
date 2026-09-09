@@ -27,6 +27,7 @@ export default async function ProfilePage() {
   const transformed = {
     ...user,
     name: user.name || "",
+    email: user.email || "",
     phone: user.phone || "",
     timezone: user.timezone || "Africa/Cairo",
     preferredLanguage: user.preferredLanguage || "ar",

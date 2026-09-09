@@ -36,7 +36,7 @@ const SupervisorsPage = async () => {
   const transformed = supervisors.map((s) => ({
     id: s.id,
     name: s.user.name ?? "",
-    email: s.user.email,
+    email: s.user.email || "",
     phone: s.user.phone ?? "",
     timezone: s.user.timezone,
     active: s.active,
@@ -51,7 +51,7 @@ const SupervisorsPage = async () => {
   const transformedTutors = tutors.map((t) => ({
     id: t.id,
     name: t.user.name ?? "",
-    email: t.user.email,
+    email: t.user.email || "",
     active: !!t.active,
     supervisorId: t.defaultSupervisor?.id ?? null,
   }));
