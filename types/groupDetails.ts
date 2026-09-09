@@ -36,6 +36,7 @@ export interface GroupSession {
   attendanceCount: number; // participants with attendance marked
   totalParticipants: number;
   reportCount: number; // participants with report
+  recordingLink: string | null;
   participants: {
     studentId: number;
     studentName: string;

@@ -26,9 +26,9 @@ interface Props {
 }
 
 const tabs = [
-  { value: "pending", label: "قيد المراجعة" },
-  { value: "accepted", label: "مقبولة" },
-  { value: "rejected", label: "مرفوضة" },
+  { value: "pending", label: "قيد المراجعة", emptyLabel: "لا توجد طلبات قيد المراجعة" },
+  { value: "accepted", label: "مقبولة", emptyLabel: "لا توجد طلبات مقبولة" },
+  { value: "rejected", label: "مرفوضة", emptyLabel: "لا توجد طلبات مرفوضة" },
 ];
 
 const statusBadge: Record<TimeExtensionRequestStatus, { label: string; className: string }> = {
@@ -195,22 +195,23 @@ export default function TimeExtensionRequestsViewer({ initialRequests }: Props) 
           })}
         </TabsList>
 
-        {tabs.map((t) => (
-          <TabsContent key={t.value} value={t.value} className="mt-4 space-y-3">
-            {requests
-              .filter((r) =>
-                t.value === "pending"
-                  ? r.status === TimeExtensionRequestStatus.PENDING
-                  : t.value === "accepted"
-                    ? r.status === TimeExtensionRequestStatus.ACCEPTED
-                    : r.status === TimeExtensionRequestStatus.REJECTED,
-              )
-              .map(renderRequest)}
-            {requests.length === 0 && (
-              <EmptyState label="لا توجد طلبات تمديد بعد" />
-            )}
-          </TabsContent>
-        ))}
+        {tabs.map((t) => {
+          const tabRequests = requests.filter((r) =>
+            t.value === "pending"
+              ? r.status === TimeExtensionRequestStatus.PENDING
+              : t.value === "accepted"
+                ? r.status === TimeExtensionRequestStatus.ACCEPTED
+                : r.status === TimeExtensionRequestStatus.REJECTED,
+          );
+          return (
+            <TabsContent key={t.value} value={t.value} className="mt-4 space-y-3">
+              {tabRequests.map(renderRequest)}
+              {tabRequests.length === 0 && (
+                <EmptyState label={t.emptyLabel} />
+              )}
+            </TabsContent>
+          );
+        })}
       </Tabs>
     </div>
   );

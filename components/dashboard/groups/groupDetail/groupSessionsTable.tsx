@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye } from "lucide-react";
+import { Eye, Video } from "lucide-react";
 import { formatDate, formatTime } from "@/lib/dates";
 import { sessionStatusLabels, sessionStatusColors } from "@/const/sessions";
 import type { GroupSession } from "@/types/groupDetails";
@@ -40,6 +40,7 @@ export default function GroupSessionsTable({ sessions }: Props) {
               <TableHead>الحضور</TableHead>
               <TableHead>التقارير</TableHead>
               <TableHead>حضور المعلم</TableHead>
+              <TableHead>التسجيل</TableHead>
               <TableHead>تفاصيل</TableHead>
             </TableRow>
           </TableHeader>
@@ -82,6 +83,23 @@ export default function GroupSessionsTable({ sessions }: Props) {
                     >
                       غير مسجل
                     </Badge>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {s.recordingLink ? (
+                    <Button variant="outline" size="sm" asChild>
+                      <a
+                        href={s.recordingLink}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="gap-1"
+                      >
+                        <Video className="h-3.5 w-3.5" />
+                        مشاهدة التسجيل
+                      </a>
+                    </Button>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
                   )}
                 </TableCell>
                 <TableCell>

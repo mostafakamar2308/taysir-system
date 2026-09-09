@@ -212,6 +212,7 @@ export async function getGroupDetail(
       status: getSessionStatus(s),
       topic: s.topic,
       tutorAttendanceStatus: s.tutorAttendance?.status ?? null,
+      recordingLink: s.recordingLink ?? null,
       attendanceCount,
       totalParticipants: s.participants.length,
       reportCount,

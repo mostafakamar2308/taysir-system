@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Users, UserCheck, UserX, Pencil, UserCog } from "lucide-react";
+import { Users, UserCheck, UserX, Pencil, UserCog, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -48,6 +49,18 @@ export default function SupervisorsViewer({
   const [assigningSupervisor, setAssigningSupervisor] =
     useState<DashboardSupervisor | null>(null);
   const [togglingId, setTogglingId] = useState<number | null>(null);
+  const [search, setSearch] = useState("");
+
+  const filteredSupervisors = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return supervisors;
+    return supervisors.filter(
+      (s) =>
+        s.name.toLowerCase().includes(q) ||
+        s.email.toLowerCase().includes(q) ||
+        s.phone.toLowerCase().includes(q),
+    );
+  }, [supervisors, search]);
 
   const activeCount = supervisors.filter((s) => s.active).length;
   const assignedTutorsCount = supervisors.reduce(
@@ -86,7 +99,18 @@ export default function SupervisorsViewer({
             {supervisors.length} مشرف · {activeCount} نشط
           </p>
         </div>
-        <AddSupervisorDialog />
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <div className="relative">
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="ابحث بالاسم أو البريد أو الهاتف..."
+              className="pl-4 pr-9"
+            />
+          </div>
+          <AddSupervisorDialog />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -139,17 +163,19 @@ export default function SupervisorsViewer({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {supervisors.length === 0 && (
+              {filteredSupervisors.length === 0 && (
                 <TableRow>
                   <TableCell
                     colSpan={6}
                     className="text-center text-muted-foreground py-10"
                   >
-                    لا يوجد مشرفين بعد، ابدأ بإضافة أول مشرف
+                    {supervisors.length === 0
+                      ? "لا يوجد مشرفين بعد، ابدأ بإضافة أول مشرف"
+                      : "لا توجد نتائج مطابقة لبحثك"}
                   </TableCell>
                 </TableRow>
               )}
-              {supervisors.map((supervisor) => (
+              {filteredSupervisors.map((supervisor) => (
                 <TableRow key={supervisor.id}>
                   <TableCell className="font-medium">
                     {supervisor.name}
