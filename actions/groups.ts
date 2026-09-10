@@ -145,6 +145,33 @@ export const getAcademyStudents = withResult(async () => {
   return students.map((s) => ({ id: s.id, name: s.user.name ?? "" }));
 });
 
+// Fetch all public groups (≥ 2 active members) for the academy with their
+// tutor + default per-session price (for the add-student wizard).
+export const getAcademyGroups = withResult(async () => {
+  const admin = await ensureAdmin();
+  const academyId = admin?.academyId;
+  if (!academyId) return [];
+  const groups = await db.group.findMany({
+    where: { academyId, active: true },
+    include: {
+      currentTutor: {
+        select: { id: true, user: { select: { name: true } } },
+      },
+      _count: { select: { members: { where: { active: true } } } },
+    },
+    orderBy: { title: "asc" },
+  });
+  return groups
+    .filter((g) => g._count.members >= 2)
+    .map((g) => ({
+      id: g.id,
+      title: g.title,
+      currentTutorId: g.currentTutor.id,
+      currentTutorName: g.currentTutor.user.name ?? "—",
+      studentSessionPrice: g.studentSessionPrice ?? 0,
+    }));
+});
+
 // Create group
 export const createGroup = withResult(async (formData: FormData) => {
   const admin = await ensureAdmin();

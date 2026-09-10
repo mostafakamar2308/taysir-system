@@ -39,16 +39,6 @@ const usernameField = z
     "اسم المستخدم يجب أن يكون 3-30 حرفًا (حروف إنجليزية وأرقام ونقاط وشرطات سفلية)",
   );
 
-const userSchema = z.object({
-  name: z.string().min(1, "الاسم مطلوب"),
-  email: z.string().optional().nullable(),
-  username: usernameField,
-  phone: z.string().optional().nullable(),
-  timezone: z.string().min(1, "المنطقة الزمنية مطلوبة"),
-  preferredLanguage: z.string().optional().nullable(),
-  password: z.string().min(6, "كلمة المرور يجب أن تكون 6 أحرف على الأقل"),
-});
-
 const userUpdateSchema = z.object({
   name: z.string().min(1, "الاسم مطلوب"),
   email: z.string().optional().nullable(),
@@ -105,14 +95,80 @@ export const checkUsername = withResult(
   },
 );
 
-// Schema for student-specific fields (stored in Student table)
-const studentDataSchema = z.object({
+// One subscription enrollment: membership in an existing public group OR a
+// private 1-on-1 group (selected via tutor), plus its subscription details.
+const subscriptionEnrollmentSchema = z.object({
+  groupId: z.number().int().positive().optional().nullable(),
+  tutorId: z.number().int().positive().optional().nullable(),
+  planId: z.number().int().positive().optional().nullable(),
+  price: z.number().positive("سعر الاشتراك مطلوب"),
+  sessionCount: z.number().int().positive().optional().nullable(),
+  billingCycle: z.number().int().positive("دورة الفوترة مطلوبة"),
+  startDate: z.string().min(1, "تاريخ البدء مطلوب"),
+});
+
+// Payment split: one allocation per created subscription (by enrollment order).
+const createStudentPaymentSchema = z.object({
+  amount: z.number().nonnegative("المبلغ المدفوع مطلوب"),
+  method: z.number().nullable(),
+  date: z.string(),
+  allocations: z.array(
+    z.object({
+      enrollmentIndex: z.number().int().nonnegative(),
+      amount: z.number().nonnegative(),
+    }),
+  ),
+});
+
+// Full structured input for the 2-step add-student wizard.
+const createStudentSchema = z.object({
+  name: z.string().min(1, "الاسم مطلوب"),
+  email: z.string().optional().nullable(),
+  username: usernameField,
+  phone: z.string().optional().nullable(),
+  timezone: z.string().min(1, "المنطقة الزمنية مطلوبة"),
+  preferredLanguage: z.string().optional().nullable(),
+  password: z.string().min(6, "كلمة المرور يجب أن تكون 6 أحرف على الأقل"),
   age: z.number().min(1, "العمر مطلوب"),
   country: z.string().optional().nullable(),
   status: z.number().default(0),
   source: z.string().optional().nullable(),
   currencyId: z.number(),
+  enrollments: z.array(subscriptionEnrollmentSchema).default([]),
+  payment: createStudentPaymentSchema.optional(),
 });
+
+type CreateStudentInput = z.infer<typeof createStudentSchema>;
+
+// Add the student (and tutor when private) as active members of the group's
+// chat room, mirroring addStudentsToGroup's behavior.
+async function syncEnrollmentChat(
+  tx: Prisma.TransactionClient,
+  groupId: number,
+  academyId: number,
+  studentUserId: number,
+  tutorUserId: number | null,
+) {
+  const room = await tx.groupChatRoom.upsert({
+    where: { groupId },
+    update: {},
+    create: { groupId, academyId },
+  });
+  await tx.groupChatMember.upsert({
+    where: {
+      roomId_userId: { roomId: room.id, userId: studentUserId },
+    },
+    update: { active: true, leftAt: null },
+    create: { roomId: room.id, userId: studentUserId },
+  });
+  if (tutorUserId) {
+    await tx.groupChatMember.upsert({
+      where: { roomId_userId: { roomId: room.id, userId: tutorUserId } },
+      update: { active: true, leftAt: null },
+      create: { roomId: room.id, userId: tutorUserId },
+    });
+  }
+}
 
 type StudentForTutor = { id: number; userId: number };
 
@@ -275,64 +331,61 @@ async function setStudentTutor(
 }
 
 // ── Create ───────────────────────────────────────────────────────
-export const createStudent = withResult(async (formData: FormData) => {
+export const createStudent = withResult(async (input: CreateStudentInput) => {
   const currentUser = await user();
   if (!currentUser || !currentUser.academyId) return fail("غير مصرح");
+  const academyId = currentUser.academyId;
 
-  // Extract raw data from FormData
-  const rawUser = {
-    name: formData.get("name"),
-    email:
-      typeof formData.get("email") === "string" &&
-      (formData.get("email") as string).trim() !== ""
-        ? (formData.get("email") as string).trim()
-        : null,
-    username: normalizeUsername((formData.get("username") as string) ?? ""),
-    phone: formData.get("phone") || null,
-    timezone: formData.get("timezone"),
-    preferredLanguage: formData.get("preferredLanguage") || null,
-    password: formData.get("password"),
-  };
-
-  const rawStudent = {
-    age: formData.get("age")
-      ? parseInt(formData.get("age") as string)
-      : undefined,
-    country: formData.get("country") || null,
-    status: formData.get("status")
-      ? parseInt(formData.get("status") as string)
-      : 0,
-    source: formData.get("source") || null,
-    currencyId:
-      formData.get("currencyId") && formData.get("currencyId") !== "none"
-        ? parseInt(formData.get("currencyId") as string)
-        : null,
-    tutorId:
-      formData.get("tutorId") && formData.get("tutorId") !== "none"
-        ? parseInt(formData.get("tutorId") as string)
-        : null,
-  };
-
-  // Validate both parts
-  const validatedUser = userSchema.safeParse(rawUser);
-  if (!validatedUser.success) {
-    return fail(validatedUser.error.issues[0]?.message ?? "بيانات غير صحيحة");
+  const validated = createStudentSchema.safeParse(input);
+  if (!validated.success) {
+    return fail(validated.error.issues[0]?.message ?? "بيانات غير صحيحة");
   }
-  const validatedStudent = studentDataSchema.safeParse(rawStudent);
-  if (!validatedStudent.success) {
-    return fail(
-      validatedStudent.error.issues[0]?.message ?? "بيانات غير صحيحة",
+  const data = validated.data;
+  const username = normalizeUsername(data.username);
+
+  const isSubscribed = data.status === StudentStatus.subscribed;
+
+  // Cross-field validation
+  if (isSubscribed && data.enrollments.length === 0) {
+    return fail("الطالب المشترك يجب أن يكون في مجموعة واحدة على الأقل");
+  }
+  for (const enc of data.enrollments) {
+    if (!enc.groupId && !enc.tutorId) {
+      return fail("اختر مجموعة أو معلمًا لكل اشتراك");
+    }
+    if (enc.groupId && enc.tutorId) {
+      return fail("اختر إما مجموعة أو معلمًا لكل اشتراك، وليس كلاهما");
+    }
+  }
+  if (data.payment && data.payment.amount > 0) {
+    if (!isSubscribed) {
+      return fail("لا يمكن تسجيل دفعة دون اشتراك");
+    }
+    const allocTotal = data.payment.allocations.reduce(
+      (sum, a) => sum + a.amount,
+      0,
     );
+    if (Math.abs(allocTotal - data.payment.amount) > 0.01) {
+      return fail("مجموع توزيع الدفعة لا يساوي المبلغ المدفوع");
+    }
+    for (const alloc of data.payment.allocations) {
+      if (
+        alloc.enrollmentIndex < 0 ||
+        alloc.enrollmentIndex >= data.enrollments.length
+      ) {
+        return fail("توزيع الدفعة غير صالح");
+      }
+    }
   }
 
   // Hash provided password
-  const hashedPassword = await bcrypt.hash(validatedUser.data.password, 10);
+  const hashedPassword = await bcrypt.hash(data.password, 10);
 
   let result: { user: { id: number }; student: { id: number } };
   try {
     result = await db.$transaction(async (tx) => {
       const duplicates = await tx.user.count({
-        where: { username: validatedUser.data.username },
+        where: { username },
       });
       if (duplicates > 0) {
         throw new ActionError(
@@ -343,13 +396,13 @@ export const createStudent = withResult(async (formData: FormData) => {
       // 1. Create User
       const user = await tx.user.create({
         data: {
-          name: validatedUser.data.name,
-          email: validatedUser.data.email || null,
-          username: validatedUser.data.username,
+          name: data.name,
+          email: data.email || null,
+          username,
           password: hashedPassword,
-          phone: validatedUser.data.phone,
-          timezone: validatedUser.data.timezone,
-          preferredLanguage: validatedUser.data.preferredLanguage || "ar",
+          phone: data.phone,
+          timezone: data.timezone,
+          preferredLanguage: data.preferredLanguage || "ar",
           role: Role.Student,
         },
       });
@@ -358,24 +411,137 @@ export const createStudent = withResult(async (formData: FormData) => {
       const student = await tx.student.create({
         data: {
           userId: user.id,
-          academyId: currentUser.academyId!,
-          age: validatedStudent.data.age,
-          country: validatedStudent.data.country,
-          status: validatedStudent.data.status,
-          currencyId: validatedStudent.data.currencyId,
-          source: validatedStudent.data.source,
+          academyId,
+          age: data.age,
+          country: data.country,
+          status: data.status,
+          currencyId: data.currencyId,
+          source: data.source,
         },
       });
 
-      // 3. If a tutor was selected, create a private-group membership + chat room
-      if (rawStudent.tutorId) {
-        await setStudentTutor(
-          tx,
-          student,
-          user.name ?? "",
-          rawStudent.tutorId,
-          currentUser.academyId!,
-        );
+      // 3. Enrollments + subscriptions (only when subscribed)
+      const subscriptionIds: number[] = [];
+      if (isSubscribed) {
+        for (const enc of data.enrollments) {
+          // Resolve the target group
+          let groupId: number;
+          let tutorUserId: number | null = null;
+          if (enc.groupId) {
+            const group = await tx.group.findUnique({
+              where: { id: enc.groupId },
+              select: {
+                id: true,
+                academyId: true,
+                currentTutor: { select: { userId: true } },
+              },
+            });
+            if (!group || group.academyId !== academyId) {
+              throw new ActionError("المجموعة غير موجودة");
+            }
+            groupId = group.id;
+            tutorUserId = group.currentTutor.userId;
+          } else {
+            const tutor = await tx.tutor.findUnique({
+              where: { id: enc.tutorId! },
+              select: { id: true, userId: true },
+            });
+            if (!tutor) throw new ActionError("المعلم غير موجود");
+            groupId = await ensurePrivateGroup(
+              tx,
+              tutor.id,
+              academyId,
+              student,
+              user.name ?? "",
+            );
+            tutorUserId = tutor.userId;
+            await tx.chatRoom.upsert({
+              where: {
+                tutorUserId_studentUserId: {
+                  tutorUserId: tutor.userId,
+                  studentUserId: user.id,
+                },
+              },
+              create: {
+                tutorUserId: tutor.userId,
+                studentUserId: user.id,
+                academyId,
+              },
+              update: { isClosed: false },
+            });
+          }
+
+          // Membership
+          const gs = await tx.groupStudent.upsert({
+            where: {
+              groupId_studentId: { groupId, studentId: student.id },
+            },
+            update: { active: true, leftAt: null },
+            create: { groupId, studentId: student.id },
+          });
+
+          await syncEnrollmentChat(
+            tx,
+            groupId,
+            academyId,
+            user.id,
+            tutorUserId,
+          );
+
+          // Subscription
+          const startDate = dayjs(enc.startDate).toDate();
+          const endDate = dayjs(startDate).add(enc.billingCycle, "day").toDate();
+          const sub = await tx.subscription.create({
+            data: {
+              groupStudentId: gs.id,
+              planId: enc.planId ?? null,
+              price: enc.price,
+              currencyId: data.currencyId,
+              sessionCount: enc.sessionCount ?? null,
+              billingCycle: enc.billingCycle,
+              startDate,
+              endDate,
+              nextBillingDate: endDate,
+              status: SubscriptionStatus.active,
+            },
+          });
+          subscriptionIds.push(sub.id);
+        }
+      }
+
+      // 4. Payment split across the created subscriptions
+      if (data.payment && data.payment.amount > 0) {
+        const dueDate = dayjs.utc(data.payment.date).toDate();
+        for (const alloc of data.payment.allocations) {
+          if (alloc.amount <= 0) continue;
+          const subId = subscriptionIds[alloc.enrollmentIndex];
+          const subInfo = await tx.subscription.findUnique({
+            where: { id: subId },
+            select: {
+              currencyId: true,
+              planId: true,
+              groupStudent: {
+                select: { group: { select: { title: true } } },
+              },
+            },
+          });
+          if (!subInfo) throw new ActionError("الاشتراك غير موجود");
+          await tx.revenue.create({
+            data: {
+              amount: alloc.amount,
+              currencyId: subInfo.currencyId,
+              status: PaymentStatus.PAID,
+              method: data.payment.method,
+              dueDate,
+              description: `دفعة اشتراك ${subInfo.groupStudent.group.title}`,
+              academyId,
+              studentId: student.id,
+              subscriptionId: subId,
+              planId: subInfo.planId,
+              recordedBy: currentUser.id,
+            },
+          });
+        }
       }
 
       return { user, student };
@@ -389,15 +555,12 @@ export const createStudent = withResult(async (formData: FormData) => {
   }
 
   // If status is "lead", record lead history
-  if (validatedStudent.data.status === StudentStatus.lead) {
-    await recordLeadCreatedHistory(
-      result.student.id,
-      currentUser.id,
-      currentUser.academyId!,
-    );
+  if (data.status === StudentStatus.lead) {
+    await recordLeadCreatedHistory(result.student.id, currentUser.id, academyId);
   }
 
   revalidatePath("/ar/dashboard/students");
+  revalidatePath("/ar/dashboard/groups");
 });
 
 // Schema for student fields (tutor is managed via group memberships)
