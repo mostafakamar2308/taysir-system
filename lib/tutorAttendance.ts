@@ -12,7 +12,7 @@ export const TUTOR_ATTENDANCE_SOURCE_SUPERVISOR = 1;
 // override (source = 1) is never overwritten by tutor activity.
 export const markTutorAttended = async (input: {
   sessionId: number;
-  supervisorId: number;
+  supervisorId: number | null;
 }) => {
   const { sessionId, supervisorId } = input;
 

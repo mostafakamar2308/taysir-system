@@ -21,7 +21,10 @@ export function supervisorSessionScope(supervisorId: number) {
 // Verifies a supervisor may act on the given session's scope.
 export async function assertSupervisorCanAccessSession(
   supervisorId: number,
-  session: { supervisorId: number; tutor: { defaultSupervisorId: number | null } },
+  session: {
+    supervisorId: number | null;
+    tutor: { defaultSupervisorId: number | null };
+  },
 ) {
   if (session.supervisorId !== supervisorId) {
     if (session.tutor.defaultSupervisorId !== supervisorId) {

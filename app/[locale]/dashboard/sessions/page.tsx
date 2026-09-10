@@ -138,7 +138,7 @@ export default async function SessionsPage({
         : { id: 0, name: null, status: 0, notes: null, reviewedAt: null }, // fallback
 
       supervisorId: s.supervisorId,
-      supervisorName: s.supervisor.user.name ?? "",
+      supervisorName: s.supervisor?.user.name ?? "",
 
       participants: participantList,
       assignment: s.assignment

@@ -359,7 +359,7 @@ async function collectData(academyId: number) {
       s.id, fmtDate(s.startTime), s.durationMinutes, s.topic ?? "", s.notes ?? "",
       boolStr(s.isTrial), s.cancelledBy ?? "", s.groupId, s.group.title,
       s.tutorId, s.tutor.user.name ?? "", s.tutorRate, s.supervisorId,
-      s.supervisor.user.name ?? "", s._count.participants,
+      s.supervisor?.user.name ?? "", s._count.participants,
       fmtDate(s.createdAt), fmtDate(s.updatedAt),
     ]),
   });
@@ -409,7 +409,7 @@ async function collectData(academyId: number) {
     rows: tutorAttendances.map((a) => [
       a.id, a.sessionId,
       ATTENDANCE_LABELS[a.status] ?? String(a.status), a.notes ?? "",
-      a.reviewedBy, a.supervisor.user.name ?? "", fmtDate(a.reviewedAt),
+      a.reviewedBy, a.supervisor?.user.name ?? "", fmtDate(a.reviewedAt),
       fmtDate(a.createdAt), fmtDate(a.updatedAt),
     ]),
   });

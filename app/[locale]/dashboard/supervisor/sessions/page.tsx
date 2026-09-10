@@ -119,7 +119,7 @@ export default async function SupervisorSessionsPage({
           }
         : null,
       supervisorId: s.supervisorId,
-      supervisorName: s.supervisor.user.name ?? "",
+      supervisorName: s.supervisor?.user.name ?? "",
       participants: participantList,
       assignment: null,
       createdAt: s.createdAt.toISOString(),

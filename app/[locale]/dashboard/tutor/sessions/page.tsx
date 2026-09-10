@@ -139,7 +139,7 @@ export default async function TutorSessionsPage({
           }
         : { id: 0, name: null, status: 0, notes: null, reviewedAt: null },
       supervisorId: s.supervisorId,
-      supervisorName: s.supervisor.user.name ?? "",
+      supervisorName: s.supervisor?.user.name ?? "",
       participants: participantList,
       assignment: s.assignment
         ? {

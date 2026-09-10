@@ -370,8 +370,8 @@ model Session {
   tutor     Tutor @relation(fields: [tutorId], references: [id])
   tutorRate Float
 
-  supervisorId Int
-  supervisor   Supervisor @relation(fields: [supervisorId], references: [id])
+  supervisorId Int?
+  supervisor   Supervisor? @relation(fields: [supervisorId], references: [id])
 
   academyId Int
   academy   Academy @relation(fields: [academyId], references: [id])
@@ -452,8 +452,8 @@ model TutorAttendance {
   // Who set the status: 0 = auto (created from tutor activity), 1 = supervisor review.
   source Int @default(0)
 
-  reviewedBy Int
-  supervisor Supervisor @relation(fields: [reviewedBy], references: [id])
+  reviewedBy Int?
+  supervisor Supervisor? @relation(fields: [reviewedBy], references: [id])
   reviewedAt DateTime?
 
   createdAt DateTime @default(now())

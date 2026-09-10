@@ -246,6 +246,7 @@ export const createSession = withResult(async (input: CreateSessionInput) => {
   }
 
   // ── Supervisor ──────────────────────────────────────────
+  // Supervisor is optional — if none exists, the session is created without one.
   const supervisorId =
     group.currentTutor.defaultSupervisorId ??
     (
@@ -253,8 +254,8 @@ export const createSession = withResult(async (input: CreateSessionInput) => {
         where: { academyId: currentUser.academyId!, active: true },
         select: { id: true },
       })
-    )?.id;
-  if (!supervisorId) return fail("لا يوجد مشرف متاح في الأكاديمية");
+    )?.id ??
+    null;
 
   // ── Effective tutor rate ────────────────────────────────
   const isPrivate = students.length === 1;
@@ -554,7 +555,7 @@ export const getSessionDetailsForManagement = withResult(async (
         : null,
 
       supervisorId: session.supervisorId,
-      supervisorName: session.supervisor.user.name ?? "",
+      supervisorName: session.supervisor?.user.name ?? "",
 
       participants,
       assignment: session.assignment

@@ -34,7 +34,7 @@ export interface AdminSession {
   tutorRate: number;
   tutorAttendance: AdminSessionTutorAttendance | null;
 
-  supervisorId: number;
+  supervisorId: number | null;
   supervisorName: string;
 
   participants: AdminSessionParticipant[];
