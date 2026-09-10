@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Plus } from "lucide-react";
+import { ArrowRight, Plus, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import type { GroupDetail } from "@/types/groupDetails";
 import GroupInfoCard from "./groupInfoCard";
@@ -11,6 +11,7 @@ import GroupStudentsCard from "./groupStudentsCard";
 import GroupPerformanceCard from "./groupPerformanceCard";
 import GroupSessionsTable from "./groupSessionsTable";
 import AddGroupSessionDialog from "./addGroupSessionDialog";
+import SendBulkMessagesDialog from "@/components/dashboard/common/SendBulkMessagesDialog";
 
 interface Props {
   group: GroupDetail;
@@ -26,6 +27,9 @@ export default function GroupDetailClient({
   backHref = "/ar/dashboard/groups",
 }: Props) {
   const [addSessionOpen, setAddSessionOpen] = useState(false);
+  const [whatsappOpen, setWhatsappOpen] = useState(false);
+
+  const studentsWithPhone = group.students.filter((s) => s.phone);
 
   return (
     <div className="space-y-6 p-4 md:p-6" dir="rtl">
@@ -37,10 +41,21 @@ export default function GroupDetailClient({
           </Link>
         </Button>
         {!readOnly && (
-          <Button size="sm" onClick={() => setAddSessionOpen(true)}>
-            <Plus className="h-4 w-4 ml-2" />
-            إضافة حصة
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setWhatsappOpen(true)}
+              disabled={studentsWithPhone.length === 0}
+            >
+              <MessageSquare className="h-4 w-4 ml-2" />
+              إرسال واتساب للجميع
+            </Button>
+            <Button size="sm" onClick={() => setAddSessionOpen(true)}>
+              <Plus className="h-4 w-4 ml-2" />
+              إضافة حصة
+            </Button>
+          </div>
         )}
       </div>
 
@@ -74,6 +89,14 @@ export default function GroupDetailClient({
             name: s.studentName,
             sessionsRemaining: s.remainingSessions ?? null,
           }))}
+        />
+      )}
+
+      {!readOnly && (
+        <SendBulkMessagesDialog
+          open={whatsappOpen}
+          setOpen={setWhatsappOpen}
+          users={studentsWithPhone.map((s) => ({ phone: s.phone }))}
         />
       )}
     </div>

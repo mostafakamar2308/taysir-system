@@ -3,6 +3,7 @@ import type { SessionStatus } from "@/types/session";
 export interface StudentInGroup {
   studentId: number;
   studentName: string;
+  phone: string;
   status?: number; // StudentStatus — omitted in read-only views
   remainingSessions?: number | null; // null = no countable active subscription — omitted in read-only views
   active?: boolean; // membership active — omitted in read-only views

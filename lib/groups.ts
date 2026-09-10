@@ -122,7 +122,7 @@ export async function getGroupDetail(
         include: {
           student: {
             include: {
-              user: { select: { name: true } },
+              user: { select: { name: true, phone: true } },
             },
           },
         },
@@ -163,11 +163,13 @@ export async function getGroupDetail(
       return {
         studentId: m.studentId,
         studentName: m.student.user.name ?? "—",
+        phone: m.student.user.phone ?? "",
       };
     }
     return {
       studentId: m.studentId,
       studentName: m.student.user.name ?? "—",
+      phone: m.student.user.phone ?? "",
       status: m.student.status,
       remainingSessions: remainingMap.get(m.studentId) ?? null,
       active: m.active,

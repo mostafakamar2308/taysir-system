@@ -85,7 +85,12 @@ export default function GroupStudentsCard({
                       {s.studentName}
                     </Link>
                   ) : (
-                    <div className="font-medium">{s.studentName}</div>
+                    <Link
+                      href={`/ar/dashboard/students/${s.studentId}`}
+                      className="font-medium text-primary hover:underline"
+                    >
+                      {s.studentName}
+                    </Link>
                   )}
                   {!readOnly && (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
