@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { user } from "@/lib/auth";
 import dayjs from "@/lib/dayjs";
 import { SubscriptionStatus } from "@/types/subscription";
+import { PaymentStatus } from "@/types/payment";
 import { markStudentSubscribed } from "@/lib/studentStatus";
 import { Prisma } from "@/generated/prisma/client";
 import { withResult, fail } from "@/lib/action-result";
@@ -471,7 +472,11 @@ async function getManagedGroupStudent(
 ) {
   return db.groupStudent.findUnique({
     where: { id: groupStudentId },
-    select: { id: true, studentId: true, group: { select: { academyId: true } } },
+    select: {
+      id: true,
+      studentId: true,
+      group: { select: { academyId: true, title: true } },
+    },
   });
 }
 
@@ -485,6 +490,11 @@ export const createSubscriptionForEnrollment = withResult(
       sessionCount?: number | null;
       billingCycle?: number;
       startDate?: string;
+      payment?: {
+        amount: number;
+        method: number | null;
+        date?: string;
+      };
     },
   ) => {
     const admin = await ensureAdmin();
@@ -494,30 +504,55 @@ export const createSubscriptionForEnrollment = withResult(
     const gs = await getManagedGroupStudent(groupStudentId, academyId);
     if (!gs || gs.group.academyId !== academyId) return fail("غير مصرح");
 
+    const paidAmount = data.payment?.amount ?? 0;
+    if (paidAmount < 0) return fail("أدخل مبلغًا مدفوعًا صحيحًا");
+
     const start = data.startDate ? dayjs(data.startDate).toDate() : new Date();
     const billingCycle = data.billingCycle || 30;
     const endDate = dayjs(start).add(billingCycle, "day").toDate();
 
-    const sub = await db.subscription.create({
-      data: {
-        groupStudentId,
-        planId: data.planId ?? null,
-        price: data.price,
-        currencyId: data.currencyId,
-        sessionCount: data.sessionCount ?? null,
-        billingCycle,
-        startDate: start,
-        endDate,
-        nextBillingDate: endDate,
-        status: SubscriptionStatus.active,
-      },
-    });
+    await db.$transaction(async (tx) => {
+      const sub = await tx.subscription.create({
+        data: {
+          groupStudentId,
+          planId: data.planId ?? null,
+          price: data.price,
+          currencyId: data.currencyId,
+          sessionCount: data.sessionCount ?? null,
+          billingCycle,
+          startDate: start,
+          endDate,
+          nextBillingDate: endDate,
+          status: SubscriptionStatus.active,
+        },
+      });
 
-    await markStudentSubscribed(db, gs.studentId, admin!.id, academyId);
+      if (paidAmount > 0) {
+        const dueDate = data.payment?.date
+          ? dayjs.utc(data.payment.date).toDate()
+          : new Date();
+        await tx.revenue.create({
+          data: {
+            amount: paidAmount,
+            currencyId: data.currencyId,
+            status: PaymentStatus.PAID,
+            method: data.payment?.method ?? null,
+            dueDate,
+            description: `دفعة اشتراك ${gs.group.title}`,
+            academyId,
+            studentId: gs.studentId,
+            subscriptionId: sub.id,
+            planId: data.planId ?? null,
+            recordedBy: admin!.id,
+          },
+        });
+      }
+
+      await markStudentSubscribed(tx, gs.studentId, admin!.id, academyId);
+    });
 
     revalidatePath("/ar/dashboard/groups");
     revalidatePath(`/ar/dashboard/students/${gs.studentId}`);
-    return sub;
   },
 );
 

@@ -19,11 +19,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Combobox } from "@/components/ui/combobox";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import dayjs from "@/lib/dayjs";
 import { getPlans } from "@/actions/plan";
 import { createSubscriptionForEnrollment } from "@/actions/groups";
 import { StudentFinancialGroup } from "@/types/studentFinances";
+import { PaymentMethod } from "@/types/payment";
+import { paymentMethodLabels } from "@/lib/enums";
 
 interface Props {
   groups: StudentFinancialGroup[];
@@ -64,6 +67,10 @@ export default function AddSubscriptionDialog({
   const [sessionCount, setSessionCount] = useState("");
   const [billingCycle, setBillingCycle] = useState("30");
   const [startDate, setStartDate] = useState(dayjs().format("YYYY-MM-DD"));
+  const [paid, setPaid] = useState(false);
+  const [paidAmount, setPaidAmount] = useState("");
+  const [method, setMethod] = useState(PaymentMethod.CASH.toString());
+  const [paymentDate, setPaymentDate] = useState(dayjs().format("YYYY-MM-DD"));
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -91,9 +98,23 @@ export default function AddSubscriptionDialog({
     }
   };
 
+  const togglePaid = () => {
+    if (paid) {
+      setPaid(false);
+      return;
+    }
+    setPaid(true);
+    if (!paidAmount) setPaidAmount(price);
+  };
+
   const handleSubmit = async () => {
     if (!groupStudentId) {
       toast.error("اختر مجموعة");
+      return;
+    }
+    const parsedPaidAmount = parseFloat(paidAmount) || 0;
+    if (paid && parsedPaidAmount <= 0) {
+      toast.error("أدخل مبلغًا مدفوعًا صحيحًا");
       return;
     }
     setLoading(true);
@@ -105,6 +126,15 @@ export default function AddSubscriptionDialog({
         sessionCount: sessionCount ? parseInt(sessionCount) : null,
         billingCycle: parseInt(billingCycle) || 30,
         startDate,
+        ...(paid && parsedPaidAmount > 0
+          ? {
+              payment: {
+                amount: parsedPaidAmount,
+                method: parseInt(method),
+                date: paymentDate,
+              },
+            }
+          : {}),
       });
       if (!res.ok) throw new Error(res.error);
       toast.success("تم إضافة الاشتراك");
@@ -197,6 +227,57 @@ export default function AddSubscriptionDialog({
                   onChange={(e) => setStartDate(e.target.value)}
                 />
               </div>
+            </div>
+
+            <div className="rounded-md border p-3 space-y-3">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="paid"
+                  checked={paid}
+                  onCheckedChange={togglePaid}
+                />
+                <Label htmlFor="paid" className="font-medium">
+                  تم استلام الدفعة
+                </Label>
+              </div>
+
+              {paid && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>المبلغ المدفوع ({currencySymbol})</Label>
+                    <Input
+                      type="number"
+                      value={paidAmount}
+                      onChange={(e) => setPaidAmount(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>طريقة الدفع</Label>
+                    <Select value={method} onValueChange={setMethod}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.values(PaymentMethod)
+                          .filter((m) => typeof m === "number")
+                          .map((m) => (
+                            <SelectItem key={m} value={m.toString()}>
+                              {paymentMethodLabels[m as PaymentMethod]}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>تاريخ الدفع</Label>
+                    <Input
+                      type="date"
+                      value={paymentDate}
+                      onChange={(e) => setPaymentDate(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
