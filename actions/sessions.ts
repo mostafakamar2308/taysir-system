@@ -275,12 +275,8 @@ export const createSession = withResult(async (input: CreateSessionInput) => {
     0;
 
   // ── Tutor zoomUrl ───────────────────────────────────────
-  const tutor = await db.tutor.findUnique({
-    where: { id: input.tutorId },
-    select: { zoomUrl: true },
-  });
-  // Per-session override wins; falls back to the tutor's saved zoom URL.
-  const zoomUrl = input.zoomUrl ?? tutor?.zoomUrl ?? null;
+  // Sessions start without a meeting link; it's added during creation or later.
+  const zoomUrl = input.zoomUrl ?? null;
 
   // ── Per-student price (frozen at scheduling) ─────────────
   const priceByStudent = new Map<number, number>();
@@ -654,6 +650,281 @@ export const deleteSession = withResult(async (sessionId: number) => {
 
   revalidatePath("/ar/dashboard/sessions");
 });
+
+type CreateMultipleSessionsInput = {
+  groupId?: number;
+  studentId?: number;
+  tutorId: number;
+  dates: string[]; // array of "YYYY-MM-DD"
+  startTime: string; // "HH:mm" (same time for all)
+  duration: number;
+  topic?: string;
+  notes?: string;
+  isTrial?: boolean;
+  zoomUrl?: string | null;
+};
+
+type BatchResult = {
+  created: { id: number; startTime: string }[];
+  skipped: { date: string; reason: string }[];
+};
+
+export const createMultipleSessions = withResult(
+  async (input: CreateMultipleSessionsInput): Promise<BatchResult> => {
+    const currentUser = await user();
+    if (!currentUser || !currentUser.academyId) return fail("غير مصرح");
+
+    if (currentUser.role === Role.Tutor) {
+      const tutor = await db.tutor.findUnique({
+        where: { userId: currentUser.id },
+        select: { id: true },
+      });
+      if (input.tutorId !== tutor?.id) {
+        return fail("غير مصرح: يمكنك فقط إضافة حصص لنفسك");
+      }
+
+      const schedulingSettings = await getAcademySchedulingSettings(
+        currentUser.academyId,
+      );
+      if (!schedulingSettings.tutorsCanCreateSessions) {
+        return fail("غير مصرح: إضافة الحصص غير متاحة لك");
+      }
+    }
+
+    if (!input.dates || input.dates.length === 0) {
+      return fail("يجب اختيار تاريخ واحد على الأقل");
+    }
+
+    if (input.dates.length > 31) {
+      return fail("لا يمكن إنشاء أكثر من 31 حصة في المرة الواحدة");
+    }
+
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(input.startTime)) {
+      return fail("وقت البدء غير صحيح");
+    }
+    if (!Number.isFinite(input.duration) || input.duration < 15 || input.duration > 480) {
+      return fail("المدة يجب أن تكون بين 15 و 480 دقيقة");
+    }
+
+    const uniqueDates = [...new Set(input.dates)];
+    const result: BatchResult = { created: [], skipped: [] };
+
+    for (const dateStr of uniqueDates) {
+      const startISO = dayjs(`${dateStr}T${input.startTime}`)
+        .utc()
+        .toISOString();
+      const start = dayjs.utc(startISO);
+
+      if (start.isBefore(dayjs())) {
+        result.skipped.push({ date: dateStr, reason: "التاريخ في الماضي" });
+        continue;
+      }
+
+      let group: GroupWithMembers;
+      let students: ActiveMemberStudent[];
+      let studentIds: number[];
+
+      if (input.groupId) {
+        const g = (await db.group.findUnique({
+          where: { id: input.groupId },
+          include: {
+            members: {
+              where: { active: true },
+              include: { student: { include: { user: true } } },
+            },
+            currentTutor: {
+              select: {
+                id: true,
+                defaultSupervisorId: true,
+                baseHourlyRate: true,
+                baseGroupHourlyRate: true,
+              },
+            },
+          },
+        })) as GroupWithMembers | null;
+
+        if (!g || g.academyId !== currentUser.academyId) {
+          result.skipped.push({ date: dateStr, reason: "المجموعة غير موجودة" });
+          continue;
+        }
+        group = g;
+        students = group.members.map((m) => m.student);
+        studentIds = students.map((s) => s.id);
+      } else if (input.studentId) {
+        const student = await db.student.findUnique({
+          where: { id: input.studentId },
+          include: { user: true },
+        });
+        if (!student || student.academyId !== currentUser.academyId) {
+          result.skipped.push({ date: dateStr, reason: "الطالب غير موجود" });
+          continue;
+        }
+
+        students = [student];
+        studentIds = [student.id];
+
+        const existingGroup = (await db.group.findFirst({
+          where: {
+            currentTutorId: input.tutorId,
+            academyId: currentUser.academyId!,
+            active: true,
+          },
+          include: {
+            members: {
+              where: { active: true },
+              include: { student: { include: { user: true } } },
+            },
+            currentTutor: {
+              select: {
+                id: true,
+                defaultSupervisorId: true,
+                baseHourlyRate: true,
+                baseGroupHourlyRate: true,
+              },
+            },
+          },
+        })) as GroupWithMembers | null;
+
+        if (existingGroup) {
+          group = existingGroup;
+        } else {
+          group = (await db.group.create({
+            data: {
+              title: `خاص - ${student.user.name}`,
+              academyId: currentUser.academyId!,
+              currentTutorId: input.tutorId,
+            },
+            include: {
+              members: {
+                where: { active: true },
+                include: { student: { include: { user: true } } },
+              },
+              currentTutor: {
+                select: {
+                  id: true,
+                  defaultSupervisorId: true,
+                  baseHourlyRate: true,
+                  baseGroupHourlyRate: true,
+                },
+              },
+            },
+          })) as GroupWithMembers;
+        }
+
+        const existing = await db.groupStudent.findFirst({
+          where: { groupId: group.id, studentId: input.studentId },
+        });
+        if (!existing) {
+          await db.groupStudent.create({
+            data: { groupId: group.id, studentId: input.studentId },
+          });
+        } else if (!existing.active) {
+          await db.groupStudent.update({
+            where: { id: existing.id },
+            data: { active: true, leftAt: null },
+          });
+        }
+      } else {
+        result.skipped.push({ date: dateStr, reason: "يجب اختيار مجموعة أو طالب" });
+        continue;
+      }
+
+      const computedEnd = start.add(input.duration, "minute").toDate();
+
+      const conflicts = await db.session.findMany({
+        where: {
+          OR: [
+            { tutorId: input.tutorId },
+            { participants: { some: { studentId: { in: studentIds } } } },
+          ],
+          startTime: { lt: computedEnd },
+          cancelledBy: null,
+        },
+        select: { startTime: true, durationMinutes: true },
+      });
+
+      const overlapping = conflicts.filter((s) => {
+        const sEnd = dayjs(s.startTime).add(s.durationMinutes, "minute").toDate();
+        return sEnd > start.toDate();
+      });
+
+      if (overlapping.length > 0) {
+        result.skipped.push({ date: dateStr, reason: "تعارض في المواعيد" });
+        continue;
+      }
+
+      const supervisorId =
+        group!.currentTutor.defaultSupervisorId ??
+        (
+          await db.supervisor.findFirst({
+            where: { academyId: currentUser.academyId!, active: true },
+            select: { id: true },
+          })
+        )?.id ??
+        null;
+
+      const isPrivate = students.length === 1;
+      const effectiveRate =
+        group!.tutorHourlyRate ??
+        (isPrivate
+          ? group!.currentTutor.baseHourlyRate
+          : group!.currentTutor.baseGroupHourlyRate) ??
+        0;
+
+      const zoomUrl = input.zoomUrl ?? null;
+
+      const priceByStudent = new Map<number, number>();
+      for (const m of group!.members) {
+        priceByStudent.set(
+          m.studentId,
+          m.customSessionPrice ?? group!.studentSessionPrice ?? 0,
+        );
+      }
+      const defaultPrice = group!.studentSessionPrice ?? 0;
+
+      const session = await db.$transaction(async (tx) => {
+        const created = await tx.session.create({
+          data: {
+            startTime: start.toDate(),
+            durationMinutes: input.duration,
+            groupId: group!.id,
+            tutorId: input.tutorId,
+            tutorRate: effectiveRate,
+            supervisorId,
+            academyId: currentUser.academyId!,
+            topic: input.topic,
+            notes: input.notes,
+            isTrial: input.isTrial ?? false,
+            zoomUrl,
+          },
+        });
+
+        await tx.sessionParticipant.createMany({
+          data: studentIds.map((studentId) => ({
+            sessionId: created.id,
+            studentId,
+            price: input.isTrial
+              ? 0
+              : (priceByStudent.get(studentId) ?? defaultPrice),
+            paymentStatus: 0,
+          })),
+        });
+
+        return created;
+      });
+
+      result.created.push({
+        id: session.id,
+        startTime: session.startTime.toISOString(),
+      });
+    }
+
+    revalidatePath("/ar/dashboard/sessions");
+    revalidatePath("/ar/dashboard/tutor/sessions");
+    revalidatePath("/ar/dashboard/supervisor/sessions");
+    return result;
+  },
+);
 
 export const getSessionFormOptions = withResult(async (
   academyId: number,
