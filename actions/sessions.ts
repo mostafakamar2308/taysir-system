@@ -85,6 +85,14 @@ export const createSession = withResult(async (input: CreateSessionInput) => {
     return fail("رابط غير صحيح");
   }
 
+  if (
+    !Number.isFinite(input.duration) ||
+    input.duration < 15 ||
+    input.duration > 480
+  ) {
+    return fail("المدة يجب أن تكون بين 15 و 480 دقيقة");
+  }
+
   const start = dayjs.utc(input.startTime);
   const startDate = start.toDate();
   const computedEnd = start.add(input.duration, "minute").toDate();
@@ -357,9 +365,13 @@ export const updateSession = withResult(async (input: UpdateSessionInput) => {
 
   const existing = await db.session.findUnique({
     where: { id: input.id },
-    include: { group: { select: { currentTutorId: true } } },
+    include: {
+      group: { select: { currentTutorId: true } },
+      participants: { select: { studentId: true } },
+    },
   });
   if (!existing) return fail("الجلسة غير موجودة");
+  if (existing.academyId !== currentUser.academyId) return fail("غير مصرح");
 
   // Tutors may only edit their own sessions and cannot change times
   // when the academy disables it (topic/notes edits remain allowed).
@@ -397,6 +409,32 @@ export const updateSession = withResult(async (input: UpdateSessionInput) => {
     ? dayjs.utc(input.startTime).toDate()
     : existing.startTime;
   const newDuration = input.duration ?? existing.durationMinutes;
+
+  // Re-check conflicts when the time window of the session changes.
+  if (input.startTime !== undefined || input.duration !== undefined) {
+    const computedEnd = dayjs(newStart).add(newDuration, "minute").toDate();
+    const studentIds = existing.participants.map((p) => p.studentId);
+
+    const conflicts = await db.session.findMany({
+      where: {
+        OR: [
+          { tutorId: existing.tutorId },
+          { participants: { some: { studentId: { in: studentIds } } } },
+        ],
+        startTime: { lt: computedEnd },
+        cancelledBy: null,
+        id: { not: existing.id },
+      },
+      select: { startTime: true, durationMinutes: true },
+    });
+    const overlapping = conflicts.filter((s) => {
+      const sEnd = dayjs(s.startTime).add(s.durationMinutes, "minute").toDate();
+      return sEnd > newStart;
+    });
+    if (overlapping.length > 0) {
+      return fail("تعارض في المواعيد: لا يمكن تعديل الحصة لتتداخل مع حصة أخرى");
+    }
+  }
 
   const data: Record<string, unknown> = {
     startTime: newStart,

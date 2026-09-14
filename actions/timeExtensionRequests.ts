@@ -149,6 +149,42 @@ export const decideTimeExtensionRequest = withResult(
       return fail("تمت مراجعة هذا الطلب من قبل");
 
     if (accept) {
+      const session = request.session;
+      const newDuration = session.durationMinutes + request.addedMinutes;
+      const newEndTime = dayjs(session.startTime)
+        .add(newDuration, "minute")
+        .toDate();
+
+      // Reject the extension when it creates an overlap with another
+      // non-cancelled session of the same tutor or students.
+      const participants = await db.sessionParticipant.findMany({
+        where: { sessionId: session.id },
+        select: { studentId: true },
+      });
+      const studentIds = participants.map((p) => p.studentId);
+
+      const conflicts = await db.session.findMany({
+        where: {
+          OR: [
+            { tutorId: session.tutorId },
+            { participants: { some: { studentId: { in: studentIds } } } },
+          ],
+          startTime: { lt: newEndTime },
+          cancelledBy: null,
+          id: { not: session.id },
+        },
+        select: { startTime: true, durationMinutes: true },
+      });
+      const overlapping = conflicts.filter((s) => {
+        const sEnd = dayjs(s.startTime)
+          .add(s.durationMinutes, "minute")
+          .toDate();
+        return sEnd > session.startTime;
+      });
+      if (overlapping.length > 0) {
+        return fail("تعارض في المواعيد: لا يمكن تمديد الحصة لتتداخل مع حصة أخرى");
+      }
+
       await db.$transaction([
         db.timeExtensionRequest.update({
           where: { id: request.id },
