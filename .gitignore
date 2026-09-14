@@ -45,3 +45,9 @@ next-env.d.ts
 dist
 uploads/
 exports/
+
+# business docs (source of truth — not for the repo)
+/agents/
+
+# video pipeline (remotion workspace + all outputs)
+/remotion/
