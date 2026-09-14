@@ -603,6 +603,8 @@ export const getSessionDetailsForManagement = withResult(async (
           }
         : null,
 
+      recurringScheduleId: session.recurringScheduleId,
+
       createdAt: session.createdAt.toISOString(),
     };
 });

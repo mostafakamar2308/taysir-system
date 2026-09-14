@@ -22,9 +22,18 @@ export function formatDateArabic(utcDate: Date): string {
   return dayjs.utc(utcDate).local().locale("ar").format("dddd D MMMM YYYY");
 }
 
-// Get the week dates (Sunday to Saturday) for a given date (in local time)
+// Get the Saturday (start of the academy week) that contains the given date.
+// Locale-independent: app convention maps JS day() to 0=Saturday..6=Friday via
+// appDay = (day + 1) % 7, so subtract appDay days to reach that week's Saturday.
+export function saturdayOfWeek(date?: dayjs.ConfigType): string {
+  const d = dayjs(date ?? new Date());
+  const offset = (d.day() + 1) % 7; // 0=Saturday, 1=Sunday, ..., 6=Friday
+  return d.subtract(offset, "day").format("YYYY-MM-DD");
+}
+
+// Get the week dates (Saturday to Friday) for a given date (in local time)
 export function getWeekDates(refDate: Date): Date[] {
-  const d = dayjs(refDate).startOf("week"); // Sunday
+  const d = dayjs(saturdayOfWeek(refDate));
   return Array.from({ length: 7 }, (_, i) => d.add(i, "day").toDate());
 }
 

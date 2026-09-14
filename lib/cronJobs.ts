@@ -4,11 +4,29 @@ import { whatsappQueue } from "@/lib/queue/whatsappQueue";
 import dayjs from "@/lib/dayjs";
 import { AttendanceStatus } from "@/types/session";
 import { buildAdminPaymentsSummary } from "@/lib/adminPaymentsSummary";
+import { materializeAllUpcoming } from "@/lib/recurringScheduling";
 
 function formatPhoneToJid(phone: string): string {
   const cleaned = phone.replace(/\D/g, "");
   return `${cleaned}@s.whatsapp.net`;
 }
+
+// ---------- Materialize recurring sessions (daily 4am Cairo) ----------
+cron.schedule(
+  "0 4 * * *",
+  async () => {
+    console.log("[Cron] Materializing recurring sessions...");
+    try {
+      const { created } = await materializeAllUpcoming();
+      console.log(
+        `[Cron] Materialized ${created} recurring session(s)`,
+      );
+    } catch (error) {
+      console.error("[Cron] Recurring sessions materialization failed:", error);
+    }
+  },
+  { timezone: "Africa/Cairo" },
+);
 
 cron.schedule("0,30 * * * *", async () => {
   console.log("[Cron] Checking for session reminders...");

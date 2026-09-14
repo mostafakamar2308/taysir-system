@@ -85,6 +85,7 @@ model Academy {
   groups               Group[]
   studentReports       StudentReport[]
   sessions             Session[]
+  recurringSchedules   RecurringSchedule[]
   expenses             Expense[]
   plans                Plan[]
   histories            History[]
@@ -262,6 +263,7 @@ model Tutor {
   notes               Note[]
   expenses            Expense[]
   sessions            Session[]
+  recurringSchedules  RecurringSchedule[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -297,6 +299,7 @@ model Group {
 
   members  GroupStudent[]
   sessions Session[]
+  recurringSchedules RecurringSchedule[]
 
   chatRoom GroupChatRoom?
 
@@ -376,6 +379,9 @@ model Session {
   academyId Int
   academy   Academy @relation(fields: [academyId], references: [id])
 
+  recurringScheduleId Int?
+  recurringSchedule   RecurringSchedule? @relation(fields: [recurringScheduleId], references: [id])
+
   participants    SessionParticipant[]
   assignment      Assignment?
   tutorAttendance TutorAttendance?
@@ -389,6 +395,33 @@ model Session {
   @@index([isTrial])
   @@index([tutorId])
   @@index([startTime])
+}
+
+// ===================Recurring Schedules=================
+model RecurringSchedule {
+  id              Int      @id @default(autoincrement())
+  groupId         Int
+  group           Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  tutorId         Int
+  tutor           Tutor    @relation(fields: [tutorId], references: [id])
+  academyId       Int
+  academy         Academy  @relation(fields: [academyId], references: [id])
+  dayOfWeek       Int      // 0=Saturday, 1=Sunday ... 6=Friday
+  startTime       DateTime // time-of-day only (date part ignored)
+  durationMinutes Int      @default(60)
+  topic           String?
+  active          Boolean  @default(true)
+  endDate         DateTime? // null = runs forever
+  skippedDates    Json?    // ["2026-01-26", "2026-02-02"] — ISO date strings
+
+  sessions Session[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([groupId, dayOfWeek, startTime])
+  @@index([academyId])
+  @@index([active])
 }
 
 // Tutor's request to extend a session's duration after it has started.

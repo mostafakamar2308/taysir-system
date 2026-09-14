@@ -29,6 +29,8 @@ export interface AdminSession {
   groupId: number;
   groupName: string;
 
+  recurringScheduleId: number | null;
+
   tutorId: number;
   tutorName: string;
   tutorRate: number;
@@ -114,3 +116,35 @@ export interface SessionStudent {
   tutorId: number | null;
   tutorName: string | null;
 }
+
+export interface RecurringScheduleSlot {
+  id: number;
+  groupId: number;
+  groupName: string;
+  tutorId: number;
+  tutorName: string;
+  dayOfWeek: number;
+  startTime: string; // time-of-day HH:mm (Cairo)
+  durationMinutes: number;
+  topic: string | null;
+  nextOccurrence: string; // computed date YYYY-MM-DD for current week
+  isSkipped: boolean;
+}
+
+export const DAY_OF_WEEK_SATURDAY = 0;
+export const DAY_OF_WEEK_SUNDAY = 1;
+export const DAY_OF_WEEK_MONDAY = 2;
+export const DAY_OF_WEEK_TUESDAY = 3;
+export const DAY_OF_WEEK_WEDNESDAY = 4;
+export const DAY_OF_WEEK_THURSDAY = 5;
+export const DAY_OF_WEEK_FRIDAY = 6;
+
+export const dayOfWeekLabels: Record<number, string> = {
+  0: "السبت",
+  1: "الأحد",
+  2: "الاثنين",
+  3: "الثلاثاء",
+  4: "الأربعاء",
+  5: "الخميس",
+  6: "الجمعة",
+};
