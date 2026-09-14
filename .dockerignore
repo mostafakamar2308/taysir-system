@@ -1,0 +1,32 @@
+# deps & build outputs (re-created inside Docker)
+node_modules
+.next
+dist
+out
+generated
+
+# local data / secrets
+uploads
+exports
+.env
+.env.*
+!.env.example
+*.pem
+*.log
+
+# VCS / IDE
+.git
+.gitignore
+.hg
+.svn
+.vscode
+.idea
+
+# misc
+remotion
+agents
+coverage
+tests
+*.md
+next-env.d.ts
+*.tsbuildinfo
