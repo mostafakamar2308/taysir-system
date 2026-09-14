@@ -47,7 +47,7 @@ export default async function TutorDashboardPage() {
   if (!tutor) redirect("/login");
   const tutorId = tutor.id;
 
-  const now = dayjs.utc();
+  const now = dayjs();
   const todayStart = now.startOf("day").toDate();
   const todayEnd = now.endOf("day").toDate();
 
@@ -55,9 +55,6 @@ export default async function TutorDashboardPage() {
   const sessions = await db.session.findMany({
     where: {
       tutorId,
-      startTime: {
-        lte: now.toDate(),
-      },
       cancelledBy: null,
     },
     include: {

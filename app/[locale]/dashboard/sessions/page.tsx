@@ -4,6 +4,8 @@ import { user } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getSessionStatus } from "@/lib/session";
 import type { AdminSession, AdminSessionParticipant } from "@/types/session";
+import { getRecurringSlotsForWeek } from "@/lib/recurringScheduling";
+import { saturdayOfWeek } from "@/lib/dates";
 import SessionsViewer from "@/components/dashboard/sessions/viewer";
 
 export default async function SessionsPage({
@@ -17,8 +19,8 @@ export default async function SessionsPage({
 
   const { week } = await searchParams;
   const refDate = week ? dayjs(week) : dayjs();
-  // Compute Saturday‑Friday week. dayjs.startOf('week') gives Sunday, so we go back one day then add 6 days.
-  const saturday = refDate.startOf("week").subtract(1, "day");
+  // Compute Saturday‑Friday week. saturdayOfWeek is locale-independent.
+  const saturday = dayjs(saturdayOfWeek(refDate));
   const friday = saturday.add(6, "day").endOf("day");
   const weekStart = saturday.toDate();
   const weekEnd = friday.toDate();
@@ -124,6 +126,8 @@ export default async function SessionsPage({
       groupId: s.groupId,
       groupName: s.group.title,
 
+      recurringScheduleId: s.recurringScheduleId,
+
       tutorId: s.tutorId,
       tutorName: s.tutor.user.name ?? "",
       tutorRate: s.tutorRate,
@@ -156,11 +160,17 @@ export default async function SessionsPage({
     };
   });
 
+  const recurringSlots = await getRecurringSlotsForWeek(
+    academyId,
+    weekStart,
+  );
+
   return (
     <SessionsViewer
       initialSessions={transformedSessions}
       initialWeekStart={saturday.format("YYYY-MM-DD")}
       academyId={academyId}
+      initialRecurringSlots={recurringSlots}
     />
   );
 }

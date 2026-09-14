@@ -10,9 +10,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal } from "lucide-react";
+import { MoreHorizontal, Repeat } from "lucide-react";
 import { formatTime } from "@/lib/dates";
 import dayjs from "@/lib/dayjs";
+import { cn } from "@/lib/utils";
 
 interface Props {
   session: AdminSession;
@@ -48,12 +49,21 @@ export function SessionCard({ session, onClick, onEdit, onCancel, onExtend }: Pr
     <div className="relative group">
       <button
         onClick={onClick}
-        className={`w-full text-right rounded-lg p-2 border transition-all hover:shadow-md ${statusStyles[session.status]}`}
+        className={`w-full text-right rounded-lg p-2 border transition-all hover:shadow-md ${statusStyles[session.status]} ${session.recurringScheduleId ? "border-dashed border-2 border-muted-foreground/30" : ""}`}
       >
         <div className="flex justify-between items-center">
           <span className="text-xs font-semibold">
             {startTime} – {endTime}
           </span>
+          {session.recurringScheduleId && (
+            <Badge
+              variant="outline"
+              className="text-[10px] px-1 py-0 bg-violet-100 text-violet-700 border-violet-200"
+            >
+              <Repeat className="h-2.5 w-2.5 ml-0.5" />
+              متكرر
+            </Badge>
+          )}
           {isCompleted && (
             <div className="flex gap-1">
               <Badge variant="outline" className="text-[10px] px-1 py-0">

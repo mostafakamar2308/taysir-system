@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import dayjs from "@/lib/dayjs";
-import type { AdminSession } from "@/types/session";
+import { saturdayOfWeek } from "@/lib/dates";
+import type { AdminSession, RecurringScheduleSlot } from "@/types/session";
 import type { SessionClientData } from "@/types/tutor/session";
 import { WeeklyCalendarView } from "@/components/dashboard/sessions/WeeklyCalendarView";
 import { MobileSessionsList } from "@/components/dashboard/sessions/MobileSessionsList";
@@ -19,9 +21,11 @@ import {
   ChevronRight,
   ChevronLeft,
   CalendarDays,
+  CalendarPlus,
   LayoutGrid,
   Filter,
   Plus,
+  Repeat,
 } from "lucide-react";
 import {
   ToggleGroup,
@@ -29,10 +33,13 @@ import {
 } from "@/components/ui/toggle-group";
 import { CardsView } from "./cardsView";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
 import { AddSessionDialog } from "./AddSessionDialog";
+import { BatchScheduleDialog } from "@/components/dashboard/sessions/BatchScheduleDialog";
 import { EditSessionDialog } from "@/components/dashboard/sessions/EditSessionDialog";
 import { CancelSessionDialog } from "@/components/dashboard/sessions/CancelSessionDialog";
 import { TimeExtensionDialog } from "./TimeExtensionDialog";
+import { materializeRecurringSession } from "@/actions/recurringSchedule";
 import SessionDetailPanel from "./sessionDetailPanel";
 
 interface Props {
@@ -43,6 +50,7 @@ interface Props {
   academyId: number;
   canCreateSessions: boolean;
   canEditSessionTime: boolean;
+  initialRecurringSlots?: RecurringScheduleSlot[];
 }
 
 export default function TutorSessionsViewer({
@@ -53,9 +61,13 @@ export default function TutorSessionsViewer({
   academyId,
   canCreateSessions,
   canEditSessionTime,
+  initialRecurringSlots = [],
 }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const locale = pathname.split("/")[1] || "ar";
+  const { toast } = useToast();
 
   const [saturday, setSaturday] = useState(
     dayjs(initialWeekStart).startOf("day"),
@@ -69,6 +81,7 @@ export default function TutorSessionsViewer({
   const [missingReports, setMissingReports] = useState(false);
 
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [batchDialogOpen, setBatchDialogOpen] = useState(false);
   const [editingSession, setEditingSession] = useState<AdminSession | null>(
     null,
   );
@@ -77,12 +90,50 @@ export default function TutorSessionsViewer({
   const [detailSession, setDetailSession] = useState<SessionClientData | null>(
     null,
   );
+  const [materializing, setMaterializing] = useState<number | null>(null);
 
   const weekDates = useMemo(() => {
     const dates: Date[] = [];
     for (let i = 0; i < 7; i++) dates.push(saturday.add(i, "day").toDate());
     return dates;
   }, [saturday]);
+
+  const recurringSlots = useMemo(() => {
+    return initialRecurringSlots.filter((slot) => {
+      const slotDate = dayjs(slot.nextOccurrence);
+      const weekEndExclusive = saturday.add(7, "day");
+      return (
+        (slotDate.isSame(saturday, "day") ||
+          slotDate.isAfter(saturday, "day")) &&
+        slotDate.isBefore(weekEndExclusive, "day")
+      );
+    });
+  }, [initialRecurringSlots, saturday]);
+
+  const handleRecurringSlotClick = async (slot: RecurringScheduleSlot) => {
+    if (materializing) return;
+    setMaterializing(slot.id);
+    try {
+      const res = await materializeRecurringSession(
+        slot.id,
+        slot.nextOccurrence,
+      );
+      if (!res.ok) {
+        toast({ title: "خطأ", description: res.error, variant: "destructive" });
+        return;
+      }
+      toast({ title: "تم إنشاء الحصة" });
+      router.refresh();
+    } catch {
+      toast({
+        title: "خطأ",
+        description: "حدث خطأ غير متوقع",
+        variant: "destructive",
+      });
+    } finally {
+      setMaterializing(null);
+    }
+  };
 
   const filteredSessions = useMemo(() => {
     return initialSessions.filter((s) => {
@@ -120,7 +171,7 @@ export default function TutorSessionsViewer({
 
   const goToday = () => {
     const today = dayjs();
-    const newSaturday = today.startOf("week").subtract(1, "day");
+    const newSaturday = dayjs(saturdayOfWeek(today));
     setSaturday(newSaturday);
     const params = new URLSearchParams(searchParams.toString());
     params.set("week", newSaturday.format("YYYY-MM-DD"));
@@ -166,10 +217,26 @@ export default function TutorSessionsViewer({
             </ToggleGroupItem>
           </ToggleGroup>
           {canCreateSessions && (
-            <Button onClick={() => setAddDialogOpen(true)}>
-              <Plus className="h-4 w-4 ml-2" />
-              إضافة حصة
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button variant="outline" asChild size="sm">
+                <Link href={`/${locale}/dashboard/tutor/timetable`}>
+                  <Repeat className="h-4 w-4 ml-2" />
+                  متكرر
+                </Link>
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setBatchDialogOpen(true)}
+                size="sm"
+              >
+                <CalendarPlus className="h-4 w-4 ml-2" />
+                جدولة متعددة
+              </Button>
+              <Button onClick={() => setAddDialogOpen(true)} size="sm">
+                <Plus className="h-4 w-4 ml-2" />
+                إضافة حصة
+              </Button>
+            </div>
           )}
         </div>
       </div>
@@ -262,6 +329,7 @@ export default function TutorSessionsViewer({
         <CardsView
           weekDates={weekDates}
           sessions={filteredSessions}
+          recurringSlots={recurringSlots}
           onSessionClick={(s) =>
             setDetailSession(
               initialSessionData.find((d) => d.id === s.id) ?? null,
@@ -270,6 +338,7 @@ export default function TutorSessionsViewer({
           onEditSession={setEditingSession}
           onCancelSession={setCancelSession}
           onExtendSession={setExtendSession}
+          onRecurringSlotClick={handleRecurringSlotClick}
         />
       )}
 
@@ -279,6 +348,7 @@ export default function TutorSessionsViewer({
             <WeeklyCalendarView
               weekDates={weekDates}
               sessions={filteredSessions}
+              recurringSlots={recurringSlots}
               onSessionClick={(s) =>
                 setDetailSession(
                   initialSessionData.find((d) => d.id === s.id) ?? null,
@@ -287,12 +357,14 @@ export default function TutorSessionsViewer({
               onEditSession={setEditingSession}
               onCancelSession={setCancelSession}
               onExtendSession={setExtendSession}
+              onRecurringSlotClick={handleRecurringSlotClick}
             />
           </div>
           <div className="block md:hidden">
             <MobileSessionsList
               weekDates={weekDates}
               sessions={filteredSessions}
+              recurringSlots={recurringSlots}
               onSessionClick={(s) =>
                 setDetailSession(
                   initialSessionData.find((d) => d.id === s.id) ?? null,
@@ -301,6 +373,7 @@ export default function TutorSessionsViewer({
               onEditSession={setEditingSession}
               onCancelSession={setCancelSession}
               onExtendSession={setExtendSession}
+              onRecurringSlotClick={handleRecurringSlotClick}
             />
           </div>
         </>
@@ -322,6 +395,12 @@ export default function TutorSessionsViewer({
       <AddSessionDialog
         open={addDialogOpen}
         onOpenChange={setAddDialogOpen}
+        academyId={academyId}
+        tutorId={tutorId}
+      />
+      <BatchScheduleDialog
+        open={batchDialogOpen}
+        onOpenChange={setBatchDialogOpen}
         academyId={academyId}
         tutorId={tutorId}
       />

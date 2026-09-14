@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import dayjs from "@/lib/dayjs";
-import type { AdminSession } from "@/types/session";
+import type { AdminSession, RecurringScheduleSlot } from "@/types/session";
 import { AttendanceStatus, SessionStatus } from "@/types/session";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,15 +16,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ChevronRight, ChevronLeft, CalendarDays, Filter } from "lucide-react";
-import { formatTime } from "@/lib/dates";
+import { ChevronRight, ChevronLeft, CalendarDays, Filter, Repeat } from "lucide-react";
+import { formatTime, saturdayOfWeek } from "@/lib/dates";
 import { sessionStatusLabels, sessionStatusColors } from "@/const/sessions";
+import { useToast } from "@/hooks/use-toast";
+import { materializeRecurringSession } from "@/actions/recurringSchedule";
 import SupervisorSessionDetailPanel from "@/components/dashboard/supervisor/sessionDetailPanel";
 
 interface Props {
   initialSessions: AdminSession[];
   initialWeekStart: string;
   initialSessionId?: number | null;
+  initialRecurringSlots?: RecurringScheduleSlot[];
 }
 
 const dayNames = ["السبت", "الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة"];
@@ -32,10 +36,14 @@ export default function SupervisorSessionsViewer({
   initialSessions,
   initialWeekStart,
   initialSessionId,
+  initialRecurringSlots = [],
 }: Props) {
   const t = useTranslations("SupervisorSessions");
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const locale = pathname.split("/")[1] || "ar";
+  const { toast } = useToast();
 
   const [saturday, setSaturday] = useState(
     dayjs(initialWeekStart).startOf("day"),
@@ -67,6 +75,39 @@ export default function SupervisorSessionsViewer({
     for (let i = 0; i < 7; i++) dates.push(saturday.add(i, "day").toDate());
     return dates;
   }, [saturday]);
+
+  const recurringSlots = useMemo(() => {
+    return initialRecurringSlots.filter((slot) => {
+      const slotDate = dayjs(slot.nextOccurrence);
+      const weekEndExclusive = saturday.add(7, "day");
+      return (
+        (slotDate.isSame(saturday, "day") ||
+          slotDate.isAfter(saturday, "day")) &&
+        slotDate.isBefore(weekEndExclusive, "day")
+      );
+    });
+  }, [initialRecurringSlots, saturday]);
+
+  const handleRecurringSlotClick = async (slot: RecurringScheduleSlot) => {
+    try {
+      const res = await materializeRecurringSession(
+        slot.id,
+        slot.nextOccurrence,
+      );
+      if (!res.ok) {
+        toast({ title: "خطأ", description: res.error, variant: "destructive" });
+        return;
+      }
+      toast({ title: "تم إنشاء الحصة" });
+      router.refresh();
+    } catch {
+      toast({
+        title: "خطأ",
+        description: "حدث خطأ غير متوقع",
+        variant: "destructive",
+      });
+    }
+  };
 
   const filteredSessions = useMemo(() => {
     return initialSessions.filter((s) => {
@@ -101,7 +142,7 @@ export default function SupervisorSessionsViewer({
 
   const goToday = () => {
     const today = dayjs();
-    const newSaturday = today.startOf("week").subtract(1, "day");
+    const newSaturday = dayjs(saturdayOfWeek(today));
     setSaturday(newSaturday);
     const params = new URLSearchParams(searchParams.toString());
     params.delete("sessionId");
@@ -117,9 +158,17 @@ export default function SupervisorSessionsViewer({
 
   return (
     <div className="p-4 md:p-6 space-y-4" dir="rtl">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">{t("title")}</h1>
-        <p className="text-sm text-muted-foreground mt-1">{t("subtitle")}</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">{t("title")}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t("subtitle")}</p>
+        </div>
+        <Button variant="outline" asChild className="w-fit">
+          <Link href={`/${locale}/dashboard/supervisor/timetable`}>
+            <Repeat className="h-4 w-4 ml-2" />
+            الجداول المتكررة
+          </Link>
+        </Button>
       </div>
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-border bg-card p-4">
@@ -185,7 +234,11 @@ export default function SupervisorSessionsViewer({
           const daySessions = filteredSessions.filter(
             (s) => dayjs(s.startTime).format("YYYY-MM-DD") === dayKey,
           );
-          if (daySessions.length === 0) return null;
+          const dayRecurringSlots = recurringSlots.filter(
+            (slot) => slot.nextOccurrence === dayKey,
+          );
+          if (daySessions.length === 0 && dayRecurringSlots.length === 0)
+            return null;
           return (
             <div key={idx}>
               <div className="flex items-center gap-2 mb-2">
@@ -206,6 +259,13 @@ export default function SupervisorSessionsViewer({
                     session={s}
                     t={t}
                     onOpen={() => setSelectedSession(s)}
+                  />
+                ))}
+                {dayRecurringSlots.map((slot) => (
+                  <RecurringCard
+                    key={`recurring-${slot.id}-${slot.nextOccurrence}`}
+                    slot={slot}
+                    onOpen={() => handleRecurringSlotClick(slot)}
                   />
                 ))}
               </div>
@@ -283,6 +343,42 @@ function SessionCard({
           )}
         </div>
       )}
+    </button>
+  );
+}
+
+function RecurringCard({
+  slot,
+  onOpen,
+}: {
+  slot: RecurringScheduleSlot;
+  onOpen: () => void;
+}) {
+  return (
+    <button
+      onClick={onOpen}
+      className="w-full text-right rounded-xl border-2 border-dashed border-muted-foreground/30 bg-muted/30 opacity-70 transition-all hover:opacity-100 hover:shadow-md p-3"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-bold text-muted-foreground">
+          {slot.startTime} –{" "}
+          {dayjs(`${slot.nextOccurrence}T${slot.startTime}`)
+            .add(slot.durationMinutes, "minute")
+            .format("HH:mm")}
+        </span>
+        <Badge
+          variant="outline"
+          className="bg-violet-100 text-violet-700 border-violet-200 text-[10px] px-1.5 py-0"
+        >
+          متكرر
+        </Badge>
+      </div>
+      <p className="text-sm font-semibold mt-1 text-muted-foreground">
+        {slot.tutorName}
+      </p>
+      <p className="text-xs text-muted-foreground truncate">
+        {slot.groupName}
+      </p>
     </button>
   );
 }

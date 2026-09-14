@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import dayjs from "@/lib/dayjs";
-import type { AdminSession } from "@/types/session";
+import { saturdayOfWeek } from "@/lib/dates";
+import type { AdminSession, RecurringScheduleSlot } from "@/types/session";
 import { WeeklyCalendarView } from "./WeeklyCalendarView";
 import { MobileSessionsList } from "./MobileSessionsList";
 import { SessionDetailPanel } from "./SessionDetailPanel";
@@ -19,27 +21,37 @@ import {
   ChevronRight,
   ChevronLeft,
   CalendarDays,
+  CalendarPlus,
   Filter,
   Plus,
+  Repeat,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
 import { AddSessionDialog } from "./AddSessionDialog";
+import { BatchScheduleDialog } from "./BatchScheduleDialog";
 import { EditSessionDialog } from "./EditSessionDialog";
 import { CancelSessionDialog } from "./CancelSessionDialog";
+import { materializeRecurringSession } from "@/actions/recurringSchedule";
 
 interface Props {
   initialSessions: AdminSession[];
   initialWeekStart: string; // YYYY-MM-DD (Saturday)
   academyId: number;
+  initialRecurringSlots?: RecurringScheduleSlot[];
 }
 
 export default function SessionsViewer({
   initialSessions,
   initialWeekStart,
   academyId,
+  initialRecurringSlots = [],
 }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const locale = pathname.split("/")[1] || "ar";
+  const { toast } = useToast();
 
   // Week navigation – the Saturday that starts the displayed week
   const [saturday, setSaturday] = useState(
@@ -54,10 +66,12 @@ export default function SessionsViewer({
 
   // Dialog states
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [batchDialogOpen, setBatchDialogOpen] = useState(false);
   const [editingSession, setEditingSession] = useState<AdminSession | null>(
     null,
   );
   const [cancelSession, setCancelSession] = useState<AdminSession | null>(null);
+  const [materializing, setMaterializing] = useState<number | null>(null);
 
   // Session detail dialog
   const [selectedSession, setSelectedSession] = useState<AdminSession | null>(
@@ -72,6 +86,44 @@ export default function SessionsViewer({
     }
     return dates;
   }, [saturday]);
+
+  // Recurring slots for the currently displayed week
+  const recurringSlots = useMemo(() => {
+    return initialRecurringSlots.filter((slot) => {
+      const slotDate = dayjs(slot.nextOccurrence);
+      const weekEndExclusive = saturday.add(7, "day");
+      return (
+        (slotDate.isSame(saturday, "day") ||
+          slotDate.isAfter(saturday, "day")) &&
+        slotDate.isBefore(weekEndExclusive, "day")
+      );
+    });
+  }, [initialRecurringSlots, saturday]);
+
+  const handleRecurringSlotClick = async (slot: RecurringScheduleSlot) => {
+    if (materializing) return;
+    setMaterializing(slot.id);
+    try {
+      const res = await materializeRecurringSession(
+        slot.id,
+        slot.nextOccurrence,
+      );
+      if (!res.ok) {
+        toast({ title: "خطأ", description: res.error, variant: "destructive" });
+        return;
+      }
+      toast({ title: "تم إنشاء الحصة" });
+      router.refresh();
+    } catch {
+      toast({
+        title: "خطأ",
+        description: "حدث خطأ غير متوقع",
+        variant: "destructive",
+      });
+    } finally {
+      setMaterializing(null);
+    }
+  };
 
   // Client‑side filtering
   const filteredSessions = useMemo(() => {
@@ -115,7 +167,7 @@ export default function SessionsViewer({
 
   const goToday = () => {
     const today = dayjs();
-    const newSaturday = today.startOf("week").subtract(1, "day");
+    const newSaturday = dayjs(saturdayOfWeek(today));
     setSaturday(newSaturday);
     const params = new URLSearchParams(searchParams.toString());
     params.set("week", newSaturday.format("YYYY-MM-DD"));
@@ -138,10 +190,22 @@ export default function SessionsViewer({
             عرض وإدارة جميع الحصص في التقويم الأسبوعي
           </p>
         </div>
-        <Button onClick={() => setAddDialogOpen(true)}>
-          <Plus className="h-4 w-4 ml-2" />
-          إضافة حصة
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" asChild>
+            <Link href={`/${locale}/dashboard/timetable`}>
+              <Repeat className="h-4 w-4 ml-2" />
+              الجداول المتكررة
+            </Link>
+          </Button>
+          <Button variant="outline" onClick={() => setBatchDialogOpen(true)}>
+            <CalendarPlus className="h-4 w-4 ml-2" />
+            جدولة متعددة
+          </Button>
+          <Button onClick={() => setAddDialogOpen(true)}>
+            <Plus className="h-4 w-4 ml-2" />
+            إضافة حصة
+          </Button>
+        </div>
       </div>
 
       {/* Navigation & Filters */}
@@ -238,18 +302,22 @@ export default function SessionsViewer({
         <WeeklyCalendarView
           weekDates={weekDates}
           sessions={filteredSessions}
+          recurringSlots={recurringSlots}
           onSessionClick={setSelectedSession}
           onEditSession={setEditingSession}
           onCancelSession={setCancelSession}
+          onRecurringSlotClick={handleRecurringSlotClick}
         />
       </div>
       <div className="block md:hidden">
         <MobileSessionsList
           weekDates={weekDates}
           sessions={filteredSessions}
+          recurringSlots={recurringSlots}
           onSessionClick={setSelectedSession}
           onEditSession={setEditingSession}
           onCancelSession={setCancelSession}
+          onRecurringSlotClick={handleRecurringSlotClick}
         />
       </div>
 
@@ -267,6 +335,11 @@ export default function SessionsViewer({
       <AddSessionDialog
         open={addDialogOpen}
         onOpenChange={setAddDialogOpen}
+        academyId={academyId}
+      />
+      <BatchScheduleDialog
+        open={batchDialogOpen}
+        onOpenChange={setBatchDialogOpen}
         academyId={academyId}
       />
       {editingSession && (

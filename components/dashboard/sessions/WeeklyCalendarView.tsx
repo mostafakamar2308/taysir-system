@@ -2,16 +2,20 @@
 
 import { useMemo } from "react";
 import dayjs from "@/lib/dayjs";
-import type { AdminSession } from "@/types/session";
+import type { AdminSession, RecurringScheduleSlot } from "@/types/session";
 import { SessionCard } from "./SessionCard";
+import { Badge } from "@/components/ui/badge";
+import { Repeat } from "lucide-react";
 
 interface Props {
   weekDates: Date[];
   sessions: AdminSession[];
+  recurringSlots?: RecurringScheduleSlot[];
   onSessionClick: (session: AdminSession) => void;
   onEditSession: (session: AdminSession) => void;
   onCancelSession: (session: AdminSession) => void;
   onExtendSession?: (session: AdminSession) => void;
+  onRecurringSlotClick?: (slot: RecurringScheduleSlot) => void;
 }
 
 const dayNames = [
@@ -28,10 +32,12 @@ const hours = Array.from({ length: 24 }, (_, i) => i); // 0–23
 export function WeeklyCalendarView({
   weekDates,
   sessions,
+  recurringSlots = [],
   onSessionClick,
   onEditSession,
   onCancelSession,
   onExtendSession,
+  onRecurringSlotClick,
 }: Props) {
   // Group sessions by day AND start hour for quick lookup
   const sessionsByDayHour = useMemo(() => {
@@ -59,6 +65,22 @@ export function WeeklyCalendarView({
     }
     return map;
   }, [sessions, weekDates]);
+
+  // Group recurring slots by day/hour too
+  const recurringSlotsByDayHour = useMemo(() => {
+    const map = new Map<string, RecurringScheduleSlot[]>();
+    for (const slot of recurringSlots) {
+      const [h, m] = slot.startTime.split(":").map(Number);
+      const key = `${slot.nextOccurrence}-${h}`;
+      const bucket = map.get(key);
+      if (bucket) {
+        bucket.push(slot);
+      } else {
+        map.set(key, [slot]);
+      }
+    }
+    return map;
+  }, [recurringSlots]);
 
   const today = dayjs().format("YYYY-MM-DD");
 
@@ -108,6 +130,8 @@ export function WeeklyCalendarView({
                     (isToday && hour < dayjs().hour());
                   const cellSessions =
                     sessionsByDayHour.get(`${dayKey}-${hour}`) ?? [];
+                  const cellRecurringSlots =
+                    recurringSlotsByDayHour.get(`${dayKey}-${hour}`) ?? [];
 
                   return (
                     <div
@@ -127,6 +151,37 @@ export function WeeklyCalendarView({
                             onCancel={onCancelSession}
                             onExtend={onExtendSession}
                           />
+                        ))}
+                        {cellRecurringSlots.map((slot) => (
+                          <button
+                            key={`recurring-${slot.id}-${slot.nextOccurrence}`}
+                            onClick={() => onRecurringSlotClick?.(slot)}
+                            className="w-full text-right rounded-lg p-2 border-2 border-dashed border-muted-foreground/30 bg-muted/30 opacity-70 transition-all hover:opacity-100 hover:shadow-md text-left"
+                          >
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs font-semibold text-muted-foreground">
+                                {slot.startTime} –{" "}
+                                {dayjs(
+                                  `${slot.nextOccurrence}T${slot.startTime}`,
+                                )
+                                  .add(slot.durationMinutes, "minute")
+                                  .format("HH:mm")}
+                              </span>
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] px-1 py-0 bg-violet-100 text-violet-700 border-violet-200"
+                              >
+                                <Repeat className="h-2.5 w-2.5 ml-0.5" />
+                                متكرر
+                              </Badge>
+                            </div>
+                            <p className="text-xs mt-1 truncate text-muted-foreground">
+                              {slot.tutorName}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {slot.groupName}
+                            </p>
+                          </button>
                         ))}
                       </div>
                     </div>

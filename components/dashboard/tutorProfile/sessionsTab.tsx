@@ -15,7 +15,7 @@ import dayjs from "@/lib/dayjs";
 import { getTutorSessionsForWeek } from "@/actions/tutor";
 import type { TutorSessionCardData } from "@/types/tutor";
 import { SessionStatus } from "@/types/session";
-import { formatDate, formatTime } from "@/lib/dates";
+import { formatDate, formatTime, saturdayOfWeek } from "@/lib/dates";
 import { AddSessionDialog } from "@/components/dashboard/sessions/AddSessionDialog";
 import { TutorEditSessionDialog } from "./EditSessionDialog";
 import { CancelSessionDialog } from "@/components/dashboard/sessions/CancelSessionDialog";
@@ -37,8 +37,8 @@ const statusColors: Record<number, string> = {
 
 export default function SessionsTab({ tutorId, academyId }: Props) {
   const [weekStart, setWeekStart] = useState(
-    dayjs().startOf("week").subtract(1, "day").format("YYYY-MM-DD"),
-  ); // Saturday
+    saturdayOfWeek(), // Saturday, start of the academy week
+  );
   const [sessions, setSessions] = useState<TutorSessionCardData[]>([]);
   const [loading, setLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");

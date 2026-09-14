@@ -19,6 +19,7 @@ import {
   MessageSquare,
   FileText,
   Timer,
+  Repeat,
 } from "lucide-react";
 import { Role } from "@/types/user";
 
@@ -139,6 +140,11 @@ export const getSidebarGroups = (role: number, locale: string = "ar") => {
             icon: Clock,
           },
           {
+            titleKey: "items.timetable",
+            url: `/${locale}/dashboard/timetable`,
+            icon: Repeat,
+          },
+          {
             titleKey: "items.timeExtensionRequests",
             url: `/${locale}/dashboard/session-management/time-extension-requests`,
             icon: Timer,
@@ -204,6 +210,11 @@ export const getSidebarGroups = (role: number, locale: string = "ar") => {
             icon: Calendar,
           },
           {
+            titleKey: "items.timetable",
+            url: `/${locale}/dashboard/tutor/timetable`,
+            icon: Repeat,
+          },
+          {
             titleKey: "items.groups",
             url: `/${locale}/dashboard/tutor/groups`,
             icon: Users,
@@ -267,6 +278,11 @@ export const getSidebarGroups = (role: number, locale: string = "ar") => {
             titleKey: "items.sessionSchedule",
             url: `/${locale}/dashboard/supervisor/sessions`,
             icon: Calendar,
+          },
+          {
+            titleKey: "items.timetable",
+            url: `/${locale}/dashboard/supervisor/timetable`,
+            icon: Repeat,
           },
           {
             titleKey: "items.groups",

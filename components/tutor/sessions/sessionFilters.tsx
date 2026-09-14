@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select";
 import { ArrowRight, ArrowLeft } from "lucide-react";
 import dayjs from "@/lib/dayjs";
-import { getWeekDates } from "@/lib/dates";
+import { getWeekDates, saturdayOfWeek } from "@/lib/dates";
 
 interface SessionsFiltersProps {
   students: { id: number; name: string }[];
@@ -49,7 +49,7 @@ export default function SessionsFilters({
   };
 
   const goToday = () => {
-    updateParams("week", dayjs().startOf("week").format("YYYY-MM-DD"));
+    updateParams("week", saturdayOfWeek());
   };
 
   const weekDates = getWeekDates(dayjs(currentWeekStart).toDate());

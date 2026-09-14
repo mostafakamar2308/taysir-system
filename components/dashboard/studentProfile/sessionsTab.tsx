@@ -13,7 +13,7 @@ import {
 import { ChevronRight, ChevronLeft, Plus } from "lucide-react";
 import type { StudentProfile, SessionRecord } from "@/types/studentProfile";
 import { SessionStatus } from "@/types/session";
-import { formatDate, formatTime } from "@/lib/dates";
+import { formatDate, formatTime, saturdayOfWeek } from "@/lib/dates";
 import dayjs from "@/lib/dayjs";
 import { getStudentSessionsForWeek } from "@/actions/student";
 import { SessionDetailPanel } from "@/components/dashboard/sessions/SessionDetailPanel";
@@ -31,7 +31,7 @@ export default function SessionsTab({ student, tutors }: Props) {
   const { toast } = useToast();
   const [addSessionOpen, setAddSessionOpen] = useState(false);
   const [weekStart, setWeekStart] = useState(
-    dayjs().startOf("week").subtract(1, "day").format("YYYY-MM-DD"),
+    saturdayOfWeek(), // current week's Saturday
   );
   const [sessions, setSessions] = useState<SessionRecord[]>([]);
   const [loading, setLoading] = useState(false);

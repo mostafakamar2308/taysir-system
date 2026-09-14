@@ -10,6 +10,7 @@ import {
   Plus,
 } from "lucide-react";
 import dayjs from "@/lib/dayjs";
+import { saturdayOfWeek } from "@/lib/dates";
 import AddSessionDialog from "../dialogs/addSessionDialog";
 
 interface WeekNavigationProps {
@@ -43,8 +44,8 @@ export function WeekNavigation({
     if (viewMode === "day") {
       return dayjs(currentDate).format("D MMMM YYYY");
     } else if (viewMode === "week") {
-      const start = dayjs(currentDate).startOf("week");
-      const end = dayjs(currentDate).endOf("week");
+      const start = dayjs(saturdayOfWeek(currentDate));
+      const end = start.add(6, "day");
       return `${start.format("D MMMM")} – ${end.format("D MMMM YYYY")}`;
     } else {
       return dayjs(currentDate).format("MMMM YYYY");

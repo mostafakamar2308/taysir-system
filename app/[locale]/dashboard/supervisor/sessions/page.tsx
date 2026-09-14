@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { getSessionStatus } from "@/lib/session";
 import { getCurrentSupervisor, supervisorSessionScope } from "@/lib/supervisor";
 import type { AdminSession, AdminSessionParticipant } from "@/types/session";
+import { getRecurringSlotsForWeek } from "@/lib/recurringScheduling";
+import { saturdayOfWeek } from "@/lib/dates";
 import SupervisorSessionsViewer from "@/components/dashboard/supervisor/sessions/viewer";
 
 export default async function SupervisorSessionsPage({
@@ -26,15 +28,12 @@ export default async function SupervisorSessionsPage({
       select: { startTime: true },
     });
     if (target) {
-      effectiveWeek = dayjs(target.startTime)
-        .startOf("week")
-        .subtract(1, "day")
-        .format("YYYY-MM-DD");
+      effectiveWeek = saturdayOfWeek(target.startTime);
     }
   }
 
   const refDate = effectiveWeek ? dayjs(effectiveWeek) : dayjs();
-  const saturday = refDate.startOf("week").subtract(1, "day");
+  const saturday = dayjs(saturdayOfWeek(refDate));
   const friday = saturday.add(6, "day").endOf("day");
   const weekStart = saturday.toDate();
   const weekEnd = friday.toDate();
@@ -106,6 +105,7 @@ export default async function SupervisorSessionsPage({
       recordingLink: s.recordingLink,
       groupId: s.groupId,
       groupName: s.group.title,
+      recurringScheduleId: s.recurringScheduleId,
       tutorId: s.tutorId,
       tutorName: s.tutor.user.name ?? "",
       tutorRate: s.tutorRate,
@@ -126,11 +126,19 @@ export default async function SupervisorSessionsPage({
     };
   });
 
+  const recurringSlots = await getRecurringSlotsForWeek(
+    supervisor.academyId,
+    weekStart,
+    undefined,
+    supervisor.id,
+  );
+
   return (
     <SupervisorSessionsViewer
       initialSessions={transformedSessions}
       initialWeekStart={saturday.format("YYYY-MM-DD")}
       initialSessionId={sessionId ? parseInt(sessionId) : null}
+      initialRecurringSlots={recurringSlots}
     />
   );
 }

@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import dayjs from "@/lib/dayjs";
-import type { AdminSession } from "@/types/session";
+import type { AdminSession, RecurringScheduleSlot } from "@/types/session";
 import { AttendanceStatus, SessionStatus } from "@/types/session";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,16 +14,18 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { formatTime } from "@/lib/dates";
 import { sessionStatusLabels, sessionStatusColors } from "@/const/sessions";
-import { CalendarClock, Clock, Eye, MoreHorizontal, Video } from "lucide-react";
+import { CalendarClock, Clock, Eye, MoreHorizontal, Repeat, Video } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 interface Props {
   weekDates: Date[];
   sessions: AdminSession[];
+  recurringSlots?: RecurringScheduleSlot[];
   onSessionClick: (session: AdminSession) => void;
   onEditSession?: (session: AdminSession) => void;
   onCancelSession?: (session: AdminSession) => void;
   onExtendSession?: (session: AdminSession) => void;
+  onRecurringSlotClick?: (slot: RecurringScheduleSlot) => void;
 }
 
 const dayNames = [
@@ -45,10 +47,12 @@ const statusAccent: Record<SessionStatus, string> = {
 export function CardsView({
   weekDates,
   sessions,
+  recurringSlots = [],
   onSessionClick,
   onEditSession,
   onCancelSession,
   onExtendSession,
+  onRecurringSlotClick,
 }: Props) {
   const router = useRouter();
 
@@ -65,6 +69,16 @@ export function CardsView({
     }
     return map;
   }, [sessions]);
+
+  const recurringSlotsByDay = useMemo(() => {
+    const map = new Map<string, RecurringScheduleSlot[]>();
+    for (const slot of recurringSlots) {
+      const bucket = map.get(slot.nextOccurrence) ?? [];
+      bucket.push(slot);
+      map.set(slot.nextOccurrence, bucket);
+    }
+    return map;
+  }, [recurringSlots]);
 
   const today = dayjs().format("YYYY-MM-DD");
 
@@ -124,6 +138,7 @@ export function CardsView({
         const dayKey = dayjs(date).format("YYYY-MM-DD");
         const isToday = dayKey === today;
         const daySessions = sessionsByDay.get(dayKey) ?? [];
+        const dayRecurringSlots = recurringSlotsByDay.get(dayKey) ?? [];
 
         return (
           <div
@@ -156,10 +171,15 @@ export function CardsView({
               <Badge variant="secondary" className="gap-1">
                 <CalendarClock className="h-3 w-3" />
                 {daySessions.length} حصص
+                {dayRecurringSlots.length > 0 && (
+                  <span className="text-violet-600">
+                    (+{dayRecurringSlots.length} متكرر)
+                  </span>
+                )}
               </Badge>
             </div>
 
-            {daySessions.length === 0 ? (
+            {daySessions.length === 0 && dayRecurringSlots.length === 0 ? (
               <p className="px-4 py-4 text-sm text-muted-foreground">
                 لا توجد حصص في هذا اليوم
               </p>
@@ -315,6 +335,44 @@ export function CardsView({
                     </div>
                   );
                 })}
+                {dayRecurringSlots.map((slot) => (
+                  <div
+                    key={`recurring-${slot.id}-${slot.nextOccurrence}`}
+                    className="relative rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/30 p-3 cursor-pointer transition-all hover:opacity-100 hover:shadow-md opacity-70"
+                    onClick={() => onRecurringSlotClick?.(slot)}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-muted-foreground">
+                          {slot.startTime} –{" "}
+                          {dayjs(`${slot.nextOccurrence}T${slot.startTime}`)
+                            .add(slot.durationMinutes, "minute")
+                            .format("HH:mm")}
+                        </span>
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] bg-violet-100 text-violet-700 border-violet-200"
+                        >
+                          <Repeat className="h-2.5 w-2.5 ml-0.5" />
+                          متكرر
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="mt-1">
+                      <p className="text-sm font-semibold truncate text-muted-foreground">
+                        {slot.groupName}
+                      </p>
+                      {slot.topic && (
+                        <p className="text-xs text-muted-foreground truncate mt-0.5">
+                          {slot.topic}
+                        </p>
+                      )}
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        اضغط لتحويلها إلى حصة مؤكدة
+                      </p>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>

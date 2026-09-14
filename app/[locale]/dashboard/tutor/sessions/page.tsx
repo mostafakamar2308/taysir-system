@@ -5,8 +5,10 @@ import { redirect } from "next/navigation";
 import { getSessionStatus } from "@/lib/session";
 import type { AdminSession, AdminSessionParticipant } from "@/types/session";
 import { SessionClientData } from "@/types/tutor/session";
+import { getRecurringSlotsForWeek } from "@/lib/recurringScheduling";
 import TutorSessionsViewer from "@/components/tutor/sessions/viewer";
 import { getAcademySchedulingSettings } from "@/lib/academySettings";
+import { saturdayOfWeek } from "@/lib/dates";
 
 export default async function TutorSessionsPage({
   searchParams,
@@ -22,7 +24,7 @@ export default async function TutorSessionsPage({
 
   const { week } = await searchParams;
   const refDate = week ? dayjs(week) : dayjs();
-  const saturday = refDate.startOf("week").subtract(1, "day");
+  const saturday = dayjs(saturdayOfWeek(refDate));
   const friday = saturday.add(6, "day").endOf("day");
   const weekStart = saturday.toDate();
   const weekEnd = friday.toDate();
@@ -126,6 +128,7 @@ export default async function TutorSessionsPage({
       recordingLink: s.recordingLink,
       groupId: s.groupId,
       groupName: s.group.title,
+      recurringScheduleId: s.recurringScheduleId,
       tutorId: s.tutorId,
       tutorName: s.tutor.user.name ?? "",
       tutorRate: s.tutorRate,
@@ -203,6 +206,12 @@ export default async function TutorSessionsPage({
     },
   }));
 
+  const recurringSlots = await getRecurringSlotsForWeek(
+    academyId,
+    weekStart,
+    tutorId,
+  );
+
   return (
     <TutorSessionsViewer
       initialSessions={transformedSessions}
@@ -212,6 +221,7 @@ export default async function TutorSessionsPage({
       academyId={academyId}
       canCreateSessions={schedulingSettings.tutorsCanCreateSessions}
       canEditSessionTime={schedulingSettings.tutorsCanEditSessionTime}
+      initialRecurringSlots={recurringSlots}
     />
   );
 }
