@@ -1,8 +1,10 @@
 import dayjs from "@/lib/dayjs";
 
+export const APP_TIMEZONE = "Africa/Cairo";
+
 export function localToUTC(date: string, time: string): Date {
   return dayjs
-    .tz(`${date}T${time}`, "YYYY-MM-DDTHH:mm", dayjs.tz.guess())
+    .tz(`${date}T${time}`, "YYYY-MM-DDTHH:mm", APP_TIMEZONE)
     .utc()
     .toDate();
 }

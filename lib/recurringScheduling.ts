@@ -1,6 +1,6 @@
 import db from "@/lib/prisma";
 import dayjs from "@/lib/dayjs";
-import { localToUTC } from "@/lib/dates";
+import { localToUTC, APP_TIMEZONE } from "@/lib/dates";
 import type { Prisma } from "@/generated/prisma/client";
 import type { RecurringScheduleSlot } from "@/types/session";
 
@@ -57,7 +57,9 @@ export function scheduleWallClock(
 
 function isExpired(schedule: { endDate: Date | null }): boolean {
   return schedule.endDate
-    ? dayjs(schedule.endDate).isBefore(dayjs(), "day")
+    ? dayjs(schedule.endDate)
+        .tz(APP_TIMEZONE)
+        .isBefore(dayjs().tz(APP_TIMEZONE), "day")
     : false;
 }
 
@@ -72,12 +74,13 @@ export function getNextOccurrence(schedule: {
 }): string | null {
   if (isExpired(schedule)) return null;
   const skippedDates = (schedule.skippedDates as string[]) ?? [];
+  const now = dayjs().tz(APP_TIMEZONE);
   for (let i = 0; i < 60; i++) {
-    const d = dayjs().add(i, "day");
+    const d = now.add(i, "day");
     if (appDayOfWeek(d) !== schedule.dayOfWeek) continue;
     const dateStr = d.format("YYYY-MM-DD");
     if (skippedDates.includes(dateStr)) continue;
-    if (schedule.endDate && d.isAfter(dayjs(schedule.endDate), "day"))
+    if (schedule.endDate && d.isAfter(dayjs(schedule.endDate).tz(APP_TIMEZONE), "day"))
       return null;
     return dateStr;
   }
@@ -253,7 +256,7 @@ export async function materializeRecurringSessionById(
 export async function materializeAllUpcoming(
   days = 7,
 ): Promise<{ created: number }> {
-  const now = dayjs.utc();
+  const now = dayjs().tz(APP_TIMEZONE);
 
   const schedules = await db.recurringSchedule.findMany({
     where: {

@@ -150,11 +150,13 @@ export function BatchScheduleDialog({
 
     setLoading(true);
     try {
-      const dates = selectedDates.map((d) => dayjs(d).format("YYYY-MM-DD"));
+      const startTimes = selectedDates.map((d) => {
+        const dateStr = dayjs(d).format("YYYY-MM-DD");
+        return dayjs(`${dateStr}T${startTime}`).utc().toISOString();
+      });
       const input = {
         tutorId: parseInt(selectedTutorId),
-        dates,
-        startTime,
+        startTimes,
         duration,
         topic: topic || undefined,
         isTrial,

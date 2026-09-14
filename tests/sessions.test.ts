@@ -707,13 +707,14 @@ describe("createMultipleSessions (batch)", () => {
     const d = dayjs().add(3, "day");
     return d.format("YYYY-MM-DD");
   };
+  const startISOAt = (dateStr: string) =>
+    dayjs(`${dateStr}T10:00`).utc().toISOString();
 
   it("creates multiple sessions", async () => {
     const res = await createMultipleSessions({
       groupId: w.groupAId,
       tutorId: w.tutorId,
-      dates: [d2(), d3()],
-      startTime: "10:00",
+      startTimes: [startISOAt(d2()), startISOAt(d3())],
       duration: 60,
     });
     expect(res.ok).toBe(true);
@@ -722,12 +723,11 @@ describe("createMultipleSessions (batch)", () => {
     expect(res.data.skipped).toHaveLength(0);
   });
 
-  it("deduplicates repeated dates", async () => {
+  it("deduplicates repeated start times", async () => {
     const res = await createMultipleSessions({
       groupId: w.groupAId,
       tutorId: w.tutorId,
-      dates: [d2(), d2(), d2()],
-      startTime: "10:00",
+      startTimes: [startISOAt(d2()), startISOAt(d2()), startISOAt(d2())],
       duration: 60,
     });
     expect(res.ok).toBe(true);
@@ -738,8 +738,7 @@ describe("createMultipleSessions (batch)", () => {
     const res = await createMultipleSessions({
       groupId: w.groupAId,
       tutorId: w.tutorId,
-      dates: [],
-      startTime: "10:00",
+      startTimes: [],
       duration: 60,
     });
     expect(res.ok).toBe(false);
@@ -747,14 +746,13 @@ describe("createMultipleSessions (batch)", () => {
   });
 
   it("rejects more than 31 dates", async () => {
-    const dates = Array.from({ length: 32 }, (_, i) =>
-      dayjs().add(3 + i, "day").format("YYYY-MM-DD"),
+    const startTimes = Array.from({ length: 32 }, (_, i) =>
+      startISOAt(dayjs().add(3 + i, "day").format("YYYY-MM-DD")),
     );
     const res = await createMultipleSessions({
       groupId: w.groupAId,
       tutorId: w.tutorId,
-      dates,
-      startTime: "10:00",
+      startTimes,
       duration: 60,
     });
     expect(res.ok).toBe(false);
@@ -765,8 +763,7 @@ describe("createMultipleSessions (batch)", () => {
     const res = await createMultipleSessions({
       groupId: w.groupAId,
       tutorId: w.tutorId,
-      dates: [d2()],
-      startTime: "25:00",
+      startTimes: ["not-a-date"],
       duration: 60,
     });
     expect(res.ok).toBe(false);
@@ -777,8 +774,7 @@ describe("createMultipleSessions (batch)", () => {
     const res = await createMultipleSessions({
       groupId: w.groupAId,
       tutorId: w.tutorId,
-      dates: [d2()],
-      startTime: "10:00",
+      startTimes: [startISOAt(d2())],
       duration: 14,
     });
     expect(res.ok).toBe(false);
@@ -799,8 +795,7 @@ describe("createMultipleSessions (batch)", () => {
     const res = await createMultipleSessions({
       groupId: w.groupAId,
       tutorId: w.tutorId,
-      dates: [d2(), d3()],
-      startTime: "10:00",
+      startTimes: [startISOAt(d2()), startISOAt(d3())],
       duration: 60,
     });
     expect(res.ok).toBe(true);
@@ -816,8 +811,7 @@ describe("createMultipleSessions (batch)", () => {
     const res = await createMultipleSessions({
       groupId: w.groupAId,
       tutorId: w.tutor2Id,
-      dates: [d2()],
-      startTime: "10:00",
+      startTimes: [startISOAt(d2())],
       duration: 60,
     });
     expect(res.ok).toBe(false);

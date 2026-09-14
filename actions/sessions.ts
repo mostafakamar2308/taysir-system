@@ -657,8 +657,7 @@ type CreateMultipleSessionsInput = {
   groupId?: number;
   studentId?: number;
   tutorId: number;
-  dates: string[]; // array of "YYYY-MM-DD"
-  startTime: string; // "HH:mm" (same time for all)
+  startTimes: string[]; // full UTC ISO strings (one per session)
   duration: number;
   topic?: string;
   notes?: string;
@@ -693,29 +692,33 @@ export const createMultipleSessions = withResult(
       }
     }
 
-    if (!input.dates || input.dates.length === 0) {
+    if (!input.startTimes || input.startTimes.length === 0) {
       return fail("يجب اختيار تاريخ واحد على الأقل");
     }
 
-    if (input.dates.length > 31) {
+    if (input.startTimes.length > 31) {
       return fail("لا يمكن إنشاء أكثر من 31 حصة في المرة الواحدة");
     }
 
-    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(input.startTime)) {
+    if (!input.startTimes.every((iso) => dayjs.utc(iso).isValid())) {
       return fail("وقت البدء غير صحيح");
     }
     if (!Number.isFinite(input.duration) || input.duration < 15 || input.duration > 480) {
       return fail("المدة يجب أن تكون بين 15 و 480 دقيقة");
     }
 
-    const uniqueDates = [...new Set(input.dates)];
+    const seenStartTimes = new Set<number>();
+    const uniqueStartTimes = input.startTimes.filter((iso) => {
+      const key = dayjs.utc(iso).valueOf();
+      if (seenStartTimes.has(key)) return false;
+      seenStartTimes.add(key);
+      return true;
+    });
     const result: BatchResult = { created: [], skipped: [] };
 
-    for (const dateStr of uniqueDates) {
-      const startISO = dayjs(`${dateStr}T${input.startTime}`)
-        .utc()
-        .toISOString();
+    for (const startISO of uniqueStartTimes) {
       const start = dayjs.utc(startISO);
+      const dateStr = start.format("YYYY-MM-DD");
 
       if (start.isBefore(dayjs())) {
         result.skipped.push({ date: dateStr, reason: "التاريخ في الماضي" });

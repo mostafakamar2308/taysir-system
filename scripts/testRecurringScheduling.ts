@@ -277,7 +277,7 @@ async function testHappyPath(seedData: Seed) {
   // timezone: created instant must DISPLAY at the picked wall clock ("16:00")
   check(
     "wall clock preserved",
-    dayjs.utc(session.startTime).local().format("HH:mm") === "16:00",
+    dayjs.utc(session.startTime).tz("Africa/Cairo").format("HH:mm") === "16:00",
   );
   check(
     "stored instant == localToUTC(date, 16:00)",
